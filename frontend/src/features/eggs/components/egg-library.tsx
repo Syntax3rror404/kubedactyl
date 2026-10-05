@@ -1,4 +1,4 @@
-import { LibraryIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import { FolderGit2Icon, LibraryIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
 import { Link } from "react-router"
 
 import { Callout } from "@/components/common/callout"
@@ -65,13 +65,14 @@ function RepositorySection({
   const shown = repo.eggs.filter((e) => matches(search, e.name, e.description, e.author, e.path, ...e.tags))
   return (
     <section className="space-y-4">
-      <h2 className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2 className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <a
-          className="font-semibold tracking-tight underline-offset-4 hover:underline"
+          className="inline-flex items-center gap-2 font-semibold tracking-tight underline-offset-4 hover:underline"
           href={repo.url}
           target="_blank"
           rel="noreferrer"
         >
+          <FolderGit2Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           {repositoryName(repo.url)}
         </a>
         <span className="text-sm text-muted-foreground">{plural(repo.eggs.length, "egg")}</span>
