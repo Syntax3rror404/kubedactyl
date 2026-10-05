@@ -7,7 +7,12 @@ import { legalDocs, legalTitles, type LegalDoc } from "@/lib/legal"
 import { usePanelInfo, useLegalTexts } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
-/** Footer on every page: panel version, the imprint and privacy policy when set, and the licenses; children first. */
+const repositoryUrl = "https://github.com/Syntax3rror404/kubedactyl"
+
+/**
+ * Footer on every page: panel version, the source code and its issue tracker, the imprint and privacy policy when
+ * set, and the licenses; children first.
+ */
 export function SiteFooter({ className, children }: { className?: string; children?: ReactNode }) {
   const legal = useLegalTexts()
   const info = usePanelInfo()
@@ -26,6 +31,17 @@ export function SiteFooter({ className, children }: { className?: string; childr
           {info.data.name} v{info.data.version}
         </span>
       )}
+      <a href={repositoryUrl} target="_blank" rel="noreferrer" className="hover:text-foreground hover:underline">
+        GitHub
+      </a>
+      <a
+        href={`${repositoryUrl}/issues/new`}
+        target="_blank"
+        rel="noreferrer"
+        className="hover:text-foreground hover:underline"
+      >
+        Report an issue
+      </a>
       {docs.map((d) => (
         <button key={d} type="button" className="hover:text-foreground hover:underline" onClick={() => setOpen(d)}>
           {legalTitles[d]}

@@ -5,7 +5,7 @@ Deployment (non-root, read-only root filesystem), a Service and optionally an In
 HTTPRoute. The panel installs and updates its own CRDs on start, so the chart contains none.
 
 ```bash
-helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.59 \
+helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.60 \
   -n kubedactyl --create-namespace
 kubectl -n kubedactyl logs deploy/kubedactyl | grep setup   # one-time link for the first administrator
 ```
