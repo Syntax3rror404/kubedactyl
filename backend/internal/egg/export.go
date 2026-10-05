@@ -65,7 +65,6 @@ func exportDocument(name string, spec *v1alpha1.EggSpec, format string, now time
 	ptdl := format == FormatPTDL
 	doc := &mapping{}
 	if ptdl {
-		doc.add("_comment", str("DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO"))
 		doc.add(
 			"meta",
 			(&mapping{}).add("version", str("PTDL_v2")).add("update_url", strOrNull(spec.Source.UpdateURL)).node(),

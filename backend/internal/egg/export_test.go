@@ -153,7 +153,7 @@ func TestExportFormats(t *testing.T) {
 	if ptdl["meta"].(map[string]any)["version"] != "PTDL_v2" || ptdl["startup"] != spec.Startup {
 		t.Errorf("PTDL header/startup: %v %v", ptdl["meta"], ptdl["startup"])
 	}
-	for _, k := range []string{"uuid", "tags", "icon", "startup_commands"} {
+	for _, k := range []string{"_comment", "uuid", "tags", "icon", "startup_commands"} {
 		if _, ok := ptdl[k]; ok {
 			t.Errorf("PTDL_v2 has no %q", k)
 		}
