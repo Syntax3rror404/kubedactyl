@@ -1,0 +1,9 @@
+# Library components are never edited by hand (updated with `make ui-update`)
+src/components/ui/
+src/components/theme-provider.tsx
+src/components/mode-toggle.tsx
+node_modules/
+dist/
+package-lock.json
+# Generated from backend/docs/swagger.json (make docs)
+src/lib/types/api.gen.ts

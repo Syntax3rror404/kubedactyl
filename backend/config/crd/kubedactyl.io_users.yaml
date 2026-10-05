@@ -1,0 +1,127 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: users.kubedactyl.io
+spec:
+  group: kubedactyl.io
+  names:
+    kind: User
+    listKind: UserList
+    plural: users
+    shortNames:
+    - kuser
+    singular: user
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.role
+      name: Role
+      type: string
+    - jsonPath: .status.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .spec.disabled
+      name: Disabled
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: User is a panel user; every user owns a namespace for game servers.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: UserSpec defines a panel user. The object name is the username.
+            properties:
+              disabled:
+                type: boolean
+              displayName:
+                type: string
+              email:
+                type: string
+              mustChangePassword:
+                description: MustChangePassword makes the user replace the password
+                  (set by an administrator) after signing in.
+                type: boolean
+              passwordHash:
+                description: PasswordHash is an Argon2id hash in PHC format; the password
+                  itself is never stored.
+                type: string
+              role:
+                default: user
+                description: UserRole is the permission level of a panel user.
+                enum:
+                - admin
+                - user
+                type: string
+              sessionEpoch:
+                description: SessionEpoch invalidates all sessions of the user when
+                  it is increased.
+                format: int64
+                type: integer
+              tokens:
+                items:
+                  description: APIToken is a personal access token. Only a SHA-256
+                    hash of the token is stored.
+                  properties:
+                    createdAt:
+                      format: date-time
+                      type: string
+                    expiresAt:
+                      format: date-time
+                      type: string
+                    hash:
+                      type: string
+                    id:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - createdAt
+                  - hash
+                  - id
+                  - name
+                  type: object
+                type: array
+            required:
+            - passwordHash
+            - role
+            type: object
+          status:
+            description: UserStatus defines the observed state of a user.
+            properties:
+              lastLoginAt:
+                format: date-time
+                type: string
+              namespace:
+                description: Namespace holds the game servers of the user.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

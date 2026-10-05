@@ -1,0 +1,34 @@
+{{- if .Values.httpRoute.enabled -}}
+{{- if not .Values.httpRoute.parentRefs }}
+{{- fail "httpRoute.parentRefs is required when httpRoute.enabled (the Gateway to attach to)" }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "kubedactyl.fullname" . }}
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.httpRoute.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  parentRefs:
+    {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}
+  rules:
+    - backendRefs:
+        - group: ''
+          kind: Service
+          name: {{ include "kubedactyl.fullname" $ }}
+          port: {{ .Values.service.port }}
+          weight: 1
+      {{- with .Values.httpRoute.matches }}
+      matches:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

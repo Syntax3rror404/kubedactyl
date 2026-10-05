@@ -1,0 +1,265 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: eggs.kubedactyl.io
+spec:
+  group: kubedactyl.io
+  names:
+    kind: Egg
+    listKind: EggList
+    plural: eggs
+    shortNames:
+    - egg
+    singular: egg
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.displayName
+      name: Name
+      type: string
+    - jsonPath: .spec.source.format
+      name: Format
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Egg is a game server template (Pterodactyl egg).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: EggSpec is a normalized Pterodactyl/Pelican egg.
+            properties:
+              author:
+                type: string
+              configFiles:
+                items:
+                  description: ConfigFile describes how a config file is modified
+                    before every server start.
+                  properties:
+                    file:
+                      description: File is the path relative to the server root (/home/container).
+                      type: string
+                    parser:
+                      enum:
+                      - file
+                      - yaml
+                      - yml
+                      - properties
+                      - ini
+                      - json
+                      - xml
+                      type: string
+                    replace:
+                      items:
+                        description: |-
+                          ConfigReplace is a single key replacement inside a config file (one entry of the egg's
+                          config.files "find" map).
+                        properties:
+                          ifValue:
+                            description: |-
+                              IfValue only replaces when the current value equals it; a "regex:" prefix
+                              turns it into a regular expression replacement on the current value.
+                            type: string
+                          match:
+                            description: Match is the key (or line prefix for the
+                              "file" parser) to look for.
+                            type: string
+                          replaceWith:
+                            description: ReplaceWith is the new value; placeholders
+                              like {{server.build.default.port}} are supported.
+                            type: string
+                          valueType:
+                            description: ValueType is the JSON type of the value in
+                              the egg (string, number or boolean).
+                            enum:
+                            - string
+                            - number
+                            - boolean
+                            type: string
+                        required:
+                        - match
+                        - replaceWith
+                        type: object
+                      type: array
+                  required:
+                  - file
+                  - parser
+                  type: object
+                type: array
+              description:
+                type: string
+              displayName:
+                type: string
+              dockerImages:
+                items:
+                  description: DockerImage is one selectable runtime image of an egg
+                    (display name -> image).
+                  properties:
+                    image:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - image
+                  - name
+                  type: object
+                type: array
+              features:
+                items:
+                  type: string
+                type: array
+              fileDenylist:
+                items:
+                  type: string
+                type: array
+              icon:
+                description: Icon is an optional data URI (Pelican eggs).
+                type: string
+              install:
+                description: InstallScript is the egg installation script, executed
+                  once per (re)install.
+                properties:
+                  container:
+                    type: string
+                  entrypoint:
+                    type: string
+                  script:
+                    type: string
+                type: object
+              source:
+                description: EggSource records where an egg was imported from.
+                properties:
+                  autoUpdate:
+                    description: |-
+                      AutoUpdate downloads the update URL every hour and replaces the egg when the file changed
+                      (changes made in the panel are replaced, like "Update from URL" does).
+                    type: boolean
+                  editedAt:
+                    description: EditedAt is set when the egg was changed in the panel
+                      after its import.
+                    format: date-time
+                    type: string
+                  exportedAt:
+                    description: 'ExportedAt is the exported_at of the imported file:
+                      when its panel exported the egg.'
+                    format: date-time
+                    type: string
+                  format:
+                    description: Format of the imported file, e.g. PTDL_v2 or PLCN_v3.
+                    type: string
+                  importedAt:
+                    format: date-time
+                    type: string
+                  importedFrom:
+                    description: ImportedFrom is the URL the egg was fetched from,
+                      if any.
+                    type: string
+                  updateUrl:
+                    type: string
+                  uuid:
+                    description: UUID identifies the egg across panels (Pelican overwrites
+                      an egg with the same UUID on import).
+                    type: string
+                type: object
+              startup:
+                description: Startup is the default startup command (with {{VAR}}
+                  placeholders).
+                type: string
+              startupDone:
+                description: |-
+                  StartupDone lists console output snippets that mark the server as running.
+                  A "regex:" prefix makes an entry a regular expression.
+                items:
+                  type: string
+                type: array
+              stop:
+                description: Stop is the stop command; a leading "^" means a signal
+                  (^C = SIGINT, ^^C = SIGKILL).
+                type: string
+              stripAnsi:
+                type: boolean
+              tags:
+                description: Tags group eggs (Pelican).
+                items:
+                  type: string
+                type: array
+              variables:
+                items:
+                  description: EggVariable is a user configurable environment variable
+                    of an egg.
+                  properties:
+                    defaultValue:
+                      type: string
+                    description:
+                      type: string
+                    envVariable:
+                      type: string
+                    fieldType:
+                      type: string
+                    name:
+                      type: string
+                    rules:
+                      description: Rules are Laravel style validation rules, e.g.
+                        "required|string|max:20".
+                      type: string
+                    userEditable:
+                      type: boolean
+                    userViewable:
+                      type: boolean
+                  required:
+                  - envVariable
+                  - name
+                  type: object
+                type: array
+            required:
+            - displayName
+            - dockerImages
+            - startup
+            type: object
+          status:
+            description: EggStatus is what the automatic update last observed.
+            properties:
+              updateCheckedAt:
+                description: UpdateCheckedAt is the last automatic check of the update
+                  URL.
+                format: date-time
+                type: string
+              updateError:
+                description: UpdateError is the problem of the last automatic check
+                  ("" when it worked).
+                type: string
+              updatedAt:
+                description: UpdatedAt is when the last automatic check found a newer
+                  file and applied it.
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

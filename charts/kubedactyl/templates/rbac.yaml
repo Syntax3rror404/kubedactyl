@@ -1,0 +1,156 @@
+{{- if .Values.rbac.create }}
+{{- $fullname := include "kubedactyl.fullname" . }}
+{{- $sa := include "kubedactyl.serviceAccountName" . }}
+# What the panel may do inside a user namespace. Not bound cluster wide: the panel creates a
+# RoleBinding to it in every user namespace (tenancy.EnsureNamespace). It comes first, so an
+# upgrade that may not create it (the self-upgrade job cannot create new cluster roles) fails
+# before any existing permission changed.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}-tenant
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, persistentvolumeclaims, configmaps]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods/exec, pods/attach]
+    verbs: [get, create]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+# Keep in sync with the permission checks in backend/internal/clusterinfo/identity.go.
+#
+# Cluster wide the panel only reads, plus the few writes that have no namespace (its user
+# namespaces, their volumes, its own CRDs). Everything that runs code (pods, exec, attach)
+# and the other objects of game servers are written only in user namespaces, through the
+# "-tenant" role the panel binds there. The admission policy (admission-policy.yaml) limits
+# the cluster wide writes to the panel's own namespaces and volumes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [kubedactyl.io]
+    resources: [eggs, gameservers, users, panelsettings, invites, eggs/status, gameservers/status, users/status, gameservers/finalizers, users/finalizers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch, create]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    resourceNames: [eggs.kubedactyl.io, gameservers.kubedactyl.io, users.kubedactyl.io, panelsettings.kubedactyl.io, invites.kubedactyl.io]
+    verbs: [update, patch]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch, create, patch, delete]
+  # Read only: the panel caches the objects it created (label app.kubernetes.io/managed-by).
+  - apiGroups: [""]
+    resources: [pods, services, persistentvolumeclaims, configmaps]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, list, patch]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [cilium.io]
+    resources: [ciliumloadbalancerippools]
+    verbs: [get, list]
+  # Grants the tenant role in each user namespace (nothing else can be bound).
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [rolebindings]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles]
+    resourceNames: [{{ $fullname }}-tenant]
+    verbs: [bind]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingadmissionpolicies, validatingadmissionpolicybindings]
+    resourceNames: [{{ $fullname }}-panel]
+    verbs: [get]
+  - apiGroups: [authorization.k8s.io]
+    resources: [selfsubjectaccessreviews]
+    verbs: [create]
+  - apiGroups: [authentication.k8s.io]
+    resources: [selfsubjectreviews]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+---
+# In the release namespace: the session key, and short-lived hardware probe pods (logs only,
+# no exec: the upgrade job's token lives in this namespace).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}-panel
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [kubedactyl-auth]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  # The hardware probe results, kept across panel restarts (clusterinfo/hardware.go).
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [kubedactyl-node-hardware]
+    verbs: [get, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}-panel
+  labels:
+    {{- include "kubedactyl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}-panel
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

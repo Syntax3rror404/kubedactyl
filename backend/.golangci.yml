@@ -1,0 +1,50 @@
+# Lint and format rules for the backend: make lint (check) and make fmt (rewrite). Lines are wrapped
+# by hand (lll): automatic wrapping puts every argument of a call on its own line.
+version: "2"
+linters:
+  default: standard
+  enable:
+    - funlen
+    - gocognit
+    - lll
+  settings:
+    funlen:
+      lines: 60
+      statements: 40
+    gocognit:
+      min-complexity: 20
+    lll:
+      line-length: 120
+      tab-width: 4
+    staticcheck:
+      # The defaults, plus keeping explicit selectors of embedded fields (cfg.TLSClientConfig.NextProtos).
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-QF1008"]
+  exclusions:
+    generated: strict
+    # Unchecked Close, Flush, print … calls.
+    presets:
+      - std-error-handling
+    paths:
+      - docs
+    rules:
+      # Ported config file parsers keep their original structure.
+      - path: internal/configfile/
+        linters: [gocognit]
+      # Table-driven tests are long by nature.
+      - path: _test\.go
+        linters: [funlen]
+      # Struct tags cannot be wrapped.
+      - source: '`json:"'
+        linters: [lll]
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      # Imports in three groups: standard library, modules, app/...
+      local-prefixes:
+        - app

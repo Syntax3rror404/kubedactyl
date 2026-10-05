@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "ignorePatterns": [
+    "src/components/ui/**",
+    "src/components/theme-provider.tsx",
+    "src/components/mode-toggle.tsx",
+    "src/hooks/use-mobile.ts",
+    "src/lib/utils.ts"
+  ],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "no-unused-vars": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@/lib/api",
+            "importNames": ["api"],
+            "message": "Components use the data hooks of @/lib/queries; only lib/queries calls the API."
+          },
+          {
+            "name": "@tanstack/react-query",
+            "importNames": ["useQuery", "useMutation", "useQueryClient"],
+            "message": "Queries, mutations and cache updates live in @/lib/queries."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/queries/**", "src/main.tsx"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+Kubedactyl is installed in namespace {{ .Release.Namespace }}.
+
+{{- if .Values.admin.password }}
+Sign in as "admin" with the password from the values.
+{{- else if include "kubedactyl.hasSecret" . }}
+Sign in with the administrator from the secret {{ include "kubedactyl.secretName" . }},
+or open /setup with its setup token.
+{{- else }}
+Create the first administrator with the one-time setup link from the log:
+
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "kubedactyl.fullname" . }} | grep setup
+{{- end }}
+{{ if .Values.ingress.enabled }}
+Panel: {{ range .Values.ingress.hosts }}http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }} {{ end }}
+{{- else if .Values.httpRoute.enabled }}
+Panel: {{ range .Values.httpRoute.hostnames }}https://{{ . }} {{ end }}
+{{- else }}
+Panel (port-forward):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kubedactyl.fullname" . }} 8080:{{ .Values.service.port }}
+  http://localhost:8080
+{{- end }}
+
+The panel installs and updates its CRDs itself. "helm uninstall" keeps game servers,
+user namespaces and volumes. Remove them with scripts/uninstall.sh
+(KUBEDACTYL_NAMESPACE={{ .Release.Namespace }}).

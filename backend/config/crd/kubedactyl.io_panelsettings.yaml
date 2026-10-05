@@ -1,0 +1,171 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: panelsettings.kubedactyl.io
+spec:
+  group: kubedactyl.io
+  names:
+    kind: PanelSettings
+    listKind: PanelSettingsList
+    plural: panelsettings
+    shortNames:
+    - kdsettings
+    singular: panelsettings
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.externalDomain
+      name: Domain
+      type: string
+    - jsonPath: .spec.defaultStorageClass
+      name: Storage
+      type: string
+    - jsonPath: .spec.defaultLoadBalancerPool
+      name: Pool
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PanelSettings holds the panel wide settings (one object named
+          "panel").
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PanelSettingsSpec holds the settings an administrator manages
+              in the panel.
+            properties:
+              allowPrivateNetworks:
+                description: |-
+                  AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+                  nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+                  policy that only allows the internet, the cluster DNS and the user's own servers.
+                type: boolean
+              apiTokenMaxDays:
+                description: |-
+                  APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+                  tokens created before, counted from their creation.
+                format: int32
+                maximum: 3650
+                minimum: 1
+                type: integer
+              brandLogo:
+                description: |-
+                  BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
+                  128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+                maxLength: 180000
+                type: string
+              brandName:
+                description: |-
+                  BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+                  sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+                maxLength: 40
+                type: string
+              brandTagline:
+                maxLength: 80
+                type: string
+              defaultLoadBalancerPool:
+                description: DefaultLoadBalancerPool is preselected for new servers
+                  (one of LoadBalancerPools).
+                type: string
+              defaultStorageClass:
+                description: DefaultStorageClass is preselected for new servers (one
+                  of StorageClasses).
+                type: string
+              disableApiDocs:
+                description: |-
+                  DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+                  keeps working.
+                type: boolean
+              eggLibraries:
+                description: |-
+                  EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+                  library on the eggs page lists. The panel reads them when the library is opened and keeps
+                  nothing of them in the cluster.
+                items:
+                  type: string
+                maxItems: 20
+                type: array
+              externalDomain:
+                description: |-
+                  ExternalDomain is shown to users as the server address (domain:port) instead of the
+                  load balancer IP. Empty shows the IP.
+                type: string
+              favicon:
+                maxLength: 180000
+                type: string
+              kubeApiQps:
+                description: |-
+                  KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
+                  (default 50, bursts of twice that). It applies at once.
+                format: int32
+                maximum: 1000
+                minimum: 5
+                type: integer
+              kubeApiUserQps:
+                description: |-
+                  KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
+                  bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
+                  one user cannot use up KubeAPIQPS for everybody. It applies at once.
+                format: int32
+                maximum: 200
+                minimum: 1
+                type: integer
+              legalNotice:
+                description: |-
+                  LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+                  page, also before sign-in.
+                maxLength: 20000
+                type: string
+              loadBalancerPools:
+                description: LoadBalancerPools are the Cilium LB IPAM pools that can
+                  be selected for servers.
+                items:
+                  type: string
+                type: array
+              privacyPolicy:
+                maxLength: 20000
+                type: string
+              serverNotice:
+                description: ServerNotice is shown to users every time they open one
+                  of their servers (plain text).
+                maxLength: 2000
+                type: string
+              sessionHours:
+                description: |-
+                  SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+                  shortening it also ends older sessions.
+                format: int32
+                maximum: 720
+                minimum: 1
+                type: integer
+              storageClasses:
+                description: StorageClasses can be selected for server volumes.
+                items:
+                  type: string
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}

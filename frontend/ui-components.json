@@ -1,0 +1,41 @@
+{
+  "$comment": "Library components in src/components (ui/ and the two docs files) are never edited by hand. Update them with `make ui-update`; app specific behavior lives in wrappers (see README, section Library components).",
+  "shadcn": [
+    "alert-dialog",
+    "avatar",
+    "badge",
+    "breadcrumb",
+    "button",
+    "card",
+    "chart",
+    "checkbox",
+    "dialog",
+    "dropdown-menu",
+    "empty",
+    "field",
+    "input",
+    "input-group",
+    "kbd",
+    "label",
+    "select",
+    "separator",
+    "sheet",
+    "sidebar",
+    "skeleton",
+    "slider",
+    "sonner",
+    "spinner",
+    "switch",
+    "table",
+    "tabs",
+    "textarea",
+    "tooltip"
+  ],
+  "magicui": ["light-rays", "magic-card", "particles"],
+  "docs": {
+    "https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/content/docs/dark-mode/vite.mdx": [
+      "components/theme-provider.tsx",
+      "components/mode-toggle.tsx"
+    ]
+  }
+}

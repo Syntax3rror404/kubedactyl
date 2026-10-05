@@ -1,0 +1,15 @@
+# Dependencies and build output
+node_modules/
+bin/
+frontend/dist/
+backend/web/dist/
+*.log
+.DS_Store
+
+# Local, not published
+local.mk
+claude.md
+CLAUDE.md
+agents.md
+SETUP.md
+frontend/e2e/.tmp-*

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": ["scripts/*.mjs", "e2e/*.mjs"],
+  "ignore": ["src/components/ui/**", "src/lib/types/api.gen.ts"]
+}

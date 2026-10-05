@@ -1,0 +1,106 @@
+# Kubedactyl panel. The release namespace holds eggs, users and the panel settings; every
+# user gets a namespace "<release namespace>-user-<name>" for its game servers.
+
+image:
+  repository: ghcr.io/syntax3rror404/kubedactyl
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# First administrator. Without a password the panel logs a one-time setup link
+# ("…/setup?token=…"); open it to choose the administrator.
+admin:
+  # Creates the user "admin" with this password (only while no administrator exists).
+  password: ""
+  # Fixed token for the setup page instead of a generated one.
+  setupToken: ""
+  # Existing secret with the keys "admin-password" and/or "setup-token" (overrides the values above).
+  existingSecret: ""
+
+panel:
+  # Enabled in the panel settings on the first start; change later on the Settings page.
+  storageClass: longhorn
+  # Cilium LB IPAM pool (name or value of its lb.cilium.io/pool selector label).
+  loadBalancerPool: general
+  # Image of the file manager pod (must be reachable by the nodes).
+  helperImage: alpine:3.24.2
+  timezone: UTC
+  dockerInterface: 127.0.0.1
+  # IPs/CIDRs of reverse proxies whose X-Forwarded-For is trusted, so login throttling sees the
+  # real client IP. The default covers the usual pod networks, where an in-cluster gateway or
+  # ingress controller runs. Empty trusts no proxy: behind a proxy, all clients then share one
+  # IP and one login limit.
+  trustedProxies: "10.0.0.0/8"
+  verbose: false
+
+extraEnv: []
+
+serviceAccount:
+  create: true
+  # Defaults to the release full name.
+  name: ""
+  annotations: {}
+
+rbac:
+  # ClusterRole/Binding with the permissions the panel needs (CRDs, user namespaces, pods,
+  # services, volumes, network policies, nodes, metrics, storage classes, Cilium pools).
+  create: true
+
+# Self-upgrades: the panel looks for newer chart versions in this OCI registry every 10 minutes
+# (anonymously) and administrators can upgrade on the Settings page. A Job runs helm upgrade with
+# the values of this release and only the new chart version (like --reset-then-reuse-values).
+# The job has its own service account that may change the release's resources, including its
+# ClusterRole ("escalate", limited to the release's role names).
+selfUpgrade:
+  enabled: true
+  chart: oci://ghcr.io/syntax3rror404/charts/kubedactyl
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Classic Ingress. The console uses websockets (supported by all common controllers).
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kubedactyl.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Gateway API HTTPRoute (e.g. Envoy Gateway).
+httpRoute:
+  enabled: false
+  annotations: {}
+  hostnames:
+    - kubedactyl.example.com
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-gateway-external
+      namespace: envoy-gateway-system
+  matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
