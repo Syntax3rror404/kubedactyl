@@ -241,6 +241,9 @@ func setupServices(
 		return nil, fmt.Errorf("reading panel settings: %w", err)
 	}
 	limiter.SetLimits(int(set.KubeAPIQPS), int(set.KubeAPIUserQPS))
+	if err := store.Watch(ctx, mgr.GetCache()); err != nil {
+		return nil, fmt.Errorf("watching panel settings: %w", err)
+	}
 	return &services{files: filesService, ops: ops, schedules: schedules, settings: store, eggs: eggs}, nil
 }
 

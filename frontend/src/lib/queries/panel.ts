@@ -21,13 +21,16 @@ export const useLivePanelInfo = () =>
     gcTime: 0,
   })
 
-/** Imprint and privacy policy; public, so also used on the sign-in page. */
+/** Imprint and privacy policy; public, so also used on the sign-in page. Saving the settings refreshes them. */
 export const useLegalTexts = () =>
-  useQuery({ queryKey: keys.legal, queryFn: api.panel.getLegalTexts, staleTime: 5 * 60_000 })
+  useQuery({ queryKey: keys.legal, queryFn: api.panel.getLegalTexts, staleTime: Infinity })
 
-/** Name, tagline, logo and favicon of the panel; public, so also used on the sign-in page. */
+/**
+ * Name, tagline, logo and favicon of the panel; public, so also used on the sign-in page. Saving the settings
+ * refreshes them; a reload revalidates with the ETag (304 while unchanged).
+ */
 export const useBranding = () =>
-  useQuery({ queryKey: keys.branding, queryFn: api.panel.getBranding, staleTime: 5 * 60_000 })
+  useQuery({ queryKey: keys.branding, queryFn: api.panel.getBranding, staleTime: Infinity })
 
 /** License texts (public); they change only with the panel version. */
 export const useLicenses = () =>

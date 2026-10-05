@@ -16,6 +16,8 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
+	toolscache "k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -32,13 +34,9 @@ type Store struct {
 	// Limiter gets the Kubernetes API limits of saved settings (nil: not applied).
 	Limiter *kube.RateLimiter
 
-	mu       sync.Mutex
-	cached   v1alpha1.PanelSettingsSpec
-	cachedAt time.Time
+	mu     sync.Mutex
+	cached *v1alpha1.PanelSettingsSpec // nil: Current reads the settings again
 }
-
-// CacheTTL is how long Current keeps the settings; a change made outside the panel shows after that.
-const CacheTTL = 10 * time.Second
 
 // Get returns the current settings with the default lifetimes filled in (only those when the
 // object does not exist yet). It reads directly from the API server, so changes are visible at once.
@@ -55,20 +53,48 @@ func (s *Store) Get(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 	return obj.Spec, nil
 }
 
-// Current returns the settings like Get, but reads the API server at most every CacheTTL: for
-// values needed on every request (external domain, lifetimes). Saving through the store applies
-// at once. The result is shared, do not change it.
+// Current returns the settings like Get, but keeps them in memory until they change: for values
+// needed on every request (external domain, lifetimes, branding). A save through the store and a
+// change of the object reported by the informer (Watch) make the next call read them again. The
+// result is shared, do not change it.
 func (s *Store) Current(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if time.Since(s.cachedAt) < CacheTTL {
-		return s.cached, nil
+	if s.cached != nil {
+		return *s.cached, nil
 	}
 	spec, err := s.Get(ctx)
 	if err == nil {
-		s.cached, s.cachedAt = spec, time.Now()
+		s.cached = &spec
 	}
 	return spec, err
+}
+
+// Forget drops the kept settings; the next Current reads them again.
+func (s *Store) Forget() {
+	s.mu.Lock()
+	s.cached = nil
+	s.mu.Unlock()
+}
+
+// Watch makes a change of the settings object made outside the panel (kubectl) reach Current: the
+// informer of the shared cache reports it, no polling.
+func (s *Store) Watch(ctx context.Context, c cache.Informers) error {
+	inf, err := c.GetInformer(ctx, &v1alpha1.PanelSettings{})
+	if err != nil {
+		return err
+	}
+	forget := func(obj any) {
+		if o, ok := obj.(client.Object); !ok || o.GetNamespace() == s.Namespace {
+			s.Forget()
+		}
+	}
+	_, err = inf.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc:    forget,
+		UpdateFunc: func(_, obj any) { forget(obj) },
+		DeleteFunc: forget,
+	})
+	return err
 }
 
 // Update validates the settings against the cluster and stores them.
@@ -86,9 +112,7 @@ func (s *Store) Update(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (v1
 	if err != nil {
 		return spec, err
 	}
-	s.mu.Lock()
-	s.cachedAt = time.Time{} // Current reads the saved settings next
-	s.mu.Unlock()
+	s.Forget() // Current reads the saved settings next
 	if s.Limiter != nil {
 		s.Limiter.SetLimits(int(cmp.Or(spec.KubeAPIQPS, DefaultKubeAPIQPS)),
 			int(cmp.Or(spec.KubeAPIUserQPS, DefaultKubeAPIUserQPS)))

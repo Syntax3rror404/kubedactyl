@@ -352,7 +352,7 @@ const docTemplate = `{
         },
         "/branding": {
             "get": {
-                "description": "Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).",
+                "description": "Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).\nSends an ETag: with If-None-Match it answers 304 while nothing changed.",
                 "produces": [
                     "application/json"
                 ],
@@ -1131,7 +1131,7 @@ const docTemplate = `{
         },
         "/legal": {
             "get": {
-                "description": "Public (also shown on the sign-in page). Markdown; empty when not configured.",
+                "description": "Public (also shown on the sign-in page). Markdown; empty when not configured.\nSends an ETag: with If-None-Match it answers 304 while nothing changed.",
                 "produces": [
                     "application/json"
                 ],

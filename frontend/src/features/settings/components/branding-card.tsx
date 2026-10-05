@@ -71,7 +71,7 @@ export function BrandingCard({
           <ImageField
             id="favicon"
             label="Favicon"
-            hint="The icon of the browser tab (ICO, PNG or SVG). Empty: no icon."
+            hint="The icon of the browser tab (ICO, PNG or SVG). Empty: the built-in icon."
             value={values.favicon}
             onChange={(favicon) => onChange({ favicon })}
             error={errors.favicon}

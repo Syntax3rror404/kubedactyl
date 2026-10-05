@@ -109,7 +109,7 @@ Requirements: Kubernetes 1.30 or newer, [Cilium](https://cilium.io) with LB IPAM
 `CiliumLoadBalancerIPPool`, a StorageClass for the server volumes and, for CPU and memory graphs, metrics-server.
 
 ```bash
-helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.57 \
+helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.58 \
   -n kubedactyl --create-namespace \
   --set panel.storageClass=<storage-class> --set panel.loadBalancerPool=<pool>
 kubectl -n kubedactyl logs deploy/kubedactyl | grep setup   # one-time link for the first administrator

@@ -900,6 +900,35 @@ func TestBrandingIsPublic(t *testing.T) {
 	}
 }
 
+// Logo and favicon are sent again only after they changed: the browser revalidates with the ETag.
+func TestBrandingRevalidates(t *testing.T) {
+	h := newHarness(t)
+	admin := h.login("admin")
+	get := func(etag string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/api/branding", nil)
+		if etag != "" {
+			req.Header.Set("If-None-Match", etag)
+		}
+		w := httptest.NewRecorder()
+		h.router.ServeHTTP(w, req)
+		return w
+	}
+	first := get("")
+	etag := first.Header().Get("ETag")
+	if first.Code != 200 || etag == "" || first.Header().Get("Cache-Control") != "no-cache" {
+		t.Fatalf("first answer: %d etag %q cache %q", first.Code, etag, first.Header().Get("Cache-Control"))
+	}
+	if w := get(etag); w.Code != http.StatusNotModified || w.Body.Len() != 0 {
+		t.Errorf("unchanged branding: %d, %d bytes", w.Code, w.Body.Len())
+	}
+	code, body := h.do("PUT", "/api/settings", admin,
+		map[string]any{"storageClasses": []string{"longhorn"}, "brandName": "Acme Games"})
+	expect(t, "branding", code, 200, body)
+	if w := get(etag); w.Code != 200 || !strings.Contains(w.Body.String(), "Acme Games") {
+		t.Errorf("changed branding: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestSchedulesAPI(t *testing.T) {
 	h := newHarness(t)
 	alice := h.login("alice")

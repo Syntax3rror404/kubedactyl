@@ -198,7 +198,7 @@ tests enforce the ones marked (enforced).
   endpoint. Everything whose current state matters (pods, volumes, settings, just created objects, the admin
   count) is read with the uncached `Reader` (`mgr.GetAPIReader()`); decisions create/update use it too.
   Settings needed on every request (external domain, lifetimes, API docs switch) come from `settings.Store.Current`
-  (uncached read at most every 10 s, cleared by every save through the store).
+  (kept in memory; a save through the store or a change the informer reports drops them, then one uncached read).
 
   ```go
   // servers_power.go

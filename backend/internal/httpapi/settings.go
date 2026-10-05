@@ -2,8 +2,12 @@ package httpapi
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -149,6 +153,7 @@ type LegalTexts struct {
 //
 //	@Summary		Legal notice and privacy policy
 //	@Description	Public (also shown on the sign-in page). Markdown; empty when not configured.
+//	@Description	Sends an ETag: with If-None-Match it answers 304 while nothing changed.
 //	@Tags			Settings
 //	@Produce		json
 //	@Success		200	{object}	LegalTexts
@@ -159,11 +164,11 @@ func (a *API) getLegalTexts(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
+	a.revalidatedJSON(c, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
 }
 
 // Branding is how the panel presents itself: name and tagline (defaults: Kubedactyl, "Game
-// servers on Kubernetes") and the images as data URLs (empty: the built-in logo, no favicon).
+// servers on Kubernetes") and the images as data URLs (empty: the built-in logo and icon).
 type Branding struct {
 	Name    string `json:"name"              example:"Kubedactyl"`
 	Tagline string `json:"tagline"           example:"Game servers on Kubernetes"`
@@ -175,6 +180,7 @@ type Branding struct {
 //
 //	@Summary		Name, tagline, logo and favicon of the panel
 //	@Description	Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).
+//	@Description	Sends an ETag: with If-None-Match it answers 304 while nothing changed.
 //	@Tags			Settings
 //	@Produce		json
 //	@Success		200	{object}	Branding
@@ -185,10 +191,29 @@ func (a *API) getBranding(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, Branding{
+	a.revalidatedJSON(c, Branding{
 		Name:    cmp.Or(spec.BrandName, "Kubedactyl"),
 		Tagline: cmp.Or(spec.BrandTagline, "Game servers on Kubernetes"),
 		Logo:    spec.BrandLogo,
 		Favicon: spec.Favicon,
 	})
+}
+
+// revalidatedJSON answers public texts and images with a weak ETag: the browser keeps the answer and asks with
+// If-None-Match, so logo and favicon (up to 128 KiB each) are sent again only after they changed (304 else).
+func (a *API) revalidatedJSON(c *gin.Context, v any) {
+	body, err := json.Marshal(v)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	sum := sha256.Sum256(body)
+	etag := `W/"` + hex.EncodeToString(sum[:16]) + `"`
+	c.Header("Cache-Control", "no-cache")
+	c.Header("ETag", etag)
+	if strings.Contains(c.GetHeader("If-None-Match"), etag) {
+		c.Status(http.StatusNotModified)
+		return
+	}
+	c.Data(http.StatusOK, "application/json; charset=utf-8", body)
 }

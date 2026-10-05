@@ -14,7 +14,7 @@ Measures for exposing the panel to the internet:
   64 MiB are replaced at the next sign-in), so a burst of logins cannot exhaust the panel's memory. The last
   active administrator cannot be demoted, deactivated or deleted, also not by parallel requests.
 - **Public routes** (`/branding`, `/legal`, `/setup`) do not call the Kubernetes API once an administrator exists
-  (settings from the panel's cache, at most one read per 10 s), so anonymous requests cannot use up the panel's
+  (the settings are kept in memory and read again only after they changed), so anonymous requests cannot use up the panel's
   Kubernetes API limit. Every console message counts against the user's request limit like an HTTP request.
   Values every viewer polls are read once and shared: server CPU/memory (10 s), disk usage (30 s), cluster health
   (30 s), the panel's permission checks (10 min) and the node list with its metrics (10 s). More viewers do not
@@ -37,6 +37,8 @@ Measures for exposing the panel to the internet:
   'none'`/`X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS over HTTPS.
   The Swagger UI has no CSP (inline scripts), all API calls still need a token. API answers carry
   `Cache-Control: no-store` (tokens, settings, file contents).
+- **Branding and legal texts** carry an ETag: a page load gets 304 while they are unchanged, so logo and favicon
+  (up to 128 KiB each) are not sent again.
 - **Web UI files:** hashed files under `assets/` are cached for a year (`immutable`), `index.html` and the other
   files are revalidated (`no-cache` + ETag: 304 while unchanged); text files are sent gzip compressed (compressed
   once at start).

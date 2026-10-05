@@ -1,11 +1,20 @@
 package settings
 
 import (
+	"context"
 	"slices"
+	"sync/atomic"
 	"testing"
 
+	storagev1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+
+	"app/api/v1alpha1"
+	"app/internal/testutil"
 )
 
 // Shaped like the pools of the homelab cluster (Cilium 1.18, cilium.io/v2).
@@ -134,5 +143,77 @@ func TestNormalizeEggLibraries(t *testing.T) {
 		if _, err := normalizeEggLibraries([]string{bad}); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
+	}
+}
+
+// countingReader counts the reads that would reach the API server.
+type countingReader struct {
+	client.Reader
+	gets atomic.Int32
+}
+
+func (r *countingReader) Get(
+	ctx context.Context, key client.ObjectKey, obj client.Object, o ...client.GetOption,
+) error {
+	r.gets.Add(1)
+	return r.Reader.Get(ctx, key, obj, o...)
+}
+
+func TestCurrentKeepsSettingsUntilTheyChange(t *testing.T) {
+	ctx := t.Context()
+	obj := &v1alpha1.PanelSettings{
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.SettingsName, Namespace: testutil.Namespace},
+		Spec:       v1alpha1.PanelSettingsSpec{BrandName: "Acme", StorageClasses: []string{"longhorn"}},
+	}
+	longhorn := &storagev1.StorageClass{ObjectMeta: metav1.ObjectMeta{Name: "longhorn"}}
+	c := testutil.Builder(t).WithObjects(obj, longhorn).Build()
+	r := &countingReader{Reader: c}
+	s := &Store{Client: c, Reader: r, Namespace: testutil.Namespace}
+	informers := &informertest.FakeInformers{Scheme: c.Scheme()}
+	if err := s.Watch(ctx, informers); err != nil {
+		t.Fatal(err)
+	}
+	brand := func() string {
+		spec, err := s.Current(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return spec.BrandName
+	}
+	for range 5 {
+		brand()
+	}
+	if n := r.gets.Load(); n != 1 {
+		t.Fatalf("5 calls read the API server %d times, want 1", n)
+	}
+
+	// Changed with kubectl: the informer reports it, the next call reads once.
+	changed := obj.DeepCopy()
+	changed.Spec.BrandName = "Changed"
+	if err := c.Update(ctx, changed); err != nil {
+		t.Fatal(err)
+	}
+	if got := brand(); got != "Acme" {
+		t.Fatalf("kept settings: %q", got)
+	}
+	inf, _ := informers.FakeInformerFor(ctx, &v1alpha1.PanelSettings{})
+	other := changed.DeepCopy()
+	other.Namespace = "another-installation"
+	inf.Update(other, other)
+	if got := brand(); got != "Acme" {
+		t.Errorf("settings of another installation dropped the kept ones: %q", got)
+	}
+	inf.Update(obj, changed)
+	if got := brand(); got != "Changed" || r.gets.Load() != 2 {
+		t.Errorf("after the informer event: %q, %d reads", got, r.gets.Load())
+	}
+
+	// Saved through the store: applies at once.
+	saved := v1alpha1.PanelSettingsSpec{BrandName: "Saved", StorageClasses: []string{"longhorn"}}
+	if _, err := s.Update(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	if got := brand(); got != "Saved" {
+		t.Errorf("after a save: %q", got)
 	}
 }
