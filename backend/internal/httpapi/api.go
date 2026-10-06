@@ -96,6 +96,10 @@ type ErrorResponse struct {
 // Register adds all routes to the router group (mounted at /api).
 func (a *API) Register(r *gin.RouterGroup) {
 	a.stats = newStatsCache()
+	// Files changed by a background job (backup, restore, download, also scheduled ones) are measured again.
+	if a.Files != nil {
+		a.Files.Changed = a.stats.disk.Forget
+	}
 
 	// Public
 	r.POST("/auth/login", a.sameOrigin, a.login)
@@ -155,13 +159,13 @@ func (a *API) registerServers(u *gin.RouterGroup) {
 	s.GET("/jobs", a.listJobs)
 	s.POST("/backups", a.createBackup)
 	s.POST("/backups/:backup/restore", a.restoreBackup)
-	b := s.Group("/backups", a.requireFilesPod)
+	b := s.Group("/backups", a.requireFilesPod, a.remeasureDisk)
 	b.GET("", a.listBackups)
 	b.DELETE("/:backup", a.deleteBackup)
 
 	s.GET("/files/session", a.getFilesSession)
 	s.POST("/files/session", a.openFilesSession)
-	f := s.Group("/files", a.requireFilesPod)
+	f := s.Group("/files", a.requireFilesPod, a.remeasureDisk)
 	f.GET("/list", a.listFiles)
 	f.GET("/contents", a.readFile)
 	f.GET("/download", a.downloadFile)

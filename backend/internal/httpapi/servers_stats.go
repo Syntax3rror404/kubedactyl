@@ -31,16 +31,16 @@ type ServerStats struct {
 }
 
 // statsCache keeps live values shared by every viewer of a server: CPU and memory for 10 seconds (metrics-server
-// measures every 15 seconds), the disk usage (a du in a pod) for 30 seconds.
+// measures every 15 seconds), the disk usage (a du in a pod) for 30 seconds or until the panel changed the files.
 type statsCache struct {
 	usage *kube.TTLCache[string, podUsage]
-	disk  *kube.TTLCache[string, int64]
+	disk  *kube.TTLCache[files.Ref, int64]
 }
 
 func newStatsCache() *statsCache {
 	return &statsCache{
 		usage: kube.NewTTLCache[string, podUsage](10 * time.Second),
-		disk:  kube.NewTTLCache[string, int64](30 * time.Second),
+		disk:  kube.NewTTLCache[files.Ref, int64](30 * time.Second),
 	}
 }
 
@@ -49,12 +49,20 @@ type podUsage struct {
 	cpuMillis, memoryBytes *int64
 }
 
+// remeasureDisk makes the next stats request measure the disk usage again after a file operation that writes.
+func (a *API) remeasureDisk(c *gin.Context) {
+	c.Next()
+	if gs, ok := c.Get(serverKey); ok && c.Request.Method != http.MethodGet {
+		a.stats.disk.Forget(files.RefOf(gs.(*v1alpha1.GameServer)))
+	}
+}
+
 var errNoPodForDisk = errors.New("no pod mounts the volume")
 
 // diskUsage measures the server files in the file container or, while the server runs,
 // in the game container. Without either pod the last value stored in the status is used.
 func (a *API) diskUsage(ctx context.Context, gs *v1alpha1.GameServer) *int64 {
-	b, err := a.stats.disk.Get(gs.Namespace+"/"+gs.Name, func() (int64, error) {
+	b, err := a.stats.disk.Get(files.RefOf(gs), func() (int64, error) {
 		switch {
 		case a.Files.PodState(ctx, files.RefOf(gs)).Ready:
 			return gameserver.DiskUsage(ctx, a.Kube, gs.Namespace, gameserver.FilesPodName(gs.Name),

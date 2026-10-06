@@ -68,7 +68,7 @@ func (a *API) getRequestRates(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/settings [get]
 func (a *API) getSettings(c *gin.Context) {
-	spec, err := a.Settings.Get(c)
+	spec, err := a.Settings.Current(c)
 	if err != nil {
 		a.fail(c, err)
 		return

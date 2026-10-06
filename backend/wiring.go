@@ -145,6 +145,9 @@ func newPanel(
 	if err != nil {
 		return nil, err
 	}
+	clusterService := newClusterService(mgr, kc, restCfg, svc.settings, upgradeCfg.Enabled(), cfg, log)
+	// The health checks the enabled pools and storage classes: a settings change shows at once.
+	svc.settings.Changed = clusterService.ForgetHealth
 
 	api := &httpapi.API{
 		Client:      mgr.GetClient(),
@@ -166,7 +169,7 @@ func newPanel(
 		Opts:           cfg.opts,
 		Log:            log.With("component", "api"),
 		Cluster:        clusterSummary(kc, restCfg, cfg),
-		ClusterService: newClusterService(mgr, kc, restCfg, svc.settings, upgradeCfg.Enabled(), cfg, log),
+		ClusterService: clusterService,
 		Trigger:        rec.Trigger,
 		Ops:            svc.ops,
 		Schedules:      svc.schedules,

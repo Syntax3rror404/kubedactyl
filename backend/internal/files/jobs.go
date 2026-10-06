@@ -136,6 +136,9 @@ func (s *Service) run(ctx context.Context, ref Ref, j *Job, fn func(ctx context.
 			err = fmt.Errorf("job panicked: %v", r)
 		}
 		s.finish(j, err)
+		if s.Changed != nil {
+			s.Changed(ref) // also a failed job may have changed files
+		}
 	}()
 	if err = s.EnsurePod(ctx, ref); err != nil {
 		return err

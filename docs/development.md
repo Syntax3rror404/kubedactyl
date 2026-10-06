@@ -105,6 +105,7 @@ hooks and helpers only it uses; shared pieces live in `components/` and `lib/`.
 backend/
   main.go · wiring.go     start-up: flags, logging, prepare the cluster · build controllers, services and API, HTTP server
   logging.go              quiet slog handler for client-go noise
+  banner.go               start-up logo (colored on a terminal only)
   api/v1alpha1/           CRD types: Egg, GameServer, User, PanelSettings (kubebuilder markers)
   config/crd/             generated CRD manifests (make generate), embedded and applied on start
   docs/                   generated Swagger (make docs)

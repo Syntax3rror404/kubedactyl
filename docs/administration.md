@@ -127,12 +127,12 @@ Kubernetes does not know the CPU model or the machine. The panel reads it with a
 `kubedactyl-node-hardware`; *Re-read hardware* probes again (`POST /api/cluster/nodes/probe`).
 Nodes that are not ready are skipped.
 
-**Health checks** (`GET /api/cluster/health`, cached 30 s) are shown in the sidebar cluster card
-above the user menu (green / amber / red; problems are always listed with their explanation, hovering
-the card also lists the passing checks in green): Kubedactyl CRDs served, all permissions
-granted, nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools present
-with free addresses, the enabled storage classes present, and (in the cluster) the admission policy that
-limits the panel's permissions ("Permission guard").
+**Health checks** (`GET /api/cluster/health`, cached 30 s, checked again at once after a settings change) are
+shown in the sidebar cluster card above the user menu (green / amber / red; problems are always listed with
+their explanation, hovering the card also lists the passing checks in green): Kubedactyl CRDs served, all
+permissions granted, nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools
+present with free addresses, the enabled storage classes present, and (in the cluster) the admission policy
+that limits the panel's permissions ("Permission guard").
 
 The *Access* section shows how the panel connects: kubeconfig file, context, cluster, user entry and
 all context names (or the in-cluster service account and its token expiry), the authentication

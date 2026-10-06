@@ -65,15 +65,15 @@ export const useStorageClasses = () =>
 export const usePools = (enabled = true) => useQuery({ queryKey: keys.pools, queryFn: api.settings.listPools, enabled })
 
 /**
- * Settings change what the cluster card, servers (address), the legal pages, the branding and the egg library
- * (repositories) show.
+ * Settings change what the cluster card and its health checks (pools, storage classes), servers (address), the legal
+ * pages, the branding and the egg library (repositories) show.
  */
 export const useUpdateSettings = (cb?: MutationCallbacks<PanelSettings, PanelSettings>) =>
   useApiMutation(
     api.settings.update,
     (qc, saved) => {
       qc.setQueryData(keys.settings, saved)
-      refresh(qc, keys.cluster, keys.servers, keys.legal, keys.branding, keys.library)
+      refresh(qc, keys.cluster, keys.clusterHealth, keys.servers, keys.legal, keys.branding, keys.library)
     },
     cb,
   )

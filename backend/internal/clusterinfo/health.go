@@ -53,6 +53,11 @@ func (s *Service) Health(ctx context.Context) *Health {
 	return h
 }
 
+// ForgetHealth makes the next Health check again, after a change the checks depend on (the settings).
+func (s *Service) ForgetHealth() {
+	s.caches().healthCache.Forget(struct{}{})
+}
+
 func (s *Service) gatherHealth(ctx context.Context) healthInputs {
 	var in healthInputs
 	disc := s.Kube.Clientset.Discovery()
@@ -91,7 +96,7 @@ func (s *Service) gatherHealth(ctx context.Context) healthInputs {
 		}
 	}
 	if s.Settings != nil {
-		in.settings, in.settingsErr = s.Settings.Get(ctx)
+		in.settings, in.settingsErr = s.Settings.Current(ctx)
 		in.storageClasses, in.storageErr = settings.ListStorageClasses(ctx, s.Reader)
 		if in.cilium {
 			in.pools, in.poolsErr = settings.ListPools(ctx, s.Reader)

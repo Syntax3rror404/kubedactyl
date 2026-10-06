@@ -72,6 +72,7 @@ func main() {
 		return
 	}
 	cfg := parseFlags()
+	printBanner(os.Stderr, appVersion, colorTerminal(os.Stderr)) // before the log lines, on the same stream
 	// The Swagger UI shows the version of this binary, not the one at generation time.
 	docs.SwaggerInfo.Version = appVersion
 	log := setupLogging(cfg.verbose)

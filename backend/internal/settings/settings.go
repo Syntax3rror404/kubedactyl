@@ -33,6 +33,9 @@ type Store struct {
 	Namespace string
 	// Limiter gets the Kubernetes API limits of saved settings (nil: not applied).
 	Limiter *kube.RateLimiter
+	// Changed is called after the settings changed (saved or edited with kubectl), for other caches built
+	// from them (nil: none).
+	Changed func()
 
 	mu     sync.Mutex
 	cached *v1alpha1.PanelSettingsSpec // nil: Current reads the settings again
@@ -75,6 +78,9 @@ func (s *Store) Forget() {
 	s.mu.Lock()
 	s.cached = nil
 	s.mu.Unlock()
+	if s.Changed != nil {
+		s.Changed()
+	}
 }
 
 // Watch makes a change of the settings object made outside the panel (kubectl) reach Current: the

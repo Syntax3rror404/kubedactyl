@@ -18,7 +18,7 @@ import (
 //	@Router		/cluster [get]
 func (a *API) getClusterInfo(c *gin.Context) {
 	info := a.Cluster
-	if set, err := a.Settings.Get(c); err == nil {
+	if set, err := a.Settings.Current(c); err == nil {
 		info.StorageClass, info.LoadBalancerPool = set.DefaultStorageClass, set.DefaultLoadBalancerPool
 	}
 	c.JSON(http.StatusOK, info)

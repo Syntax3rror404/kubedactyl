@@ -23,6 +23,8 @@ type Service struct {
 	Reader client.Reader
 	// Trigger asks the controller to reconcile a server (it creates the files pod).
 	Trigger func(namespace, server string)
+	// Changed is called after a background job changed the files of a server (nil: nobody is told).
+	Changed func(Ref)
 
 	jobs jobStore
 }

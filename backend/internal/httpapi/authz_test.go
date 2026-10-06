@@ -644,6 +644,7 @@ func TestSettingsStorageAndPools(t *testing.T) {
 		code, body = h.do("PUT", "/api/settings", admin, bad)
 		expect(t, label, code, 422, body)
 	}
+	h.do("GET", "/api/settings", admin, nil) // the settings are kept in memory from here on
 	code, body = h.do(
 		"PUT",
 		"/api/settings",
@@ -657,6 +658,14 @@ func TestSettingsStorageAndPools(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"defaultStorageClass":"fast"`) ||
 		!strings.Contains(body, `"externalDomain":"play.example.org"`) {
 		t.Errorf("save settings: %d %s", code, body)
+	}
+	// The next reads show the saved settings at once, not the ones kept before.
+	code, body = h.do("GET", "/api/settings", admin, nil)
+	if !strings.Contains(body, `"externalDomain":"play.example.org"`) {
+		t.Errorf("settings after the save: %d %s", code, body)
+	}
+	if code, body = h.do("GET", "/api/cluster", admin, nil); !strings.Contains(body, `"storageClass":"fast"`) {
+		t.Errorf("cluster after the save: %d %s", code, body)
 	}
 }
 

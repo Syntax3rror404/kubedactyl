@@ -54,3 +54,16 @@ func TestTTLCacheExpiresAndKeepsNoErrors(t *testing.T) {
 		t.Error("expired entries must be dropped")
 	}
 }
+
+func TestTTLCacheForget(t *testing.T) {
+	c := NewTTLCache[string, int](time.Minute)
+	_, _ = c.Get("a", func() (int, error) { return 1, nil })
+	_, _ = c.Get("b", func() (int, error) { return 1, nil })
+	c.Forget("a")
+	if v, _ := c.Get("a", func() (int, error) { return 2, nil }); v != 2 {
+		t.Error("a forgotten value must be loaded again")
+	}
+	if v, _ := c.Get("b", func() (int, error) { return 2, nil }); v != 1 {
+		t.Error("other keys must be kept")
+	}
+}

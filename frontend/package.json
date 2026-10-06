@@ -52,10 +52,10 @@
     "oxlint": "^1.87.0",
     "prettier": "^3.9.9",
     "puppeteer-core": "^25.12.0",
-    "shadcn": "^4.21.2",
+    "shadcn": "^4.21.3",
     "swagger-typescript-api": "^13.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.3"
   }
 }

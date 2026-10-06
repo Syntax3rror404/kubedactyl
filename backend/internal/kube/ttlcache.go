@@ -42,6 +42,14 @@ func (c *TTLCache[K, V]) Get(key K, load func() (V, error)) (V, error) {
 	return v, err
 }
 
+// Forget drops the value of key after a change made through the panel, so the next Get loads it again. A load
+// still running keeps its value to the requests already waiting for it, but it is not kept.
+func (c *TTLCache[K, V]) Forget(key K) {
+	c.mu.Lock()
+	delete(c.entries, key)
+	c.mu.Unlock()
+}
+
 // entry returns the entry of key; once per TTL it drops expired ones (servers that were deleted).
 func (c *TTLCache[K, V]) entry(key K) *ttlEntry[V] {
 	c.mu.Lock()

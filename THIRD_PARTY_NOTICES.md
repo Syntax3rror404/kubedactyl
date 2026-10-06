@@ -303,6 +303,27 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
+## Small Block font: start-up logo
+
+The logo the panel prints when it starts (`backend/banner.go`) is set in the TOIlet font "Small Block"
+(`smblock.tlf`, https://github.com/cacalabs/toilet) by Sam Hocevar, licensed under WTFPL-2.0.
+
+```
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                    Version 2, December 2004
+
+ Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+```
+
 ## Dependencies
 
 Every Go module compiled into the panel binary and every npm package in the web interface, with the license
@@ -707,7 +728,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | reselect | 5.2.0 | MIT |
 | rolldown | 1.2.11 | MIT |
 | scheduler | 0.28.0 | MIT |
-| shadcn | 4.21.2 | MIT |
+| shadcn | 4.21.3 | MIT |
 | sonner | 2.0.8 | MIT |
 | space-separated-tokens | 2.0.2 | MIT |
 | style-mod | 4.1.4 | MIT |
@@ -732,7 +753,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | vfile | 6.0.3 | MIT |
 | vfile-message | 4.0.3 | MIT |
 | victory-vendor | 37.3.6 | MIT AND ISC |
-| vite | 8.3.2 | MIT |
+| vite | 8.3.3 | MIT |
 | w3c-keyname | 2.2.8 | MIT |
 | zwitch | 2.0.4 | MIT |
 
