@@ -1,6 +1,6 @@
 # Same make targets as a local build. Every push and pull request: tests, lint and the image.
-# A push to main with a VERSION that has no GitHub release yet publishes it: image and chart to GHCR, then the
-# release v<version> (which also creates the tag). Actions are pinned to commits; no caches, so a release never
+# A push to main with a VERSION whose chart is not in GHCR yet publishes it: image and chart, then the GitHub
+# release v<version> with its tag (unless made by hand). Actions are pinned to commits; no caches, so a release never
 # builds from cached files.
 name: Build
 
@@ -33,10 +33,12 @@ jobs:
       - run: make test lint image
       - if: github.event_name == 'push'
         run: |
-          version="v$(cat VERSION)"
-          if gh release view "$version" >/dev/null 2>&1; then echo "$version is already released"; exit 0; fi
+          version="$(cat VERSION)"
+          if helm show chart oci://ghcr.io/syntax3rror404/charts/kubedactyl --version "$version" >/dev/null 2>&1; then
+            echo "$version is already published"; exit 0
+          fi
           make push-image push-chart
-          gh release create "$version" --target "$GITHUB_SHA" --generate-notes
+          gh release view "v$version" >/dev/null 2>&1 || gh release create "v$version" --target "$GITHUB_SHA" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }} # also read by `gh auth token` in the Makefile
           GH_REPO: ${{ github.repository }}
