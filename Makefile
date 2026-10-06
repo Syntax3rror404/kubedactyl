@@ -10,7 +10,7 @@ LDFLAGS := -s -w -X main.appVersion=$(VERSION)
 -include local.mk
 export KUBE_CONTEXT
 
-.PHONY: dev dev-backend dev-frontend generate docs build frontend licenses run check-context test lint fmt ui-update uninstall clean image push-image push-chart sync-version check-generated
+.PHONY: dev dev-backend dev-frontend generate docs build frontend licenses run check-context embed-placeholder test lint fmt ui-update uninstall clean image push-image push-chart sync-version check-generated
 
 # Commands that talk to a cluster need an explicit context (never silently the current one).
 check-context:
@@ -57,14 +57,16 @@ run: check-context build
 	./$(BIN)
 
 # A fresh clone has no frontend build yet; go:embed needs at least one file in web/dist.
-test: check-generated
+embed-placeholder:
 	@test -n "$$(ls -A backend/web/dist 2>/dev/null)" || { mkdir -p backend/web/dist && echo "run make build for the web interface" > backend/web/dist/placeholder.txt; }
+
+test: check-generated embed-placeholder
 	cd backend && go test ./...
 
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
 # unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-lint:
+lint: embed-placeholder
 	cd backend && $(GOLANGCI) run ./...
 	@cd backend && dead="$$(go run golang.org/x/tools/cmd/deadcode@latest ./... | grep -v internal/testutil/)"; \
 		test -z "$$dead" || { echo "unused code:"; echo "$$dead"; exit 1; }
