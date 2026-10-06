@@ -8,7 +8,7 @@ The recommended way is the Helm chart from GHCR (image and chart are public OCI 
 linux/amd64):
 
 ```bash
-helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.60 \
+helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.61 \
   -n kubedactyl --create-namespace \
   --set httpRoute.enabled=true --set 'httpRoute.hostnames[0]=kubedactyl.example.com' \
   --set panel.trustedProxies=10.244.0.0/16
@@ -32,8 +32,8 @@ Markdown on the public page `/licenses` ("Licenses" in the footer) and stored in
 **Version:** the file `VERSION` is the only place to change. The build writes it into the binary
 (`-X main.appVersion`), from where it reaches `/api/info`, the Swagger UI and the footer of every
 page; the image tag, the chart `version`/`appVersion` and the install commands in the README and these docs follow it
-(`make sync-version`). Release: edit `VERSION`, `make push-image push-chart` (or push the tag `v<version>`:
-`.github/workflows/build.yml` runs tests and lint, then pushes both), then
+(`make sync-version`). Release: edit `VERSION`, `make push-image push-chart` (or push it to `main`:
+`.github/workflows/build.yml` runs tests and lint, pushes both and creates the GitHub release `v<version>`), then
 `helm upgrade kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version <version> -n kubedactyl --reset-then-reuse-values`
 (or the button on the *Settings* page, see below). Use `--reset-then-reuse-values`, not `--reuse-values`: the
 latter also keeps the **old chart's defaults**, so values a new chart version adds (e.g. `selfUpgrade`) would
