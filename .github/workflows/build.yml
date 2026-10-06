@@ -1,16 +1,25 @@
 # Same make targets as a local build. Every push and pull request: tests, lint and the image.
-# A push to main with a VERSION whose chart is not in GHCR yet publishes it: image and chart, then the GitHub
-# release v<version> with its tag (unless made by hand). Actions are pinned to commits; no caches, so a release never
-# builds from cached files.
+# Release: run this workflow by hand on main (Actions → Build → Run workflow, or
+# `gh workflow run build.yml -f bump=patch`): it raises VERSION, commits it to main and publishes. A push to main
+# with a VERSION whose chart is not in GHCR yet publishes too: image and chart, then the GitHub release v<version>
+# with its tag (unless made by hand). Actions are pinned to commits; no caches, so a release never builds from cached
+# files.
 name: Build
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Part of the version to raise
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
-  contents: write # creates the release
+  contents: write # commits VERSION, creates the release
   packages: write # pushes image and chart
 
 jobs:
@@ -29,16 +38,39 @@ jobs:
           node-version: 26 # as in the Dockerfile
           package-manager-cache: false
       - run: npm ci --prefix frontend
+      - if: github.event_name == 'workflow_dispatch'
+        run: |
+          test "$GITHUB_REF" = refs/heads/main || { echo "releases are made from main"; exit 1; }
+          IFS=. read -r major minor patch < VERSION
+          case "$BUMP" in
+            major) major=$((major + 1)) minor=0 patch=0 ;;
+            minor) minor=$((minor + 1)) patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          echo "$major.$minor.$patch" > VERSION
+          make sync-version
+        env:
+          BUMP: ${{ inputs.bump }}
       # make stops at the first failing target: no image when tests or lint fail.
       - run: make test lint image
-      - if: github.event_name == 'push'
+      # The version commit goes to main only after a green build; a push with the workflow token starts no new run.
+      - if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $(cat VERSION)"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" HEAD:main
+        env:
+          GH_TOKEN: ${{ github.token }} # only in the steps that write; npm/Go build steps never see it
+      - if: github.event_name != 'pull_request'
         run: |
           version="$(cat VERSION)"
           if helm show chart oci://ghcr.io/syntax3rror404/charts/kubedactyl --version "$version" >/dev/null 2>&1; then
             echo "$version is already published"; exit 0
           fi
           make push-image push-chart
-          gh release view "v$version" >/dev/null 2>&1 || gh release create "v$version" --target "$GITHUB_SHA" --generate-notes
+          gh release view "v$version" >/dev/null 2>&1 ||
+            gh release create "v$version" --target "$(git rev-parse HEAD)" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }} # also read by `gh auth token` in the Makefile
           GH_REPO: ${{ github.repository }}
