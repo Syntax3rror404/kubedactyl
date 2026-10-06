@@ -32,7 +32,8 @@ Markdown on the public page `/licenses` ("Licenses" in the footer) and stored in
 **Version:** the file `VERSION` is the only place to change. The build writes it into the binary
 (`-X main.appVersion`), from where it reaches `/api/info`, the Swagger UI and the footer of every
 page; the image tag, the chart `version`/`appVersion` and the install commands in the README and these docs follow it
-(`make sync-version`). Release: edit `VERSION`, `make push-image push-chart`, then
+(`make sync-version`). Release: edit `VERSION`, `make push-image push-chart` (or push the tag `v<version>`:
+`.github/workflows/build.yml` runs tests and lint, then pushes both), then
 `helm upgrade kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version <version> -n kubedactyl --reset-then-reuse-values`
 (or the button on the *Settings* page, see below). Use `--reset-then-reuse-values`, not `--reuse-values`: the
 latter also keeps the **old chart's defaults**, so values a new chart version adds (e.g. `selfUpgrade`) would

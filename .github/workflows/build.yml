@@ -1,0 +1,39 @@
+# Same make targets as a local build. Every push and pull request: tests, lint and the image.
+# A tag v<version> (must match VERSION) also pushes image and chart to GHCR.
+# Actions are pinned to commits; no caches, so a release never builds from cached files.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write # only used by the tag build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26 # as in the Dockerfile
+          package-manager-cache: false
+      - run: npm ci --prefix frontend
+      # make stops at the first failing target: no image when tests or lint fail.
+      - run: make test lint image
+      - if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(cat VERSION)" || { echo "tag $GITHUB_REF_NAME does not match VERSION"; exit 1; }
+          make push-image push-chart
+        env:
+          GH_TOKEN: ${{ github.token }} # read by `gh auth token` in the Makefile
