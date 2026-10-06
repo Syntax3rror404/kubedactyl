@@ -161,7 +161,7 @@ frontend/
 scripts/uninstall.sh      cluster cleanup
 charts/kubedactyl/        Helm chart (published as OCI artifact); Dockerfile and VERSION in the root
 scripts/imagebuild/       daemonless image build and push (make image / push-image)
-.github/workflows/        GitHub Actions build (make test lint image; tag v<version>: push-image push-chart)
+.github/workflows/        GitHub Actions: make test + lint in parallel, then image (tag v<version>: push-image push-chart)
 ```
 
 ## API
