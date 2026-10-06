@@ -478,6 +478,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @babel/runtime | 7.29.7 | MIT |
 | @codemirror/autocomplete | 6.20.3 | MIT |
 | @codemirror/commands | 6.11.1 | MIT |
+| @codemirror/lang-angular | 0.1.4 | MIT |
 | @codemirror/lang-cpp | 6.0.3 | MIT |
 | @codemirror/lang-css | 6.3.1 | MIT |
 | @codemirror/lang-go | 6.0.1 | MIT |
@@ -499,6 +500,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @codemirror/lang-xml | 6.1.0 | MIT |
 | @codemirror/lang-yaml | 6.1.3 | MIT |
 | @codemirror/language | 6.12.4 | MIT |
+| @codemirror/language-data | 6.5.2 | MIT |
 | @codemirror/legacy-modes | 6.5.4 | MIT |
 | @codemirror/lint | 6.9.7 | MIT |
 | @codemirror/search | 6.7.2 | MIT |
@@ -588,14 +590,10 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @radix-ui/react-visually-hidden | 1.2.11 | MIT |
 | @reduxjs/toolkit | 2.12.0 | MIT |
 | @remix-run/route-pattern | 0.22.1 | MIT |
-| @replit/codemirror-lang-nix | 6.0.1 | MIT |
-| @replit/codemirror-lang-solidity | 6.0.2 | MIT |
-| @replit/codemirror-lang-svelte | 6.0.0 | MIT |
 | @tailwindcss/vite | 4.3.3 | MIT |
 | @tanstack/query-core | 5.104.1 | MIT |
 | @tanstack/react-query | 5.104.1 | MIT |
 | @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT |
-| @uiw/codemirror-extensions-langs | 4.25.12 | MIT |
 | @uiw/react-codemirror | 4.25.12 | MIT |
 | @ungap/structured-clone | 1.4.0 | ISC |
 | @vitejs/plugin-react | 6.1.1 | MIT |

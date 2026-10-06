@@ -1,13 +1,15 @@
-import { useState, type ReactNode } from "react"
+import { lazy, Suspense, useState, type ReactNode } from "react"
 import { Link } from "react-router"
 
-import { Markdown } from "@/components/common/markdown"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { legalDocs, legalTitles, type LegalDoc } from "@/lib/legal"
 import { usePanelInfo, useLegalTexts } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 const repositoryUrl = "https://github.com/Syntax3rror404/kubedactyl"
+
+// The Markdown renderer is only needed when a legal text opens; loaded then, so it stays out of every page.
+const Markdown = lazy(() => import("@/components/common/markdown").then((m) => ({ default: m.Markdown })))
 
 /**
  * Footer on every page: panel version, the source code and its issue tracker, the imprint and privacy policy when
@@ -58,7 +60,7 @@ export function SiteFooter({ className, children }: { className?: string; childr
           <DialogHeader>
             <DialogTitle>{open && legalTitles[open]}</DialogTitle>
           </DialogHeader>
-          {open && <Markdown>{legal.data?.[open] ?? ""}</Markdown>}
+          <Suspense>{open && <Markdown>{legal.data?.[open] ?? ""}</Markdown>}</Suspense>
         </DialogContent>
       </Dialog>
     </footer>
