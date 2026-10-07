@@ -23,7 +23,7 @@ type Security = {
 
 /**
  * Network isolation of user namespaces (NetworkPolicy kubedactyl-isolation), how long sign-ins and API tokens stay
- * valid, and whether the API documentation (Swagger UI at /swagger/) is served.
+ * valid, and whether the Scumentation (Swagger UI at /swagger/) is served.
  */
 export function SecurityCard({
   values,
@@ -73,7 +73,7 @@ export function SecurityCard({
                 checked={!values.disableApiDocs}
                 onCheckedChange={(enabled) => onChange({ disableApiDocs: !enabled })}
               />
-              <FieldLabel htmlFor="api-docs">Serve the API documentation (Swagger UI)</FieldLabel>
+              <FieldLabel htmlFor="api-docs">Enable Swagger UI</FieldLabel>
             </Field>
           </FieldSet>
         </FieldGroup>
