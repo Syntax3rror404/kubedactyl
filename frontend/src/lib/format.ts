@@ -74,6 +74,11 @@ export function phaseOf(gs?: GameServer): Phase {
   return gs?.status?.phase ?? "Pending"
 }
 
+/** A deleted server stays until its finalizer has released the volume; nothing can be done with it anymore. */
+export function isRemoving(gs: GameServer): boolean {
+  return !!gs.metadata.deletionTimestamp
+}
+
 /** Phases in which the game process exists. */
 export const activePhases: Phase[] = ["Starting", "Running", "Stopping"]
 

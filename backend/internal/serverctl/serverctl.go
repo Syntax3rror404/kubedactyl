@@ -24,6 +24,7 @@ import (
 var (
 	ErrOffline   = errors.New("server is not running")
 	ErrSuspended = errors.New("this server is suspended by an administrator")
+	ErrRemoving  = errors.New("this server is being removed")
 	ErrRunning   = errors.New("stop the server first")
 )
 

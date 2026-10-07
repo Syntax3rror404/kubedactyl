@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
 )
@@ -15,11 +16,11 @@ type GameServerList struct {
 	Items []v1alpha1.GameServer `json:"items"`
 }
 
-// serverKey holds the server that notSuspended or requireFilesPod already looked up.
+// serverKey holds the server that notLocked or requireFilesPod already looked up.
 const serverKey = "kubedactyl.server"
 
 func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
-	// Set by notSuspended or requireFilesPod, which already looked the server up.
+	// Set by notLocked or requireFilesPod, which already looked the server up.
 	if v, ok := c.Get(serverKey); ok {
 		return v.(*v1alpha1.GameServer), true
 	}
@@ -49,13 +50,17 @@ func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
 //	@Security	BearerAuth
 //	@Router		/servers [get]
 func (a *API) listServers(c *gin.Context) {
+	var list v1alpha1.GameServerList
 	p := principal(c)
-	items, err := a.readServers(c, scopeOf(p))
-	if err != nil {
+	var opts []client.ListOption
+	if !p.Admin() {
+		opts = append(opts, client.InNamespace(p.Namespace))
+	}
+	if err := a.Client.List(c, &list, opts...); err != nil {
 		a.fail(c, err)
 		return
 	}
-	list := v1alpha1.GameServerList{Items: items}
+	list.Items = ownServers(list.Items)
 	eggs := a.eggsByName(c)
 	domain := a.externalDomain(c)
 	for i := range list.Items {
@@ -118,7 +123,6 @@ func (a *API) deleteServer(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	a.forgetServers(gs.Namespace)
 	a.audit(c, "server deleted", "server", gs.Name)
 	c.Status(http.StatusNoContent)
 }

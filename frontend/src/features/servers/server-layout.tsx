@@ -17,7 +17,7 @@ import { CopyButton } from "@/components/common/copy-button"
 import { EggIcon } from "@/components/common/egg-icon"
 import { QueryState } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
-import { StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
+import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
 import { PageHeader } from "@/components/layout/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsTrigger } from "@/components/ui/tabs"
@@ -25,9 +25,9 @@ import { FilesPodLight } from "@/features/servers/components/files-pod-light"
 import { PowerControls } from "@/features/servers/components/power-controls"
 import { RestartBanner } from "@/features/servers/components/restart-banner"
 import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
-import { SuspendedBanner, SuspendedNotice } from "@/features/servers/components/suspended-notice"
+import { RemovingNotice, SuspendedBanner, SuspendedNotice } from "@/features/servers/components/locked-notice"
 import { useAuth } from "@/hooks/use-auth"
-import { phaseOf, serverAddress, serverEggName, serverName } from "@/lib/format"
+import { isRemoving, phaseOf, serverAddress, serverEggName, serverName } from "@/lib/format"
 import { useEgg, useServer, useSettings } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
@@ -47,7 +47,8 @@ const tabs = [
   { to: "settings", label: "Settings", icon: SettingsIcon },
 ]
 
-/** Frame of all server pages: header with status and power buttons, tabs, notices; locked view for suspended servers. */
+/** Frame of all server pages: header with status and power buttons, tabs, notices; locked view for suspended servers
+ * (owners) and servers being removed (everyone). */
 export function ServerLayout() {
   const { server: name = "" } = useParams()
   const server = useServer(name)
@@ -77,9 +78,11 @@ function ServerFrame({ gs }: { gs: GameServer }) {
   const address = serverAddress(gs, domain)
   const base = `/servers/${name}`
   const current = pathname.slice(base.length).replace(/^\//, "").split("/")[0]
-  // Owners of a suspended server only see the notice; admins keep full access.
+  // Owners of a suspended server only see the notice; admins keep full access. A server being removed is locked
+  // for everyone.
+  const removing = isRemoving(gs)
   const suspended = !!gs.spec.suspended
-  const locked = suspended && !isAdmin
+  const locked = removing || (suspended && !isAdmin)
   const eggName = serverEggName(gs, egg.data)
   const installer = egg.data?.spec.install?.container
 
@@ -90,7 +93,7 @@ function ServerFrame({ gs }: { gs: GameServer }) {
         title={serverName(gs)}
         badges={
           <>
-            <StatusBadge phase={phase} />
+            {removing ? <RemovingBadge /> : <StatusBadge phase={phase} />}
             {suspended && <SuspendedBadge />}
           </>
         }
@@ -110,15 +113,15 @@ function ServerFrame({ gs }: { gs: GameServer }) {
             )}
           </span>
         }
-        actions={!locked && <PowerControls server={gs} />}
+        actions={(removing || !locked) && <PowerControls server={gs} />}
       />
 
       {/* Users see the administrator's notice every time they open a server. */}
       <ServerNoticeDialog server={name} notice={isAdmin ? undefined : settings.data?.serverNotice} />
-      <RestartBanner server={gs} />
-      {suspended && isAdmin && <SuspendedBanner server={gs} />}
+      {!locked && <RestartBanner server={gs} />}
+      {suspended && !locked && <SuspendedBanner server={gs} />}
 
-      {phase === "Installing" && (
+      {phase === "Installing" && !locked && (
         <Callout
           tone="info"
           icon={<DownloadCloudIcon />}
@@ -128,13 +131,15 @@ function ServerFrame({ gs }: { gs: GameServer }) {
           <p className="text-muted-foreground">Follow the output in the console. {gs.status?.message}</p>
         </Callout>
       )}
-      {gs.status?.message && phase !== "Installing" && !suspended && (
+      {gs.status?.message && phase !== "Installing" && !suspended && !removing && (
         <Callout tone="warning" icon={<AlertTriangleIcon />}>
           <p className="break-all">{gs.status.message}</p>
         </Callout>
       )}
 
-      {locked ? (
+      {removing ? (
+        <RemovingNotice />
+      ) : locked ? (
         <SuspendedNotice />
       ) : (
         <>

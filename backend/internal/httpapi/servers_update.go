@@ -82,7 +82,6 @@ func (a *API) updateServer(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	a.forgetServers(gs.Namespace)
 	a.audit(c, "server updated", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, visibleServer(p, gs, e, a.externalDomain(c)))

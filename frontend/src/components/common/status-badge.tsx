@@ -1,4 +1,4 @@
-import { LockIcon } from "lucide-react"
+import { LockIcon, Trash2Icon } from "lucide-react"
 
 import type { Phase } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -79,14 +79,31 @@ export function StatusBadge({ phase, className }: { phase: Phase; className?: st
 /** Marks a server an administrator has suspended. */
 export function SuspendedBadge({ className }: { className?: string }) {
   return (
+    <LockBadge icon={<LockIcon />} className={className}>
+      Suspended
+    </LockBadge>
+  )
+}
+
+/** Marks a server that is being removed (it stays until its volume is released). */
+export function RemovingBadge({ className }: { className?: string }) {
+  return (
+    <LockBadge icon={<Trash2Icon />} className={className}>
+      Removal scheduled
+    </LockBadge>
+  )
+}
+
+function LockBadge({ icon, className, children }: { icon: React.ReactNode; className?: string; children: string }) {
+  return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600 ring-1 ring-red-500/20 ring-inset dark:text-red-400",
+        "inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600 ring-1 ring-red-500/20 ring-inset dark:text-red-400 [&_svg]:size-3",
         className,
       )}
     >
-      <LockIcon className="size-3" />
-      Suspended
+      {icon}
+      {children}
     </span>
   )
 }

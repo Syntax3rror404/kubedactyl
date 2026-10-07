@@ -90,13 +90,16 @@ export const useAcceptEula = (server: string, cb?: MutationCallbacks<void, void>
     cb,
   )
 
-/** Deletes a server; it leaves the list at once, before the list is loaded again. */
+/** Deletes a server; the list shows it as being removed at once, before the list is loaded again. */
 export const useDeleteServer = (server: string, cb?: MutationCallbacks<void, void>) =>
   useApiMutation(
     () => api.servers.delete(server),
     (qc) => {
       void qc.cancelQueries({ queryKey: keys.servers })
-      qc.setQueryData<GameServer[]>(keys.servers, (list) => list?.filter((s) => s.metadata.name !== server))
+      const deletionTimestamp = new Date().toISOString()
+      qc.setQueryData<GameServer[]>(keys.servers, (list) =>
+        list?.map((s) => (s.metadata.name === server ? { ...s, metadata: { ...s.metadata, deletionTimestamp } } : s)),
+      )
       refresh(qc, keys.servers)
     },
     cb,

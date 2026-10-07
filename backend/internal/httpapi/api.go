@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"app/api/v1alpha1"
 	"app/internal/auth"
 	"app/internal/clusterinfo"
 	"app/internal/console"
@@ -74,8 +73,6 @@ type API struct {
 	KubeLimiter *kube.RateLimiter
 
 	stats *statsCache
-	// serverLists keeps the server list per scope (see readServers).
-	serverLists *kube.TTLCache[string, []v1alpha1.GameServer]
 }
 
 // ClusterInfo describes the cluster the panel is connected to.
@@ -99,7 +96,6 @@ type ErrorResponse struct {
 // Register adds all routes to the router group (mounted at /api).
 func (a *API) Register(r *gin.RouterGroup) {
 	a.stats = newStatsCache()
-	a.serverLists = kube.NewTTLCache[string, []v1alpha1.GameServer](serverListTTL)
 	// Files changed by a background job (backup, restore, download, also scheduled ones) are measured again.
 	if a.Files != nil {
 		a.Files.Changed = a.stats.disk.Forget
@@ -150,8 +146,8 @@ func (a *API) registerServers(u *gin.RouterGroup) {
 	u.GET("/servers/:server/stats", a.getServerStats)
 	u.GET("/servers/:server/diagnostics", a.getServerDiagnostics)
 
-	// Everything else on a server is blocked for its owner while it is suspended.
-	s := u.Group("/servers/:server", a.notSuspended)
+	// Everything else on a server is blocked while it is being removed, and for its owner while it is suspended.
+	s := u.Group("/servers/:server", a.notLocked)
 	s.PATCH("", a.updateServer)
 	s.POST("/power", a.sendPower)
 	s.POST("/command", a.sendCommand)
@@ -208,8 +204,8 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.POST("/eggs/:egg/update-from-url", a.updateEggFromURL)
 	adm.POST("/servers", a.createServer)
 	adm.DELETE("/servers/:server", a.deleteServer)
-	adm.POST("/servers/:server/suspend", a.suspendServer)
-	adm.POST("/servers/:server/transfer", a.transferServer)
+	adm.POST("/servers/:server/suspend", a.notLocked, a.suspendServer)
+	adm.POST("/servers/:server/transfer", a.notLocked, a.transferServer)
 	adm.GET("/users", a.listUsers)
 	adm.POST("/users", a.createUser)
 	adm.GET("/users/:user", a.getUser)

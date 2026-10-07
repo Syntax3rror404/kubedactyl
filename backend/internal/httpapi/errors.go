@@ -126,6 +126,7 @@ var domainErrors = []struct {
 	{serverctl.ErrOffline, http.StatusConflict},
 	{serverctl.ErrRunning, http.StatusConflict},
 	{serverctl.ErrSuspended, http.StatusForbidden},
+	{serverctl.ErrRemoving, http.StatusConflict},
 	{serverctl.ErrSameOwner, http.StatusConflict},
 	{serverctl.ErrFilesBusy, http.StatusConflict},
 	{serverctl.ErrNoVolume, http.StatusConflict},

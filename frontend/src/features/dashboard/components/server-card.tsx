@@ -4,7 +4,7 @@ import { useNavigate } from "react-router"
 import { CopyButton } from "@/components/common/copy-button"
 import { EggIcon } from "@/components/common/egg-icon"
 import { GlowCard } from "@/components/common/glow-card"
-import { StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
+import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
 import { UsageRow } from "@/components/common/usage-row"
 import { PowerControls } from "@/features/servers/components/power-controls"
 import { useAuth } from "@/hooks/use-auth"
@@ -13,6 +13,7 @@ import {
   formatBytes,
   formatCpuPercent,
   formatMiB,
+  isRemoving,
   phaseOf,
   serverAddress,
   serverEggName,
@@ -58,7 +59,7 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
                 )}
               </p>
             </div>
-            {suspended ? <SuspendedBadge /> : <StatusBadge phase={phase} />}
+            {isRemoving(server) ? <RemovingBadge /> : suspended ? <SuspendedBadge /> : <StatusBadge phase={phase} />}
           </div>
 
           <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-1.5 font-mono text-sm">

@@ -3,15 +3,15 @@ import { PlayIcon, RotateCwIcon, SkullIcon, SquareIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { powerFeedback } from "@/features/servers/lib/feedback"
-import { activePhases, phaseOf, stoppedPhases } from "@/lib/format"
+import { activePhases, isRemoving, phaseOf, stoppedPhases } from "@/lib/format"
 import { useSendPower } from "@/lib/queries"
 import type { GameServer, PowerSignal } from "@/lib/types"
 
-/** Start, restart, stop and kill buttons (enabled according to the phase and the suspension). */
+/** Start, restart, stop and kill buttons (enabled according to the phase and the suspension, all off during removal). */
 export function PowerControls({ server, size = "default" }: { server: GameServer; size?: "default" | "sm" }) {
   const power = useSendPower(server.metadata.name, powerFeedback)
   const phase = phaseOf(server)
-  const busy = power.isPending
+  const blocked = power.isPending || isRemoving(server)
   const running = phase === "Running" || phase === "Starting"
   const suspended = !!server.spec.suspended
   const canStart = !suspended && stoppedPhases.includes(phase)
@@ -31,7 +31,7 @@ export function PowerControls({ server, size = "default" }: { server: GameServer
           <Button
             size={size === "sm" ? "icon-sm" : "sm"}
             variant={variant}
-            disabled={!enabled || busy}
+            disabled={!enabled || blocked}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
