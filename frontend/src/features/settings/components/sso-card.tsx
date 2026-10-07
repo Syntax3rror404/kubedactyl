@@ -2,7 +2,6 @@ import { KeyRoundIcon } from "lucide-react"
 
 import { CopyButton } from "@/components/common/copy-button"
 import { UnveilPassword } from "@/components/common/unveil-password"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
