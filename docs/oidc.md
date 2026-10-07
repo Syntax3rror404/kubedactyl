@@ -1,15 +1,15 @@
-# Single sign-on (OIDC)
+# OpenID Connect
 
 Users can sign in through an OpenID Connect identity provider (IdP). The IdP's groups decide who gets in and
 with which role. Sign-in with a password keeps working next to it.
 
 **Tested with Keycloak only.** The panel uses the standard authorization code flow, so other providers
-(Authentik, Entra ID, Dex, ...) should work as long as they put the username and the groups into the ID token,
+(Authentik, Entra ID, Kanidm, ...) should work as long as they put the username and the groups into the ID token,
 but they have not been tested.
 
 ## How a sign-in works
 
-1. The sign-in page shows *Sign in with &lt;name&gt;* while single sign-on is on.
+1. The login page shows a `sign in with <idp name>` while single OIDC is on.
 2. The panel redirects to the IdP (authorization code flow with PKCE S256, `state` and `nonce`). It keeps the
    flow in a signed cookie for 10 minutes (HttpOnly, SameSite=Lax; over HTTPS `__Host-kd_oidc`, which sites on
    other subdomains cannot set).
