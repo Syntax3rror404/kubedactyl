@@ -3,6 +3,7 @@ import { DownloadIcon } from "lucide-react"
 
 import { Callout } from "@/components/common/callout"
 import { CopyButton } from "@/components/common/copy-button"
+import { UsernameField, UsernameHint } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
@@ -58,17 +59,14 @@ function InviteForm({ onCreated }: { onCreated: (invite: CreatedInvite) => void 
       </DialogHeader>
       <FieldGroup className="py-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field data-invalid={!!errors.username}>
-            <FieldLabel htmlFor="i-name">Username</FieldLabel>
-            <Input
-              id="i-name"
-              value={draft.username}
-              onChange={(e) => set("username", e.target.value.toLowerCase())}
-              aria-invalid={!!errors.username}
-              placeholder="their choice"
-              className="font-mono"
-            />
-          </Field>
+          <UsernameField
+            id="i-name"
+            value={draft.username}
+            onChange={(v) => set("username", v)}
+            error={errors.username}
+            placeholder="their choice"
+            hint={null}
+          />
           <Field>
             <FieldLabel htmlFor="i-role">Role</FieldLabel>
             <Select value={draft.role} onValueChange={(v) => set("role", v as Role)}>
@@ -82,11 +80,7 @@ function InviteForm({ onCreated }: { onCreated: (invite: CreatedInvite) => void 
             </Select>
           </Field>
         </div>
-        {errors.username ? (
-          <FieldError>{errors.username}</FieldError>
-        ) : (
-          <FieldDescription>Leave the username empty to let the invited person choose it.</FieldDescription>
-        )}
+        <UsernameHint error={errors.username} hint="Leave the username empty to let the invited person choose it." />
         <Field>
           <FieldLabel htmlFor="i-note">Note</FieldLabel>
           <Input

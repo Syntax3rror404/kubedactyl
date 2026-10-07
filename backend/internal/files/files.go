@@ -102,7 +102,7 @@ func Denied(clean string, denylist []string) bool {
 func (m *Manager) run(
 	ctx context.Context, server Ref, stdin io.Reader, stdout io.Writer, script string, args ...string,
 ) error {
-	cmd := append([]string{"sh", "-c", gameserver.PathScript + script, "sh"}, args...)
+	cmd := append([]string{"sh", "-c", gameserver.PathScript + script, scriptName(ctx)}, args...)
 	pod := gameserver.FilesPodName(server.Name)
 	err := m.Kube.Exec(ctx, server.Namespace, pod, gameserver.FilesContainerName, cmd, stdin, stdout)
 	var exitErr *kube.ExitError
@@ -340,40 +340,46 @@ inside "$(entry "$2")"
 mkdir -p "$(dirname -- "$2")" && mv -- "$1" "$2"`, src, dst)
 }
 
-// Compress creates a tar.gz archive of the given entries inside dir. tar stores links as links.
+// NewArchiveName returns the name of a new archive of the file manager, e.g. "archive-2026-09-28T120000.tar.gz".
+func NewArchiveName(now time.Time) string {
+	return "archive-" + now.UTC().Format("2006-01-02T150405") + ".tar.gz"
+}
+
+// compressScript packs the entries "$3"… (each "./name") of folder "$1" into the archive "$2".
+const compressScript = jobFuncs + `inside "$(real "$1")"
+cd "$1" || exit 3
+out="$2"; shift 2
+pack "$out" "" "$@"`
+
+// Compress creates the tar.gz archive of the given entries inside dir. tar stores links as links.
 func (m *Manager) Compress(
-	ctx context.Context, server Ref, dir string, names []string, denylist []string,
-) (string, error) {
+	ctx context.Context, server Ref, dir, archive string, names []string, denylist []string, report func(Progress),
+) error {
 	absDir, err := Resolve(dir, denylist)
 	if err != nil {
-		return "", err
+		return err
 	}
 	reals, err := m.checkLinks(ctx, server, denylist, true, absDir)
 	if err != nil {
-		return "", err
+		return err
 	}
-	archive := "archive-" + time.Now().UTC().Format("2006-01-02T150405") + ".tar.gz"
 	args := []string{absDir, archive}
 	for _, n := range names {
 		if strings.Contains(n, "/") || n == ".." || n == "." || n == "" {
-			return "", ErrDenied
+			return ErrDenied
 		}
 		if Denied(path.Join(realDir(dir, reals), n), denylist) {
-			return "", ErrDenied
+			return ErrDenied
 		}
-		args = append(args, n)
+		args = append(args, "./"+n)
 	}
-	err = m.run(ctx, server, nil, nil, `inside "$(real "$1")"
-cd "$1" || exit 3
-out="$2"; shift 2
-tar -czf "$out" -- "$@"`, args...)
-	return archive, err
+	return m.run(ctx, server, nil, &progressWriter{report: report}, compressScript, args...)
 }
 
 // decompressScript extracts the archive "$1" into a temporary folder next to it and merges it
 // from there into the archive's folder: entries cannot write through links or "../" outside of
 // it, existing folders are merged and existing files overwritten, links in the way replaced.
-const decompressScript = `merge() {
+const decompressScript = jobFuncs + `merge() {
   local f t
   for f in "$1"/* "$1"/.[!.]* "$1"/..?*; do
     [ -e "$f" ] || [ -L "$f" ] || continue
@@ -390,14 +396,13 @@ inside "$(real "$1")"
 cd "$(dirname -- "$1")" || exit 3
 tmp=$(mktemp -d .extract-XXXXXX) || exit 1
 trap 'rm -rf "$tmp"' EXIT
-case "$1" in
-  *.zip) unzip -o -q "$1" -d "$tmp" ;;
-  *) tar -xf "$1" -C "$tmp" ;;
-esac || exit 1
+unpack "$1" "$tmp" || exit 1
 merge "$tmp" .`
 
 // Decompress extracts a tar(.gz/.xz/.bz2) or zip archive into its directory.
-func (m *Manager) Decompress(ctx context.Context, server Ref, file string, denylist []string) error {
+func (m *Manager) Decompress(
+	ctx context.Context, server Ref, file string, denylist []string, report func(Progress),
+) error {
 	abs, err := Resolve(file, denylist)
 	if err != nil {
 		return err
@@ -405,5 +410,5 @@ func (m *Manager) Decompress(ctx context.Context, server Ref, file string, denyl
 	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
 		return err
 	}
-	return m.run(ctx, server, nil, nil, decompressScript, abs)
+	return m.run(ctx, server, nil, &progressWriter{report: report}, decompressScript, abs)
 }

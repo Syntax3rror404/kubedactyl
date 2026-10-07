@@ -11,7 +11,7 @@ Everything the panel does, in detail. The short overview is in the [README](../R
 | Start | The egg's config file changes (parsers `file`, `yaml`, `properties`, `ini`, `json`, `xml`), ownership fix, then the game pod (fixed user, read-only root file system) |
 | Console | Live output over websocket (xterm.js), commands via TTY stdin, "done" detection → *Running*, history survives panel restarts |
 | Power | Start, stop (egg stop command or `^C`/`^^C`/signal, killed after the stop timeout), restart, kill; crash detection with auto restart (not twice within 60 s) |
-| Files | Browse, edit (CodeMirror), upload, download, rename/move (also drag and drop onto folders and path segments; never overwrites), delete, compress (tar.gz), extract (zip/tar), download from a URL (runs in the file container); the file container only runs while it is used; a light on the Files tab shows it (green running, red stopped, green/yellow starting) and the file page counts down until it stops without file operations |
+| Files | Browse, edit (CodeMirror), upload, download, rename/move (also drag and drop onto folders and path segments; never overwrites), delete, compress (tar.gz), extract (zip/tar), download from a URL (runs in the file container; these three show their progress); the file container only runs while it is used; a light on the Files tab shows it (green running, red stopped, green/yellow starting) and the file page counts down until it stops without file operations |
 | Backups | tar.gz of all server files in the `.backups` folder of the volume, optional label, download, restore (deletes everything except `.backups`, then unpacks), delete; also as a schedule task |
 | Transfer (admin) | Moves a stopped server with its files and backups to another user; name and address stay |
 | Branding (admin) | Name, tagline and logo in the sidebar and on the sign-in page, browser title and favicon (*Settings → Branding*; images as PNG, JPEG, GIF, WebP, SVG or ICO up to 128 KiB). Without a favicon the tab shows the built-in container icon; the footer always names the software |
@@ -125,6 +125,11 @@ everything except `.backups` into a temporary file that is renamed when complete
 stopped server: it deletes everything in the volume except `.backups` and unpacks the archive (files
 owned by 988:988 afterwards). Starting the server is refused while a restore runs; backup and restore
 exclude each other per server. Names: `backup-<date>_<time>[-label].tar.gz` in the panel time zone.
+Both show their progress on the Backups page: a backup counts the files first and then reports each one tar
+packs, a restore reports how much of the archive tar has read (every second); speed and time left are the
+average since the first report. Downloads from a URL, compressing and extracting in the file manager run the
+same way as background jobs and show their progress above the file list until they are done. Every running
+job can be cancelled; what it left half done is removed (a cancelled restore leaves the server files incomplete).
 
 **Download from a URL** (file manager → *From URL*) runs `wget` in the file container, not in the panel:
 the network policy of the user namespace applies (no private networks unless the admin allows them), so the

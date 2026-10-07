@@ -9,6 +9,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { AuthShell } from "@/features/auth/components/auth-shell"
+import { NewAccountFields } from "@/features/auth/components/new-account-fields"
 import { NewPasswordFields } from "@/features/auth/components/new-password-fields"
 import { useDraft } from "@/hooks/use-draft"
 import { ApiError } from "@/lib/api"
@@ -84,28 +85,14 @@ export function SetupPage() {
                   )}
                 </Field>
               )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field data-invalid={!!errors.username}>
-                  <FieldLabel htmlFor="username">Username</FieldLabel>
-                  <Input
-                    id="username"
-                    autoComplete="username"
-                    value={draft.username}
-                    onChange={(e) => set("username", e.target.value)}
-                    aria-invalid={!!errors.username}
-                  />
-                  {errors.username && <FieldError>{errors.username}</FieldError>}
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="display">Display name</FieldLabel>
-                  <Input
-                    id="display"
-                    value={draft.displayName}
-                    onChange={(e) => set("displayName", e.target.value)}
-                    placeholder="Administrator"
-                  />
-                </Field>
-              </div>
+              <NewAccountFields
+                username={draft.username}
+                displayName={draft.displayName}
+                onUsername={(v) => set("username", v)}
+                onDisplayName={(v) => set("displayName", v)}
+                error={errors.username}
+                displayPlaceholder="Administrator"
+              />
               <NewPasswordFields
                 password={draft.password}
                 confirm={draft.confirm}

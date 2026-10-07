@@ -1605,6 +1605,7 @@
                         "BearerAuth": []
                     }
                 ],
+                "description": "Starts a background job (see GET /servers/{server}/jobs); its label is the archive's path.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1634,10 +1635,10 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CompressResponse"
+                            "$ref": "#/definitions/files.Job"
                         }
                     }
                 }
@@ -1735,7 +1736,11 @@
                         "BearerAuth": []
                     }
                 ],
+                "description": "Starts a background job (see GET /servers/{server}/jobs); its label is the archive's path.",
                 "consumes": [
+                    "application/json"
+                ],
+                "produces": [
                     "application/json"
                 ],
                 "tags": [
@@ -1761,8 +1766,11 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/files.Job"
+                        }
                     }
                 }
             }
@@ -2160,6 +2168,41 @@
                         "schema": {
                             "$ref": "#/definitions/httpapi.JobList"
                         }
+                    }
+                }
+            }
+        },
+        "/servers/{server}/jobs/{job}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stops a running job; what it left half done is removed (a cancelled restore leaves the\nserver files incomplete). A finished job stays as it is.",
+                "tags": [
+                    "Backups"
+                ],
+                "summary": "Cancel a background job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server name",
+                        "name": "server",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "job",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 }
             }
@@ -3831,22 +3874,64 @@
                     "enum": [
                         "pull",
                         "backup",
-                        "restore"
+                        "restore",
+                        "compress",
+                        "decompress"
                     ]
                 },
                 "label": {
                     "type": "string"
                 },
+                "progress": {
+                    "description": "Progress of a running job, once known.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/files.Progress"
+                        }
+                    ],
+                    "x-nullable": true
+                },
                 "startedAt": {
                     "type": "string"
                 },
                 "state": {
-                    "description": "State is running, done or failed.",
+                    "description": "State is running, done, failed or cancelled.",
                     "type": "string",
                     "enum": [
                         "running",
                         "done",
-                        "failed"
+                        "failed",
+                        "cancelled"
+                    ]
+                }
+            }
+        },
+        "files.Progress": {
+            "type": "object",
+            "required": [
+                "done",
+                "startedAt",
+                "total",
+                "unit"
+            ],
+            "properties": {
+                "done": {
+                    "type": "integer"
+                },
+                "file": {
+                    "type": "string"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "files",
+                        "bytes"
                     ]
                 }
             }
@@ -3986,18 +4071,6 @@
                 "command": {
                     "type": "string",
                     "example": "say Hello"
-                }
-            }
-        },
-        "httpapi.CompressResponse": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "example": "archive-2026-09-28T120000.tar.gz"
                 }
             }
         },

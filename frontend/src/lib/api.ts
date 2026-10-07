@@ -10,7 +10,6 @@ import type {
   ClusterHealth,
   ClusterIdentity,
   ClusterInfo,
-  CompressResponse,
   CreatedInvite,
   CreatedToken,
   CreateInviteRequest,
@@ -237,6 +236,8 @@ export const api = {
     getStats: (server: string) => request<ServerStats>("GET", `${srv(server)}/stats`),
     getDiagnostics: (server: string) => request<ServerDiagnostics>("GET", `${srv(server)}/diagnostics`),
     listJobs: (server: string) => request<JobList>("GET", `${srv(server)}/jobs`).then((r) => r.items),
+    cancelJob: (server: string, job: string) =>
+      request<void>("POST", `${srv(server)}/jobs/${encodeURIComponent(job)}/cancel`),
   },
   backups: {
     list: (server: string) => request<BackupList>("GET", `${srv(server)}/backups`).then((r) => r.items),
@@ -271,9 +272,9 @@ export const api = {
     rename: (server: string, root: string, from: string, to: string) =>
       request<void>("PUT", `${srv(server)}/files/rename`, { root, from, to }),
     compress: (server: string, root: string, files: string[]) =>
-      request<CompressResponse>("POST", `${srv(server)}/files/compress`, { root, files }),
+      request<ServerJob>("POST", `${srv(server)}/files/compress`, { root, files }),
     decompress: (server: string, root: string, file: string) =>
-      request<void>("POST", `${srv(server)}/files/decompress`, { root, file }),
+      request<ServerJob>("POST", `${srv(server)}/files/decompress`, { root, file }),
     upload: (server: string, directory: string, files: File[]) => {
       const form = new FormData()
       files.forEach((f) => form.append("files", f, f.name))

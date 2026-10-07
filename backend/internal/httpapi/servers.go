@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
 )
@@ -50,17 +49,13 @@ func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
 //	@Security	BearerAuth
 //	@Router		/servers [get]
 func (a *API) listServers(c *gin.Context) {
-	var list v1alpha1.GameServerList
 	p := principal(c)
-	var opts []client.ListOption
-	if !p.Admin() {
-		opts = append(opts, client.InNamespace(p.Namespace))
-	}
-	if err := a.Client.List(c, &list, opts...); err != nil {
+	items, err := a.readServers(c, scopeOf(p))
+	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	list.Items = ownServers(list.Items)
+	list := v1alpha1.GameServerList{Items: items}
 	eggs := a.eggsByName(c)
 	domain := a.externalDomain(c)
 	for i := range list.Items {
@@ -123,6 +118,7 @@ func (a *API) deleteServer(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
+	a.forgetServers(gs.Namespace)
 	a.audit(c, "server deleted", "server", gs.Name)
 	c.Status(http.StatusNoContent)
 }

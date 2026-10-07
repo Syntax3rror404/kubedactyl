@@ -209,7 +209,7 @@ func TestUserSeesOnlyOwnServers(t *testing.T) {
 	// Every other write on a foreign server answers 404 as well (before its body is looked at).
 	for _, r := range []struct{ method, path string }{
 		{"POST", "/command"}, {"POST", "/reinstall"}, {"PATCH", ""}, {"PUT", "/schedules"}, {"POST", "/backups"},
-		{"POST", "/backups/x.tar.gz/restore"}, {"DELETE", "/backups/x.tar.gz"},
+		{"POST", "/backups/x.tar.gz/restore"}, {"DELETE", "/backups/x.tar.gz"}, {"POST", "/jobs/1/cancel"},
 		{"POST", "/files/write?file=/x"}, {"POST", "/files/create-folder"}, {"POST", "/files/delete"},
 		{"PUT", "/files/rename"}, {"POST", "/files/upload"}, {"POST", "/files/compress"},
 		{"POST", "/files/decompress"}, {"POST", "/files/pull"}, {"GET", "/files/contents?file=/x"},
@@ -1014,6 +1014,8 @@ func TestSuspendAndBackups(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"items":[]`) {
 		t.Errorf("jobs: %d %s", code, body)
 	}
+	code, body = h.do("POST", "/api/servers/alice-srv/jobs/1/cancel", alice, nil)
+	expect(t, "cancel unknown job", code, 404, body)
 	code, body = h.do("POST", "/api/servers/bob-srv/backups", alice, nil)
 	expect(t, "foreign backup", code, 404, body)
 	code, body = h.do("POST", "/api/servers/alice-srv/backups/..%2Fetc.tar.gz/restore", alice, nil)

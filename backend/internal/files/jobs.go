@@ -13,29 +13,42 @@ import (
 
 // Job kinds.
 const (
-	JobPull    = "pull"
-	JobBackup  = "backup"
-	JobRestore = "restore"
+	JobPull       = "pull"
+	JobBackup     = "backup"
+	JobRestore    = "restore"
+	JobCompress   = "compress"
+	JobDecompress = "decompress"
 )
 
 // Job states.
 const (
-	JobRunning = "running"
-	JobDone    = "done"
-	JobFailed  = "failed"
+	JobRunning   = "running"
+	JobDone      = "done"
+	JobFailed    = "failed"
+	JobCancelled = "cancelled"
 )
 
 // Job is a long file operation of a server that runs in the background.
 type Job struct {
 	ID    string `json:"id"`
-	Kind  string `json:"kind"  enums:"pull,backup,restore"`
+	Kind  string `json:"kind"  enums:"pull,backup,restore,compress,decompress"`
 	Label string `json:"label"`
-	// State is running, done or failed.
-	State      string     `json:"state"                enums:"running,done,failed"`
+	// State is running, done, failed or cancelled.
+	State      string     `json:"state"                enums:"running,done,failed,cancelled"`
 	Error      string     `json:"error,omitempty"`
 	StartedAt  time.Time  `json:"startedAt"`
 	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+	// Progress of a running job, once known.
+	Progress *Progress `json:"progress,omitempty" extensions:"x-nullable"`
+
+	// How Cancel stops the job (see cancel.go).
+	cancel    context.CancelFunc
+	marker    string
+	cancelled bool
 }
+
+// Task is the work of a job; report updates its progress.
+type Task func(ctx context.Context, report func(Progress)) error
 
 // Errors of jobs.
 var (
@@ -84,7 +97,7 @@ func (s *Service) busyLocked(ref Ref, kinds ...string) bool {
 
 // Start runs fn in the background. Backups and restores exclude each other per server. The
 // files pod is started first and kept alive while the job runs.
-func (s *Service) Start(ref Ref, kind, label string, fn func(ctx context.Context) error) (Job, error) {
+func (s *Service) Start(ref Ref, kind, label string, fn Task) (Job, error) {
 	j, err := s.add(ref, kind, label)
 	if err != nil {
 		return Job{}, err
@@ -95,7 +108,7 @@ func (s *Service) Start(ref Ref, kind, label string, fn func(ctx context.Context
 }
 
 // Run is Start that waits for the job (used by schedules).
-func (s *Service) Run(ctx context.Context, ref Ref, kind, label string, fn func(ctx context.Context) error) error {
+func (s *Service) Run(ctx context.Context, ref Ref, kind, label string, fn Task) error {
 	j, err := s.add(ref, kind, label)
 	if err != nil {
 		return err
@@ -128,9 +141,10 @@ func (s *Service) add(ref Ref, kind, label string) (*Job, error) {
 	return j, nil
 }
 
-func (s *Service) run(ctx context.Context, ref Ref, j *Job, fn func(ctx context.Context) error) (err error) {
+func (s *Service) run(ctx context.Context, ref Ref, j *Job, fn Task) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, jobLimit)
 	defer cancel()
+	ctx = withMarker(ctx, s.track(j, cancel))
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("job panicked: %v", r)
@@ -158,9 +172,20 @@ func (s *Service) run(ctx context.Context, ref Ref, j *Job, fn func(ctx context.
 			}
 		}
 	}()
-	err = fn(ctx)
+	err = fn(ctx, func(p Progress) { s.progress(j, p) })
 	s.Activity.Touch(ref)
 	return err
+}
+
+// progress stores a new value; readers keep the one they copied (it is never changed in place).
+func (s *Service) progress(j *Job, p Progress) {
+	s.jobs.mu.Lock()
+	defer s.jobs.mu.Unlock()
+	p.StartedAt = time.Now().UTC()
+	if j.Progress != nil {
+		p.StartedAt = j.Progress.StartedAt
+	}
+	j.Progress = &p
 }
 
 func (s *Service) finish(j *Job, err error) {
@@ -168,8 +193,13 @@ func (s *Service) finish(j *Job, err error) {
 	defer s.jobs.mu.Unlock()
 	now := time.Now().UTC()
 	j.FinishedAt = &now
-	j.State = JobDone
-	if err != nil {
+	j.cancel = nil
+	switch {
+	case j.cancelled && err != nil: // a job that still finished counts as done
+		j.State = JobCancelled
+	case err != nil:
 		j.State, j.Error = JobFailed, err.Error()
+	default:
+		j.State = JobDone
 	}
 }

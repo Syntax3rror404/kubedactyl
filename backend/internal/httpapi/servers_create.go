@@ -80,6 +80,7 @@ func (a *API) createServer(c *gin.Context) {
 		return
 	}
 	a.Trigger(gs.Namespace, gs.Name)
+	a.forgetServers(gs.Namespace)
 	a.audit(c, "server created", "server", gs.Name, "egg", gs.Spec.EggRef, "namespace", gs.Namespace)
 	c.JSON(http.StatusCreated, gs)
 }

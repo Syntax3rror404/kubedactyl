@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"app/internal/files"
 
@@ -34,11 +36,6 @@ type RenameFileRequest struct {
 type DecompressFileRequest struct {
 	Root string `json:"root,omitempty" example:"/"`
 	File string `json:"file"           example:"world.zip" binding:"required"`
-}
-
-// CompressResponse names the created archive.
-type CompressResponse struct {
-	Name string `json:"name" example:"archive-2026-09-28T120000.tar.gz"`
 }
 
 // writeFile godoc
@@ -213,15 +210,16 @@ func (a *API) uploadFiles(c *gin.Context) {
 
 // compressFiles godoc
 //
-//	@Summary	Create a tar.gz archive
-//	@Tags		Files
-//	@Accept		json
-//	@Produce	json
-//	@Param		server	path		string			true	"Server name"
-//	@Param		body	body		FilesRequest	true	"Entries"
-//	@Success	200		{object}	CompressResponse
-//	@Security	BearerAuth
-//	@Router		/servers/{server}/files/compress [post]
+//	@Summary		Create a tar.gz archive
+//	@Description	Starts a background job (see GET /servers/{server}/jobs); its label is the archive's path.
+//	@Tags			Files
+//	@Accept			json
+//	@Produce		json
+//	@Param			server	path		string			true	"Server name"
+//	@Param			body	body		FilesRequest	true	"Entries"
+//	@Success		202		{object}	files.Job
+//	@Security		BearerAuth
+//	@Router			/servers/{server}/files/compress [post]
 func (a *API) compressFiles(c *gin.Context) {
 	var req FilesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -232,25 +230,38 @@ func (a *API) compressFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
-	name, err := a.Files.Manager.Compress(c, files.RefOf(gs), cleanDir(req.Root), req.Files, a.denylist(c, gs))
+	deny := a.denylist(c, gs)
+	dir := cleanDir(req.Root)
+	if _, err := files.Resolve(dir, deny); err != nil {
+		a.fail(c, err)
+		return
+	}
+	ref := files.RefOf(gs)
+	archive := files.NewArchiveName(time.Now())
+	compress := func(ctx context.Context, report func(files.Progress)) error {
+		return a.Files.Manager.Compress(ctx, ref, dir, archive, req.Files, deny, report)
+	}
+	job, err := a.Files.Start(ref, files.JobCompress, path.Join(dir, archive), compress)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "files compressed", "server", gs.Name, "folder", cleanDir(req.Root), "files", req.Files, "archive", name)
-	c.JSON(http.StatusOK, CompressResponse{Name: name})
+	a.audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", archive)
+	c.JSON(http.StatusAccepted, job)
 }
 
 // decompressFile godoc
 //
-//	@Summary	Extract an archive (zip, tar, tar.gz, tar.xz)
-//	@Tags		Files
-//	@Accept		json
-//	@Param		server	path	string					true	"Server name"
-//	@Param		body	body	DecompressFileRequest	true	"Archive"
-//	@Success	204
-//	@Security	BearerAuth
-//	@Router		/servers/{server}/files/decompress [post]
+//	@Summary		Extract an archive (zip, tar, tar.gz, tar.xz)
+//	@Description	Starts a background job (see GET /servers/{server}/jobs); its label is the archive's path.
+//	@Tags			Files
+//	@Accept			json
+//	@Produce		json
+//	@Param			server	path		string					true	"Server name"
+//	@Param			body	body		DecompressFileRequest	true	"Archive"
+//	@Success		202		{object}	files.Job
+//	@Security		BearerAuth
+//	@Router			/servers/{server}/files/decompress [post]
 func (a *API) decompressFile(c *gin.Context) {
 	var req DecompressFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -261,11 +272,21 @@ func (a *API) decompressFile(c *gin.Context) {
 	if !ok {
 		return
 	}
+	deny := a.denylist(c, gs)
 	archive := inRoot(req.Root, req.File)
-	if err := a.Files.Manager.Decompress(c, files.RefOf(gs), archive, a.denylist(c, gs)); err != nil {
+	if _, err := files.Resolve(archive, deny); err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "archive extracted", "server", gs.Name, "archive", archive)
-	c.Status(http.StatusNoContent)
+	ref := files.RefOf(gs)
+	decompress := func(ctx context.Context, report func(files.Progress)) error {
+		return a.Files.Manager.Decompress(ctx, ref, archive, deny, report)
+	}
+	job, err := a.Files.Start(ref, files.JobDecompress, archive, decompress)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	a.audit(c, "extraction started", "server", gs.Name, "archive", archive)
+	c.JSON(http.StatusAccepted, job)
 }

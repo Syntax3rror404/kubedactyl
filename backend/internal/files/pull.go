@@ -38,10 +38,30 @@ func PullName(rawURL, name string) (string, error) {
 	return name, nil
 }
 
+// pullScript downloads "$1" to "$2" under a temporary name. Every second it prints "pos N SIZE": the
+// bytes written and the Content-Length of the last response (0 when the server sends none). The log
+// of wget lies next to the file (the files pod has no writable /tmp) and goes into the error.
+const pullScript = jobFuncs + `inside "$(real "$2")"
+[ -e "$2" ] && exit 5
+mkdir -p "$(dirname -- "$2")" || exit 1
+tmp="$(dirname -- "$2")/.$(basename -- "$2").download"
+trap 'rm -f "$tmp" "$tmp.log"' EXIT
+wget -S -T 30 -O "$tmp" -- "$1" 2>"$tmp.log" &
+job=$!
+while kill -0 "$job" 2>/dev/null; do
+  size=$(sed -n 's/^ *[Cc]ontent-[Ll]ength: *\([0-9]*\).*/\1/p' "$tmp.log" | tail -n 1)
+  echo "pos $(stat -c %s "$tmp" 2>/dev/null || echo 0) ${size:-0}"
+  sleep 1
+done
+wait "$job" || { echo "download failed: $(tail -n 1 "$tmp.log")" >&2; exit 1; }
+mv "$tmp" "$2"`
+
 // Pull downloads a URL into dir inside the files pod. The download runs in the pod, so
 // the network isolation of the user namespace applies and the panel's own network access
 // cannot be abused. Existing files are not overwritten.
-func (m *Manager) Pull(ctx context.Context, server Ref, rawURL, dir, name string, denylist []string) error {
+func (m *Manager) Pull(
+	ctx context.Context, server Ref, rawURL, dir, name string, denylist []string, report func(Progress),
+) error {
 	name, err := PullName(rawURL, name)
 	if err != nil {
 		return err
@@ -53,11 +73,6 @@ func (m *Manager) Pull(ctx context.Context, server Ref, rawURL, dir, name string
 	if _, err := m.checkLinks(ctx, server, denylist, true, target); err != nil {
 		return err
 	}
-	return m.run(ctx, server, nil, nil, `inside "$(real "$2")"
-[ -e "$2" ] && exit 5
-mkdir -p "$(dirname -- "$2")" || exit 1
-tmp="$(dirname -- "$2")/.$(basename -- "$2").download"
-if out=$(wget -T 30 -O "$tmp" -- "$1" 2>&1); then mv "$tmp" "$2"
-else rm -f "$tmp"; echo "download failed: $(echo "$out" | tail -n 1)" >&2; exit 1; fi`,
-		strings.TrimSpace(rawURL), target)
+	out := &progressWriter{report: report}
+	return m.run(ctx, server, nil, out, pullScript, strings.TrimSpace(rawURL), target)
 }

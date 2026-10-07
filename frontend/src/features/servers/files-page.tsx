@@ -70,8 +70,9 @@ export function FilesPage() {
   const moveFiles = useRenameFiles(name, { onError })
   const renameFile = useRenameFile(name, { onError })
   const createFolder = useCreateFolder(name, { onError })
-  const compressFiles = useCompressFiles(name, { onError, onSuccess: (r) => toast.success(`${r.name} created`) })
-  const decompressFile = useDecompressFile(name, { onError, onSuccess: (_, v) => toast.success(`${v.name} extracted`) })
+  // Packing and extracting run as jobs: the job list shows them, a toast says when they are finished.
+  const compressFiles = useCompressFiles(name, { onError })
+  const decompressFile = useDecompressFile(name, { onError })
   const deleteFiles = useDeleteFiles(name, { onError, onSuccess: () => setSelected(new Set()) })
   // Files dragged from the desktop are uploaded into the current folder.
   const drop = useDesktopDrop(ready, (dropped) =>
@@ -121,7 +122,13 @@ export function FilesPage() {
         />
       </div>
 
-      <JobProgressList jobs={jobs.data} kinds={["pull"]} limit={3} />
+      <JobProgressList
+        server={name}
+        jobs={jobs.data}
+        kinds={["pull", "compress", "decompress"]}
+        limit={3}
+        showDone={false}
+      />
 
       <FilesSessionGate files={files}>
         <Card className="relative py-0" {...drop.handlers}>

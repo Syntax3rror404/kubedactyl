@@ -4,10 +4,10 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { FieldError, FieldGroup } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { AuthShell } from "@/features/auth/components/auth-shell"
+import { NewAccountFields } from "@/features/auth/components/new-account-fields"
 import { NewPasswordFields } from "@/features/auth/components/new-password-fields"
 import { useDraft } from "@/hooks/use-draft"
 import { formatDate } from "@/lib/format"
@@ -80,40 +80,15 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
       <CardContent>
         <form onSubmit={submit}>
           <FieldGroup>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={!!errors.username}>
-                <FieldLabel htmlFor="username">Username</FieldLabel>
-                <Input
-                  id="username"
-                  autoComplete="username"
-                  autoFocus={!invite.username}
-                  readOnly={!!invite.username}
-                  value={draft.username}
-                  onChange={(e) => set("username", e.target.value.toLowerCase())}
-                  className="font-mono"
-                  aria-invalid={!!errors.username}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="display">Display name</FieldLabel>
-                <Input
-                  id="display"
-                  autoFocus={!!invite.username}
-                  value={draft.displayName}
-                  onChange={(e) => set("displayName", e.target.value)}
-                  placeholder="optional"
-                />
-              </Field>
-            </div>
-            {errors.username ? (
-              <FieldError>{errors.username}</FieldError>
-            ) : (
-              <FieldDescription>
-                {invite.username
-                  ? "Your administrator chose the username."
-                  : "3-32 lowercase letters, digits or dashes, starting with a letter. It cannot be changed later."}
-              </FieldDescription>
-            )}
+            <NewAccountFields
+              username={draft.username}
+              displayName={draft.displayName}
+              onUsername={(v) => set("username", v)}
+              onDisplayName={(v) => set("displayName", v)}
+              error={errors.username}
+              fixedUsername={!!invite.username}
+              autoFocus
+            />
             <NewPasswordFields
               password={draft.password}
               confirm={draft.confirm}

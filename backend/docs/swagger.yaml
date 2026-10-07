@@ -589,17 +589,25 @@ definitions:
         - pull
         - backup
         - restore
+        - compress
+        - decompress
         type: string
       label:
         type: string
+      progress:
+        allOf:
+        - $ref: '#/definitions/files.Progress'
+        description: Progress of a running job, once known.
+        x-nullable: true
       startedAt:
         type: string
       state:
-        description: State is running, done or failed.
+        description: State is running, done, failed or cancelled.
         enum:
         - running
         - done
         - failed
+        - cancelled
         type: string
     required:
     - id
@@ -607,6 +615,27 @@ definitions:
     - label
     - startedAt
     - state
+    type: object
+  files.Progress:
+    properties:
+      done:
+        type: integer
+      file:
+        type: string
+      startedAt:
+        type: string
+      total:
+        type: integer
+      unit:
+        enum:
+        - files
+        - bytes
+        type: string
+    required:
+    - done
+    - startedAt
+    - total
+    - unit
     type: object
   httpapi.AcceptInviteRequest:
     properties:
@@ -707,14 +736,6 @@ definitions:
         type: string
     required:
     - command
-    type: object
-  httpapi.CompressResponse:
-    properties:
-      name:
-        example: archive-2026-09-28T120000.tar.gz
-        type: string
-    required:
-    - name
     type: object
   httpapi.CreateBackupRequest:
     properties:
@@ -3824,6 +3845,8 @@ paths:
     post:
       consumes:
       - application/json
+      description: Starts a background job (see GET /servers/{server}/jobs); its label
+        is the archive's path.
       parameters:
       - description: Server name
         in: path
@@ -3839,10 +3862,10 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "202":
+          description: Accepted
           schema:
-            $ref: '#/definitions/httpapi.CompressResponse'
+            $ref: '#/definitions/files.Job'
       security:
       - BearerAuth: []
       summary: Create a tar.gz archive
@@ -3905,6 +3928,8 @@ paths:
     post:
       consumes:
       - application/json
+      description: Starts a background job (see GET /servers/{server}/jobs); its label
+        is the archive's path.
       parameters:
       - description: Server name
         in: path
@@ -3917,9 +3942,13 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/httpapi.DecompressFileRequest'
+      produces:
+      - application/json
       responses:
-        "204":
-          description: No Content
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/files.Job'
       security:
       - BearerAuth: []
       summary: Extract an archive (zip, tar, tar.gz, tar.xz)
@@ -4174,6 +4203,30 @@ paths:
       security:
       - BearerAuth: []
       summary: Background jobs of a server
+      tags:
+      - Backups
+  /servers/{server}/jobs/{job}/cancel:
+    post:
+      description: |-
+        Stops a running job; what it left half done is removed (a cancelled restore leaves the
+        server files incomplete). A finished job stays as it is.
+      parameters:
+      - description: Server name
+        in: path
+        name: server
+        required: true
+        type: string
+      - description: Job ID
+        in: path
+        name: job
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Cancel a background job
       tags:
       - Backups
   /servers/{server}/power:

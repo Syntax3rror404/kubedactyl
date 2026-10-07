@@ -1,6 +1,7 @@
 import { toast } from "sonner"
 
 import { UnveilPassword } from "@/components/common/unveil-password"
+import { UsernameField } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -77,23 +78,14 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
       </DialogHeader>
       <FieldGroup className="py-4">
         {!user && (
-          <Field data-invalid={!!errors.username}>
-            <FieldLabel htmlFor="u-name">Username</FieldLabel>
-            <Input
-              id="u-name"
-              value={username}
-              onChange={(e) => set("username", e.target.value.toLowerCase())}
-              aria-invalid={!!errors.username}
-              placeholder="alice"
-              autoFocus
-              className="font-mono"
-            />
-            {errors.username ? (
-              <FieldError>{errors.username}</FieldError>
-            ) : (
-              <FieldDescription>3-32 lowercase letters, digits or dashes.</FieldDescription>
-            )}
-          </Field>
+          <UsernameField
+            id="u-name"
+            value={username}
+            onChange={(v) => set("username", v)}
+            error={errors.username}
+            placeholder="alice"
+            autoFocus
+          />
         )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>

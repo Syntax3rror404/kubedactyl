@@ -1,10 +1,9 @@
 import { useEffect, useEffectEvent, useRef } from "react"
 import { toast } from "sonner"
 
+import { jobKinds } from "@/features/servers/lib/jobs"
 import { useFilesSession, useRefreshFiles, useServerJobs } from "@/lib/queries"
 import type { ServerJob } from "@/lib/types"
-
-const kindLabels: Record<ServerJob["kind"], string> = { backup: "Backup", restore: "Restore", pull: "Download" }
 
 /**
  * The file container of a server for the pages that need it (files, backups): starts it on demand
@@ -17,8 +16,9 @@ export function useFileContainer(server: string) {
   const jobs = useServerJobs(server)
   const running = useRef<Set<string> | null>(null)
   const announce = useEffectEvent((j: ServerJob) => {
-    if (j.state === "done") toast.success(`${kindLabels[j.kind]} finished`, { description: j.label })
-    else toast.error(`${kindLabels[j.kind]} failed`, { description: j.error || j.label })
+    if (j.state === "done") toast.success(`${jobKinds[j.kind].name} finished`, { description: j.label })
+    else if (j.state === "cancelled") toast.info(`${jobKinds[j.kind].name} cancelled`, { description: j.label })
+    else toast.error(`${jobKinds[j.kind].name} failed`, { description: j.error || j.label })
     refresh()
   })
 

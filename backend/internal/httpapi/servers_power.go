@@ -137,6 +137,7 @@ func (a *API) suspendServer(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
+	a.forgetServers(gs.Namespace)
 	a.audit(c, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, gs)
@@ -177,6 +178,7 @@ func (a *API) transferServer(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
+	a.forgetServers(gs.Namespace, namespace)
 	a.audit(c, "server transferred", "server", gs.Name, "from", gs.Namespace, "to", namespace)
 	a.Trigger(moved.Namespace, moved.Name)
 	c.JSON(http.StatusOK, moved)

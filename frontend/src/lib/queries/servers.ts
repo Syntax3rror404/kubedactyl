@@ -38,13 +38,20 @@ export const useServerDiagnostics = (server: string) =>
     refetchOnWindowFocus: false,
   })
 
-/** Background jobs (backup, restore, pull); polled faster while one runs. */
+/** Reloads the job list of a server: after a job was started or cancelled. */
+export const refreshJobs = (server: string) => (qc: QueryClient) => refresh(qc, keys.jobs(server))
+
+/** Background jobs (backup, restore, pull, compress, decompress); polled faster while one runs. */
 export const useServerJobs = (server: string) =>
   useQuery({
     queryKey: keys.jobs(server),
     queryFn: () => api.servers.listJobs(server),
     refetchInterval: (q) => (q.state.data?.some((j) => j.state === "running") ? 2000 : 10_000),
   })
+
+/** Stops a running job; the job list shows it as cancelled once its processes have ended. */
+export const useCancelJob = (server: string, cb?: MutationCallbacks<void, string>) =>
+  useApiMutation((job) => api.servers.cancelJob(server, job), refreshJobs(server), cb)
 
 const storeServer = (qc: QueryClient, gs: GameServer) => {
   qc.setQueryData(keys.server(gs.metadata.name), gs)
@@ -83,10 +90,15 @@ export const useAcceptEula = (server: string, cb?: MutationCallbacks<void, void>
     cb,
   )
 
+/** Deletes a server; it leaves the list at once, before the list is loaded again. */
 export const useDeleteServer = (server: string, cb?: MutationCallbacks<void, void>) =>
   useApiMutation(
     () => api.servers.delete(server),
-    (qc) => refresh(qc, keys.servers),
+    (qc) => {
+      void qc.cancelQueries({ queryKey: keys.servers })
+      qc.setQueryData<GameServer[]>(keys.servers, (list) => list?.filter((s) => s.metadata.name !== server))
+      refresh(qc, keys.servers)
+    },
     cb,
   )
 

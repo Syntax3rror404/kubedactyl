@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,16 +32,73 @@ func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, err
 		return nil, err
 	}
 	p := principal(c)
-	for i := range list.Items {
-		gs := &list.Items[i]
-		if !tenancy.Owns(gs.Namespace) {
-			continue
-		}
-		if p.Admin() || gs.Namespace == p.Namespace {
-			return gs, nil
-		}
+	if gs := accessible(p, list.Items, name); gs != nil {
+		return gs, nil
+	}
+	// Not in the informer cache yet: a server created a moment ago (its watch can lag by minutes).
+	items, err := a.readServers(c, scopeOf(p))
+	if err != nil {
+		return nil, err
+	}
+	if gs := accessible(p, items, name); gs != nil {
+		return gs, nil
 	}
 	return nil, apierrors.NewNotFound(gameServerResource, name)
+}
+
+// accessible returns the server with that name the caller may access, or nil.
+func accessible(p *Principal, items []v1alpha1.GameServer, name string) *v1alpha1.GameServer {
+	for i := range items {
+		gs := &items[i]
+		if gs.Name == name && tenancy.Owns(gs.Namespace) && (p.Admin() || gs.Namespace == p.Namespace) {
+			return gs
+		}
+	}
+	return nil
+}
+
+// serverListTTL is how long the server lists are kept (every viewer polls them every few seconds).
+const serverListTTL = 2 * time.Second
+
+// scopeOf is the key of the servers the caller sees: "" for every namespace (administrators), otherwise the
+// user's namespace.
+func scopeOf(p *Principal) string {
+	if p.Admin() {
+		return ""
+	}
+	return p.Namespace
+}
+
+// readServers lists the servers of a scope (see scopeOf) from the API server, not the informer cache: its watch
+// can lag by minutes behind a proxy that cuts streams, so a deleted server stayed and a new one was missing. The
+// list is read at most once per scope and serverListTTL; changes made through the panel drop it (forgetServers).
+// The result is the caller's own copy.
+func (a *API) readServers(ctx context.Context, scope string) ([]v1alpha1.GameServer, error) {
+	items, err := a.serverLists.Get(scope, func() ([]v1alpha1.GameServer, error) {
+		var list v1alpha1.GameServerList
+		var opts []client.ListOption
+		if scope != "" {
+			opts = append(opts, client.InNamespace(scope))
+		}
+		if err := a.Reader.List(ctx, &list, opts...); err != nil {
+			return nil, err
+		}
+		// A deleted server stays until its volume is released; it is gone for the list already.
+		items := slices.DeleteFunc(ownServers(list.Items), func(gs v1alpha1.GameServer) bool {
+			return gs.DeletionTimestamp != nil
+		})
+		return items, nil
+	})
+	return slices.Clone(items), err
+}
+
+// forgetServers drops the kept server lists after a change made through the panel (the administrators' list and
+// those of the namespaces), so the next request shows it.
+func (a *API) forgetServers(namespaces ...string) {
+	a.serverLists.Forget("")
+	for _, ns := range namespaces {
+		a.serverLists.Forget(ns)
+	}
 }
 
 // serverNameTaken reports whether a server name exists in any namespace (read uncached: a

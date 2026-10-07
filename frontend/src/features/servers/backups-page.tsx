@@ -84,7 +84,7 @@ export function BackupsPage() {
         </CardContent>
       </Card>
 
-      <JobProgressList jobs={jobs.data} kinds={["backup", "restore"]} />
+      <JobProgressList server={name} jobs={jobs.data} kinds={["backup", "restore"]} />
 
       <FilesSessionGate files={files}>
         <QueryState

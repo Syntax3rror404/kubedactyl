@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"app/api/v1alpha1"
 	"app/internal/auth"
 	"app/internal/clusterinfo"
 	"app/internal/console"
@@ -73,6 +74,8 @@ type API struct {
 	KubeLimiter *kube.RateLimiter
 
 	stats *statsCache
+	// serverLists keeps the server list per scope (see readServers).
+	serverLists *kube.TTLCache[string, []v1alpha1.GameServer]
 }
 
 // ClusterInfo describes the cluster the panel is connected to.
@@ -96,6 +99,7 @@ type ErrorResponse struct {
 // Register adds all routes to the router group (mounted at /api).
 func (a *API) Register(r *gin.RouterGroup) {
 	a.stats = newStatsCache()
+	a.serverLists = kube.NewTTLCache[string, []v1alpha1.GameServer](serverListTTL)
 	// Files changed by a background job (backup, restore, download, also scheduled ones) are measured again.
 	if a.Files != nil {
 		a.Files.Changed = a.stats.disk.Forget
@@ -157,6 +161,7 @@ func (a *API) registerServers(u *gin.RouterGroup) {
 	s.PUT("/schedules", a.updateSchedules)
 	s.POST("/schedules/:schedule/run", a.runSchedule)
 	s.GET("/jobs", a.listJobs)
+	s.POST("/jobs/:job/cancel", a.cancelJob)
 	s.POST("/backups", a.createBackup)
 	s.POST("/backups/:backup/restore", a.restoreBackup)
 	b := s.Group("/backups", a.requireFilesPod, a.remeasureDisk)

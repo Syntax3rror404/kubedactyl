@@ -113,6 +113,7 @@ var domainErrors = []struct {
 	{files.ErrTooManyEntries, http.StatusRequestEntityTooLarge},
 	{files.ErrForeignPod, http.StatusConflict},
 	{files.ErrBusy, http.StatusConflict},
+	{files.ErrJobNotFound, http.StatusNotFound},
 	{files.ErrRestoring, http.StatusConflict},
 	{files.ErrBadURL, http.StatusUnprocessableEntity},
 	{files.ErrBadName, http.StatusUnprocessableEntity},

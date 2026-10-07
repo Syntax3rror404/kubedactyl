@@ -54,9 +54,10 @@ func (a *API) pullFile(c *gin.Context) {
 		return
 	}
 	ref := files.RefOf(gs)
-	job, err := a.Files.Start(ref, files.JobPull, path.Join(dir, name), func(ctx context.Context) error {
-		return a.Files.Manager.Pull(ctx, ref, req.URL, dir, name, deny)
-	})
+	pull := func(ctx context.Context, report func(files.Progress)) error {
+		return a.Files.Manager.Pull(ctx, ref, req.URL, dir, name, deny, report)
+	}
+	job, err := a.Files.Start(ref, files.JobPull, path.Join(dir, name), pull)
 	if err != nil {
 		a.fail(c, err)
 		return

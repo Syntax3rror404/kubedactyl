@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
 import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refreshJobs } from "@/lib/queries/servers"
 import type { FilesSession, ServerJob } from "@/lib/types"
 
 type FilesView = "ready" | "starting" | "stopped"
@@ -119,13 +120,13 @@ export const useRenameFiles = (server: string, cb?: MutationCallbacks<void, { fr
     cb,
   )
 
-export const useCompressFiles = (
-  server: string,
-  cb?: MutationCallbacks<{ name: string }, { dir: string; names: string[] }>,
-) => useApiMutation(({ dir, names }) => api.files.compress(server, dir, names), refreshListings(server), cb)
+/** Starts a job that packs entries of dir into a new archive; the job list shows its progress. */
+export const useCompressFiles = (server: string, cb?: MutationCallbacks<ServerJob, { dir: string; names: string[] }>) =>
+  useApiMutation(({ dir, names }) => api.files.compress(server, dir, names), refreshJobs(server), cb)
 
-export const useDecompressFile = (server: string, cb?: MutationCallbacks<void, { dir: string; name: string }>) =>
-  useApiMutation(({ dir, name }) => api.files.decompress(server, dir, name), refreshListings(server), cb)
+/** Starts a job that extracts an archive into its folder; the job list shows its progress. */
+export const useDecompressFile = (server: string, cb?: MutationCallbacks<ServerJob, { dir: string; name: string }>) =>
+  useApiMutation(({ dir, name }) => api.files.decompress(server, dir, name), refreshJobs(server), cb)
 
 export const useDeleteFiles = (server: string, cb?: MutationCallbacks<void, { dir: string; names: string[] }>) =>
   useApiMutation(({ dir, names }) => api.files.delete(server, dir, names), refreshListings(server), cb)
@@ -134,9 +135,4 @@ export const useDeleteFiles = (server: string, cb?: MutationCallbacks<void, { di
 export const usePullFile = (
   server: string,
   cb?: MutationCallbacks<ServerJob, { url: string; dir: string; filename?: string }>,
-) =>
-  useApiMutation(
-    ({ url, dir, filename }) => api.files.pull(server, url, dir, filename),
-    (qc) => refresh(qc, keys.jobs(server)),
-    cb,
-  )
+) => useApiMutation(({ url, dir, filename }) => api.files.pull(server, url, dir, filename), refreshJobs(server), cb)

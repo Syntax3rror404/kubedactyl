@@ -277,11 +277,21 @@ export interface FilesJob {
   error?: string;
   finishedAt?: string;
   id: string;
-  kind: "pull" | "backup" | "restore";
+  kind: "pull" | "backup" | "restore" | "compress" | "decompress";
   label: string;
+  /** Progress of a running job, once known. */
+  progress?: FilesProgress | null;
   startedAt: string;
-  /** State is running, done or failed. */
-  state: "running" | "done" | "failed";
+  /** State is running, done, failed or cancelled. */
+  state: "running" | "done" | "failed" | "cancelled";
+}
+
+export interface FilesProgress {
+  done: number;
+  file?: string;
+  startedAt: string;
+  total: number;
+  unit: "files" | "bytes";
 }
 
 export interface HttpapiAcceptInviteRequest {
@@ -343,11 +353,6 @@ export interface HttpapiClusterInfo {
 export interface HttpapiCommandRequest {
   /** @example "say Hello" */
   command: string;
-}
-
-export interface HttpapiCompressResponse {
-  /** @example "archive-2026-09-28T120000.tar.gz" */
-  name: string;
 }
 
 export interface HttpapiCreateBackupRequest {

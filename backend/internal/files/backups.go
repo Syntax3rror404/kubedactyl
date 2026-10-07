@@ -58,32 +58,39 @@ mkdir -p "$1"`, backupDirPath()); err != nil {
 	return out, nil
 }
 
-// CreateBackup packs everything except the backup folder into a new archive. It is written
-// under a temporary name first, so an aborted backup never looks complete.
-func (m *Manager) CreateBackup(ctx context.Context, server Ref, name string) error {
+// backupScript packs everything except the backup folder ("$1" root, "$2" backup folder, "$3"
+// name). Leftovers of backups that ended with the panel are removed first (only one backup or
+// restore runs per server).
+const backupScript = jobFuncs + `inside "$(real "$1/$2")"
+cd "$1" || exit 3
+mkdir -p "$2" || exit 1
+rm -f "$2"/.*.partial
+pack "$2/$3" "$2" .`
+
+// restoreScript deletes everything except the backup folder and extracts the archive.
+const restoreScript = jobFuncs + `inside "$(real "$1/$2/$3")"
+cd "$1" || exit 3
+[ -f "$2/$3" ] || exit 3
+find "$1" -mindepth 1 -maxdepth 1 ! -name "$2" -exec rm -rf {} +
+unpack "$2/$3" "$1"`
+
+// CreateBackup packs everything except the backup folder into a new archive.
+func (m *Manager) CreateBackup(ctx context.Context, server Ref, name string, report func(Progress)) error {
 	if !ValidBackupName(name) {
 		return ErrDenied
 	}
-	return m.run(ctx, server, nil, nil, `inside "$(real "$1/$2")"
-cd "$1" || exit 3
-mkdir -p "$2" || exit 1
-tmp="$2/.$3.partial"
-if tar -czf "$tmp" --exclude="./$2" . ; then mv "$tmp" "$2/$3"; else rm -f "$tmp"; exit 1; fi`,
-		gameserver.ServerRoot, BackupDir, name)
+	out := &progressWriter{report: report}
+	return m.run(ctx, server, nil, out, backupScript, gameserver.ServerRoot, BackupDir, name)
 }
 
 // RestoreBackup deletes everything except the backup folder and extracts the archive.
 // The server must be stopped.
-func (m *Manager) RestoreBackup(ctx context.Context, server Ref, name string) error {
+func (m *Manager) RestoreBackup(ctx context.Context, server Ref, name string, report func(Progress)) error {
 	if !ValidBackupName(name) {
 		return ErrNotFound
 	}
-	return m.run(ctx, server, nil, nil, `inside "$(real "$1/$2/$3")"
-cd "$1" || exit 3
-[ -f "$2/$3" ] || exit 3
-find "$1" -mindepth 1 -maxdepth 1 ! -name "$2" -exec rm -rf {} +
-tar -xzf "$2/$3" -C "$1"`,
-		gameserver.ServerRoot, BackupDir, name)
+	out := &progressWriter{report: report}
+	return m.run(ctx, server, nil, out, restoreScript, gameserver.ServerRoot, BackupDir, name)
 }
 
 // DeleteBackup removes one archive.
@@ -99,16 +106,16 @@ rm -f -- "$1"`, backupDirPath()+"/"+name)
 // StartBackup creates a backup in the background; label and now give its name.
 func (s *Service) StartBackup(ref Ref, label string, now time.Time) (Job, error) {
 	name := NewBackupName(label, now)
-	return s.Start(ref, JobBackup, name, func(ctx context.Context) error {
-		return s.Manager.CreateBackup(ctx, ref, name)
+	return s.Start(ref, JobBackup, name, func(ctx context.Context, report func(Progress)) error {
+		return s.Manager.CreateBackup(ctx, ref, name, report)
 	})
 }
 
 // RunBackup is StartBackup that waits for the backup (used by schedules).
 func (s *Service) RunBackup(ctx context.Context, ref Ref, label string, now time.Time) error {
 	name := NewBackupName(label, now)
-	return s.Run(ctx, ref, JobBackup, name, func(ctx context.Context) error {
-		return s.Manager.CreateBackup(ctx, ref, name)
+	return s.Run(ctx, ref, JobBackup, name, func(ctx context.Context, report func(Progress)) error {
+		return s.Manager.CreateBackup(ctx, ref, name, report)
 	})
 }
 
@@ -117,8 +124,8 @@ func (s *Service) StartRestore(ref Ref, name string) (Job, error) {
 	if !ValidBackupName(name) {
 		return Job{}, ErrNotFound
 	}
-	return s.Start(ref, JobRestore, name, func(ctx context.Context) error {
-		return s.Manager.RestoreBackup(ctx, ref, name)
+	return s.Start(ref, JobRestore, name, func(ctx context.Context, report func(Progress)) error {
+		return s.Manager.RestoreBackup(ctx, ref, name, report)
 	})
 }
 
