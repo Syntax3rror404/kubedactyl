@@ -80,7 +80,7 @@ export function SsoCard({
               checked={!!values.enabled}
               onCheckedChange={(enabled) => onChange({ enabled, redirectUrl: values.redirectUrl || thisPanel })}
             />
-            <FieldLabel htmlFor="oidc-enabled">Offer single sign-on on the sign-in page</FieldLabel>
+            <FieldLabel htmlFor="oidc-enabled">Enable OIDC on login page</FieldLabel>
           </Field>
           <FieldGroup className="grid gap-6 md:grid-cols-2">
             {textFields.map((f) => (
