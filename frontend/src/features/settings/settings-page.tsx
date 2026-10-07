@@ -7,16 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { AddressCard } from "@/features/settings/components/address-card"
-import { ApiDocsCard } from "@/features/settings/components/api-docs-card"
 import { BrandingCard } from "@/features/settings/components/branding-card"
 import type { Selection, SelectionHandlers } from "@/features/settings/components/default-cell"
 import { EggLibrariesCard } from "@/features/settings/components/egg-libraries-card"
-import { IsolationCard } from "@/features/settings/components/isolation-card"
 import { KubeApiCard } from "@/features/settings/components/kube-api-card"
 import { LegalCard } from "@/features/settings/components/legal-card"
-import { LifetimesCard } from "@/features/settings/components/lifetimes-card"
 import { NoticeCard } from "@/features/settings/components/notice-card"
 import { PoolsCard } from "@/features/settings/components/pools-card"
+import { SecurityCard } from "@/features/settings/components/security-card"
 import { StorageClassesCard } from "@/features/settings/components/storage-classes-card"
 import { UpgradeCard } from "@/features/settings/components/upgrade-card"
 import { VersionsCard } from "@/features/settings/components/versions-card"
@@ -29,8 +27,8 @@ import { fieldErrors } from "@/lib/validation"
 const header = { title: "Settings" }
 
 /**
- * /settings (admins): branding, server notice, address, storage classes, pools, egg library, legal texts, isolation,
- * session and token lifetimes, Kube API limit, API docs, panel updates and software versions.
+ * /settings (admins): branding, server notice, address, storage classes, pools, egg library, legal texts, security
+ * (isolation, session and token lifetimes, API docs), Kube API limit, panel updates and software versions.
  */
 export function PanelSettingsPage() {
   const settings = useSettings()
@@ -141,13 +139,13 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
         errors={errors}
       />
 
-      <IsolationCard
-        isolated={!value.allowPrivateNetworks}
-        onChange={(isolated) => change({ allowPrivateNetworks: !isolated })}
-      />
-
-      <LifetimesCard
-        values={{ sessionHours: value.sessionHours ?? 0, apiTokenMaxDays: value.apiTokenMaxDays ?? 0 }}
+      <SecurityCard
+        values={{
+          allowPrivateNetworks: value.allowPrivateNetworks ?? false,
+          sessionHours: value.sessionHours ?? 0,
+          apiTokenMaxDays: value.apiTokenMaxDays ?? 0,
+          disableApiDocs: value.disableApiDocs ?? false,
+        }}
         onChange={change}
         errors={errors}
       />
@@ -157,8 +155,6 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
         onChange={change}
         errors={errors}
       />
-
-      <ApiDocsCard enabled={!value.disableApiDocs} onChange={(enabled) => change({ disableApiDocs: !enabled })} />
 
       <UpgradeCard />
 

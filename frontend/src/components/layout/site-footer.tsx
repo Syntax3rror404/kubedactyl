@@ -1,3 +1,4 @@
+import { BugIcon, GlobeCodeIcon, ScaleIcon, TagIcon } from "lucide-react"
 import { lazy, Suspense, useState, type ReactNode } from "react"
 import { Link } from "react-router"
 
@@ -7,6 +8,8 @@ import { usePanelInfo, useLegalTexts } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 const repositoryUrl = "https://github.com/Syntax3rror404/kubedactyl"
+// Links with an icon in front; the icon follows the text color on hover.
+const link = "inline-flex items-center gap-1 hover:text-foreground hover:underline [&_svg]:size-3.5"
 
 // The Markdown renderer is only needed when a legal text opens; loaded then, so it stays out of every page.
 const Markdown = lazy(() => import("@/components/common/markdown").then((m) => ({ default: m.Markdown })))
@@ -29,19 +32,17 @@ export function SiteFooter({ className, children }: { className?: string; childr
     >
       {children}
       {info.data && (
-        <span className="tabular-nums">
+        <span className="inline-flex items-center gap-1 tabular-nums [&_svg]:size-3.5">
+          <TagIcon />
           {info.data.name} v{info.data.version}
         </span>
       )}
-      <a href={repositoryUrl} target="_blank" rel="noreferrer" className="hover:text-foreground hover:underline">
+      <a href={repositoryUrl} target="_blank" rel="noreferrer" className={link}>
+        <GlobeCodeIcon />
         GitHub
       </a>
-      <a
-        href={`${repositoryUrl}/issues/new`}
-        target="_blank"
-        rel="noreferrer"
-        className="hover:text-foreground hover:underline"
-      >
+      <a href={`${repositoryUrl}/issues/new`} target="_blank" rel="noreferrer" className={link}>
+        <BugIcon />
         Report an issue
       </a>
       {docs.map((d) => (
@@ -51,7 +52,8 @@ export function SiteFooter({ className, children }: { className?: string; childr
       ))}
       {/* Written by the production build (Go modules and npm packages); not there in dev mode. */}
       {info.data?.mode === "production" && (
-        <Link to="/licenses" target="_blank" className="hover:text-foreground hover:underline">
+        <Link to="/licenses" target="_blank" className={link}>
+          <ScaleIcon />
           Licenses
         </Link>
       )}

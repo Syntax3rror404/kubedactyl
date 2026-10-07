@@ -168,7 +168,7 @@ scripts/imagebuild/       daemonless image build and push (make image / push-ima
 ## API
 
 Swagger UI: **http://localhost:8080/swagger/** (also linked in the sidebar; administrators can turn it off in
-*Settings → API documentation*; `/swagger/` then answers 404, the API keeps working). Websocket
+*Settings → Security*; `/swagger/` then answers 404, the API keeps working). Websocket
 `/api/servers/{name}/ws` uses JSON events: `{"event":"console output","args":["…"]}`,
 send `{"event":"send command","args":["say hi"]}` or `{"event":"set state","args":["restart"]}`.
 

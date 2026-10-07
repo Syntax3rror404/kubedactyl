@@ -463,7 +463,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | golang.org/x/sys | v0.48.0 | BSD-3-Clause |
 | golang.org/x/term | v0.46.0 | BSD-3-Clause |
 | golang.org/x/text | v0.42.0 | BSD-3-Clause |
-| golang.org/x/time | v0.15.0 | BSD-3-Clause |
+| golang.org/x/time | v0.16.0 | BSD-3-Clause |
 | golang.org/x/tools | v0.51.0 | BSD-3-Clause |
 | gomodules.xyz/jsonpatch/v2 | v2.4.0 | Apache-2.0 |
 | google.golang.org/protobuf | v1.36.12-0.20260120151049-f2248ac996af | BSD-3-Clause |
@@ -520,14 +520,15 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @codemirror/lang-wast | 6.0.2 | MIT |
 | @codemirror/lang-xml | 6.1.0 | MIT |
 | @codemirror/lang-yaml | 6.1.3 | MIT |
-| @codemirror/language | 6.12.4 | MIT |
+| @codemirror/language | 6.13.1 | MIT |
 | @codemirror/language-data | 6.5.2 | MIT |
 | @codemirror/legacy-modes | 6.5.4 | MIT |
 | @codemirror/lint | 6.9.7 | MIT |
 | @codemirror/search | 6.7.2 | MIT |
 | @codemirror/state | 6.7.6 | MIT |
+| @codemirror/streamparser | 6.0.0 | MIT |
 | @codemirror/theme-one-dark | 6.1.3 | MIT |
-| @codemirror/view | 6.43.13 | MIT |
+| @codemirror/view | 6.43.14 | MIT |
 | @floating-ui/core | 1.8.0 | MIT |
 | @floating-ui/dom | 1.8.0 | MIT |
 | @floating-ui/react-dom | 2.1.9 | MIT |
@@ -630,7 +631,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | comma-separated-tokens | 2.0.3 | MIT |
 | cookie-es | 3.1.1 | MIT |
 | crelt | 1.0.7 | MIT |
-| cronstrue | 3.29.0 | MIT |
+| cronstrue | 3.30.0 | MIT |
 | d3-array | 3.2.4 | ISC |
 | d3-color | 3.1.0 | ISC |
 | d3-format | 3.1.2 | ISC |
@@ -728,7 +729,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | reselect | 5.2.0 | MIT |
 | rolldown | 1.2.11 | MIT |
 | scheduler | 0.28.0 | MIT |
-| shadcn | 4.21.3 | MIT |
+| shadcn | 4.21.4 | MIT |
 | sonner | 2.0.8 | MIT |
 | space-separated-tokens | 2.0.2 | MIT |
 | style-mod | 4.1.4 | MIT |

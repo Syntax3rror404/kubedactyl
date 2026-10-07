@@ -32,7 +32,7 @@ instead. After the setup the page answers 409.
   (HMAC-signed). The signing key lives in the secret `kubedactyl-auth`.
 - API clients: `Authorization: Bearer <token>` with the session token from the login response or a
   personal **API token** (`kdt_…`, created under *Account*, only a SHA-256 hash is stored, shown once).
-- Lifetimes (*Settings → Sessions and API tokens*): a sign-in lasts 12 hours, an API token at most 90 days
+- Lifetimes (*Settings → Security*): a sign-in lasts 12 hours, an API token at most 90 days
   (1-720 hours / 1-3650 days). Both are checked on every request, so a shorter value also ends older sessions
   and tokens (counted from their creation); tokens without an expiry no longer exist.
 - Changing or resetting a password and disabling a user invalidates all sessions of that user;

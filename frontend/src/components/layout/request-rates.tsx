@@ -31,13 +31,13 @@ export function RequestRates() {
   return (
     <>
       <RateItem
-        label={panel ? "You" : undefined}
+        label={panel ? "User" : undefined}
         rate={data.user}
         title="Your requests per second over the last 5 seconds and the limit per user"
       />
       {panel && (
         <RateItem
-          label="Panel"
+          label="System"
           rate={panel}
           title="Kubernetes API calls per second of the whole panel over the last 5 seconds and the panel limit"
         />
