@@ -1,3 +1,5 @@
+import { ArrowDownUpIcon, ServerPlusIcon, type LucideIcon } from "lucide-react"
+
 import { useRequestRates } from "@/lib/queries"
 import type { Rate } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -10,12 +12,13 @@ function lamp({ rate, limit }: Rate) {
   return "bg-red-500"
 }
 
-function RateItem({ label, rate, title }: { label?: string; rate: Rate; title: string }) {
+function RateItem({ icon: Icon, label, rate, title }: { icon: LucideIcon; label?: string; rate: Rate; title: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 tabular-nums" title={title}>
-      <span aria-hidden className={cn("inline-block size-2 shrink-0 rounded-full", lamp(rate))} />
+    <span className="inline-flex items-center gap-1 tabular-nums [&_svg]:size-3.5" title={title}>
+      <Icon />
       {label && `${label} `}
       {rate.rate.toFixed(1)}/{rate.limit} req/s
+      <span aria-hidden className={cn("ml-0.5 inline-block size-2 shrink-0 rounded-full", lamp(rate))} />
     </span>
   )
 }
@@ -31,12 +34,14 @@ export function RequestRates() {
   return (
     <>
       <RateItem
+        icon={ArrowDownUpIcon}
         label={panel ? "User" : undefined}
         rate={data.user}
         title="Your requests per second over the last 5 seconds and the limit per user"
       />
       {panel && (
         <RateItem
+          icon={ServerPlusIcon}
           label="System"
           rate={panel}
           title="Kubernetes API calls per second of the whole panel over the last 5 seconds and the panel limit"
