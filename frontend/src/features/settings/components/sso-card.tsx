@@ -71,7 +71,7 @@ export function SsoCard({
           <KeyRoundIcon className="size-4" />
           Single sign-on
         </CardTitle>
-        <CardDescription>Sign in through an OpenID Connect identity provider. Its groups grant access.</CardDescription>
+        <CardDescription>Sign in through an OpenID Connect identity provider.</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup className="gap-6">
@@ -142,19 +142,13 @@ export function SsoCard({
                 id="oidc-redirect"
                 value={values.redirectUrl ?? ""}
                 onChange={(e) => onChange({ redirectUrl: e.target.value })}
-                placeholder={thisPanel}
+                placeholder="https://panel.example.com/api/auth/oidc/callback"
                 className="font-mono"
                 aria-invalid={errors["oidc.redirectUrl"] ? true : undefined}
               />
               <CopyButton value={values.redirectUrl || thisPanel} />
             </div>
-            {errors["oidc.redirectUrl"] ? (
-              <FieldError>{errors["oidc.redirectUrl"]}</FieldError>
-            ) : (
-              <FieldDescription>
-                The address users open the panel with; register it at the identity provider.
-              </FieldDescription>
-            )}
+            {errors["oidc.redirectUrl"] && <FieldError>{errors["oidc.redirectUrl"]}</FieldError>}
           </Field>
         </FieldGroup>
       </CardContent>
