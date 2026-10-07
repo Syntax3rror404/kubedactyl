@@ -236,7 +236,7 @@ const docTemplate = `{
         },
         "/auth/oidc/callback": {
             "get": {
-                "description": "Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to\nthe page the sign-in started from. The account is the one linked to the user of the identity\nprovider, else the one with the same username, else a new one. Failures redirect to\n/login?sso=\u003creason\u003e (access: in no group with access or disabled, account: the account cannot be\nused, failed).",
+                "description": "Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to\n/login?sso=ok\u0026next=\u003cpage the sign-in started from\u003e. The account is the one linked to the user of\nthe identity provider, else the one with the same username, else a new one. Failures redirect to\n/login?sso=\u003creason\u003e (access: in no group with access or disabled, account: the account cannot be\nused, failed).",
                 "tags": [
                     "Auth"
                 ],

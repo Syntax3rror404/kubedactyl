@@ -92,7 +92,7 @@ func TestOIDCSignIn(t *testing.T) {
 	// A new user of the user group gets an account without password and returns to the page they wanted.
 	idp.SignInAs(map[string]any{"sub": "s-carol", "preferred_username": "carol", "groups": []any{"players"}})
 	to, session := h.ssoSignIn("/servers/x?tab=files")
-	if to != "/servers/x?tab=files" || session == nil {
+	if to != "/login?next=%2Fservers%2Fx%3Ftab%3Dfiles&sso=ok" || session == nil {
 		t.Fatalf("sign-in led to %q, session %v", to, session)
 	}
 	var me UserView
@@ -113,7 +113,7 @@ func TestOIDCSignIn(t *testing.T) {
 	}
 	old := h.login("alice")
 	h.enableOIDC(idp, map[string]any{"linkByUsername": true})
-	if to, session = h.ssoSignIn("//evil.example.com"); to != "/" || session == nil {
+	if to, session = h.ssoSignIn("//evil.example.com"); to != "/login?next=%2F&sso=ok" || session == nil {
 		t.Errorf("alice: led to %q, session %v", to, session)
 	}
 	code, body = h.do("GET", "/api/auth/me", old, nil)

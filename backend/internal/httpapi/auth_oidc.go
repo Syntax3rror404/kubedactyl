@@ -27,9 +27,10 @@ const (
 	oidcPath         = "/api/auth/oidc"
 )
 
-// Why a sign-in through the identity provider failed, for the sign-in page (/login?sso=<reason>); the panel log
-// has the details.
+// How a sign-in through the identity provider ended, for the sign-in page (/login?sso=<result>), which shows it
+// before it opens the panel or the form again; the panel log has the details of a failure.
 const (
+	ssoSignedIn = "ok"
 	ssoNoAccess = "access"
 	ssoAccount  = "account"
 	ssoFailed   = "failed"
@@ -91,8 +92,8 @@ func (a *API) startOIDC(c *gin.Context) {
 //
 //	@Summary		Callback of the identity provider
 //	@Description	Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to
-//	@Description	the page the sign-in started from. The account is the one linked to the user of the identity
-//	@Description	provider, else the one with the same username, else a new one. Failures redirect to
+//	@Description	/login?sso=ok&next=<page the sign-in started from>. The account is the one linked to the user of
+//	@Description	the identity provider, else the one with the same username, else a new one. Failures redirect to
 //	@Description	/login?sso=<reason> (access: in no group with access or disabled, account: the account cannot be
 //	@Description	used, failed).
 //	@Tags			Auth
@@ -111,7 +112,7 @@ func (a *API) finishOIDC(c *gin.Context) {
 		return
 	}
 	a.Log.Info("signed in", "user", user.Name, "ip", c.ClientIP(), "via", "oidc")
-	c.Redirect(http.StatusFound, flow.Next)
+	c.Redirect(http.StatusFound, "/login?"+url.Values{"sso": {ssoSignedIn}, "next": {flow.Next}}.Encode())
 }
 
 // oidcUser verifies the callback and returns the account of the user the identity provider signed in. Errors

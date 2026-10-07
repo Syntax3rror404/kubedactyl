@@ -3204,8 +3204,8 @@ paths:
     get:
       description: |-
         Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to
-        the page the sign-in started from. The account is the one linked to the user of the identity
-        provider, else the one with the same username, else a new one. Failures redirect to
+        /login?sso=ok&next=<page the sign-in started from>. The account is the one linked to the user of
+        the identity provider, else the one with the same username, else a new one. Failures redirect to
         /login?sso=<reason> (access: in no group with access or disabled, account: the account cannot be
         used, failed).
       parameters:

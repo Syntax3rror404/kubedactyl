@@ -16,8 +16,8 @@ but they have not been tested.
 3. The IdP redirects back to the configured redirect URL (`/api/auth/oidc/callback`). The panel completes each
    flow once, exchanges the code (with the client secret and the PKCE verifier), verifies the ID token
    (signature, issuer, audience, expiry, nonce) and reads its claims.
-4. The panel starts its own session (cookie `kd_session`, lifetime *Settings → Security*) and opens the page the
-   sign-in started from.
+4. The panel starts its own session (cookie `kd_session`, lifetime *Settings → Security*) and returns to the
+   login page (`/login?sso=ok`), which shows the result and then opens the page the sign-in started from.
 
 The IdP is asked only during a sign-in: its discovery document and signing keys are kept in memory (keys are
 fetched again when the IdP rotates them), its tokens are not stored. Removing someone from a group at the IdP

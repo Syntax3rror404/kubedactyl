@@ -154,7 +154,7 @@ pod logs itself (`console/follow.go`), so the output continues when nobody is wa
 | change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
 | add a server diagnostics check | `internal/diagnostics` (`Run`, a function returning `checks.Check`, a case in the test); shown by `features/servers/diagnostics-page.tsx` |
 | add a panel setting | `api/v1alpha1/settings_types.go`, `internal/settings`, settings page cards |
-| change single sign-on | `internal/sso` (flow, claims), `users/oidc.go` (which account, linking), `httpapi/auth_oidc.go` (routes, cookie), `settings/oidc.go` (validation, client secret), `features/settings/components/sso-card.tsx`, `features/auth/login-page.tsx` |
+| change single sign-on | `internal/sso` (flow, claims), `users/oidc.go` (which account, linking), `httpapi/auth_oidc.go` (routes, cookie), `settings/oidc.go` (validation, client secret), `features/settings/components/sso-card.tsx`, `features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
 
 ## Walk-through: adding a field to servers
 
