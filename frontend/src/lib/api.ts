@@ -31,6 +31,7 @@ import type {
   LibraryList,
   LoginResponse,
   NodesResponse,
+  OIDCSignIn,
   PanelInfo,
   PanelSettings,
   PoolList,
@@ -45,6 +46,7 @@ import type {
   StorageClassList,
   TokenView,
   UpdateServerRequest,
+  UpdateSettingsRequest,
   UpdateUserRequest,
   UpgradeJob,
   UpgradeStatus,
@@ -157,6 +159,7 @@ export const api = {
     logout: () => request<void>("POST", "/auth/logout"),
     logoutAll: () => request<void>("POST", "/auth/logout-all"),
     getMe: () => request<UserView>("GET", "/auth/me"),
+    getOIDCSignIn: () => request<OIDCSignIn>("GET", "/auth/oidc"),
     updatePassword: (current: string, next: string, revokeTokens: boolean) =>
       request<void>("PUT", "/auth/password", { current, new: next, revokeTokens }),
     listTokens: () => request<TokenView[]>("GET", "/auth/tokens"),
@@ -195,7 +198,7 @@ export const api = {
   },
   settings: {
     get: () => request<PanelSettings>("GET", "/settings"),
-    update: (body: PanelSettings) => request<PanelSettings>("PUT", "/settings", body),
+    update: (body: UpdateSettingsRequest) => request<PanelSettings>("PUT", "/settings", body),
     listStorageClasses: () => request<StorageClassList>("GET", "/settings/storage-classes").then((r) => r.items),
     listPools: () => request<PoolList>("GET", "/settings/load-balancer-pools"),
   },
@@ -285,6 +288,8 @@ export const api = {
 
 /** Links the browser opens itself (downloads); no request is made here. */
 export const urls = {
+  /** Sign-in through the identity provider (a browser redirect), returning to next afterwards. */
+  oidcStart: (next: string) => `/api/auth/oidc/start?${q({ next })}`,
   fileDownload: (server: string, file: string) => `/api${srv(server)}/files/download?${q({ file })}`,
   eggExport: (name: string, format: EggExportFormat) => `/api${egg(name)}/export?${q({ format, download: "true" })}`,
 }

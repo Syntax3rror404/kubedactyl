@@ -135,3 +135,40 @@ func (s *Signer) KnownDevice(token, user string, now time.Time) bool {
 	unix, err := strconv.ParseInt(exp, 10, 64)
 	return ok && err == nil && now.Unix() < unix && hmac.Equal([]byte(sig), []byte(s.mac("device|"+user+"|"+exp)))
 }
+
+// SignValue signs a JSON value for one purpose until expires: "<payload>.<signature>". The purpose is part of the
+// signature, so a value signed for one use is never accepted for another (and no session token as either).
+func (s *Signer) SignValue(purpose string, v any, expires time.Time) (string, error) {
+	raw, err := json.Marshal(signedValue[any]{ExpiresAt: expires.Unix(), Value: v})
+	if err != nil {
+		return "", err
+	}
+	payload := base64.RawURLEncoding.EncodeToString(raw)
+	return payload + "." + s.mac(purpose+"|"+payload), nil
+}
+
+// VerifyValue checks the signature and expiry of a value signed by SignValue and decodes it into v (left
+// unchanged when the check fails).
+func (s *Signer) VerifyValue(purpose, token string, v any, now time.Time) error {
+	payload, sig, ok := strings.Cut(token, ".")
+	if !ok || !hmac.Equal([]byte(sig), []byte(s.mac(purpose+"|"+payload))) {
+		return ErrInvalidToken
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return ErrInvalidToken
+	}
+	var sv signedValue[json.RawMessage]
+	if err := json.Unmarshal(raw, &sv); err != nil || now.Unix() >= sv.ExpiresAt {
+		return ErrInvalidToken
+	}
+	if err := json.Unmarshal(sv.Value, v); err != nil {
+		return ErrInvalidToken
+	}
+	return nil
+}
+
+type signedValue[T any] struct {
+	ExpiresAt int64 `json:"x"`
+	Value     T     `json:"v"`
+}

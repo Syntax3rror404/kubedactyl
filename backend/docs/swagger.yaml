@@ -1197,6 +1197,18 @@ definitions:
     - name
     - version
     type: object
+  httpapi.OIDCSignIn:
+    properties:
+      enabled:
+        type: boolean
+      name:
+        description: 'Name is shown on the button: "Sign in with <name>".'
+        example: Keycloak
+        type: string
+    required:
+    - enabled
+    - name
+    type: object
   httpapi.PoolList:
     properties:
       error:
@@ -1376,6 +1388,150 @@ definitions:
     - phase
     - uptimeSeconds
     type: object
+  httpapi.SettingsView:
+    properties:
+      allowPrivateNetworks:
+        description: |-
+          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+          policy that only allows the internet, the cluster DNS and the user's own servers.
+          +optional
+        type: boolean
+      apiTokenMaxDays:
+        description: |-
+          APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+          tokens created before, counted from their creation.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=3650
+        type: integer
+      brandLogo:
+        description: |-
+          BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
+          128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      brandName:
+        description: |-
+          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+          +optional
+          +kubebuilder:validation:MaxLength=40
+        type: string
+      brandTagline:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=80
+        type: string
+      defaultLoadBalancerPool:
+        description: |-
+          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+          +optional
+        type: string
+      defaultStorageClass:
+        description: |-
+          DefaultStorageClass is preselected for new servers (one of StorageClasses).
+          +optional
+        type: string
+      disableApiDocs:
+        description: |-
+          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          keeps working.
+          +optional
+        type: boolean
+      eggLibraries:
+        description: |-
+          EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+          library on the eggs page lists. The panel reads them when the library is opened and keeps
+          nothing of them in the cluster.
+          +optional
+          +kubebuilder:validation:MaxItems=20
+        items:
+          type: string
+        type: array
+      externalDomain:
+        description: |-
+          ExternalDomain is shown to users as the server address (domain:port) instead of the
+          load balancer IP. Empty shows the IP.
+          +optional
+        type: string
+      favicon:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      kubeApiQps:
+        description: |-
+          KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
+          (default 50, bursts of twice that). It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=5
+          +kubebuilder:validation:Maximum=1000
+        type: integer
+      kubeApiUserQps:
+        description: |-
+          KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
+          bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
+          one user cannot use up KubeAPIQPS for everybody. It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=200
+        type: integer
+      legalNotice:
+        description: |-
+          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+          page, also before sign-in.
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      loadBalancerPools:
+        description: |-
+          LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+          +optional
+        items:
+          type: string
+        type: array
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCSettings'
+        description: |-
+          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+          secret is kept in a Secret, not here.
+          +optional
+      oidcClientSecretSet:
+        description: OIDCClientSecretSet tells administrators whether a client secret
+          is stored (always false for users).
+        type: boolean
+      privacyPolicy:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      serverNotice:
+        description: |-
+          ServerNotice is shown to users every time they open one of their servers (plain text).
+          +optional
+          +kubebuilder:validation:MaxLength=2000
+        type: string
+      sessionHours:
+        description: |-
+          SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+          shortening it also ends older sessions.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=720
+        type: integer
+      storageClasses:
+        description: |-
+          StorageClasses can be selected for server volumes.
+          +optional
+        items:
+          type: string
+        type: array
+    required:
+    - oidcClientSecretSet
+    type: object
   httpapi.SetupRequest:
     properties:
       displayName:
@@ -1520,6 +1676,149 @@ definitions:
       stopTimeoutSeconds:
         type: integer
     type: object
+  httpapi.UpdateSettingsRequest:
+    properties:
+      allowPrivateNetworks:
+        description: |-
+          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+          policy that only allows the internet, the cluster DNS and the user's own servers.
+          +optional
+        type: boolean
+      apiTokenMaxDays:
+        description: |-
+          APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+          tokens created before, counted from their creation.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=3650
+        type: integer
+      brandLogo:
+        description: |-
+          BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
+          128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      brandName:
+        description: |-
+          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+          +optional
+          +kubebuilder:validation:MaxLength=40
+        type: string
+      brandTagline:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=80
+        type: string
+      defaultLoadBalancerPool:
+        description: |-
+          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+          +optional
+        type: string
+      defaultStorageClass:
+        description: |-
+          DefaultStorageClass is preselected for new servers (one of StorageClasses).
+          +optional
+        type: string
+      disableApiDocs:
+        description: |-
+          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          keeps working.
+          +optional
+        type: boolean
+      eggLibraries:
+        description: |-
+          EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+          library on the eggs page lists. The panel reads them when the library is opened and keeps
+          nothing of them in the cluster.
+          +optional
+          +kubebuilder:validation:MaxItems=20
+        items:
+          type: string
+        type: array
+      externalDomain:
+        description: |-
+          ExternalDomain is shown to users as the server address (domain:port) instead of the
+          load balancer IP. Empty shows the IP.
+          +optional
+        type: string
+      favicon:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      kubeApiQps:
+        description: |-
+          KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
+          (default 50, bursts of twice that). It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=5
+          +kubebuilder:validation:Maximum=1000
+        type: integer
+      kubeApiUserQps:
+        description: |-
+          KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
+          bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
+          one user cannot use up KubeAPIQPS for everybody. It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=200
+        type: integer
+      legalNotice:
+        description: |-
+          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+          page, also before sign-in.
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      loadBalancerPools:
+        description: |-
+          LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+          +optional
+        items:
+          type: string
+        type: array
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCSettings'
+        description: |-
+          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+          secret is kept in a Secret, not here.
+          +optional
+      oidcClientSecret:
+        description: OIDCClientSecret replaces the stored client secret (empty removes
+          it); omitted keeps it.
+        type: string
+        x-nullable: true
+      privacyPolicy:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      serverNotice:
+        description: |-
+          ServerNotice is shown to users every time they open one of their servers (plain text).
+          +optional
+          +kubebuilder:validation:MaxLength=2000
+        type: string
+      sessionHours:
+        description: |-
+          SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+          shortening it also ends older sessions.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=720
+        type: integer
+      storageClasses:
+        description: |-
+          StorageClasses can be selected for server volumes.
+          +optional
+        items:
+          type: string
+        type: array
+    type: object
   httpapi.UpdateUserRequest:
     properties:
       disabled:
@@ -1591,6 +1890,10 @@ definitions:
       email:
         example: alice@example.com
         type: string
+      hasPassword:
+        description: HasPassword is false for accounts that sign in only through the
+          identity provider.
+        type: boolean
       lastLoginAt:
         type: string
       mustChangePassword:
@@ -1600,6 +1903,13 @@ definitions:
       namespace:
         example: kubedactyl-user-alice
         type: string
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCIdentity'
+        description: |-
+          OIDC is the user of the identity provider the account is linked to (which sets display name, email and
+          role); null for accounts that are not linked.
+        x-nullable: true
       role:
         allOf:
         - $ref: '#/definitions/v1alpha1.UserRole'
@@ -1620,8 +1930,10 @@ definitions:
     required:
     - createdAt
     - disabled
+    - hasPassword
     - mustChangePassword
     - namespace
+    - oidc
     - role
     - servers
     - tokens
@@ -2515,136 +2827,75 @@ definitions:
       script:
         type: string
     type: object
-  v1alpha1.PanelSettingsSpec:
+  v1alpha1.OIDCIdentity:
     properties:
-      allowPrivateNetworks:
+      issuer:
+        type: string
+      subject:
+        type: string
+    required:
+    - issuer
+    - subject
+    type: object
+  v1alpha1.OIDCSettings:
+    properties:
+      adminGroup:
         description: |-
-          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
-          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
-          policy that only allows the internet, the cluster DNS and the user's own servers.
+          Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+          else may sign in.
+          +optional
+        type: string
+      clientId:
+        description: +optional
+        type: string
+      enabled:
+        description: +optional
+        type: boolean
+      groupsClaim:
+        description: |-
+          GroupsClaim holds the groups of the user (default groups).
+          +optional
+        type: string
+      issuerUrl:
+        description: |-
+          IssuerURL is the issuer of the identity provider (its discovery document is at
+          <issuerUrl>/.well-known/openid-configuration).
+          +optional
+        type: string
+      keepPasswords:
+        description: |-
+          KeepPasswords keeps the password of an existing account when it is linked to the identity
+          provider; otherwise the account then signs in only through the identity provider.
           +optional
         type: boolean
-      apiTokenMaxDays:
+      linkByUsername:
         description: |-
-          APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
-          tokens created before, counted from their creation.
+          LinkByUsername links an existing account that is not linked yet to the user of the identity
+          provider with the same username (to bootstrap). Off: such a sign-in is refused, so nobody
+          can take over an account by choosing its name at the identity provider.
           +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=3650
-        type: integer
-      brandLogo:
+        type: boolean
+      name:
         description: |-
-          BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-          128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      brandName:
-        description: |-
-          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
-          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+          Name is shown on the sign-in button: "Sign in with <name>".
           +optional
           +kubebuilder:validation:MaxLength=40
         type: string
-      brandTagline:
+      redirectUrl:
         description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=80
-        type: string
-      defaultLoadBalancerPool:
-        description: |-
-          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+          RedirectURL is the callback of the panel registered at the identity provider
+          (https://<panel>/api/auth/oidc/callback). It is not taken from the request: a forged Host
+          header must not send the code elsewhere.
           +optional
         type: string
-      defaultStorageClass:
+      userGroup:
+        description: +optional
+        type: string
+      usernameClaim:
         description: |-
-          DefaultStorageClass is preselected for new servers (one of StorageClasses).
+          UsernameClaim holds the panel username (default preferred_username).
           +optional
         type: string
-      disableApiDocs:
-        description: |-
-          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
-          keeps working.
-          +optional
-        type: boolean
-      eggLibraries:
-        description: |-
-          EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
-          library on the eggs page lists. The panel reads them when the library is opened and keeps
-          nothing of them in the cluster.
-          +optional
-          +kubebuilder:validation:MaxItems=20
-        items:
-          type: string
-        type: array
-      externalDomain:
-        description: |-
-          ExternalDomain is shown to users as the server address (domain:port) instead of the
-          load balancer IP. Empty shows the IP.
-          +optional
-        type: string
-      favicon:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      kubeApiQps:
-        description: |-
-          KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-          (default 50, bursts of twice that). It applies at once.
-          +optional
-          +kubebuilder:validation:Minimum=5
-          +kubebuilder:validation:Maximum=1000
-        type: integer
-      kubeApiUserQps:
-        description: |-
-          KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-          bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-          one user cannot use up KubeAPIQPS for everybody. It applies at once.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=200
-        type: integer
-      legalNotice:
-        description: |-
-          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
-          page, also before sign-in.
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      loadBalancerPools:
-        description: |-
-          LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
-          +optional
-        items:
-          type: string
-        type: array
-      privacyPolicy:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      serverNotice:
-        description: |-
-          ServerNotice is shown to users every time they open one of their servers (plain text).
-          +optional
-          +kubebuilder:validation:MaxLength=2000
-        type: string
-      sessionHours:
-        description: |-
-          SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
-          shortening it also ends older sessions.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=720
-        type: integer
-      storageClasses:
-        description: |-
-          StorageClasses can be selected for server volumes.
-          +optional
-        items:
-          type: string
-        type: array
     type: object
   v1alpha1.Phase:
     enum:
@@ -2935,6 +3186,59 @@ paths:
       summary: Current user
       tags:
       - Auth
+  /auth/oidc:
+    get:
+      description: 'Public: whether users can sign in through an OpenID Connect identity
+        provider.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.OIDCSignIn'
+      summary: Single sign-on of the sign-in page
+      tags:
+      - Auth
+  /auth/oidc/callback:
+    get:
+      description: |-
+        Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to
+        the page the sign-in started from. The account is the one linked to the user of the identity
+        provider, else the one with the same username, else a new one. Failures redirect to
+        /login?sso=<reason> (access: in no group with access or disabled, account: the account cannot be
+        used, failed).
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        type: string
+      - description: State of the sign-in
+        in: query
+        name: state
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: Callback of the identity provider
+      tags:
+      - Auth
+  /auth/oidc/start:
+    get:
+      description: |-
+        Public, opened by the browser: redirects to the sign-in page of the identity provider, which
+        returns to /auth/oidc/callback. Failures redirect to /login?sso=failed.
+      parameters:
+      - description: Page of the panel to open after the sign-in
+        in: query
+        name: next
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: Sign in through the identity provider
+      tags:
+      - Auth
   /auth/password:
     put:
       consumes:
@@ -2951,6 +3255,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "409":
+          description: the account signs in through single sign-on only
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "422":
           description: current password is wrong or the new one is too weak
           schema:
@@ -4477,7 +4785,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/v1alpha1.PanelSettingsSpec'
+            $ref: '#/definitions/httpapi.SettingsView'
       security:
       - BearerAuth: []
       summary: Panel settings
@@ -4495,14 +4803,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/v1alpha1.PanelSettingsSpec'
+          $ref: '#/definitions/httpapi.UpdateSettingsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/v1alpha1.PanelSettingsSpec'
+            $ref: '#/definitions/httpapi.SettingsView'
         "422":
           description: Unprocessable Entity
           schema:
@@ -4763,7 +5071,7 @@ paths:
           schema:
             $ref: '#/definitions/httpapi.UserView'
         "409":
-          description: last administrator
+          description: last administrator, or managed by the identity provider
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:

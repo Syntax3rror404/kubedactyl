@@ -2,6 +2,7 @@
 export const keys = {
   me: ["me"] as const,
   setup: ["setup"] as const,
+  oidcSignIn: ["oidc-sign-in"] as const,
   legal: ["legal"] as const,
   branding: ["branding"] as const,
   licenses: ["licenses"] as const,

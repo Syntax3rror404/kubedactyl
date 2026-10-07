@@ -20,6 +20,7 @@ import (
 	"app/internal/selfupgrade"
 	"app/internal/serverctl"
 	"app/internal/settings"
+	"app/internal/sso"
 	"app/internal/users"
 )
 
@@ -73,6 +74,8 @@ type API struct {
 	KubeLimiter *kube.RateLimiter
 
 	stats *statsCache
+	// oidc signs users in through the identity provider of the settings.
+	oidc sso.Client
 }
 
 // ClusterInfo describes the cluster the panel is connected to.
@@ -114,6 +117,10 @@ func (a *API) Register(r *gin.RouterGroup) {
 	// Invite links create an account.
 	r.GET("/auth/invite", a.getInvite)
 	r.POST("/auth/invite", a.sameOrigin, a.acceptInvite)
+	// Single sign-on through an OpenID Connect identity provider (start and callback are browser redirects).
+	r.GET("/auth/oidc", a.getOIDCSignIn)
+	r.GET("/auth/oidc/start", a.startOIDC)
+	r.GET("/auth/oidc/callback", a.finishOIDC)
 
 	// Every other route needs a session or an API token. The footer polls the request rates: they
 	// do not count themselves.

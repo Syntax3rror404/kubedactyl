@@ -136,4 +136,6 @@ var domainErrors = []struct {
 	{users.ErrLastAdmin, http.StatusConflict},
 	{users.ErrOwnAccount, http.StatusConflict},
 	{users.ErrInvalidInvite, http.StatusNotFound},
+	{users.ErrManaged, http.StatusConflict},
+	{users.ErrNoPassword, http.StatusConflict},
 }

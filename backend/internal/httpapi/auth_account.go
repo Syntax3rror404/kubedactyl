@@ -45,6 +45,7 @@ type CreatedToken struct {
 //	@Security		BearerAuth
 //	@Param			body	body	UpdatePasswordRequest	true	"Passwords"
 //	@Success		204
+//	@Failure		409	{object}	ErrorResponse	"the account signs in through single sign-on only"
 //	@Failure		422	{object}	ErrorResponse	"current password is wrong or the new one is too weak"
 //	@Router			/auth/password [put]
 func (a *API) updatePassword(c *gin.Context) {

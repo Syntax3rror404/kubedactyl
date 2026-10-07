@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Removes everything a Kubedactyl installation created in a cluster: the panel namespace
-# (eggs, users, auth secret), every user namespace "<namespace>-user-<name>" with its game
+# (eggs, users, auth and OIDC secrets), every user namespace "<namespace>-user-<name>" with its game
 # servers, pods, services and volumes (the data is deleted) and, with DELETE_CRDS=1, the CRDs.
 # Works without a running panel.
 #

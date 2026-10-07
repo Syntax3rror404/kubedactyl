@@ -64,9 +64,23 @@ spec:
                 description: MustChangePassword makes the user replace the password
                   (set by an administrator) after signing in.
                 type: boolean
+              oidc:
+                description: |-
+                  OIDC links the account to a user of the identity provider; only that user may sign in to it
+                  through single sign-on. Display name, email and role then come from the identity provider.
+                properties:
+                  issuer:
+                    type: string
+                  subject:
+                    type: string
+                required:
+                - issuer
+                - subject
+                type: object
               passwordHash:
-                description: PasswordHash is an Argon2id hash in PHC format; the password
-                  itself is never stored.
+                description: |-
+                  PasswordHash is an Argon2id hash in PHC format; the password itself is never stored. Empty:
+                  the user signs in only through the identity provider (OIDC).
                 type: string
               role:
                 default: user
@@ -105,7 +119,6 @@ spec:
                   type: object
                 type: array
             required:
-            - passwordHash
             - role
             type: object
           status:

@@ -93,6 +93,53 @@ type PanelSettingsSpec struct {
 	// +optional
 	// +kubebuilder:validation:MaxItems=20
 	EggLibraries []string `json:"eggLibraries,omitempty"`
+	// OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+	// secret is kept in a Secret, not here.
+	// +optional
+	OIDC OIDCSettings `json:"oidc,omitempty"`
+}
+
+// OIDCSettings configure the sign-in through an OpenID Connect identity provider. Its groups decide
+// who may sign in and with which role.
+type OIDCSettings struct {
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// Name is shown on the sign-in button: "Sign in with <name>".
+	// +optional
+	// +kubebuilder:validation:MaxLength=40
+	Name string `json:"name,omitempty"`
+	// IssuerURL is the issuer of the identity provider (its discovery document is at
+	// <issuerUrl>/.well-known/openid-configuration).
+	// +optional
+	IssuerURL string `json:"issuerUrl,omitempty"`
+	// +optional
+	ClientID string `json:"clientId,omitempty"`
+	// RedirectURL is the callback of the panel registered at the identity provider
+	// (https://<panel>/api/auth/oidc/callback). It is not taken from the request: a forged Host
+	// header must not send the code elsewhere.
+	// +optional
+	RedirectURL string `json:"redirectUrl,omitempty"`
+	// UsernameClaim holds the panel username (default preferred_username).
+	// +optional
+	UsernameClaim string `json:"usernameClaim,omitempty"`
+	// GroupsClaim holds the groups of the user (default groups).
+	// +optional
+	GroupsClaim string `json:"groupsClaim,omitempty"`
+	// Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+	// else may sign in.
+	// +optional
+	AdminGroup string `json:"adminGroup,omitempty"`
+	// +optional
+	UserGroup string `json:"userGroup,omitempty"`
+	// LinkByUsername links an existing account that is not linked yet to the user of the identity
+	// provider with the same username (to bootstrap). Off: such a sign-in is refused, so nobody
+	// can take over an account by choosing its name at the identity provider.
+	// +optional
+	LinkByUsername bool `json:"linkByUsername,omitempty"`
+	// KeepPasswords keeps the password of an existing account when it is linked to the identity
+	// provider; otherwise the account then signs in only through the identity provider.
+	// +optional
+	KeepPasswords bool `json:"keepPasswords,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -22,12 +22,17 @@ type UserView struct {
 	Role        v1alpha1.UserRole `json:"role"                  example:"user"                  enums:"admin,user"`
 	Disabled    bool              `json:"disabled"`
 	// MustChangePassword: the user has to replace the password set by an administrator first.
-	MustChangePassword bool        `json:"mustChangePassword"`
-	Namespace          string      `json:"namespace"             example:"kubedactyl-user-alice"`
-	CreatedAt          time.Time   `json:"createdAt"`
-	LastLoginAt        *time.Time  `json:"lastLoginAt,omitempty"`
-	Servers            int         `json:"servers"               example:"2"`
-	Tokens             []TokenView `json:"tokens"`
+	MustChangePassword bool `json:"mustChangePassword"`
+	// OIDC is the user of the identity provider the account is linked to (which sets display name, email and
+	// role); null for accounts that are not linked.
+	OIDC *v1alpha1.OIDCIdentity `json:"oidc" extensions:"x-nullable"`
+	// HasPassword is false for accounts that sign in only through the identity provider.
+	HasPassword bool        `json:"hasPassword"`
+	Namespace   string      `json:"namespace"             example:"kubedactyl-user-alice"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	LastLoginAt *time.Time  `json:"lastLoginAt,omitempty"`
+	Servers     int         `json:"servers"               example:"2"`
+	Tokens      []TokenView `json:"tokens"`
 }
 
 // TokenView describes an API token without its value.
@@ -111,6 +116,7 @@ func (a *API) userView(c *gin.Context, u *v1alpha1.User) UserView {
 	v := UserView{
 		Username: u.Name, DisplayName: u.Spec.DisplayName, Email: u.Spec.Email, Role: u.Spec.Role,
 		Disabled: u.Spec.Disabled, MustChangePassword: u.Spec.MustChangePassword,
+		OIDC: u.Spec.OIDC, HasPassword: u.Spec.PasswordHash != "",
 		Namespace: tenancy.Namespace(u.Name), CreatedAt: u.CreationTimestamp.Time,
 		Tokens: tokenViews(u, a.Settings.Lifetimes(c).APIToken),
 	}
@@ -212,7 +218,7 @@ func (a *API) createUser(c *gin.Context) {
 //	@Param		user	path		string				true	"Username"
 //	@Param		body	body		UpdateUserRequest	true	"Changes"
 //	@Success	200		{object}	UserView
-//	@Failure	409		{object}	ErrorResponse	"last administrator"
+//	@Failure	409		{object}	ErrorResponse	"last administrator, or managed by the identity provider"
 //	@Router		/users/{user} [patch]
 func (a *API) updateUser(c *gin.Context) {
 	var req UpdateUserRequest

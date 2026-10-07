@@ -10,6 +10,10 @@ import type { CreatedToken, LoginResponse, TokenView } from "@/lib/types"
 export const useSetupStatus = (enabled = true) =>
   useQuery({ queryKey: keys.setup, queryFn: api.setup.getStatus, enabled, staleTime: 10_000 })
 
+/** Whether the sign-in page offers single sign-on; public. Saving the settings refreshes it. */
+export const useOIDCSignIn = () =>
+  useQuery({ queryKey: keys.oidcSignIn, queryFn: api.auth.getOIDCSignIn, staleTime: Infinity })
+
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: api.auth.getMe, retry: false, staleTime: 30_000 })
 
 /** Creates the first administrator and signs them in. */

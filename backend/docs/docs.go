@@ -214,6 +214,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/oidc": {
+            "get": {
+                "description": "Public: whether users can sign in through an OpenID Connect identity provider.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Single sign-on of the sign-in page",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.OIDCSignIn"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/oidc/callback": {
+            "get": {
+                "description": "Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to\nthe page the sign-in started from. The account is the one linked to the user of the identity\nprovider, else the one with the same username, else a new one. Failures redirect to\n/login?sso=\u003creason\u003e (access: in no group with access or disabled, account: the account cannot be\nused, failed).",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Callback of the identity provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "State of the sign-in",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
+        "/auth/oidc/start": {
+            "get": {
+                "description": "Public, opened by the browser: redirects to the sign-in page of the identity provider, which\nreturns to /auth/oidc/callback. Failures redirect to /login?sso=failed.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Sign in through the identity provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Page of the panel to open after the sign-in",
+                        "name": "next",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
         "/auth/password": {
             "put": {
                 "security": [
@@ -243,6 +313,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "409": {
+                        "description": "the account signs in through single sign-on only",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
                     },
                     "422": {
                         "description": "current password is wrong or the new one is too weak",
@@ -2591,7 +2667,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/v1alpha1.PanelSettingsSpec"
+                            "$ref": "#/definitions/httpapi.SettingsView"
                         }
                     }
                 }
@@ -2620,7 +2696,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1alpha1.PanelSettingsSpec"
+                            "$ref": "#/definitions/httpapi.UpdateSettingsRequest"
                         }
                     }
                 ],
@@ -2628,7 +2704,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/v1alpha1.PanelSettingsSpec"
+                            "$ref": "#/definitions/httpapi.SettingsView"
                         }
                     },
                     "422": {
@@ -3029,7 +3105,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "last administrator",
+                        "description": "last administrator, or managed by the identity provider",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -4713,6 +4789,23 @@ const docTemplate = `{
                 }
             }
         },
+        "httpapi.OIDCSignIn": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "name"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "Name is shown on the button: \"Sign in with \u003cname\u003e\".",
+                    "type": "string",
+                    "example": "Keycloak"
+                }
+            }
+        },
         "httpapi.PoolList": {
             "type": "object",
             "required": [
@@ -4944,6 +5037,111 @@ const docTemplate = `{
                 }
             }
         },
+        "httpapi.SettingsView": {
+            "type": "object",
+            "required": [
+                "oidcClientSecretSet"
+            ],
+            "properties": {
+                "allowPrivateNetworks": {
+                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
+                    "type": "boolean"
+                },
+                "apiTokenMaxDays": {
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "type": "integer"
+                },
+                "brandLogo": {
+                    "description": "BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most\n128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "brandName": {
+                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
+                    "type": "string"
+                },
+                "brandTagline": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
+                    "type": "string"
+                },
+                "defaultLoadBalancerPool": {
+                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
+                    "type": "string"
+                },
+                "defaultStorageClass": {
+                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
+                    "type": "string"
+                },
+                "disableApiDocs": {
+                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "type": "boolean"
+                },
+                "eggLibraries": {
+                    "description": "EggLibraries are GitHub repositories (https://github.com/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "externalDomain": {
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the\nload balancer IP. Empty shows the IP.\n+optional",
+                    "type": "string"
+                },
+                "favicon": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "kubeApiQps": {
+                    "description": "KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most\n(default 50, bursts of twice that). It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "type": "integer"
+                },
+                "kubeApiUserQps": {
+                    "description": "KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,\nbursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so\none user cannot use up KubeAPIQPS for everybody. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "type": "integer"
+                },
+                "legalNotice": {
+                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "loadBalancerPools": {
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "oidc": {
+                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
+                        }
+                    ]
+                },
+                "oidcClientSecretSet": {
+                    "description": "OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).",
+                    "type": "boolean"
+                },
+                "privacyPolicy": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "serverNotice": {
+                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
+                    "type": "string"
+                },
+                "sessionHours": {
+                    "description": "SessionHours is how long a sign-in lasts (default 12). It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "type": "integer"
+                },
+                "storageClasses": {
+                    "description": "StorageClasses can be selected for server volumes.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "httpapi.SetupRequest": {
             "type": "object",
             "required": [
@@ -5152,6 +5350,109 @@ const docTemplate = `{
                 }
             }
         },
+        "httpapi.UpdateSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "allowPrivateNetworks": {
+                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
+                    "type": "boolean"
+                },
+                "apiTokenMaxDays": {
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "type": "integer"
+                },
+                "brandLogo": {
+                    "description": "BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most\n128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "brandName": {
+                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
+                    "type": "string"
+                },
+                "brandTagline": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
+                    "type": "string"
+                },
+                "defaultLoadBalancerPool": {
+                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
+                    "type": "string"
+                },
+                "defaultStorageClass": {
+                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
+                    "type": "string"
+                },
+                "disableApiDocs": {
+                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "type": "boolean"
+                },
+                "eggLibraries": {
+                    "description": "EggLibraries are GitHub repositories (https://github.com/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "externalDomain": {
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the\nload balancer IP. Empty shows the IP.\n+optional",
+                    "type": "string"
+                },
+                "favicon": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "kubeApiQps": {
+                    "description": "KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most\n(default 50, bursts of twice that). It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "type": "integer"
+                },
+                "kubeApiUserQps": {
+                    "description": "KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,\nbursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so\none user cannot use up KubeAPIQPS for everybody. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "type": "integer"
+                },
+                "legalNotice": {
+                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "loadBalancerPools": {
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "oidc": {
+                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
+                        }
+                    ]
+                },
+                "oidcClientSecret": {
+                    "description": "OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it.",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "privacyPolicy": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "serverNotice": {
+                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
+                    "type": "string"
+                },
+                "sessionHours": {
+                    "description": "SessionHours is how long a sign-in lasts (default 12). It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "type": "integer"
+                },
+                "storageClasses": {
+                    "description": "StorageClasses can be selected for server volumes.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "httpapi.UpdateUserRequest": {
             "type": "object",
             "properties": {
@@ -5241,8 +5542,10 @@ const docTemplate = `{
             "required": [
                 "createdAt",
                 "disabled",
+                "hasPassword",
                 "mustChangePassword",
                 "namespace",
+                "oidc",
                 "role",
                 "servers",
                 "tokens",
@@ -5263,6 +5566,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "alice@example.com"
                 },
+                "hasPassword": {
+                    "description": "HasPassword is false for accounts that sign in only through the identity provider.",
+                    "type": "boolean"
+                },
                 "lastLoginAt": {
                     "type": "string"
                 },
@@ -5273,6 +5580,15 @@ const docTemplate = `{
                 "namespace": {
                     "type": "string",
                     "example": "kubedactyl-user-alice"
+                },
+                "oidc": {
+                    "description": "OIDC is the user of the identity provider the account is linked to (which sets display name, email and\nrole); null for accounts that are not linked.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCIdentity"
+                        }
+                    ],
+                    "x-nullable": true
                 },
                 "role": {
                     "enum": [
@@ -6157,93 +6473,67 @@ const docTemplate = `{
                 }
             }
         },
-        "v1alpha1.PanelSettingsSpec": {
+        "v1alpha1.OIDCIdentity": {
+            "type": "object",
+            "required": [
+                "issuer",
+                "subject"
+            ],
+            "properties": {
+                "issuer": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1alpha1.OIDCSettings": {
             "type": "object",
             "properties": {
-                "allowPrivateNetworks": {
-                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
+                "adminGroup": {
+                    "description": "Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody\nelse may sign in.\n+optional",
+                    "type": "string"
+                },
+                "clientId": {
+                    "description": "+optional",
+                    "type": "string"
+                },
+                "enabled": {
+                    "description": "+optional",
                     "type": "boolean"
                 },
-                "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
-                    "type": "integer"
-                },
-                "brandLogo": {
-                    "description": "BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most\n128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                "groupsClaim": {
+                    "description": "GroupsClaim holds the groups of the user (default groups).\n+optional",
                     "type": "string"
                 },
-                "brandName": {
-                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
+                "issuerUrl": {
+                    "description": "IssuerURL is the issuer of the identity provider (its discovery document is at\n\u003cissuerUrl\u003e/.well-known/openid-configuration).\n+optional",
                     "type": "string"
                 },
-                "brandTagline": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
-                    "type": "string"
-                },
-                "defaultLoadBalancerPool": {
-                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
-                    "type": "string"
-                },
-                "defaultStorageClass": {
-                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
-                    "type": "string"
-                },
-                "disableApiDocs": {
-                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                "keepPasswords": {
+                    "description": "KeepPasswords keeps the password of an existing account when it is linked to the identity\nprovider; otherwise the account then signs in only through the identity provider.\n+optional",
                     "type": "boolean"
                 },
-                "eggLibraries": {
-                    "description": "EggLibraries are GitHub repositories (https://github.com/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "linkByUsername": {
+                    "description": "LinkByUsername links an existing account that is not linked yet to the user of the identity\nprovider with the same username (to bootstrap). Off: such a sign-in is refused, so nobody\ncan take over an account by choosing its name at the identity provider.\n+optional",
+                    "type": "boolean"
                 },
-                "externalDomain": {
-                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the\nload balancer IP. Empty shows the IP.\n+optional",
+                "name": {
+                    "description": "Name is shown on the sign-in button: \"Sign in with \u003cname\u003e\".\n+optional\n+kubebuilder:validation:MaxLength=40",
                     "type": "string"
                 },
-                "favicon": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=180000",
+                "redirectUrl": {
+                    "description": "RedirectURL is the callback of the panel registered at the identity provider\n(https://\u003cpanel\u003e/api/auth/oidc/callback). It is not taken from the request: a forged Host\nheader must not send the code elsewhere.\n+optional",
                     "type": "string"
                 },
-                "kubeApiQps": {
-                    "description": "KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most\n(default 50, bursts of twice that). It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
-                    "type": "integer"
-                },
-                "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,\nbursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so\none user cannot use up KubeAPIQPS for everybody. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
-                    "type": "integer"
-                },
-                "legalNotice": {
-                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
+                "userGroup": {
+                    "description": "+optional",
                     "type": "string"
                 },
-                "loadBalancerPools": {
-                    "description": "LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "privacyPolicy": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
+                "usernameClaim": {
+                    "description": "UsernameClaim holds the panel username (default preferred_username).\n+optional",
                     "type": "string"
-                },
-                "serverNotice": {
-                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
-                    "type": "string"
-                },
-                "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (default 12). It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
-                    "type": "integer"
-                },
-                "storageClasses": {
-                    "description": "StorageClasses can be selected for server volumes.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },

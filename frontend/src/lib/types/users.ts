@@ -9,6 +9,7 @@ export type {
   HttpapiInviteDetails as InviteDetails,
   HttpapiInviteView as InviteView,
   HttpapiLoginResponse as LoginResponse,
+  HttpapiOIDCSignIn as OIDCSignIn,
   HttpapiSetupStatus as SetupStatus,
   HttpapiTokenView as TokenView,
   HttpapiUpdateUserRequest as UpdateUserRequest,

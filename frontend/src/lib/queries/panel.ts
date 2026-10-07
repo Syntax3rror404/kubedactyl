@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { api, setThrottledHandler, type Throttle } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
 import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
-import type { PanelSettings, UpgradeJob, UpgradeStatus } from "@/lib/types"
+import type { PanelSettings, UpdateSettingsRequest, UpgradeJob, UpgradeStatus } from "@/lib/types"
 
 /** Panel name and version (public; shown in the footer). */
 export const usePanelInfo = () =>
@@ -66,14 +66,23 @@ export const usePools = (enabled = true) => useQuery({ queryKey: keys.pools, que
 
 /**
  * Settings change what the cluster card and its health checks (pools, storage classes), servers (address), the legal
- * pages, the branding and the egg library (repositories) show.
+ * pages, the branding, single sign-on and the egg library (repositories) show.
  */
-export const useUpdateSettings = (cb?: MutationCallbacks<PanelSettings, PanelSettings>) =>
+export const useUpdateSettings = (cb?: MutationCallbacks<PanelSettings, UpdateSettingsRequest>) =>
   useApiMutation(
     api.settings.update,
     (qc, saved) => {
       qc.setQueryData(keys.settings, saved)
-      refresh(qc, keys.cluster, keys.clusterHealth, keys.servers, keys.legal, keys.branding, keys.library)
+      refresh(
+        qc,
+        keys.cluster,
+        keys.clusterHealth,
+        keys.servers,
+        keys.legal,
+        keys.branding,
+        keys.oidcSignIn,
+        keys.library,
+      )
     },
     cb,
   )

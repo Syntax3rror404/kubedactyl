@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +26,10 @@ var (
 	ErrOwnAccount    = errors.New("you cannot delete your own account")
 	ErrWrongPassword = errors.New("current password is wrong")
 	ErrUsernameTaken = errors.New("this username is taken")
+	// ErrManaged: the identity provider sets display name, email and role of an account linked to it.
+	ErrManaged = errors.New("the identity provider manages this for accounts linked to it")
+	// ErrNoPassword: the account signs in only through the identity provider.
+	ErrNoPassword = errors.New("this account signs in through single sign-on and has no password")
 )
 
 // Store creates and changes users.
@@ -82,39 +87,61 @@ func (s *Store) Create(ctx context.Context, in CreateInput) (*v1alpha1.User, err
 	if err := errs.OrNil(); err != nil {
 		return nil, err
 	}
-	u := &v1alpha1.User{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace},
-		Spec: v1alpha1.UserSpec{
-			DisplayName: strings.TrimSpace(in.DisplayName), Email: strings.TrimSpace(in.Email),
-			Role: in.Role, PasswordHash: hash, MustChangePassword: in.MustChangePassword,
-		},
-	}
-	if err := s.Client.Create(ctx, u); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return nil, validation.Field("username", ErrUsernameTaken)
-		}
-		return nil, err
-	}
-	if _, err := tenancy.EnsureNamespace(ctx, s.Client, name); err != nil {
-		return nil, err
-	}
-	return u, nil
+	u := s.newUser(name, v1alpha1.UserSpec{
+		DisplayName: strings.TrimSpace(in.DisplayName), Email: strings.TrimSpace(in.Email),
+		Role: in.Role, PasswordHash: hash, MustChangePassword: in.MustChangePassword,
+	})
+	return u, s.create(ctx, u)
 }
 
-// Update applies the changes; the last active administrator can neither be demoted nor disabled.
+func (s *Store) newUser(name string, spec v1alpha1.UserSpec) *v1alpha1.User {
+	return &v1alpha1.User{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}, Spec: spec}
+}
+
+// create stores a new user and creates its namespace.
+func (s *Store) create(ctx context.Context, u *v1alpha1.User) error {
+	if err := s.Client.Create(ctx, u); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return validation.Field("username", ErrUsernameTaken)
+		}
+		return err
+	}
+	_, err := tenancy.EnsureNamespace(ctx, s.Client, u.Name)
+	return err
+}
+
+// Update applies the changes; the last active administrator can neither be demoted nor disabled. The identity
+// provider sets display name, email and role of a linked account, and an account without password gets none.
 func (s *Store) Update(ctx context.Context, u *v1alpha1.User, ch UpdateInput) error {
-	if ch.removesAdmin(u) {
+	if u.Spec.OIDC != nil && ch.changesProfile(u.Spec) {
+		return ErrManaged
+	}
+	if u.Spec.PasswordHash == "" && ch.Password != nil {
+		return ErrNoPassword
+	}
+	return s.change(ctx, u, ch.removesAdmin(u), ch.apply)
+}
+
+// change applies a change to a user (no call when nothing changes); a concurrent change makes it fail
+// (optimistic lock). A change that removes an administrator waits for the others and is refused for the last one.
+func (s *Store) change(
+	ctx context.Context, u *v1alpha1.User, removesAdmin bool, apply func(*v1alpha1.UserSpec) error,
+) error {
+	if removesAdmin {
 		s.adminChanges.Lock()
 		defer s.adminChanges.Unlock()
 		if err := s.keepOneAdmin(ctx); err != nil {
 			return err
 		}
 	}
-	patch := client.MergeFrom(u.DeepCopy())
-	if err := ch.apply(&u.Spec); err != nil {
+	before := u.DeepCopy()
+	if err := apply(&u.Spec); err != nil {
 		return err
 	}
-	return s.Client.Patch(ctx, u, patch)
+	if equality.Semantic.DeepEqual(before.Spec, u.Spec) {
+		return nil
+	}
+	return s.Client.Patch(ctx, u, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))
 }
 
 // UpdatePassword replaces the own password after checking the current one. Every session of
@@ -123,6 +150,9 @@ func (s *Store) Update(ctx context.Context, u *v1alpha1.User, ch UpdateInput) er
 func (s *Store) UpdatePassword(
 	ctx context.Context, u *v1alpha1.User, current, next string, revokeTokens bool,
 ) error {
+	if u.Spec.PasswordHash == "" {
+		return ErrNoPassword
+	}
 	if !auth.VerifyPassword(current, u.Spec.PasswordHash) {
 		return validation.Field("current", ErrWrongPassword)
 	}
@@ -236,6 +266,13 @@ func (ch UpdateInput) removesAdmin(u *v1alpha1.User) bool {
 		return false
 	}
 	return (ch.Role != nil && *ch.Role != v1alpha1.RoleAdmin) || (ch.Disabled != nil && *ch.Disabled)
+}
+
+// changesProfile reports whether the update sets another display name, email or role.
+func (ch UpdateInput) changesProfile(s v1alpha1.UserSpec) bool {
+	return (ch.DisplayName != nil && strings.TrimSpace(*ch.DisplayName) != s.DisplayName) ||
+		(ch.Email != nil && strings.TrimSpace(*ch.Email) != s.Email) ||
+		(ch.Role != nil && *ch.Role != s.Role)
 }
 
 func (ch UpdateInput) apply(s *v1alpha1.UserSpec) error {

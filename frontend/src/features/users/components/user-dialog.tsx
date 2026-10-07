@@ -1,5 +1,6 @@
 import { toast } from "sonner"
 
+import { CopyButton } from "@/components/common/copy-button"
 import { UnveilPassword } from "@/components/common/unveil-password"
 import { UsernameField } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
@@ -55,6 +56,9 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
   const pending = create.isPending || update.isPending
   const errors = fieldErrors(create.error ?? update.error)
   const { username, password, displayName, email, role, mustChangePassword } = draft
+  // The identity provider sets profile and role of a linked account; an account without password gets none.
+  const oidc = user?.oidc
+  const passwordless = !!user && !user.hasPassword
   const tooShort = password !== "" && password.length < MIN_PASSWORD_LENGTH
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,12 +75,24 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
       <DialogHeader>
         <DialogTitle>{user ? `Edit ${user.username}` : "New user"}</DialogTitle>
         <DialogDescription>
-          {user
-            ? "Leave the password empty to keep it. A new password signs the user out everywhere."
-            : "The user gets an own namespace for game servers."}
+          {oidc
+            ? "Name, email and role come from the identity provider."
+            : user
+              ? "Leave the password empty to keep it. A new password signs the user out everywhere."
+              : "The user gets an own namespace for game servers."}
         </DialogDescription>
       </DialogHeader>
       <FieldGroup className="py-4">
+        {oidc && (
+          <Field>
+            <FieldLabel>Identity provider user ID</FieldLabel>
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
+              <code className="flex-1 truncate font-mono text-xs">{oidc.subject}</code>
+              <CopyButton value={oidc.subject} label="Copy user ID" />
+            </div>
+            <FieldDescription className="break-all">{oidc.issuer}</FieldDescription>
+          </Field>
+        )}
         {!user && (
           <UsernameField
             id="u-name"
@@ -90,11 +106,16 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="u-display">Display name</FieldLabel>
-            <Input id="u-display" value={displayName} onChange={(e) => set("displayName", e.target.value)} />
+            <Input
+              id="u-display"
+              value={displayName}
+              disabled={!!oidc}
+              onChange={(e) => set("displayName", e.target.value)}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="u-role">Role</FieldLabel>
-            <Select value={role} onValueChange={(v) => set("role", v as Role)}>
+            <Select value={role} disabled={!!oidc} onValueChange={(v) => set("role", v as Role)}>
               <SelectTrigger id="u-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -107,31 +128,25 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
         </div>
         <Field>
           <FieldLabel htmlFor="u-email">Email</FieldLabel>
-          <Input id="u-email" type="email" value={email} onChange={(e) => set("email", e.target.value)} />
-        </Field>
-        <Field data-invalid={tooShort || !!errors.password}>
-          <FieldLabel htmlFor="u-password">{user ? "New password" : "Password"}</FieldLabel>
-          <UnveilPassword
-            id="u-password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => set("password", e.target.value)}
-            aria-invalid={tooShort || !!errors.password}
+          <Input
+            id="u-email"
+            type="email"
+            value={email}
+            disabled={!!oidc}
+            onChange={(e) => set("email", e.target.value)}
           />
-          {errors.password ? (
-            <FieldError>{errors.password}</FieldError>
-          ) : (
-            <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash.</FieldDescription>
-          )}
         </Field>
-        <Field orientation="horizontal">
-          <Switch
-            id="u-must-change"
-            checked={mustChangePassword}
-            onCheckedChange={(v) => set("mustChangePassword", v)}
+        {!passwordless && (
+          <PasswordFields
+            isNew={!user}
+            password={password}
+            onPassword={(v) => set("password", v)}
+            mustChange={mustChangePassword}
+            onMustChange={(v) => set("mustChangePassword", v)}
+            tooShort={tooShort}
+            error={errors.password}
           />
-          <FieldLabel htmlFor="u-must-change">Must choose a new password after signing in</FieldLabel>
-        </Field>
+        )}
       </FieldGroup>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>
@@ -143,5 +158,48 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
         </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+/** Password (new or replacement) and whether the user must replace it after signing in. */
+function PasswordFields({
+  isNew,
+  password,
+  onPassword,
+  mustChange,
+  onMustChange,
+  tooShort,
+  error,
+}: {
+  isNew: boolean
+  password: string
+  onPassword: (v: string) => void
+  mustChange: boolean
+  onMustChange: (v: boolean) => void
+  tooShort: boolean
+  error?: string
+}) {
+  return (
+    <>
+      <Field data-invalid={tooShort || !!error}>
+        <FieldLabel htmlFor="u-password">{isNew ? "Password" : "New password"}</FieldLabel>
+        <UnveilPassword
+          id="u-password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => onPassword(e.target.value)}
+          aria-invalid={tooShort || !!error}
+        />
+        {error ? (
+          <FieldError>{error}</FieldError>
+        ) : (
+          <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash.</FieldDescription>
+        )}
+      </Field>
+      <Field orientation="horizontal">
+        <Switch id="u-must-change" checked={mustChange} onCheckedChange={onMustChange} />
+        <FieldLabel htmlFor="u-must-change">Must choose a new password after signing in</FieldLabel>
+      </Field>
+    </>
   )
 }

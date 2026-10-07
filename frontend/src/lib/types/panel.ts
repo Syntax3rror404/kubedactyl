@@ -5,7 +5,9 @@ export type {
   HttpapiLegalTexts as LegalTexts,
   HttpapiPoolList as PoolList,
   HttpapiRequestRates as RequestRates,
+  HttpapiSettingsView as PanelSettings,
   HttpapiStorageClassList as StorageClassList,
+  HttpapiUpdateSettingsRequest as UpdateSettingsRequest,
   HttpapiUpgradeStatus as UpgradeStatus,
   HttpapiVersions as Versions,
   HttpserverInfoResponse as PanelInfo,
@@ -13,5 +15,5 @@ export type {
   SelfupgradeJob as UpgradeJob,
   SettingsPool as Pool,
   SettingsStorageClass as StorageClass,
-  V1Alpha1PanelSettingsSpec as PanelSettings,
+  V1Alpha1OIDCSettings as OIDCSettings,
 } from "@/lib/types/api.gen"

@@ -108,8 +108,8 @@ subjects:
     name: {{ $sa }}
     namespace: {{ .Release.Namespace }}
 ---
-# In the release namespace: the session key, and short-lived hardware probe pods (logs only,
-# no exec: the upgrade job's token lives in this namespace).
+# In the release namespace: the session key, the client secret of single sign-on, and short-lived
+# hardware probe pods (logs only, no exec: the upgrade job's token lives in this namespace).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -121,6 +121,10 @@ rules:
     resources: [secrets]
     resourceNames: [kubedactyl-auth]
     verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [kubedactyl-oidc]
+    verbs: [get, patch]
   - apiGroups: [""]
     resources: [secrets]
     verbs: [create]

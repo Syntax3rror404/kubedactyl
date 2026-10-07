@@ -126,6 +126,7 @@ run it behind TLS when it is reachable from the internet.
 - [Administration](docs/administration.md): users, invites and permissions, panel settings, the cluster page.
 - [Installation and operation](docs/installation.md): Helm chart, self-upgrades, permissions, configuration,
   cleanup and known limitations.
+- [Single sign-on](docs/oidc.md): sign-in through an OpenID Connect identity provider such as Keycloak.
 - [Security](docs/security.md): what the panel does to be safe on the internet.
 - [Development](docs/development.md): local setup, commands, project layout and the API.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the big picture and where to change what. Start here when you work on the code.

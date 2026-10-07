@@ -28,14 +28,26 @@ type UserSpec struct {
 	Email       string `json:"email,omitempty"`
 	// +kubebuilder:default=user
 	Role UserRole `json:"role"`
-	// PasswordHash is an Argon2id hash in PHC format; the password itself is never stored.
-	PasswordHash string `json:"passwordHash"`
+	// PasswordHash is an Argon2id hash in PHC format; the password itself is never stored. Empty:
+	// the user signs in only through the identity provider (OIDC).
+	// +optional
+	PasswordHash string `json:"passwordHash,omitempty"`
 	// MustChangePassword makes the user replace the password (set by an administrator) after signing in.
 	MustChangePassword bool `json:"mustChangePassword,omitempty"`
 	Disabled           bool `json:"disabled,omitempty"`
 	// SessionEpoch invalidates all sessions of the user when it is increased.
 	SessionEpoch int64      `json:"sessionEpoch,omitempty"`
 	Tokens       []APIToken `json:"tokens,omitempty"`
+	// OIDC links the account to a user of the identity provider; only that user may sign in to it
+	// through single sign-on. Display name, email and role then come from the identity provider.
+	// +optional
+	OIDC *OIDCIdentity `json:"oidc,omitempty"`
+}
+
+// OIDCIdentity names a user of an OpenID Connect identity provider.
+type OIDCIdentity struct {
+	Issuer  string `json:"issuer" `
+	Subject string `json:"subject"`
 }
 
 // UserStatus defines the observed state of a user.

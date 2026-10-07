@@ -34,6 +34,7 @@ func healthyInputs() healthInputs {
 		settings: v1alpha1.PanelSettingsSpec{
 			StorageClasses:    []string{"longhorn"},
 			LoadBalancerPools: []string{"general-pool"},
+			OIDC:              v1alpha1.OIDCSettings{Enabled: true},
 		},
 		storageClasses: []settings.StorageClass{{Name: "longhorn"}},
 		pools:          []settings.Pool{{Name: "general-pool", IPsAvailable: 55}},
@@ -143,6 +144,20 @@ func TestHealthProblems(t *testing.T) {
 			"admission-policy",
 			checks.Skipped,
 			"kubeconfig",
+		},
+		{
+			"single sign-on off",
+			func(in *healthInputs) { in.settings.OIDC.Enabled = false },
+			"oidc",
+			checks.Skipped,
+			"off",
+		},
+		{
+			"identity provider down",
+			func(in *healthInputs) { in.oidcErr = errors.New("discovery failed") },
+			"oidc",
+			checks.Error,
+			"discovery failed",
 		},
 		{
 			"no storage class enabled",

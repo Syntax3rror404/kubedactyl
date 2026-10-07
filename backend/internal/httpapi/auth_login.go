@@ -122,10 +122,11 @@ func (a *API) login(c *gin.Context) {
 }
 
 // checkPassword returns the user when the password matches and the account is enabled. The password is
-// checked for unknown and disabled users, too: the answer takes as long either way.
+// checked for unknown, disabled and single sign-on only users, too: the answer takes as long either way.
 func (a *API) checkPassword(ctx context.Context, username, password string) (*v1alpha1.User, bool) {
 	user := &v1alpha1.User{}
-	if err := a.Client.Get(ctx, client.ObjectKey{Namespace: a.Opts.Namespace, Name: username}, user); err != nil {
+	err := a.Client.Get(ctx, client.ObjectKey{Namespace: a.Opts.Namespace, Name: username}, user)
+	if err != nil || user.Spec.PasswordHash == "" {
 		auth.VerifyDummy(password)
 		return nil, false
 	}

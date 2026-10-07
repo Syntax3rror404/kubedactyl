@@ -141,6 +141,57 @@ spec:
                 items:
                   type: string
                 type: array
+              oidc:
+                description: |-
+                  OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+                  secret is kept in a Secret, not here.
+                properties:
+                  adminGroup:
+                    description: |-
+                      Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+                      else may sign in.
+                    type: string
+                  clientId:
+                    type: string
+                  enabled:
+                    type: boolean
+                  groupsClaim:
+                    description: GroupsClaim holds the groups of the user (default
+                      groups).
+                    type: string
+                  issuerUrl:
+                    description: |-
+                      IssuerURL is the issuer of the identity provider (its discovery document is at
+                      <issuerUrl>/.well-known/openid-configuration).
+                    type: string
+                  keepPasswords:
+                    description: |-
+                      KeepPasswords keeps the password of an existing account when it is linked to the identity
+                      provider; otherwise the account then signs in only through the identity provider.
+                    type: boolean
+                  linkByUsername:
+                    description: |-
+                      LinkByUsername links an existing account that is not linked yet to the user of the identity
+                      provider with the same username (to bootstrap). Off: such a sign-in is refused, so nobody
+                      can take over an account by choosing its name at the identity provider.
+                    type: boolean
+                  name:
+                    description: 'Name is shown on the sign-in button: "Sign in with
+                      <name>".'
+                    maxLength: 40
+                    type: string
+                  redirectUrl:
+                    description: |-
+                      RedirectURL is the callback of the panel registered at the identity provider
+                      (https://<panel>/api/auth/oidc/callback). It is not taken from the request: a forged Host
+                      header must not send the code elsewhere.
+                    type: string
+                  userGroup:
+                    type: string
+                  usernameClaim:
+                    description: UsernameClaim holds the panel username (default preferred_username).
+                    type: string
+                type: object
               privacyPolicy:
                 maxLength: 20000
                 type: string

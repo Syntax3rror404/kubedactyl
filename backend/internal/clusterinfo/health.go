@@ -11,6 +11,7 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/checks"
 	"app/internal/settings"
+	"app/internal/sso"
 	"app/internal/tenancy"
 )
 
@@ -36,6 +37,8 @@ type healthInputs struct {
 	storageErr     error
 	pools          []settings.Pool
 	poolsErr       error
+	// oidcErr is why the identity provider of single sign-on does not answer.
+	oidcErr error
 	// guarded: the panel runs with its tenant role (in the cluster); policy is the admission
 	// policy that limits its cluster wide permissions, policyErr why it cannot be read.
 	guarded   bool
@@ -101,6 +104,9 @@ func (s *Service) gatherHealth(ctx context.Context) healthInputs {
 		if in.cilium {
 			in.pools, in.poolsErr = settings.ListPools(ctx, s.Reader)
 		}
+		if in.settings.OIDC.Enabled {
+			in.oidcErr = sso.Discover(ctx, in.settings.OIDC.IssuerURL)
+		}
 	}
 	return in
 }
@@ -116,6 +122,7 @@ func evaluate(in healthInputs) []checks.Check {
 		checkLoadBalancer(in),
 		checkStorage(in),
 		checkAdmissionPolicy(in),
+		checkOIDC(in),
 	}
 }
 

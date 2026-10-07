@@ -58,13 +58,36 @@ func (a *API) getRequestRates(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// SettingsView is the panel settings; the client secret of the identity provider is never sent.
+type SettingsView struct {
+	v1alpha1.PanelSettingsSpec
+	// OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).
+	OIDCClientSecretSet bool `json:"oidcClientSecretSet"`
+}
+
+// UpdateSettingsRequest is the panel settings with the client secret of the identity provider.
+type UpdateSettingsRequest struct {
+	v1alpha1.PanelSettingsSpec
+	// OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it.
+	OIDCClientSecret *string `json:"oidcClientSecret,omitempty" extensions:"x-nullable"`
+}
+
+// settingsView adds whether a client secret is stored, for administrators (only they edit the settings).
+func (a *API) settingsView(c *gin.Context, spec v1alpha1.PanelSettingsSpec) (SettingsView, error) {
+	if !principal(c).Admin() {
+		return SettingsView{PanelSettingsSpec: spec}, nil
+	}
+	secret, err := a.Settings.OIDCClientSecret(c)
+	return SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""}, err
+}
+
 // getSettings godoc
 //
 //	@Summary		Panel settings
 //	@Description	External domain and the storage classes and load balancer pools that can be selected for servers.
 //	@Tags			Settings
 //	@Produce		json
-//	@Success		200	{object}	v1alpha1.PanelSettingsSpec
+//	@Success		200	{object}	SettingsView
 //	@Security		BearerAuth
 //	@Router			/settings [get]
 func (a *API) getSettings(c *gin.Context) {
@@ -73,7 +96,12 @@ func (a *API) getSettings(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, spec)
+	view, err := a.settingsView(c, spec)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 // updateSettings godoc
@@ -84,24 +112,32 @@ func (a *API) getSettings(c *gin.Context) {
 //	@Tags			Settings
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		v1alpha1.PanelSettingsSpec	true	"Settings"
-//	@Success		200		{object}	v1alpha1.PanelSettingsSpec
+//	@Param			body	body		UpdateSettingsRequest	true	"Settings"
+//	@Success		200		{object}	SettingsView
 //	@Failure		422		{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/settings [put]
 func (a *API) updateSettings(c *gin.Context) {
-	var req v1alpha1.PanelSettingsSpec
+	var req UpdateSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		a.fail(c, badRequest(err))
 		return
 	}
-	spec, err := a.Settings.Update(c, req)
+	spec, err := a.Settings.Update(c, req.PanelSettingsSpec)
+	if err == nil && req.OIDCClientSecret != nil {
+		err = a.Settings.UpdateOIDCClientSecret(c, strings.TrimSpace(*req.OIDCClientSecret))
+	}
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "panel settings updated")
-	c.JSON(http.StatusOK, spec)
+	a.audit(c, "panel settings updated", "oidcClientSecret", req.OIDCClientSecret != nil)
+	view, err := a.settingsView(c, spec)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 // listStorageClasses godoc

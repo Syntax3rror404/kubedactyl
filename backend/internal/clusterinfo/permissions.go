@@ -11,6 +11,7 @@ import (
 	authzv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"app/internal/settings"
 	"app/internal/tenancy"
 )
 
@@ -81,6 +82,8 @@ func (s *Service) permissionChecks() []permissionCheck {
 		{label: "List storage classes", verb: "list", group: "storage.k8s.io", resource: "storageclasses"},
 		{label: "List load balancer pools", verb: "list", group: "cilium.io", resource: "ciliumloadbalancerippools"},
 		{label: "Manage secrets", verb: "create", resource: "secrets", scope: "panel"},
+		{label: "Store the OIDC client secret", verb: "patch", resource: "secrets", name: settings.OIDCSecret,
+			scope: "panel"},
 		{label: "Start hardware probes", verb: "create", resource: "pods", scope: "panel"},
 		{label: "Store hardware probe results", verb: "update", resource: "configmaps", name: hardwareCacheCM,
 			scope: "panel"},

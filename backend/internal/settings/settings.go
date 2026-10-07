@@ -22,6 +22,7 @@ import (
 
 	"app/api/v1alpha1"
 	"app/internal/kube"
+	"app/internal/sso"
 	"app/internal/validation"
 )
 
@@ -39,6 +40,7 @@ type Store struct {
 
 	mu     sync.Mutex
 	cached *v1alpha1.PanelSettingsSpec // nil: Current reads the settings again
+	secret *string                     // nil: OIDCClientSecret reads the secret again
 }
 
 // Get returns the current settings with the default lifetimes filled in (only those when the
@@ -53,6 +55,8 @@ func (s *Store) Get(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 	obj.Spec.APITokenMaxDays = cmp.Or(obj.Spec.APITokenMaxDays, DefaultAPITokenMaxDays)
 	obj.Spec.KubeAPIQPS = cmp.Or(obj.Spec.KubeAPIQPS, DefaultKubeAPIQPS)
 	obj.Spec.KubeAPIUserQPS = cmp.Or(obj.Spec.KubeAPIUserQPS, DefaultKubeAPIUserQPS)
+	obj.Spec.OIDC.UsernameClaim = cmp.Or(obj.Spec.OIDC.UsernameClaim, sso.DefaultUsernameClaim)
+	obj.Spec.OIDC.GroupsClaim = cmp.Or(obj.Spec.OIDC.GroupsClaim, sso.DefaultGroupsClaim)
 	return obj.Spec, nil
 }
 
@@ -76,7 +80,7 @@ func (s *Store) Current(ctx context.Context) (v1alpha1.PanelSettingsSpec, error)
 // Forget drops the kept settings; the next Current reads them again.
 func (s *Store) Forget() {
 	s.mu.Lock()
-	s.cached = nil
+	s.cached, s.secret = nil, nil
 	s.mu.Unlock()
 	if s.Changed != nil {
 		s.Changed()
@@ -210,6 +214,9 @@ func (s *Store) Validate(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (
 			minKubeAPIUserQPS, maxKubeAPIUserQPS)
 	}
 	if spec.EggLibraries, err = normalizeEggLibraries(spec.EggLibraries); err != nil {
+		return spec, err
+	}
+	if spec.OIDC, err = checkOIDC(ctx, spec.OIDC); err != nil {
 		return spec, err
 	}
 	spec.StorageClasses = unique(spec.StorageClasses)

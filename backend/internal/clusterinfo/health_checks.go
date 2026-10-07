@@ -166,3 +166,15 @@ func checkAdmissionPolicy(in healthInputs) checks.Check {
 	}
 	return checks.New(id, label, checks.OK, "")
 }
+
+// checkOIDC: while single sign-on is on, its identity provider must answer.
+func checkOIDC(in healthInputs) checks.Check {
+	const id, label = "oidc", "Single sign-on"
+	switch {
+	case !in.settings.OIDC.Enabled:
+		return checks.New(id, label, checks.Skipped, "single sign-on is off")
+	case in.oidcErr != nil:
+		return checks.New(id, label, checks.Error, "users cannot sign in through it: "+in.oidcErr.Error())
+	}
+	return checks.New(id, label, checks.OK, "")
+}

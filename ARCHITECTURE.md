@@ -68,7 +68,8 @@ flowchart LR
 | `backend/internal/schedule` | Cron schedules of servers |
 | `backend/internal/diagnostics`, `checks` | Server diagnostics (why players cannot connect) and the check result type shared with the cluster health |
 | `backend/internal/egglibrary` | Egg library: eggs of GitHub repositories (archive download, in-memory cache) |
-| `backend/internal/eggstore`, `users` | Storing eggs (create, import, update from URL, delete) and user accounts (create with namespace, changes, last-admin rule) |
+| `backend/internal/eggstore`, `users` | Storing eggs (create, import, update from URL, delete) and user accounts (create with namespace, changes, last-admin rule, accounts of single sign-on users) |
+| `backend/internal/sso` | Single sign-on: OpenID Connect sign-in (code flow with PKCE, ID token checks) and the account a token describes; see [docs/oidc.md](docs/oidc.md) |
 | `backend/internal/settings`, `clusterinfo`, `selfupgrade`, `auth`, `tenancy`, `validation`, `bootstrap`, `kube`, `httpserver` | Panel settings, cluster page and health checks, self-upgrades, passwords/sessions/tokens, user namespaces, field validation errors, start-up, Kubernetes helpers, router and security headers |
 | `frontend/src/app` | Route table (`router.tsx`): which page belongs to which URL |
 | `frontend/src/features/<area>` | One folder per area (servers, eggs, users, settings, …) with its `*-page.tsx` and the components/hooks only it uses; every server tab is `features/servers/<tab>-page.tsx` (URL `/servers/:server/<tab>`) |
@@ -153,6 +154,7 @@ pod logs itself (`console/follow.go`), so the output continues when nobody is wa
 | change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
 | add a server diagnostics check | `internal/diagnostics` (`Run`, a function returning `checks.Check`, a case in the test); shown by `features/servers/diagnostics-page.tsx` |
 | add a panel setting | `api/v1alpha1/settings_types.go`, `internal/settings`, settings page cards |
+| change single sign-on | `internal/sso` (flow, claims), `users/oidc.go` (which account, linking), `httpapi/auth_oidc.go` (routes, cookie), `settings/oidc.go` (validation, client secret), `features/settings/components/sso-card.tsx`, `features/auth/login-page.tsx` |
 
 ## Walk-through: adding a field to servers
 

@@ -13,7 +13,15 @@ Measures for exposing the panel to the internet:
   password checks run at once (19 MiB each, OWASP's first Argon2id configuration, 2 iterations; older hashes with
   64 MiB are replaced at the next sign-in), so a burst of logins cannot exhaust the panel's memory. The last
   active administrator cannot be demoted, deactivated or deleted, also not by parallel requests.
-- **Public routes** (`/branding`, `/legal`, `/setup`) do not call the Kubernetes API once an administrator exists
+- **Single sign-on** (see [Single sign-on](oidc.md)): authorization code flow with PKCE S256, `state` and `nonce`
+  in a signed `__Host-` cookie (over HTTPS); the panel completes every flow once. The ID token is verified by
+  go-oidc (signature, issuer, audience, expiry). The redirect URL comes from the settings, not from the request.
+  Existing accounts are linked by username only while an administrator allows it, and linking ends their sessions
+  and tokens; a linked account accepts only its IdP user (`sub`). The redirect after the sign-in stays inside the
+  web interface, the sign-in page shows fixed messages only, the client secret lives in a Secret the API never
+  returns, and a failed discovery of the IdP is not repeated for 30 s. The callback reads and writes the account
+  only after the IdP vouched for the user.
+- **Public routes** (`/branding`, `/legal`, `/setup`, `/auth/oidc`) do not call the Kubernetes API once an administrator exists
   (the settings are kept in memory and read again only after they changed), so anonymous requests cannot use up the panel's
   Kubernetes API limit. Every console message counts against the user's request limit like an HTTP request.
   Values every viewer polls are read once and shared: server CPU/memory (10 s), disk usage (30 s), cluster health

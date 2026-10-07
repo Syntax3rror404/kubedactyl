@@ -15,20 +15,22 @@ import { LegalCard } from "@/features/settings/components/legal-card"
 import { NoticeCard } from "@/features/settings/components/notice-card"
 import { PoolsCard } from "@/features/settings/components/pools-card"
 import { SecurityCard } from "@/features/settings/components/security-card"
+import { SsoCard } from "@/features/settings/components/sso-card"
 import { StorageClassesCard } from "@/features/settings/components/storage-classes-card"
 import { UpgradeCard } from "@/features/settings/components/upgrade-card"
 import { VersionsCard } from "@/features/settings/components/versions-card"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
 import { usePools, useUpdateSettings, useServers, useSettings, useStorageClasses } from "@/lib/queries"
-import type { PanelSettings } from "@/lib/types"
+import type { PanelSettings, UpdateSettingsRequest } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
 
 const header = { title: "Settings" }
 
 /**
  * /settings (admins): branding, server notice, address, storage classes, pools, egg library, legal texts, security
- * (isolation, session and token lifetimes, API docs), Kube API limit, panel updates and software versions.
+ * (isolation, session and token lifetimes, API docs), single sign-on, Kube API limit, panel updates and software
+ * versions.
  */
 export function PanelSettingsPage() {
   const settings = useSettings()
@@ -47,11 +49,14 @@ export function PanelSettingsPage() {
   )
 }
 
+/** The stored settings plus a client secret typed for single sign-on (sent only when one was typed). */
+type Draft = PanelSettings & Pick<UpdateSettingsRequest, "oidcClientSecret">
+
 function SettingsForm({ stored }: { stored: PanelSettings }) {
   const classes = useStorageClasses()
   const pools = usePools()
   const servers = useServers()
-  const { draft: value, setDraft, dirty, reset } = useDraft(stored)
+  const { draft: value, setDraft, dirty, reset } = useDraft<Draft>(stored)
   const save = useUpdateSettings({
     onSuccess: () => toast.success("Settings saved"),
     onError: failed("save the settings"),
@@ -63,7 +68,7 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
   }
 
   // Functional update: images are read asynchronously, two changes must not overwrite each other.
-  const change = (patch: Partial<PanelSettings>) => setDraft((d) => ({ ...d, ...patch }))
+  const change = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
   const storage: Selection = { enabled: value.storageClasses ?? [], defaultName: value.defaultStorageClass ?? "" }
   const pool: Selection = { enabled: value.loadBalancerPools ?? [], defaultName: value.defaultLoadBalancerPool ?? "" }
   const exampleIP = servers.data?.find((s) => s.status?.address)?.status?.address
@@ -80,7 +85,10 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
                 Discard
               </Button>
             )}
-            <Button disabled={!dirty || save.isPending} onClick={() => save.mutate(value)}>
+            <Button
+              disabled={!dirty || save.isPending}
+              onClick={() => save.mutate({ ...value, oidcClientSecret: value.oidcClientSecret || undefined })}
+            >
               {save.isPending ? <Spinner /> : <SaveIcon />}
               Save changes
             </Button>
@@ -147,6 +155,15 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
           disableApiDocs: value.disableApiDocs ?? false,
         }}
         onChange={change}
+        errors={errors}
+      />
+
+      <SsoCard
+        values={value.oidc ?? {}}
+        onChange={(patch) => setDraft((d) => ({ ...d, oidc: { ...d.oidc, ...patch } }))}
+        secret={value.oidcClientSecret ?? ""}
+        secretSet={value.oidcClientSecretSet}
+        onSecret={(oidcClientSecret) => change({ oidcClientSecret })}
         errors={errors}
       />
 

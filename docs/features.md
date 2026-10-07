@@ -23,6 +23,7 @@ Everything the panel does, in detail. The short overview is in the [README](../R
 | Storage | Selectable StorageClass per server (fixed for the life of the volume) |
 | Stats | CPU / memory from metrics-server, disk usage of the volume, uptime |
 | Users | Admins and users, one namespace per user, Argon2id passwords, sessions and API tokens (see [Administration](administration.md#users-and-permissions)) |
+| Single sign-on | Sign-in through an OpenID Connect identity provider (tested with Keycloak); its groups grant access and the role, accounts with the same username are linked (see [Single sign-on](oidc.md)) |
 | Settings (admin) | External domain, storage classes and load balancer pools users can pick (all of the cluster listed, just check them) |
 | Panel updates (admin) | The panel looks for new chart versions in its OCI registry every 10 minutes; *Settings* shows them (plus an "Update" badge in the sidebar) and upgrades with one click: a Job runs `helm upgrade` with the release's values and only the new version |
 | Cluster (admin) | Nodes with status, roles, CPU model / cores / threads / clock, vendor and product, memory, live usage and requested resources, totals; kubeconfig or service account in use, authentication method, identity (SelfSubjectReview) and the permissions the panel needs |

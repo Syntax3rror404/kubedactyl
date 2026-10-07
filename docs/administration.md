@@ -27,6 +27,9 @@ instead. After the setup the page answers 409.
   resources in the panel namespace; only a SHA-256 hash of the link is stored. Failed link checks count against
   the client like failed sign-ins.
 
+**Single sign-on:** users can also sign in through an OpenID Connect identity provider (Keycloak), whose groups
+grant access and the role; see [Single sign-on](oidc.md).
+
 **Authentication**
 - Web UI: `POST /api/auth/login` sets the HttpOnly, SameSite=Strict cookie `kd_session`
   (HMAC-signed). The signing key lives in the secret `kubedactyl-auth`.
@@ -107,6 +110,7 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
   (the address changes; Cilium releases the old IP and assigns a new one, verified live). A fixed IP
   must be inside the pool's blocks and is cleared when the pool changes.
 
+- **Single sign-on:** identity provider, client and groups; see [Single sign-on](oidc.md#panel-settings).
 - **Panel updates:** see [Self-upgrades](installation.md#self-upgrades).
 
 On the first start the settings are created from `--storage-class` and `--lb-pool` (pool name or the

@@ -1,7 +1,7 @@
 import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
-import { RoleBadge } from "@/components/common/role-badge"
+import { OidcBadge, RoleBadge } from "@/components/common/role-badge"
 import { UserAvatar } from "@/components/common/user-avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -67,13 +67,17 @@ export function UserTable({
                   )}
                   {/* Phones: role and servers here instead of in their own columns. */}
                   <div className="truncate text-xs text-muted-foreground sm:hidden">
-                    {roleLabel(u.role)} · {plural(u.servers, "server")}
+                    {roleLabel(u.role)}
+                    {u.oidc && " · OIDC"} · {plural(u.servers, "server")}
                   </div>
                 </div>
               </div>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
-              <RoleBadge role={u.role} />
+              <div className="flex flex-wrap gap-1">
+                <RoleBadge role={u.role} />
+                {u.oidc && <OidcBadge />}
+              </div>
             </TableCell>
             <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
               {u.namespace}

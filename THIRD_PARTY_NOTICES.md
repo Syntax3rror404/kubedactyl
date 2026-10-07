@@ -358,6 +358,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/chai2010/gettext-go | v1.0.2 | BSD-3-Clause |
 | github.com/cloudflare/circl | v1.6.3 | BSD-3-Clause |
 | github.com/coder/websocket | v1.8.15 | ISC |
+| github.com/coreos/go-oidc/v3 | v3.21.0 | Apache-2.0 |
 | github.com/cyphar/filepath-securejoin | v0.7.0 | BSD-3-Clause AND MPL-2.0 |
 | github.com/davecgh/go-spew | v1.1.2-0.20180830191138-d8f796af33cc | ISC |
 | github.com/dylibso/observe-sdk/go | v0.0.0-20240819160327-2d926c5d788a | Apache-2.0 |
@@ -374,6 +375,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/gin-gonic/gin | v1.12.0 | MIT |
 | github.com/go-errors/errors | v1.5.1 | MIT |
 | github.com/go-gorp/gorp/v3 | v3.1.0 | MIT |
+| github.com/go-jose/go-jose/v4 | v4.1.5 | Apache-2.0 |
 | github.com/go-logr/logr | v1.4.4 | Apache-2.0 |
 | github.com/go-openapi/jsonpointer | v1.0.0 | Apache-2.0 |
 | github.com/go-openapi/jsonreference | v1.0.0 | Apache-2.0 |
@@ -458,7 +460,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | golang.org/x/crypto | v0.57.0 | BSD-3-Clause |
 | golang.org/x/mod | v0.41.0 | BSD-3-Clause |
 | golang.org/x/net | v0.59.0 | BSD-3-Clause |
-| golang.org/x/oauth2 | v0.36.0 | BSD-3-Clause |
+| golang.org/x/oauth2 | v0.37.0 | BSD-3-Clause |
 | golang.org/x/sync | v0.23.0 | BSD-3-Clause |
 | golang.org/x/sys | v0.48.0 | BSD-3-Clause |
 | golang.org/x/term | v0.46.0 | BSD-3-Clause |
@@ -762,6 +764,16 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 
 The panel binary is built from Go modules; those with a NOTICE file (Apache License 2.0, section 4(d))
 are reproduced here. The list follows `go version -m bin/kubedactyl`.
+
+### github.com/coreos/go-oidc/v3 v3.21.0
+
+```
+CoreOS Project
+Copyright 2014 CoreOS, Inc
+
+This product includes software developed at CoreOS, Inc.
+(http://www.coreos.com/).
+```
 
 ### github.com/go-openapi/jsonpointer v1.0.0
 
