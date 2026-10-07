@@ -8,7 +8,7 @@ The recommended way is the Helm chart from GHCR (image and chart are public OCI 
 linux/amd64):
 
 ```bash
-helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.64 \
+helm install kubedactyl oci://ghcr.io/syntax3rror404/charts/kubedactyl --version 0.2.65 \
   -n kubedactyl --create-namespace \
   --set httpRoute.enabled=true --set 'httpRoute.hostnames[0]=kubedactyl.example.com' \
   --set panel.trustedProxies=10.244.0.0/16
