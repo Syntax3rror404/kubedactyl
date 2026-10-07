@@ -1,6 +1,7 @@
 import { toast } from "sonner"
 
 import { CopyButton } from "@/components/common/copy-button"
+import { OidcBadge } from "@/components/common/role-badge"
 import { UnveilPassword } from "@/components/common/unveil-password"
 import { UsernameField } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { useDraft } from "@/hooks/use-draft"
+import { roleLabel } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useCreateUser, useUpdateUser } from "@/lib/queries"
 import type { Role, UserView } from "@/lib/types"
@@ -56,7 +58,8 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
   const pending = create.isPending || update.isPending
   const errors = fieldErrors(create.error ?? update.error)
   const { username, password, displayName, email, role, mustChangePassword } = draft
-  // The identity provider sets profile and role of a linked account; an account without password gets none.
+  // The identity provider sets profile and role of a linked account (read only, marked with the OIDC badge); an
+  // account without password gets none.
   const oidc = user?.oidc
   const passwordless = !!user && !user.hasPassword
   const tooShort = password !== "" && password.length < MIN_PASSWORD_LENGTH
@@ -75,11 +78,11 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
       <DialogHeader>
         <DialogTitle>{user ? `Edit ${user.username}` : "New user"}</DialogTitle>
         <DialogDescription>
-          {oidc
-            ? "Name, email and role come from the identity provider."
-            : user
-              ? "Leave the password empty to keep it. A new password signs the user out everywhere."
-              : "The user gets an own namespace for game servers."}
+          {!user
+            ? "The user gets an own namespace for game servers."
+            : passwordless
+              ? "Signs in through the identity provider."
+              : "Leave the password empty to keep it. A new password signs the user out everywhere."}
         </DialogDescription>
       </DialogHeader>
       <FieldGroup className="py-4">
@@ -105,34 +108,44 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
         )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="u-display">Display name</FieldLabel>
+            <FieldLabel htmlFor="u-display" className="items-center">
+              Display name {oidc && <OidcBadge />}
+            </FieldLabel>
             <Input
               id="u-display"
               value={displayName}
-              disabled={!!oidc}
+              readOnly={!!oidc}
               onChange={(e) => set("displayName", e.target.value)}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="u-role">Role</FieldLabel>
-            <Select value={role} disabled={!!oidc} onValueChange={(v) => set("role", v as Role)}>
-              <SelectTrigger id="u-role" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-              </SelectContent>
-            </Select>
+            <FieldLabel htmlFor="u-role" className="items-center">
+              Role {oidc && <OidcBadge />}
+            </FieldLabel>
+            {oidc ? (
+              <Input id="u-role" readOnly value={roleLabel(role)} />
+            ) : (
+              <Select value={role} onValueChange={(v) => set("role", v as Role)}>
+                <SelectTrigger id="u-role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </Field>
         </div>
         <Field>
-          <FieldLabel htmlFor="u-email">Email</FieldLabel>
+          <FieldLabel htmlFor="u-email" className="items-center">
+            Email {oidc && <OidcBadge />}
+          </FieldLabel>
           <Input
             id="u-email"
             type="email"
             value={email}
-            disabled={!!oidc}
+            readOnly={!!oidc}
             onChange={(e) => set("email", e.target.value)}
           />
         </Field>

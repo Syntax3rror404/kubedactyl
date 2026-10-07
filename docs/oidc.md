@@ -60,13 +60,15 @@ In the realm of your users:
    *Advanced → Proof Key for Code Exchange*, set *S256*.
 2. **Redirect URL:** *Valid redirect URIs* = exactly the redirect URL of the *Single sign-on* card, for example
    `https://panel.example.com/api/auth/oidc/callback` (no wildcards). *Web origins* is not needed.
-3. **Groups in the token:** *Client scopes → kubedactyl-dedicated → Add mapper → By configuration → Group
-   Membership*, token claim name `groups`, *Full group path* off, *Add to ID token* on.
+3. **Groups in the token:** in the client, tab *Client scopes → kubedactyl-dedicated → Add mapper → By
+   configuration → Group Membership*, token claim name `groups`, *Full group path* off, *Add to ID token* on.
 4. **Groups:** create for example `kubedactyl-admins` and `kubedactyl-users` and add the users.
 5. **Client secret:** *Credentials → Client secret*.
 6. **Usernames:** keep *Realm settings → Login → Edit username* off, and do not put self-registered users into
    the groups automatically: while *Link existing accounts by username* is on, the username decides which
    existing account someone gets.
+7. **Panel:** enter issuer (`https://<keycloak host>/realms/<realm>`), client ID, client secret and both groups
+   under [Panel settings](#panel-settings) and turn single sign-on on.
 
 ## Panel settings
 
