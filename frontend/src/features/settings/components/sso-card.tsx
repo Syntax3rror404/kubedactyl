@@ -69,9 +69,8 @@ export function SsoCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRoundIcon className="size-4" />
-          Single sign-on
+          OpenID Connect
         </CardTitle>
-        <CardDescription>Sign in through an OpenID Connect identity provider.</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup className="gap-6">

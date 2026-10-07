@@ -58,7 +58,7 @@ In the realm of your users:
 1. **Client:** *Clients → Create client*, type *OpenID Connect*, client ID for example `kubedactyl`.
    *Client authentication* on (confidential client), *Standard flow* on, everything else off. Under
    *Advanced → Proof Key for Code Exchange*, set *S256*.
-2. **Redirect URL:** *Valid redirect URIs* = exactly the redirect URL of the *Single sign-on* card, for example
+2. **Redirect URL:** *Valid redirect URIs* = exactly the redirect URL of the *OpenID Connect* card, for example
    `https://panel.example.com/api/auth/oidc/callback` (no wildcards). *Web origins* is not needed.
 3. **Groups in the token:** in the client, tab *Client scopes → kubedactyl-dedicated → Add mapper → By
    configuration → Group Membership*, token claim name `groups`, *Full group path* off, *Add to ID token* on.
@@ -72,7 +72,7 @@ In the realm of your users:
 
 ## Panel settings
 
-*Settings → Single sign-on* (stored in the `PanelSettings` resource, field `oidc`):
+*Settings → OpenID Connect* (stored in the `PanelSettings` resource, field `oidc`):
 
 | Field | Meaning |
 |---|---|

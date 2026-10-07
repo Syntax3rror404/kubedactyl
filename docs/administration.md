@@ -110,7 +110,7 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
   (the address changes; Cilium releases the old IP and assigns a new one, verified live). A fixed IP
   must be inside the pool's blocks and is cleared when the pool changes.
 
-- **Single sign-on:** identity provider, client and groups; see [Single sign-on](oidc.md#panel-settings).
+- **OpenID Connect:** identity provider, client and groups; see [Single sign-on](oidc.md#panel-settings).
 - **Panel updates:** see [Self-upgrades](installation.md#self-upgrades).
 
 On the first start the settings are created from `--storage-class` and `--lb-pool` (pool name or the
