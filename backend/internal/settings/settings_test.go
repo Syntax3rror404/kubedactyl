@@ -151,8 +151,14 @@ func TestNormalizeEggLibraries(t *testing.T) {
 	if err != nil || !slices.Equal(got, want) {
 		t.Errorf("got %v %v, want %v", got, err, want)
 	}
+	// Any host, also with subgroups and plain HTTP.
+	other := []string{"https://gitlab.com/group/sub/eggs", "http://git.example.com:3000/a/b"}
+	if got, err := normalizeEggLibraries(other); err != nil || !slices.Equal(got, other) {
+		t.Errorf("got %v %v, want %v", got, err, other)
+	}
 	for _, bad := range []string{
-		"https://gitlab.com/a/b", "http://github.com/a/b", "https://github.com/a", "https://github.com/a/b/tree/main",
+		"https://github.com/a", "github.com/a/b", "ftp://example.com/a/b", "https://user:pw@example.com/a/b",
+		"https://example.com/a/b?ref=main", "https://example.com/a//b", "https:///a/b",
 	} {
 		if _, err := normalizeEggLibraries([]string{bad}); err == nil {
 			t.Errorf("%q accepted", bad)

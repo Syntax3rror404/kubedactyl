@@ -2,6 +2,7 @@ import { useState } from "react"
 import { EggIcon as EggLucide, PlusIcon, SearchIcon } from "lucide-react"
 import { Link, useSearchParams } from "react-router"
 
+import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { PageHeader } from "@/components/layout/page-header"
@@ -12,16 +13,18 @@ import { EggCard } from "@/features/eggs/components/egg-card"
 import { EggImportDialog } from "@/features/eggs/components/egg-import-dialog"
 import { EggLibrary } from "@/features/eggs/components/egg-library"
 import { matches } from "@/features/eggs/lib/library"
-import { useEggs, useServers } from "@/lib/queries"
+import { useEggs, useLibrary, useServers } from "@/lib/queries"
 
 /**
  * /eggs (admins): the installed eggs (import from a file or URL, or create one with the wizard)
- * and the library: the eggs of GitHub repositories, ready to install (?tab=library).
+ * and the library: the eggs of git repositories, ready to install (?tab=library).
  */
 export function EggsPage() {
   const [params, setParams] = useSearchParams()
   const tab = params.get("tab") === "library" ? "library" : "installed"
   const [search, setSearch] = useState("")
+  const installed = useEggs().data
+  const library = useLibrary().data
   return (
     <div className="space-y-8">
       <PageHeader
@@ -42,8 +45,14 @@ export function EggsPage() {
       <Tabs value={tab} onValueChange={(v) => setParams(v === "library" ? { tab: v } : {}, { replace: true })}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <ScrollableTabsList>
-            <TabsTrigger value="installed">Installed</TabsTrigger>
-            <TabsTrigger value="library">Library</TabsTrigger>
+            <TabsTrigger value="installed">
+              Installed
+              {installed && <EggCountBadge count={installed.length} />}
+            </TabsTrigger>
+            <TabsTrigger value="library">
+              Library
+              {library && <EggCountBadge count={library.reduce((n, r) => n + r.eggs.length, 0)} />}
+            </TabsTrigger>
           </ScrollableTabsList>
           <InputGroup className="sm:max-w-xs">
             <InputGroupAddon>

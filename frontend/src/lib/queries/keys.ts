@@ -27,6 +27,7 @@ export const keys = {
   eggExport: (name: string, format: string) => ["eggs", name, "export", format] as const,
   library: ["egg-library"] as const,
   libraryEgg: (repository: string, path: string) => ["egg-library", repository, path] as const,
+  libraryRepository: (url: string) => ["egg-library", "repository", url] as const,
   servers: ["servers"] as const,
   server: (server: string) => ["servers", server] as const,
   serverStats: (server: string) => ["servers", server, "stats"] as const,

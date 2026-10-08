@@ -51,7 +51,7 @@ type API struct {
 	// Users creates and changes accounts; Eggs stores eggs (create, import, update, delete).
 	Users *users.Store
 	Eggs  *eggstore.Store
-	// Library lists the eggs of the GitHub repositories in the settings (kept in memory only).
+	// Library lists the eggs of the git repositories in the settings (kept in memory only).
 	Library *egglibrary.Library
 	// Diagnostics checks why players may not reach a server.
 	Diagnostics *diagnostics.Diagnoser
@@ -202,6 +202,7 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.GET("/settings/load-balancer-pools", a.listLoadBalancerPools)
 	adm.GET("/egg-library", a.listLibraryEggs)
 	adm.GET("/egg-library/egg", a.getLibraryEgg)
+	adm.GET("/egg-library/repository", a.getLibraryRepository)
 	adm.POST("/eggs/import", a.importEgg)
 	adm.POST("/eggs/import-url", a.importEggURL)
 	adm.DELETE("/eggs/:egg", a.deleteEgg)

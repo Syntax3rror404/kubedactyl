@@ -583,7 +583,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Reads the GitHub repositories set in the settings (eggLibraries). Each is kept in the panel's\nmemory for 15 minutes; refresh=true downloads them again.",
+                "description": "Reads the git repositories set in the settings (eggLibraries). Each is kept in the panel's\nmemory for 15 minutes; refresh=true downloads them again.",
                 "produces": [
                     "application/json"
                 ],
@@ -648,6 +648,46 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/egg-library/repository": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reads a git repository whether it is configured or not, so the settings can check it\nbefore it is saved. Its eggs are kept in the panel's memory like a listed repository.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Eggs"
+                ],
+                "summary": "Check a repository of the egg library",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "repository URL (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e)",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.LibraryRepositoryCheck"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -3858,7 +3898,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "repository": {
-                    "description": "Repository is the GitHub repository (https://github.com/\u003cowner\u003e/\u003crepo\u003e).",
+                    "description": "Repository is the repository URL as configured (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e).",
                     "type": "string"
                 },
                 "tags": {
@@ -4741,6 +4781,26 @@ const docTemplate = `{
                 }
             }
         },
+        "httpapi.LibraryRepositoryCheck": {
+            "type": "object",
+            "required": [
+                "eggs",
+                "url"
+            ],
+            "properties": {
+                "eggs": {
+                    "type": "integer"
+                },
+                "error": {
+                    "description": "Error tells why the repository could not be read.",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "URL is the normalized repository URL.",
+                    "type": "string"
+                }
+            }
+        },
         "httpapi.LoginRequest": {
             "type": "object",
             "required": [
@@ -5089,7 +5149,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "eggLibraries": {
-                    "description": "EggLibraries are GitHub repositories (https://github.com/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5408,7 +5468,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "eggLibraries": {
-                    "description": "EggLibraries are GitHub repositories (https://github.com/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
                     "type": "array",
                     "items": {
                         "type": "string"

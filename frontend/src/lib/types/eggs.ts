@@ -8,6 +8,7 @@ export type {
   EgglibraryRepository as LibraryRepository,
   HttpapiLibraryEgg as LibraryEggContent,
   HttpapiLibraryList as LibraryList,
+  HttpapiLibraryRepositoryCheck as LibraryRepositoryCheck,
   V1Alpha1ConfigFile as ConfigFile,
   V1Alpha1ConfigReplace as ConfigReplace,
   V1Alpha1EggSpec as EggSpec,

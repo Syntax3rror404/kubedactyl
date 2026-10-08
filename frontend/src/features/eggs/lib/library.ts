@@ -22,8 +22,8 @@ export function matches(search: string, ...texts: (string | undefined)[]) {
 export const libraryEggPath = (e: Pick<LibraryEgg, "repository" | "path">) =>
   `/eggs/library/egg?${new URLSearchParams({ repository: e.repository, path: e.path })}`
 
-/** "owner/repo" of a repository URL. */
-export const repositoryName = (url: string) => url.replace(/^https:\/\/github\.com\//, "")
+/** "owner/repo" of a GitHub repository, "host/owner/repo" of any other. */
+export const repositoryName = (url: string) => url.replace(/^https?:\/\//, "").replace(/^github\.com\//, "")
 
 /** The folder of an egg file in its repository ("minecraft/java/paper"). */
 export const folderOf = (path: string) => path.split("/").slice(0, -1).join("/")

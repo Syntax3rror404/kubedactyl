@@ -248,7 +248,7 @@ export interface EgglibraryEgg {
   name: string;
   /** Path of the file in the repository. */
   path: string;
-  /** Repository is the GitHub repository (https://github.com/<owner>/<repo>). */
+  /** Repository is the repository URL as configured (https://<host>/<owner>/<repo>). */
   repository: string;
   tags: string[];
   /** URL of the raw file: installing imports it from there and keeps it as update URL. */
@@ -598,6 +598,14 @@ export interface HttpapiLibraryList {
   repositories: EgglibraryRepository[];
 }
 
+export interface HttpapiLibraryRepositoryCheck {
+  eggs: number;
+  /** Error tells why the repository could not be read. */
+  error?: string;
+  /** URL is the normalized repository URL. */
+  url: string;
+}
+
 export interface HttpapiLoginRequest {
   /**
    * @maxLength 1024
@@ -804,7 +812,7 @@ export interface HttpapiSettingsView {
    */
   disableApiDocs?: boolean;
   /**
-   * EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
    * library on the eggs page lists. The panel reads them when the library is opened and keeps
    * nothing of them in the cluster.
    * +optional
@@ -1018,7 +1026,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   disableApiDocs?: boolean;
   /**
-   * EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
    * library on the eggs page lists. The panel reads them when the library is opened and keeps
    * nothing of them in the cluster.
    * +optional

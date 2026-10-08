@@ -329,11 +329,20 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{"POST", "/api/eggs"}, {"PUT", "/api/eggs/paper"}, {"GET", "/api/eggs/paper/export"},
 		{"POST", "/api/eggs/paper/update-from-url"}, {"POST", "/api/eggs/import"}, {"GET", "/api/users/bob"},
 		{"PATCH", "/api/users/bob"}, {"GET", "/api/egg-library"}, {"GET", "/api/egg-library/egg"},
-		{"GET", "/api/invites"}, {"POST", "/api/invites"}, {"DELETE", "/api/invites/1a2b3c4d5e6f"},
-		{"POST", "/api/invites/1a2b3c4d5e6f/renew"},
+		{"GET", "/api/egg-library/repository"}, {"GET", "/api/invites"}, {"POST", "/api/invites"},
+		{"DELETE", "/api/invites/1a2b3c4d5e6f"}, {"POST", "/api/invites/1a2b3c4d5e6f/renew"},
 	} {
 		code, body := h.do(r.method, r.path, alice, map[string]string{})
 		expect(t, "user "+r.method+" "+r.path, code, 403, body)
+	}
+}
+
+func TestLibraryRepositoryNeedsRepositoryURL(t *testing.T) {
+	h := newHarness(t)
+	admin := h.login("admin")
+	for _, url := range []string{"", "gitlab.com/a/b", "https://example.com/a"} {
+		code, body := h.do("GET", "/api/egg-library/repository?url="+url, admin, nil)
+		expect(t, "repository "+url, code, 422, body)
 	}
 }
 

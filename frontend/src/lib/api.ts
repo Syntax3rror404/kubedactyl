@@ -29,6 +29,7 @@ import type {
   LegalTexts,
   LibraryEggContent,
   LibraryList,
+  LibraryRepositoryCheck,
   LoginResponse,
   NodesResponse,
   OIDCSignIn,
@@ -214,6 +215,9 @@ export const api = {
     /** The eggs of the repositories in the settings; refresh downloads them again. */
     listLibrary: (refresh = false) =>
       request<LibraryList>("GET", `/egg-library${refresh ? "?refresh=true" : ""}`).then((r) => r.repositories),
+    /** Whether a repository can be read and how many eggs it holds (also one not saved yet). */
+    getLibraryRepository: (url: string) =>
+      request<LibraryRepositoryCheck>("GET", `/egg-library/repository?${q({ url })}`),
     getLibraryEgg: (repository: string, path: string) =>
       request<LibraryEggContent>("GET", `/egg-library/egg?${q({ repository, path })}`),
     create: (spec: EggSpec) => request<Egg>("POST", "/eggs", spec),

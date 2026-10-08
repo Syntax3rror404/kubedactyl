@@ -1,6 +1,6 @@
-// Package egglibrary lists the eggs of GitHub repositories for the egg library on the eggs page.
-// Every repository is downloaded as one archive (codeload.github.com, no API rate limit) and its
-// egg files are parsed; the summaries are kept in memory for CacheTTL. Nothing is stored in the
+// Package egglibrary lists the eggs of git repositories for the egg library on the eggs page.
+// Every repository is downloaded as one archive in the layout of its host (hosts.go) and its egg
+// files are parsed; the summaries are kept in memory for CacheTTL. Nothing is stored in the
 // cluster: an egg is stored only when it is installed (imported from its raw file URL).
 package egglibrary
 
@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"regexp"
 	"slices"
@@ -39,7 +40,7 @@ var eggFile = regexp.MustCompile(`(?i)(^|-)egg-.*\.(json|ya?ml)$`)
 
 // Egg is the summary of an egg file in a repository.
 type Egg struct {
-	// Repository is the GitHub repository (https://github.com/<owner>/<repo>).
+	// Repository is the repository URL as configured (https://<host>/<owner>/<repo>).
 	Repository string `json:"repository"`
 	// Path of the file in the repository.
 	Path string `json:"path"`
@@ -65,26 +66,13 @@ type Repository struct {
 
 // Library downloads repositories and keeps their eggs for CacheTTL.
 type Library struct {
-	// Archive returns the URL of a repository's archive (tests serve their own).
-	Archive func(owner, repo string) string
-	// Raw returns the URL of a file in a repository.
-	Raw func(owner, repo, file string) string
-
 	mu    sync.Mutex
 	cache map[string]Repository
 }
 
-// New returns a library that reads from GitHub.
+// New returns an empty library.
 func New() *Library {
-	return &Library{
-		Archive: func(owner, repo string) string {
-			return "https://codeload.github.com/" + owner + "/" + repo + "/tar.gz/HEAD"
-		},
-		Raw: func(owner, repo, file string) string {
-			return "https://raw.githubusercontent.com/" + owner + "/" + repo + "/HEAD/" + file
-		},
-		cache: map[string]Repository{},
-	}
+	return &Library{cache: map[string]Repository{}}
 }
 
 // List returns the eggs of the repositories, downloading those not cached (or all with refresh).
@@ -109,6 +97,25 @@ func (l *Library) List(ctx context.Context, repos []string, refresh bool) []Repo
 	return out
 }
 
+// GetRepository returns the eggs of one repository, configured or not (the settings check a URL
+// with it before it is saved). A readable one is kept like a listed one, so the library shows it
+// at once after it was added; the next List keeps only the configured repositories. Failures are
+// not kept: a repository made public is found by the next check.
+func (l *Library) GetRepository(ctx context.Context, url string) Repository {
+	l.mu.Lock()
+	r, ok := l.cache[url]
+	l.mu.Unlock()
+	if ok && time.Since(r.FetchedAt) < CacheTTL {
+		return r
+	}
+	if r = l.read(ctx, url); r.Error == "" {
+		l.mu.Lock()
+		l.cache[url] = r
+		l.mu.Unlock()
+	}
+	return r
+}
+
 // Get downloads one egg of a configured repository and parses it.
 func (l *Library) Get(ctx context.Context, repos []string, repo, file string) (*v1alpha1.EggSpec, Egg, error) {
 	for _, r := range l.List(ctx, repos, false) {
@@ -131,10 +138,14 @@ func (l *Library) Get(ctx context.Context, repos []string, repo, file string) (*
 }
 
 // read downloads a repository's archive and summarizes its egg files.
-func (l *Library) read(ctx context.Context, url string) Repository {
-	r := Repository{URL: url, Eggs: []Egg{}, FetchedAt: time.Now()}
-	owner, repo, _ := strings.Cut(strings.TrimPrefix(url, "https://github.com/"), "/")
-	files, err := l.download(ctx, l.Archive(owner, repo))
+func (l *Library) read(ctx context.Context, repoURL string) Repository {
+	r := Repository{URL: repoURL, Eggs: []Egg{}, FetchedAt: time.Now()}
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		r.Error = err.Error()
+		return r
+	}
+	files, h, err := download(ctx, u)
 	if err != nil {
 		r.Error = err.Error()
 		return r
@@ -145,7 +156,7 @@ func (l *Library) read(ctx context.Context, url string) Repository {
 			continue // not every matching file is an egg (e.g. GitHub issue templates)
 		}
 		r.Eggs = append(r.Eggs, Egg{
-			Repository: url, Path: file, URL: l.Raw(owner, repo, file),
+			Repository: repoURL, Path: file, URL: h.raw(u, file),
 			Name: spec.DisplayName, Description: spec.Description, Author: spec.Author,
 			Format: spec.Source.Format, UUID: spec.Source.UUID, Tags: append([]string{}, spec.Tags...), Icon: spec.Icon,
 		})
@@ -154,8 +165,36 @@ func (l *Library) read(ctx context.Context, url string) Repository {
 	return r
 }
 
-// download returns the egg files of a repository archive by their path in the repository.
-func (l *Library) download(ctx context.Context, archive string) (map[string][]byte, error) {
+var (
+	// errNoArchive is returned when a URL answers without a repository archive.
+	errNoArchive = errors.New("repository not found or not public")
+	// errUnknownHost is returned when no layout of a self-hosted server answers with an archive.
+	errUnknownHost = errors.New("no repository archive found (GitHub, GitLab, Gitea, Forgejo and Bitbucket work)")
+)
+
+// download returns the egg files of a repository and the layout of its host. On a host it does
+// not know it tries every layout until one answers with an archive.
+func download(ctx context.Context, repo *url.URL) (map[string][]byte, host, error) {
+	hosts := hostsOf(repo)
+	var err error
+	for _, h := range hosts {
+		var files map[string][]byte
+		if files, err = readArchive(ctx, h.archive(repo)); err == nil {
+			return files, h, nil
+		}
+		if !errors.Is(err, errNoArchive) {
+			return nil, host{}, err
+		}
+	}
+	if len(hosts) > 1 {
+		err = errUnknownHost
+	}
+	return nil, host{}, err
+}
+
+// readArchive downloads a repository archive and returns its egg files by their path in the
+// repository.
+func readArchive(ctx context.Context, archive string) (map[string][]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, archive, nil)
@@ -168,14 +207,19 @@ func (l *Library) download(ctx context.Context, archive string) (map[string][]by
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("downloading the repository: %s", res.Status)
+		return nil, fmt.Errorf("%w (%s)", errNoArchive, res.Status)
 	}
 	gz, err := gzip.NewReader(io.LimitReader(res.Body, maxArchive))
 	if err != nil {
-		return nil, fmt.Errorf("reading the repository: %w", err)
+		return nil, fmt.Errorf("%w (the answer is no archive)", errNoArchive)
 	}
+	return eggFiles(tar.NewReader(gz))
+}
+
+// eggFiles reads the files named like eggs out of an archive. Every host puts the repository
+// into one top folder ("<repo>-<ref>/").
+func eggFiles(tr *tar.Reader) (map[string][]byte, error) {
 	files := map[string][]byte{}
-	tr := tar.NewReader(gz)
 	for {
 		h, err := tr.Next()
 		if errors.Is(err, io.EOF) {
@@ -184,7 +228,6 @@ func (l *Library) download(ctx context.Context, archive string) (map[string][]by
 		if err != nil {
 			return nil, fmt.Errorf("reading the repository: %w", err)
 		}
-		// Paths start with "<repo>-<ref>/".
 		_, file, _ := strings.Cut(h.Name, "/")
 		if h.Typeflag != tar.TypeReg || h.Size > eggstore.MaxSize || !eggFile.MatchString(path.Base(file)) {
 			continue

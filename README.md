@@ -27,7 +27,7 @@ out of the box.
 
 - **Your eggs just work.** Import Pterodactyl (`PTDL_v1`, `PTDL_v2`) and Pelican (`PLCN_v1` to `v3`) eggs as JSON or
   YAML, from a file or a URL. All 502 eggs of the `pelican-eggs` repositories parse. Export back to either format.
-- **Built-in egg library.** Browse GitHub egg repositories right in the panel and install an egg with one click.
+- **Built-in egg library.** Browse git egg repositories (GitHub, GitLab, Gitea, Forgejo, Bitbucket) right in the panel and install an egg with one click.
   Eggs can update themselves from their source every hour.
 - **Egg editor.** Create eggs in a step-by-step wizard, edit, duplicate and validate them with the same rules
   Pterodactyl and Pelican use, so exports stay importable there.

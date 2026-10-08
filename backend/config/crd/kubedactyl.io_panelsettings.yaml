@@ -97,7 +97,7 @@ spec:
                 type: boolean
               eggLibraries:
                 description: |-
-                  EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+                  EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
                   library on the eggs page lists. The panel reads them when the library is opened and keeps
                   nothing of them in the cluster.
                 items:

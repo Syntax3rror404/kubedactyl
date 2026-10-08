@@ -75,8 +75,9 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
 *Settings* (admins) is stored in the `PanelSettings` resource `panel` in the panel namespace
 (`kubectl -n kubedactyl get kdsettings`).
 
-- **Egg library:** GitHub repositories (`https://github.com/<owner>/<repo>`, at most 20) whose eggs the
-  *Library* tab of *Eggs* lists.
+- **Egg library:** git repositories (`https://<host>/<owner>/<repo>`, at most 20) whose eggs the
+  *Library* tab of *Eggs* lists. Each URL is checked while it is typed: the field shows whether the panel can
+  download the repository and how many eggs it found.
 - **Kube API limit:** requests per second the panel sends to the Kubernetes API at most (5-1000, default 50,
   bursts of twice that) and requests per second one user may send to the panel (*Per user*, 1-200, default 10).
   Protects the API server from overload; both apply at once, without a restart. All clients of the panel share one

@@ -512,7 +512,7 @@ definitions:
         description: Path of the file in the repository.
         type: string
       repository:
-        description: Repository is the GitHub repository (https://github.com/<owner>/<repo>).
+        description: Repository is the repository URL as configured (https://<host>/<owner>/<repo>).
         type: string
       tags:
         items:
@@ -1163,6 +1163,20 @@ definitions:
     required:
     - repositories
     type: object
+  httpapi.LibraryRepositoryCheck:
+    properties:
+      eggs:
+        type: integer
+      error:
+        description: Error tells why the repository could not be read.
+        type: string
+      url:
+        description: URL is the normalized repository URL.
+        type: string
+    required:
+    - eggs
+    - url
+    type: object
   httpapi.LoginRequest:
     properties:
       password:
@@ -1456,7 +1470,7 @@ definitions:
         type: boolean
       eggLibraries:
         description: |-
-          EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
           library on the eggs page lists. The panel reads them when the library is opened and keeps
           nothing of them in the cluster.
           +optional
@@ -1754,7 +1768,7 @@ definitions:
         type: boolean
       eggLibraries:
         description: |-
-          EggLibraries are GitHub repositories (https://github.com/<owner>/<repo>) whose eggs the egg
+          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
           library on the eggs page lists. The panel reads them when the library is opened and keeps
           nothing of them in the cluster.
           +optional
@@ -3526,7 +3540,7 @@ paths:
   /egg-library:
     get:
       description: |-
-        Reads the GitHub repositories set in the settings (eggLibraries). Each is kept in the panel's
+        Reads the git repositories set in the settings (eggLibraries). Each is kept in the panel's
         memory for 15 minutes; refresh=true downloads them again.
       parameters:
       - description: download the repositories again
@@ -3572,6 +3586,33 @@ paths:
       security:
       - BearerAuth: []
       summary: Get an egg of the egg library
+      tags:
+      - Eggs
+  /egg-library/repository:
+    get:
+      description: |-
+        Reads a git repository whether it is configured or not, so the settings can check it
+        before it is saved. Its eggs are kept in the panel's memory like a listed repository.
+      parameters:
+      - description: repository URL (https://<host>/<owner>/<repo>)
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.LibraryRepositoryCheck'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check a repository of the egg library
       tags:
       - Eggs
   /eggs:

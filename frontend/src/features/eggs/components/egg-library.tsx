@@ -2,17 +2,18 @@ import { FolderGit2Icon, LibraryIcon, RefreshCwIcon, TriangleAlertIcon } from "l
 import { Link } from "react-router"
 
 import { Callout } from "@/components/common/callout"
+import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { LibraryEggCard } from "@/features/eggs/components/library-egg-card"
 import { installedAs, matches, repositoryName } from "@/features/eggs/lib/library"
-import { formatRelativeTime, plural } from "@/lib/format"
+import { formatRelativeTime } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useEggs, useLibrary, useRefreshLibrary } from "@/lib/queries"
 import type { Egg, LibraryRepository } from "@/lib/types"
 
-/** The "Library" tab of the eggs page: the eggs of the GitHub repositories in the settings. */
+/** The "Library" tab of the eggs page: the eggs of the git repositories in the settings. */
 export function EggLibrary({ search }: { search: string }) {
   const library = useLibrary()
   const eggs = useEggs()
@@ -32,13 +33,7 @@ export function EggLibrary({ search }: { search: string }) {
       {(repos) => (
         <div className="space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <span>
-              {plural(
-                repos.reduce((n, r) => n + r.eggs.length, 0),
-                "egg",
-              )}{" "}
-              · loaded {formatRelativeTime(repos[0].fetchedAt)}
-            </span>
+            <span>Loaded {formatRelativeTime(repos[0].fetchedAt)}</span>
             <Button variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate()}>
               {refresh.isPending ? <Spinner /> : <RefreshCwIcon />}
               Refresh
@@ -75,7 +70,7 @@ function RepositorySection({
           <FolderGit2Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           {repositoryName(repo.url)}
         </a>
-        <span className="text-sm text-muted-foreground">{plural(repo.eggs.length, "egg")}</span>
+        <EggCountBadge count={repo.eggs.length} />
       </h2>
       {repo.error ? (
         <Callout tone="danger" icon={<TriangleAlertIcon />} title="The repository could not be read">

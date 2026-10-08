@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -274,24 +275,39 @@ func normalizeBranding(spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsS
 	return spec, nil
 }
 
-// gitHubRepository is the normalized form of an egg library: https://github.com/<owner>/<repo>.
-var gitHubRepository = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$`)
-
 const maxEggLibraries = 20
 
-// normalizeEggLibraries trims the repository URLs (also a trailing slash or ".git"), drops
-// duplicates and accepts GitHub repositories only.
+// ErrNotRepository is returned for an egg library that is not the URL of a git repository.
+var ErrNotRepository = errors.New("not a git repository URL (https://<host>/<owner>/<repo>)")
+
+// NormalizeEggLibrary trims a repository URL (also a trailing slash or ".git"). It takes the
+// HTTP(S) URL of a repository on any host: owner and name, or more path segments (GitLab
+// subgroups). An empty URL stays empty.
+func NormalizeEggLibrary(raw string) (string, error) {
+	s := strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(raw), "/"), ".git")
+	if s == "" {
+		return "", nil
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil ||
+		strings.ContainsAny(s, "?# ") || len(strings.Split(strings.TrimPrefix(u.Path, "/"), "/")) < 2 ||
+		strings.Contains(u.Path, "//") {
+		return "", ErrNotRepository
+	}
+	return s, nil
+}
+
+// normalizeEggLibraries normalizes the repository URLs and drops empty ones and duplicates.
 func normalizeEggLibraries(urls []string) ([]string, error) {
 	out := make([]string, 0, len(urls))
-	for _, u := range urls {
-		u = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(u), "/"), ".git")
-		if u == "" {
-			continue
+	for _, raw := range urls {
+		u, err := NormalizeEggLibrary(raw)
+		if err != nil {
+			return nil, invalid("eggLibraries", "%q: %s", strings.TrimSpace(raw), err)
 		}
-		if !gitHubRepository.MatchString(u) {
-			return nil, invalid("eggLibraries", "%q is not a GitHub repository (https://github.com/<owner>/<repo>)", u)
+		if u != "" {
+			out = append(out, u)
 		}
-		out = append(out, u)
 	}
 	out = unique(out)
 	if len(out) > maxEggLibraries {

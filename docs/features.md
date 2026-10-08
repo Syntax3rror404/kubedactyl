@@ -36,11 +36,12 @@ Everything the panel does, in detail. The short overview is in the [README](../R
 
 Admins manage eggs under *Eggs*, nobody has to write egg files by hand:
 
-- **Library** (tab next to *Installed*, with the same search field): the eggs of the GitHub repositories set under
+- **Library** (tab next to *Installed*, with the same search field): the eggs of the git repositories set under
   *Settings → Egg library* (e.g. `https://github.com/pterodactyl/game-eggs`), shown like the installed ones. A click opens
   the egg (overview, variables, config files, install script) with **Install** and **Update automatically**; installing
   imports the raw file and keeps its URL as update URL. The panel downloads each repository as one archive
-  (`codeload.github.com`, no GitHub API rate limit), keeps the egg summaries in memory for 15 minutes (*Refresh*
+  (GitHub through `codeload.github.com` without API rate limit; GitLab, Gitea, Forgejo and Bitbucket in their own
+  layout, which a self-hosted server is probed for), keeps the egg summaries in memory for 15 minutes (*Refresh*
   downloads again) and stores nothing of the library in the cluster. Pelican repositories carry every egg twice
   (`egg-x.yaml` and `pterodactyl-egg-x.json`); the library lists the Pelican file.
 

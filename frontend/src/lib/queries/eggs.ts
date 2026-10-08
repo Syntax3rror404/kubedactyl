@@ -46,6 +46,16 @@ export const useRefreshLibrary = (cb?: MutationCallbacks<LibraryRepository[], vo
     cb,
   )
 
+/** Checks one repository, also one not saved yet (the settings check a URL while it is typed). */
+export const useLibraryRepository = (url: string) =>
+  useQuery({
+    queryKey: keys.libraryRepository(url),
+    queryFn: () => api.eggs.getLibraryRepository(url),
+    enabled: url !== "",
+    staleTime: 15 * 60_000,
+    retry: false,
+  })
+
 /** One egg of the library with its content (downloaded when opened). */
 export const useLibraryEgg = (repository: string, path: string) =>
   useQuery({
