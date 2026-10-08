@@ -12,6 +12,7 @@ function describeStop(stop?: string) {
 
 /** Startup behavior and docker images of an egg. */
 export function EggOverview({ spec: s }: { spec: EggSpec }) {
+  const commands = s.startupCommands?.length ?? 0
   return (
     <>
       <Card>
@@ -20,10 +21,24 @@ export function EggOverview({ spec: s }: { spec: EggSpec }) {
           <CardDescription>Variables in {"{{…}}"} are substituted by the image entrypoint.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 font-mono text-xs break-all">
-            <span className="flex-1">{s.startup}</span>
-            <CopyButton value={s.startup} />
-          </div>
+          {s.startupCommands?.map((c, i) => (
+            <div key={i} className="rounded-lg border bg-muted/40 p-3">
+              {commands > 1 && (
+                <div className="mb-1 text-sm font-medium">
+                  {c.name}
+                  {i === 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      default
+                    </Badge>
+                  )}
+                </div>
+              )}
+              <div className="flex items-start gap-2 font-mono text-xs break-all">
+                <span className="flex-1">{c.command}</span>
+                <CopyButton value={c.command} />
+              </div>
+            </div>
+          ))}
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Stop</dt>
             <dd>{describeStop(s.stop)}</dd>

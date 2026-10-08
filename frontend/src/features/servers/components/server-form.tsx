@@ -12,15 +12,17 @@ import { OwnerSelect } from "@/features/servers/components/owner-select"
 import { PlacementSelect, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
 import { ResourceSliders } from "@/features/servers/components/resource-sliders"
+import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
+import { startupCommandOf } from "@/features/servers/lib/startup"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
 import { useCreateServer, usePools, useSettings } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
 
-/** The create form for one egg: image, variables, resources, ports, placement and owner. */
+/** The create form for one egg: image, startup command, variables, resources, ports, placement and owner. */
 export function ServerForm({
   egg,
   eggs,
@@ -39,9 +41,11 @@ export function ServerForm({
   // Egg specific fields; the parent mounts a new form for every egg.
   const own = useDraft({
     image: egg.spec.dockerImages[0]?.image ?? "",
+    startup: "",
+    startupName: "",
     env: Object.fromEntries((egg.spec.variables ?? []).map((v) => [v.envVariable, v.defaultValue ?? ""])),
   })
-  const { image, env } = own.draft
+  const { image, startup, startupName, env } = own.draft
   const displayName = f.name.trim() || egg.spec.displayName
   const storageClass = f.storageClass || settings.data?.defaultStorageClass || ""
   const pool = f.pool || settings.data?.defaultLoadBalancerPool || ""
@@ -106,6 +110,15 @@ export function ServerForm({
             <Field orientation="horizontal" className="self-center">
               <Switch id="start" checked={f.start} onCheckedChange={(v) => shared.set("start", v)} />
               <FieldLabel htmlFor="start">Start the server when the installation has finished</FieldLabel>
+            </Field>
+            <Field className="sm:col-span-2">
+              <FieldLabel>Startup command</FieldLabel>
+              <StartupCommandField
+                egg={egg.spec}
+                value={{ startup, startupName }}
+                onChange={(v) => own.setDraft((d) => ({ ...d, ...v }))}
+                isAdmin
+              />
             </Field>
           </FieldGroup>
         </FormSection>
@@ -201,7 +214,7 @@ export function ServerForm({
           cpu={f.cpu}
           disk={f.disk}
           ports={f.ports}
-          startup={egg.spec.startup}
+          startup={startupCommandOf(egg.spec, own.draft)}
           env={env}
           pending={create.isPending}
           onCreate={() =>
@@ -209,6 +222,8 @@ export function ServerForm({
               displayName,
               egg: egg.metadata.name,
               image,
+              startup: startup || undefined,
+              startupName: startupName || undefined,
               environment: env,
               memoryMiB: f.memory,
               cpuMillis: f.cpu,

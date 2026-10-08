@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/internal/egg"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 )
@@ -101,12 +102,14 @@ func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domai
 	return out
 }
 
-// visibleEgg strips hidden variables and the install script for users.
+// visibleEgg fills in the startup commands of older eggs and strips hidden variables and the install
+// script for users.
 func visibleEgg(p *Principal, e *v1alpha1.Egg) *v1alpha1.Egg {
-	if p.Admin() {
-		return e
-	}
 	out := e.DeepCopy()
+	out.Spec.StartupCommands = egg.StartupCommands(&out.Spec)
+	if p.Admin() {
+		return out
+	}
 	out.Spec.Install = v1alpha1.InstallScript{}
 	out.Spec.Variables = nil
 	for _, v := range e.Spec.Variables {

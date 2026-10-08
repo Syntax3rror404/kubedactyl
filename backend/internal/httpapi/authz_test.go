@@ -59,8 +59,11 @@ func newHarness(t *testing.T) *harness {
 		}
 	}
 	egg := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: "paper", Namespace: sysNS}, Spec: v1alpha1.EggSpec{
-		DisplayName:  "Paper",
-		Startup:      "java",
+		DisplayName: "Paper",
+		Startup:     "java",
+		StartupCommands: []v1alpha1.StartupCommand{
+			{Name: "Default", Command: "java"}, {Name: "Flags", Command: "java -XX:+UseG1GC"},
+		},
 		DockerImages: []v1alpha1.DockerImage{{Name: "Java 21", Image: "img:21"}, {Name: "Java 17", Image: "img:17"}},
 		Install:      v1alpha1.InstallScript{Script: "secret install script"},
 		Variables: []v1alpha1.EggVariable{
@@ -273,6 +276,8 @@ func TestUserUpdateRestrictions(t *testing.T) {
 		{"ports", map[string]any{"ports": []int{1}}, 403},
 		{"traffic policy", map[string]any{"externalTrafficPolicy": "Cluster"}, 403},
 		{"startup", map[string]any{"startup": "rm -rf /"}, 403},
+		{"unknown startup command", map[string]any{"startupName": "rm -rf /"}, 422},
+		{"egg startup command", map[string]any{"startupName": "Flags"}, 200},
 		{"foreign image", map[string]any{"image": "evil:latest"}, 403},
 		{"read-only variable", map[string]any{"environment": map[string]string{"RO": "changed"}}, 403},
 		{"hidden variable", map[string]any{"environment": map[string]string{"HID": "changed"}}, 403},
@@ -286,8 +291,26 @@ func TestUserUpdateRestrictions(t *testing.T) {
 	}
 	gs := &v1alpha1.GameServer{}
 	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
-	if gs.Spec.Environment["VIS"] != "new" || gs.Spec.Environment["HID"] != "c" || gs.Spec.Resources.MemoryMiB != 1024 {
+	env := gs.Spec.Environment
+	if env["VIS"] != "new" || env["HID"] != "c" || gs.Spec.Resources.MemoryMiB != 1024 ||
+		gs.Spec.StartupName != "Flags" || gs.Spec.Startup != "" {
 		t.Errorf("unexpected spec after updates: %+v", gs.Spec)
+	}
+}
+
+func TestOlderEggListsItsStartupCommand(t *testing.T) {
+	h := newHarness(t)
+	e := &v1alpha1.Egg{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: "paper"}, e)
+	e.Spec.StartupCommands = nil
+	if err := h.client.Update(t.Context(), e); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"admin", "alice"} {
+		code, body := h.do("GET", "/api/eggs/paper", h.login(name), nil)
+		if code != 200 || !strings.Contains(body, `"startupCommands":[{"name":"Default","command":"java"}]`) {
+			t.Errorf("%s: an egg without startup commands lists its startup as the default: %d %s", name, code, body)
+		}
 	}
 }
 
@@ -371,13 +394,20 @@ func TestAdminCreatesUsersAndServers(t *testing.T) {
 		"diskMiB":     2048,
 		"ports":       []int{25565},
 		"environment": map[string]string{"VIS": "x"},
+		"startupName": "Unknown",
 	}
+	code, body = h.do("POST", "/api/servers", admin, req)
+	expect(t, "unknown startup command", code, 422, body)
+	req["startupName"] = "Flags"
 	code, body = h.do("POST", "/api/servers", admin, req)
 	expect(t, "create server for carol", code, 201, body)
 	var gs v1alpha1.GameServer
 	_ = json.Unmarshal([]byte(body), &gs)
 	if gs.Namespace != "kubedactyl-user-carol" || gs.Labels[tenancy.LabelOwner] != "carol" {
 		t.Errorf("server placed wrong: ns=%s labels=%v", gs.Namespace, gs.Labels)
+	}
+	if gs.Spec.StartupName != "Flags" {
+		t.Errorf("startup command not kept: %q", gs.Spec.StartupName)
 	}
 	carol := h.login("carol")
 	code, body = h.do("GET", "/api/servers", carol, nil)

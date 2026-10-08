@@ -8,9 +8,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { Textarea } from "@/components/ui/textarea"
+import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { StartupPreview } from "@/features/servers/components/startup-preview"
 import { VariableField } from "@/features/servers/components/variable-field"
+import { startupCommandOf } from "@/features/servers/lib/startup"
 import type { ServerContext } from "@/features/servers/server-layout"
 import { useAuth } from "@/hooks/use-auth"
 import { useDraft } from "@/hooks/use-draft"
@@ -24,20 +25,21 @@ export function StartupPage() {
   const { server, egg } = useOutletContext<ServerContext>()
   const name = server.metadata.name
   const { isAdmin } = useAuth()
-  const { draft, set, dirty } = useDraft({
+  const { draft, set, setDraft, dirty } = useDraft({
     startup: server.spec.startup ?? "",
+    startupName: server.spec.startupName ?? "",
     image: server.spec.image,
     env: server.spec.environment ?? ({} as Record<string, string>),
   })
-  const { startup, image, env } = draft
+  const { startup, startupName, image, env } = draft
 
   const knownImage = egg?.spec.dockerImages.some((i) => i.image === image)
 
   const changes = (): UpdateServerRequest => {
-    if (isAdmin) return { startup, image, environment: env }
+    if (isAdmin) return { startup, startupName, image, environment: env }
     // Users may only change editable variables and pick one of the egg images.
     const editable = new Set(egg?.spec.variables?.filter((v) => v.userEditable).map((v) => v.envVariable))
-    return { image, environment: Object.fromEntries(Object.entries(env).filter(([k]) => editable.has(k))) }
+    return { startupName, image, environment: Object.fromEntries(Object.entries(env).filter(([k]) => editable.has(k))) }
   }
   const save = useUpdateServer(name, {
     onSuccess: () => toast.success("Startup settings saved", { description: "Changes apply on the next start." }),
@@ -51,20 +53,23 @@ export function StartupPage() {
         <CardHeader>
           <CardTitle>Startup command</CardTitle>
           <CardDescription>
-            {isAdmin ? "Leave empty to use the command of the egg. " : "Set by your administrator. "}
+            {isAdmin
+              ? "Pick a command of the egg or enter a custom one. "
+              : startup
+                ? "Set by your administrator. "
+                : "Pick one of the commands of the egg. "}
             {"{{VARIABLES}}"} are replaced inside the container.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
-            value={startup}
-            onChange={(e) => set("startup", e.target.value)}
-            placeholder={egg?.spec.startup}
-            readOnly={!isAdmin}
-            className="min-h-20 font-mono text-sm"
+          <StartupCommandField
+            egg={egg?.spec}
+            value={{ startup, startupName }}
+            onChange={(v) => setDraft((d) => ({ ...d, ...v }))}
+            isAdmin={isAdmin}
           />
           <StartupPreview
-            startup={startup || egg?.spec.startup || ""}
+            startup={startupCommandOf(egg?.spec, draft)}
             env={env}
             memory={server.spec.resources.memoryMiB}
             port={server.spec.ports[0]}

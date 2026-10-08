@@ -184,9 +184,26 @@ spec:
                     type: string
                 type: object
               startup:
-                description: Startup is the default startup command (with {{VAR}}
-                  placeholders).
+                description: 'Startup is the default startup command (with {{VAR}}
+                  placeholders): the first of StartupCommands.'
                 type: string
+              startupCommands:
+                description: |-
+                  StartupCommands are the startup commands owners pick from per server; the first is the default.
+                  Empty on eggs saved before it existed: then Startup is the only one.
+                items:
+                  description: StartupCommand is one named startup command of an egg
+                    (display name -> command).
+                  properties:
+                    command:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - command
+                  - name
+                  type: object
+                type: array
               startupDone:
                 description: |-
                   StartupDone lists console output snippets that mark the server as running.

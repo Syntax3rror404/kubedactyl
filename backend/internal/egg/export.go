@@ -97,7 +97,11 @@ func exportDocument(name string, spec *v1alpha1.EggSpec, format string, now time
 	if ptdl {
 		doc.add("startup", str(spec.Startup))
 	} else {
-		doc.add("startup_commands", (&mapping{}).add("Default", str(spec.Startup)).node())
+		cmds := &mapping{}
+		for _, c := range StartupCommands(spec) {
+			cmds.add(c.Name, str(c.Command))
+		}
+		doc.add("startup_commands", cmds.node())
 	}
 	// JSON exports keep config.files/startup/logs as JSON strings, the YAML export as maps.
 	config, err := exportConfig(spec, format != FormatYAML)

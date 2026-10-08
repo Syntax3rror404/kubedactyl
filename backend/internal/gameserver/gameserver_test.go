@@ -22,6 +22,10 @@ func testServer() (*v1alpha1.GameServer, *v1alpha1.Egg) {
 	}
 	e := &v1alpha1.Egg{Spec: v1alpha1.EggSpec{
 		Startup: "java -jar {{SERVER_JARFILE}}",
+		StartupCommands: []v1alpha1.StartupCommand{
+			{Name: "Default", Command: "java -jar {{SERVER_JARFILE}}"},
+			{Name: "Flags", Command: "java -XX:+UseG1GC -jar {{SERVER_JARFILE}}"},
+		},
 		Variables: []v1alpha1.EggVariable{
 			{EnvVariable: "SERVER_JARFILE", DefaultValue: "server.jar"},
 			{EnvVariable: "BUILD_NUMBER", DefaultValue: "latest"},
@@ -48,6 +52,24 @@ func TestEnvironment(t *testing.T) {
 		if env[k] != v {
 			t.Errorf("%s = %q, want %q", k, env[k], v)
 		}
+	}
+}
+
+func TestStartupCommand(t *testing.T) {
+	gs, e := testServer()
+	for name, want := range map[string]string{
+		"":        "java -jar {{SERVER_JARFILE}}",
+		"Flags":   "java -XX:+UseG1GC -jar {{SERVER_JARFILE}}",
+		"Removed": "java -jar {{SERVER_JARFILE}}", // the egg no longer has it: its default
+	} {
+		gs.Spec.StartupName = name
+		if got := StartupCommand(gs, e); got != want {
+			t.Errorf("%q: %q, want %q", name, got, want)
+		}
+	}
+	gs.Spec.Startup = "./own"
+	if got := StartupCommand(gs, e); got != "./own" {
+		t.Errorf("the server's own command must win: %q", got)
 	}
 }
 
@@ -210,12 +232,13 @@ func TestRuntimeHash(t *testing.T) {
 		t.Error("display name and crash restart apply without restart")
 	}
 	for name, change := range map[string]func(*v1alpha1.GameServer){
-		"memory":   func(g *v1alpha1.GameServer) { g.Spec.Resources.MemoryMiB++ },
-		"cpu":      func(g *v1alpha1.GameServer) { g.Spec.Resources.CPUMillis += 100 },
-		"image":    func(g *v1alpha1.GameServer) { g.Spec.Image = "other" },
-		"startup":  func(g *v1alpha1.GameServer) { g.Spec.Startup = "java -jar x" },
-		"variable": func(g *v1alpha1.GameServer) { g.Spec.Environment = map[string]string{"X": "1"} },
-		"ports":    func(g *v1alpha1.GameServer) { g.Spec.Ports = []int32{1} },
+		"memory":              func(g *v1alpha1.GameServer) { g.Spec.Resources.MemoryMiB++ },
+		"cpu":                 func(g *v1alpha1.GameServer) { g.Spec.Resources.CPUMillis += 100 },
+		"image":               func(g *v1alpha1.GameServer) { g.Spec.Image = "other" },
+		"startup":             func(g *v1alpha1.GameServer) { g.Spec.Startup = "java -jar x" },
+		"egg startup command": func(g *v1alpha1.GameServer) { g.Spec.StartupName = "Flags" },
+		"variable":            func(g *v1alpha1.GameServer) { g.Spec.Environment = map[string]string{"X": "1"} },
+		"ports":               func(g *v1alpha1.GameServer) { g.Spec.Ports = []int32{1} },
 	} {
 		c := gs.DeepCopy()
 		change(c)

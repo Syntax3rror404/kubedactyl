@@ -21,9 +21,11 @@ import (
 // UpdateServerRequest changes a game server; omitted fields stay unchanged.
 // Runtime changes (image, startup, variables, memory, CPU) apply on the next start.
 type UpdateServerRequest struct {
-	DisplayName *string           `json:"displayName,omitempty"`
-	Image       *string           `json:"image,omitempty"`
-	Startup     *string           `json:"startup,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	Image       *string `json:"image,omitempty"`
+	Startup     *string `json:"startup,omitempty"`
+	// StartupName picks one of the egg's startup commands ("" = its default); owners may change it.
+	StartupName *string           `json:"startupName,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	MemoryMiB   *int64            `json:"memoryMiB,omitempty"`
 	CPUMillis   *int64            `json:"cpuMillis,omitempty"`
@@ -93,6 +95,9 @@ func (a *API) applyServerUpdate(
 ) error {
 	s := &gs.Spec
 	applyGeneral(req, s)
+	if err := applyStartup(req, s, e); err != nil {
+		return err
+	}
 	if err := applyEnvironment(req, s, e); err != nil {
 		return err
 	}
@@ -102,7 +107,7 @@ func (a *API) applyServerUpdate(
 	return a.applyNetwork(ctx, req, s)
 }
 
-// applyGeneral sets name, image, startup, crash restart and stop timeout.
+// applyGeneral sets name, image, crash restart and stop timeout.
 func applyGeneral(req *UpdateServerRequest, s *v1alpha1.GameServerSpec) {
 	if req.DisplayName != nil && strings.TrimSpace(*req.DisplayName) != "" {
 		s.DisplayName = strings.TrimSpace(*req.DisplayName)
@@ -110,15 +115,26 @@ func applyGeneral(req *UpdateServerRequest, s *v1alpha1.GameServerSpec) {
 	if req.Image != nil && *req.Image != "" {
 		s.Image = *req.Image
 	}
-	if req.Startup != nil {
-		s.Startup = *req.Startup
-	}
 	if req.CrashRestart != nil {
 		s.CrashRestart = req.CrashRestart
 	}
 	if req.StopTimeoutSeconds != nil {
 		s.StopTimeoutSeconds = max(*req.StopTimeoutSeconds, 1)
 	}
+}
+
+// applyStartup sets the server's own startup command and the egg startup command it picks.
+func applyStartup(req *UpdateServerRequest, s *v1alpha1.GameServerSpec, e *v1alpha1.Egg) error {
+	if req.Startup != nil {
+		s.Startup = *req.Startup
+	}
+	if req.StartupName != nil {
+		if err := gameserver.ValidateStartupName(e, *req.StartupName); err != nil {
+			return err
+		}
+		s.StartupName = *req.StartupName
+	}
+	return nil
 }
 
 // applyEnvironment merges the given variables and checks all of them against the egg rules.

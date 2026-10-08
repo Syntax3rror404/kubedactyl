@@ -53,8 +53,8 @@ grant access and the role; see [Single sign-on](oidc.md).
 | Own servers: view, power, console, commands, files, backups, stats, reinstall | ✓ (not while suspended) | ✓ (all servers) |
 | Suspend / unsuspend servers | - | ✓ |
 | Transfer servers to another user | - | ✓ |
-| Server settings: display name, crash restart, egg image, **editable** egg variables, load balancer pool (enabled pools) | ✓ | ✓ |
-| Server resources, ports, IP, startup command, stop timeout, custom image | - | ✓ |
+| Server settings: display name, crash restart, egg image, egg startup command, **editable** egg variables, load balancer pool (enabled pools) | ✓ | ✓ |
+| Server resources, ports, IP, own startup command, stop timeout, custom image | - | ✓ |
 | Create / delete servers (with owner) | - | ✓ |
 | Eggs: list / view (hidden variables and install script stripped) | ✓ | ✓ full |
 | Eggs: import / delete, egg library | - | ✓ |

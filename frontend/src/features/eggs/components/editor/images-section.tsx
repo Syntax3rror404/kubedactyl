@@ -1,11 +1,11 @@
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { SuggestionChip } from "@/features/eggs/components/editor/list-input"
-import { move, type FieldErrors, type SpecChange } from "@/features/eggs/lib/egg-draft"
+import { NamedList } from "@/features/eggs/components/editor/named-list"
+import type { FieldErrors, SpecChange } from "@/features/eggs/lib/egg-draft"
 import type { EggSpec } from "@/lib/types"
 
 const stopPresets = [
@@ -17,7 +17,7 @@ const stopPresets = [
 /** Placeholders every server gets (besides the egg variables). */
 const builtin = ["SERVER_MEMORY", "SERVER_PORT", "SERVER_IP"]
 
-/** Docker images (first = default), startup and stop command. */
+/** Docker images and startup commands (first = default) and the stop command. */
 export function ImagesSection({
   spec,
   onChange,
@@ -27,121 +27,55 @@ export function ImagesSection({
   onChange: SpecChange
   errors: FieldErrors
 }) {
-  const images = spec.dockerImages
-  const setImage = (i: number, patch: Partial<EggSpec["dockerImages"][number]>) =>
-    onChange({ dockerImages: images.map((img, j) => (j === i ? { ...img, ...patch } : img)) })
+  const commands = spec.startupCommands ?? []
+  // The placeholder chips add to the command that had the focus last.
+  const [active, setActive] = useState(0)
+  const insert = (text: string) =>
+    onChange({
+      startupCommands: commands.map((c, i) =>
+        i === Math.min(active, commands.length - 1)
+          ? { ...c, command: `${c.command}${c.command && !c.command.endsWith(" ") ? " " : ""}${text}` }
+          : c,
+      ),
+    })
   const placeholders = [...builtin, ...(spec.variables ?? []).map((v) => v.envVariable).filter(Boolean)]
   return (
     <FieldGroup>
-      <Field data-invalid={!!errors.dockerImages}>
-        <FieldLabel>Docker images</FieldLabel>
-        <FieldDescription>Users pick one of them per server; the first is the default.</FieldDescription>
-        <div className="space-y-2">
-          {images.map((img, i) => (
-            <div key={i} className="grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]">
-              <Input
-                aria-label="Display name"
-                value={img.name}
-                onChange={(e) => setImage(i, { name: e.target.value })}
-                placeholder={i === 0 ? "Java 21 (default)" : "Display name"}
-                aria-invalid={!!errors[`dockerImages.${i}.name`]}
-              />
-              <Input
-                aria-label="Image"
-                className="font-mono"
-                value={img.image}
-                onChange={(e) => setImage(i, { image: e.target.value })}
-                placeholder="ghcr.io/pelican-eggs/yolks:java_21"
-                aria-invalid={!!errors[`dockerImages.${i}.image`]}
-              />
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="Move up"
-                  disabled={i === 0}
-                  onClick={() => onChange({ dockerImages: move(images, i, -1) })}
-                >
-                  <ArrowUpIcon />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="Move down"
-                  disabled={i === images.length - 1}
-                  onClick={() => onChange({ dockerImages: move(images, i, 1) })}
-                >
-                  <ArrowDownIcon />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="Remove"
-                  className="text-destructive"
-                  disabled={images.length === 1}
-                  onClick={() => onChange({ dockerImages: images.filter((_, j) => j !== i) })}
-                >
-                  <Trash2Icon />
-                </Button>
-              </div>
-              {(errors[`dockerImages.${i}.name`] || errors[`dockerImages.${i}.image`]) && (
-                <FieldError className="sm:col-span-3">
-                  {errors[`dockerImages.${i}.image`] ?? `Name ${errors[`dockerImages.${i}.name`]}`}
-                </FieldError>
-              )}
-            </div>
-          ))}
-        </div>
-        {errors.dockerImages && <FieldError>{errors.dockerImages}</FieldError>}
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onChange({ dockerImages: [...images, { name: "", image: "" }] })}
-          >
-            <PlusIcon />
-            Add image
-          </Button>
-        </div>
-      </Field>
+      <NamedList
+        label="Docker images"
+        description="Users pick one of them per server; the first is the default."
+        path="dockerImages"
+        valueKey="image"
+        items={spec.dockerImages}
+        onChange={(dockerImages) => onChange({ dockerImages })}
+        errors={errors}
+        namePlaceholder={(i) => (i === 0 ? "Java 21 (default)" : "Display name")}
+        valuePlaceholder="ghcr.io/pelican-eggs/yolks:java_21"
+        addLabel="Add image"
+      />
 
-      <Field data-invalid={!!errors.startup}>
-        <FieldLabel htmlFor="egg-startup">Startup command</FieldLabel>
-        <Textarea
-          id="egg-startup"
-          rows={3}
-          spellCheck={false}
-          className="font-mono text-xs"
-          value={spec.startup}
-          onChange={(e) => onChange({ startup: e.target.value })}
-          placeholder="java -Xms128M -XX:MaxRAMPercentage=95.0 -jar {{SERVER_JARFILE}}"
-        />
-        {errors.startup ? (
-          <FieldError>{errors.startup}</FieldError>
-        ) : (
-          <FieldDescription>
-            Placeholders in {"{{…}}"} are replaced with the server's variables. Servers can override the command.
-          </FieldDescription>
-        )}
+      <NamedList
+        label="Startup commands"
+        description="Users pick one of them per server; the first is the default. Placeholders in {{…}} are replaced with the server's variables."
+        path="startupCommands"
+        valueKey="command"
+        items={commands}
+        onChange={(startupCommands) => onChange({ startupCommands })}
+        errors={errors}
+        namePlaceholder={(i) => (i === 0 ? "Default" : "Display name")}
+        valuePlaceholder="java -Xms128M -XX:MaxRAMPercentage=95.0 -jar {{SERVER_JARFILE}}"
+        addLabel="Add startup command"
+        multiline
+        onFocusValue={setActive}
+      >
         <div className="flex flex-wrap gap-1">
           {placeholders.map((p) => (
-            <SuggestionChip
-              key={p}
-              onClick={() =>
-                onChange({
-                  startup: `${spec.startup}${spec.startup && !spec.startup.endsWith(" ") ? " " : ""}{{${p}}}`,
-                })
-              }
-            >
+            <SuggestionChip key={p} onClick={() => insert(`{{${p}}}`)}>
               {`{{${p}}}`}
             </SuggestionChip>
           ))}
         </div>
-      </Field>
+      </NamedList>
 
       <Field>
         <FieldLabel htmlFor="egg-stop">Stop command</FieldLabel>

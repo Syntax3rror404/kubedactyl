@@ -832,6 +832,10 @@ definitions:
         type: boolean
       startup:
         type: string
+      startupName:
+        description: StartupName picks one of the egg's startup commands ("" = its
+          default).
+        type: string
       storageClass:
         description: 'StorageClass of the data volume (default: the default of the
           panel settings).'
@@ -1672,6 +1676,10 @@ definitions:
           type: integer
         type: array
       startup:
+        type: string
+      startupName:
+        description: StartupName picks one of the egg's startup commands ("" = its
+          default); owners may change it.
         type: string
       stopTimeoutSeconds:
         type: integer
@@ -2554,8 +2562,17 @@ definitions:
       source:
         $ref: '#/definitions/v1alpha1.EggSource'
       startup:
-        description: Startup is the default startup command (with {{VAR}} placeholders).
+        description: 'Startup is the default startup command (with {{VAR}} placeholders):
+          the first of StartupCommands.'
         type: string
+      startupCommands:
+        description: |-
+          StartupCommands are the startup commands owners pick from per server; the first is the default.
+          Empty on eggs saved before it existed: then Startup is the only one.
+          +optional
+        items:
+          $ref: '#/definitions/v1alpha1.StartupCommand'
+        type: array
       startupDone:
         description: |-
           StartupDone lists console output snippets that mark the server as running.
@@ -2727,6 +2744,12 @@ definitions:
       startup:
         description: |-
           Startup overrides the egg's startup command.
+          +optional
+        type: string
+      startupName:
+        description: |-
+          StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
+          means its default. Startup wins when set.
           +optional
         type: string
       state:
@@ -3030,6 +3053,16 @@ definitions:
         type: string
     required:
     - action
+    type: object
+  v1alpha1.StartupCommand:
+    properties:
+      command:
+        type: string
+      name:
+        type: string
+    required:
+    - command
+    - name
     type: object
   v1alpha1.TrafficPolicy:
     enum:

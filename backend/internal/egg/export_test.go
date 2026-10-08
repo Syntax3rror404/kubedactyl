@@ -27,7 +27,11 @@ func sample() *v1alpha1.EggSpec {
 			{Name: "Java 21", Image: "ghcr.io/x/java:21"},
 			{Name: "Java 17", Image: "ghcr.io/x/java:17"},
 		},
-		Startup:     "java -jar {{SERVER_JARFILE}}",
+		Startup: "java -jar {{SERVER_JARFILE}}",
+		StartupCommands: []v1alpha1.StartupCommand{
+			{Name: "Vanilla", Command: "java -jar {{SERVER_JARFILE}}"},
+			{Name: "Flags", Command: "java -XX:+UseG1GC -jar {{SERVER_JARFILE}}"},
+		},
 		Stop:        "^C",
 		StartupDone: []string{"Done (", "regex:^Ready$"},
 		StripAnsi:   true,
@@ -61,12 +65,14 @@ func sample() *v1alpha1.EggSpec {
 	}
 }
 
-// comparable drops what an export does not carry (import metadata; for PTDL also uuid, tags, icon).
+// comparable drops what an export does not carry (import metadata; for PTDL also uuid, tags, icon and all
+// startup commands but the default).
 func comparable(s v1alpha1.EggSpec, ptdl bool) v1alpha1.EggSpec {
 	s.Source.Format, s.Source.ImportedAt, s.Source.ImportedFrom, s.Source.EditedAt = "", metav1.Time{}, "", nil
 	s.Source.ExportedAt = nil // an export always carries the time of the export
 	if ptdl {
 		s.Source.UUID, s.Tags, s.Icon = "", nil, ""
+		s.StartupCommands = []v1alpha1.StartupCommand{{Name: DefaultStartupName, Command: s.Startup}}
 	}
 	return s
 }
@@ -178,6 +184,8 @@ func TestValidateSpec(t *testing.T) {
 	bad := sample()
 	bad.Author = "someone"
 	bad.DockerImages = append(bad.DockerImages, v1alpha1.DockerImage{Name: "Java 21", Image: "ghcr.io/x/java:22"})
+	bad.StartupCommands = append(bad.StartupCommands, v1alpha1.StartupCommand{Name: "Flags"},
+		v1alpha1.StartupCommand{Command: "./run"})
 	bad.Variables = append(bad.Variables,
 		v1alpha1.EggVariable{Name: "Port", EnvVariable: "SERVER_PORT", Rules: "required"},
 		v1alpha1.EggVariable{Name: "Dash", EnvVariable: "MY-VAR"},
@@ -193,12 +201,29 @@ func TestValidateSpec(t *testing.T) {
 		t.Errorf("message = %q", got)
 	}
 	for _, field := range []string{
-		"author", "dockerImages.2.name", "variables.1.envVariable", "variables.2.envVariable",
+		"author", "dockerImages.2.name", "startupCommands.2.name", "startupCommands.2.command",
+		"startupCommands.3.name", "variables.1.envVariable", "variables.2.envVariable",
 		"variables.3.envVariable", "variables.4.envVariable", "variables.4.rules", "variables.5.rules",
 		"configFiles.1.file", "configFiles.1.parser", "startupDone.2",
 	} {
 		if err[field] == "" {
 			t.Errorf("expected an error for %s, got %v", field, err)
 		}
+	}
+}
+
+func TestNormalizeStartupCommands(t *testing.T) {
+	older := &v1alpha1.EggSpec{Startup: " java -jar x "}
+	Normalize(older)
+	if want := []v1alpha1.StartupCommand{{Name: "Default", Command: "java -jar x"}}; !reflect.DeepEqual(
+		older.StartupCommands, want,
+	) {
+		t.Errorf("an egg without startup commands gets its startup as the default: %+v", older.StartupCommands)
+	}
+	edited := sample()
+	edited.StartupCommands[0].Command = "./changed"
+	Normalize(edited)
+	if edited.Startup != "./changed" {
+		t.Errorf("startup must follow the first startup command: %q", edited.Startup)
 	}
 }

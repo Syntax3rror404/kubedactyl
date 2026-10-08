@@ -20,23 +20,24 @@ func (f FieldErrors) Error() string { return validation.Summary(f, humanize) }
 func (f FieldErrors) Fields() map[string]string { return f }
 
 var fieldNames = map[string]string{
-	"displayName":  "Name",
-	"author":       "Author",
-	"startup":      "Startup command",
-	"dockerImages": "Image",
-	"variables":    "Variable",
-	"configFiles":  "Config file",
-	"replace":      "replacement",
-	"startupDone":  "Startup text",
-	"envVariable":  "environment variable",
-	"defaultValue": "default value",
-	"rules":        "rules",
-	"name":         "name",
-	"image":        "image",
-	"file":         "file",
-	"parser":       "parser",
-	"match":        "key",
-	"valueType":    "type",
+	"displayName":     "Name",
+	"author":          "Author",
+	"startupCommands": "Startup command",
+	"dockerImages":    "Image",
+	"variables":       "Variable",
+	"configFiles":     "Config file",
+	"replace":         "replacement",
+	"startupDone":     "Startup text",
+	"envVariable":     "environment variable",
+	"defaultValue":    "default value",
+	"rules":           "rules",
+	"name":            "name",
+	"image":           "image",
+	"command":         "command",
+	"file":            "file",
+	"parser":          "parser",
+	"match":           "key",
+	"valueType":       "type",
 }
 
 // humanize turns "variables.0.envVariable" into "Variable 1, environment variable".
@@ -72,6 +73,14 @@ func Normalize(s *v1alpha1.EggSpec) {
 	s.Author = strings.TrimSpace(s.Author)
 	s.Description = strings.TrimSpace(s.Description)
 	s.Startup = strings.TrimSpace(s.Startup)
+	s.StartupCommands = StartupCommands(s)
+	for i := range s.StartupCommands {
+		s.StartupCommands[i].Name = strings.TrimSpace(s.StartupCommands[i].Name)
+		s.StartupCommands[i].Command = strings.TrimSpace(s.StartupCommands[i].Command)
+	}
+	if len(s.StartupCommands) > 0 {
+		s.Startup = s.StartupCommands[0].Command
+	}
 	s.Features = compact(s.Features)
 	s.FileDenylist = compact(s.FileDenylist)
 	s.StartupDone = compact(s.StartupDone)
@@ -109,6 +118,7 @@ func ValidateSpec(s *v1alpha1.EggSpec) error {
 	errs := FieldErrors{}
 	validateGeneral(s, errs)
 	validateImages(s.DockerImages, errs)
+	validateStartupCommands(s.StartupCommands, errs)
 	validateVariables(s.Variables, errs)
 	validateConfigFiles(s.ConfigFiles, errs)
 	validateStartupDone(s.StartupDone, errs)
@@ -132,29 +142,54 @@ func validateGeneral(s *v1alpha1.EggSpec, errs FieldErrors) {
 	case !emailRe.MatchString(s.Author):
 		errs["author"] = "must be an e-mail address"
 	}
-	if s.Startup == "" {
-		errs["startup"] = "is required"
-	}
 }
 
 func validateImages(images []v1alpha1.DockerImage, errs FieldErrors) {
 	if len(images) == 0 {
 		errs["dockerImages"] = "add at least one image"
 	}
-	seenName, seenImage := map[string]bool{}, map[string]bool{}
+	entries := make([][2]string, len(images))
+	seen := map[string]bool{}
 	for i, img := range images {
-		p := fmt.Sprintf("dockerImages.%d.", i)
-		switch {
-		case img.Image == "":
-			errs[p+"image"] = "is required"
+		entries[i] = [2]string{img.Name, img.Image}
+		switch p := fmt.Sprintf("dockerImages.%d.image", i); {
 		case strings.ContainsAny(img.Image, " \t\n"):
-			errs[p+"image"] = "must not contain spaces"
-		case seenImage[img.Image]:
-			errs[p+"image"] = "is listed twice"
-		case seenName[img.Name]:
+			errs[p] = "must not contain spaces"
+		case seen[img.Image]:
+			errs[p] = "is listed twice"
+		}
+		seen[img.Image] = true
+	}
+	validateNamed("dockerImages", "image", entries, errs)
+}
+
+func validateStartupCommands(cmds []v1alpha1.StartupCommand, errs FieldErrors) {
+	if len(cmds) == 0 {
+		errs["startupCommands"] = "add at least one startup command"
+	}
+	entries := make([][2]string, len(cmds))
+	for i, c := range cmds {
+		entries[i] = [2]string{c.Name, c.Command}
+	}
+	validateNamed("startupCommands", "command", entries, errs)
+}
+
+// validateNamed checks a list of name/value entries whose names users pick from (images, startup
+// commands): every entry needs a name and a value, names must be unique.
+func validateNamed(list, value string, entries [][2]string, errs FieldErrors) {
+	seen := map[string]bool{}
+	for i, e := range entries {
+		p := fmt.Sprintf("%s.%d.", list, i)
+		if e[1] == "" {
+			errs[p+value] = "is required"
+		}
+		switch {
+		case e[0] == "":
+			errs[p+"name"] = "is required"
+		case seen[e[0]]:
 			errs[p+"name"] = "is used twice"
 		}
-		seenName[img.Name], seenImage[img.Image] = true, true
+		seen[e[0]] = true
 	}
 }
 

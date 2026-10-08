@@ -28,6 +28,19 @@ func ValidateVariables(e *v1alpha1.Egg, env map[string]string) error {
 	return errs.OrNil()
 }
 
+// ValidateStartupName accepts the name of one of the egg's startup commands or "" (its default).
+func ValidateStartupName(e *v1alpha1.Egg, name string) error {
+	for _, c := range egg.StartupCommands(&e.Spec) {
+		if c.Name == name {
+			return nil
+		}
+	}
+	if name == "" {
+		return nil
+	}
+	return validation.Field("startupName", errors.New("unknown startup command"))
+}
+
 // ValidatePorts requires at least one port, each in range and listed once.
 func ValidatePorts(ports []int32) error {
 	if len(ports) == 0 {

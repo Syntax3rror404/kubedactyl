@@ -53,7 +53,10 @@ function stepErrors(step: string, s: EggSpec): FieldErrors {
     s.dockerImages.forEach((img, i) => {
       if (!img.image.trim()) e[`dockerImages.${i}.image`] = "is required"
     })
-    if (!s.startup.trim()) e.startup = "is required"
+    s.startupCommands?.forEach((c, i) => {
+      if (!c.name.trim()) e[`startupCommands.${i}.name`] = "is required"
+      if (!c.command.trim()) e[`startupCommands.${i}.command`] = "is required"
+    })
   }
   return e
 }

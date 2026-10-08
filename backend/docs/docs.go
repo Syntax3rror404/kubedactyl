@@ -4295,6 +4295,10 @@ const docTemplate = `{
                 "startup": {
                     "type": "string"
                 },
+                "startupName": {
+                    "description": "StartupName picks one of the egg's startup commands (\"\" = its default).",
+                    "type": "string"
+                },
                 "storageClass": {
                     "description": "StorageClass of the data volume (default: the default of the panel settings).",
                     "type": "string",
@@ -5345,6 +5349,10 @@ const docTemplate = `{
                 "startup": {
                     "type": "string"
                 },
+                "startupName": {
+                    "description": "StartupName picks one of the egg's startup commands (\"\" = its default); owners may change it.",
+                    "type": "string"
+                },
                 "stopTimeoutSeconds": {
                     "type": "integer"
                 }
@@ -6184,8 +6192,15 @@ const docTemplate = `{
                     "$ref": "#/definitions/v1alpha1.EggSource"
                 },
                 "startup": {
-                    "description": "Startup is the default startup command (with {{VAR}} placeholders).",
+                    "description": "Startup is the default startup command (with {{VAR}} placeholders): the first of StartupCommands.",
                     "type": "string"
+                },
+                "startupCommands": {
+                    "description": "StartupCommands are the startup commands owners pick from per server; the first is the default.\nEmpty on eggs saved before it existed: then Startup is the only one.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.StartupCommand"
+                    }
                 },
                 "startupDone": {
                     "description": "StartupDone lists console output snippets that mark the server as running.\nA \"regex:\" prefix makes an entry a regular expression.",
@@ -6367,6 +6382,10 @@ const docTemplate = `{
                 },
                 "startup": {
                     "description": "Startup overrides the egg's startup command.\n+optional",
+                    "type": "string"
+                },
+                "startupName": {
+                    "description": "StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has\nmeans its default. Startup wins when set.\n+optional",
                     "type": "string"
                 },
                 "state": {
@@ -6673,6 +6692,21 @@ const docTemplate = `{
                 },
                 "payload": {
                     "description": "Payload is the console command (action \"command\") or the backup label (action \"backup\").\n+optional\n+kubebuilder:validation:MaxLength=500",
+                    "type": "string"
+                }
+            }
+        },
+        "v1alpha1.StartupCommand": {
+            "type": "object",
+            "required": [
+                "command",
+                "name"
+            ],
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

@@ -21,10 +21,12 @@ import (
 
 // CreateServerRequest creates a game server from an egg.
 type CreateServerRequest struct {
-	DisplayName string            `json:"displayName"           binding:"required" example:"Survival"`
-	Egg         string            `json:"egg"                   binding:"required" example:"paper"`
-	Image       string            `json:"image,omitempty"                          example:"ghcr.io/pelican-eggs/yolks:java_21"`
-	Startup     string            `json:"startup,omitempty"`
+	DisplayName string `json:"displayName"           binding:"required" example:"Survival"`
+	Egg         string `json:"egg"                   binding:"required" example:"paper"`
+	Image       string `json:"image,omitempty"                          example:"ghcr.io/pelican-eggs/yolks:java_21"`
+	Startup     string `json:"startup,omitempty"`
+	// StartupName picks one of the egg's startup commands ("" = its default).
+	StartupName string            `json:"startupName,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	MemoryMiB   int64             `json:"memoryMiB"             binding:"required" example:"4096"`
 	CPUMillis   int64             `json:"cpuMillis,omitempty"                      example:"2000"`
@@ -100,6 +102,9 @@ func (a *API) newGameServer(
 	if err := gameserver.ValidatePorts(req.Ports); err != nil {
 		return nil, err
 	}
+	if err := gameserver.ValidateStartupName(e, req.StartupName); err != nil {
+		return nil, err
+	}
 	storageClass, pool, err := a.choosePlacement(ctx, req)
 	if err != nil {
 		return nil, err
@@ -129,6 +134,7 @@ func (a *API) newGameServer(
 			EggRef:                e.Name,
 			Image:                 req.Image,
 			Startup:               req.Startup,
+			StartupName:           req.StartupName,
 			Environment:           env,
 			Resources:             resources,
 			Ports:                 req.Ports,

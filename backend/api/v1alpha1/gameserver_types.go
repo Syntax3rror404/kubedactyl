@@ -63,6 +63,10 @@ type GameServerSpec struct {
 	// Startup overrides the egg's startup command.
 	// +optional
 	Startup string `json:"startup,omitempty"`
+	// StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
+	// means its default. Startup wins when set.
+	// +optional
+	StartupName string `json:"startupName,omitempty"`
 	// Environment holds values for the egg variables.
 	// +optional
 	Environment map[string]string `json:"environment,omitempty"`

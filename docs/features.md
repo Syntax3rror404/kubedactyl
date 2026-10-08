@@ -52,8 +52,12 @@ Admins manage eggs under *Eggs*, nobody has to write egg files by hand:
   variables match `^\w{1,191}$` and are not reserved (Pterodactyl's and Pelican's lists), rule strings are checked
   (regular expressions, missing arguments), config files are paths inside the server folder. Errors appear at the field
   and as counters on the tabs/steps.
+- **Startup commands:** an egg has one or more named startup commands (`startup_commands` of `PLCN_v3`; `PTDL` has
+  one, named "Default"), the first is the default. Administrators pick one when they create a server, owners can
+  switch on the Startup page; a custom startup command an administrator sets wins and cannot be changed by the owner. The
+  *Pterodactyl* export carries only the default.
 - Changes apply to servers from their next start (install script: next reinstall); servers keep their own image,
-  startup override and variable values.
+  startup override, picked startup command and variable values.
 - **Export** shows the file with a switch **YAML | JSON | Pterodactyl**: YAML and JSON are the same Pelican egg
   (`PLCN_v3`, key order of Pelican's exporter, `config.*` as maps in YAML and as JSON strings in JSON); *Pterodactyl* is
   `PTDL_v2` for importing into Pterodactyl (no UUID, tags or icon; rules as `a|b` string). Every egg keeps a UUID
@@ -67,8 +71,7 @@ Admins manage eggs under *Eggs*, nobody has to write egg files by hand:
   import URL and the auto update status), and the egg is no longer updated.
 - **Restart required:** editing startup, variable defaults or config files of an egg flags running servers
   of that egg.
-- Not supported: "Force Outgoing IP" and log configuration (no meaning on Kubernetes), several named startup commands
-  (the first one is used).
+- Not supported: "Force Outgoing IP" and log configuration (no meaning on Kubernetes).
 
 API: `POST /api/eggs`, `PUT /api/eggs/{egg}`, `GET /api/eggs/{egg}/export?format=yaml|json|ptdl[&download=true]`,
 `POST /api/eggs/{egg}/update-from-url` (admins).

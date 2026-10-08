@@ -419,6 +419,8 @@ export interface HttpapiCreateServerRequest {
    */
   startOnCompletion?: boolean;
   startup?: string;
+  /** StartupName picks one of the egg's startup commands ("" = its default). */
+  startupName?: string;
   /**
    * StorageClass of the data volume (default: the default of the panel settings).
    * @example "longhorn"
@@ -948,6 +950,8 @@ export interface HttpapiUpdateServerRequest {
   memoryMiB?: number;
   ports?: number[];
   startup?: string;
+  /** StartupName picks one of the egg's startup commands ("" = its default); owners may change it. */
+  startupName?: string;
   stopTimeoutSeconds?: number;
 }
 
@@ -1320,8 +1324,14 @@ export interface V1Alpha1EggSpec {
   icon?: string;
   install?: V1Alpha1InstallScript;
   source?: V1Alpha1EggSource;
-  /** Startup is the default startup command (with {{VAR}} placeholders). */
+  /** Startup is the default startup command (with {{VAR}} placeholders): the first of StartupCommands. */
   startup: string;
+  /**
+   * StartupCommands are the startup commands owners pick from per server; the first is the default.
+   * Empty on eggs saved before it existed: then Startup is the only one.
+   * +optional
+   */
+  startupCommands?: V1Alpha1StartupCommand[];
   /**
    * StartupDone lists console output snippets that mark the server as running.
    * A "regex:" prefix makes an entry a regular expression.
@@ -1453,6 +1463,12 @@ export interface V1Alpha1GameServerSpec {
    * +optional
    */
   startup?: string;
+  /**
+   * StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
+   * means its default. Startup wins when set.
+   * +optional
+   */
+  startupName?: string;
   /**
    * State is the desired power state.
    * +kubebuilder:default=Stopped
@@ -1679,6 +1695,11 @@ export interface V1Alpha1ScheduleTask {
    * +kubebuilder:validation:MaxLength=500
    */
   payload?: string;
+}
+
+export interface V1Alpha1StartupCommand {
+  command: string;
+  name: string;
 }
 
 export type V1Alpha1TrafficPolicy = "Local" | "Cluster";

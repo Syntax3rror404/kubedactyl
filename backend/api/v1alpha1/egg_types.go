@@ -10,6 +10,12 @@ type DockerImage struct {
 	Image string `json:"image"`
 }
 
+// StartupCommand is one named startup command of an egg (display name -> command).
+type StartupCommand struct {
+	Name    string `json:"name"`
+	Command string `json:"command"`
+}
+
 // ConfigReplace is a single key replacement inside a config file (one entry of the egg's
 // config.files "find" map).
 type ConfigReplace struct {
@@ -104,8 +110,12 @@ type EggSpec struct {
 	// +optional
 	Tags         []string      `json:"tags,omitempty"`
 	DockerImages []DockerImage `json:"dockerImages"`
-	// Startup is the default startup command (with {{VAR}} placeholders).
+	// Startup is the default startup command (with {{VAR}} placeholders): the first of StartupCommands.
 	Startup string `json:"startup"`
+	// StartupCommands are the startup commands owners pick from per server; the first is the default.
+	// Empty on eggs saved before it existed: then Startup is the only one.
+	// +optional
+	StartupCommands []StartupCommand `json:"startupCommands,omitempty"`
 	// Stop is the stop command; a leading "^" means a signal (^C = SIGINT, ^^C = SIGKILL).
 	Stop string `json:"stop,omitempty"`
 	// StartupDone lists console output snippets that mark the server as running.

@@ -20,8 +20,8 @@ export const sections: { id: SectionId; title: string; description: string; fiel
   {
     id: "images",
     title: "Images & startup",
-    description: "Runtime images, the startup command and how the server stops.",
-    fields: ["dockerImages", "startup", "stop"],
+    description: "Runtime images, the startup commands and how the server stops.",
+    fields: ["dockerImages", "startupCommands", "stop"],
   },
   {
     id: "process",
@@ -65,6 +65,7 @@ export function emptyEggSpec(): EggSpec {
     tags: [],
     dockerImages: [{ name: "", image: "" }],
     startup: "",
+    startupCommands: [{ name: "Default", command: "" }],
     stop: "",
     startupDone: [],
     stripAnsi: false,

@@ -28,7 +28,23 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
         </span>
       ),
     },
-    { label: "Startup", value: <code className="text-xs break-all">{spec.startup}</code> },
+    {
+      label: "Startup commands",
+      value: (
+        <span className="space-y-1">
+          {spec.startupCommands?.map((c, i) => (
+            <span key={i} className="block text-xs">
+              {c.name}: <code className="break-all">{c.command}</code>
+              {i === 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  default
+                </Badge>
+              )}
+            </span>
+          ))}
+        </span>
+      ),
+    },
     { label: "Stop", value: spec.stop ? <code className="text-xs">{spec.stop}</code> : "graceful container stop" },
     {
       label: "Running when",

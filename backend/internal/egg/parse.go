@@ -102,9 +102,10 @@ func Parse(data []byte) (*v1alpha1.EggSpec, error) {
 	if spec.DockerImages = parseDockerImages(raw); len(spec.DockerImages) == 0 {
 		return nil, errors.New("egg has no docker images")
 	}
-	if spec.Startup = parseStartup(raw); spec.Startup == "" {
+	if spec.StartupCommands = parseStartup(raw); len(spec.StartupCommands) == 0 {
 		return nil, errors.New("egg has no startup command")
 	}
+	spec.Startup = spec.StartupCommands[0].Command
 	// Pelican eggs embed an icon as data URI; keep it when it is reasonably small.
 	if strings.HasPrefix(raw.Icon, "data:image/") && len(raw.Icon) <= maxIconSize {
 		spec.Icon = raw.Icon
@@ -162,16 +163,27 @@ func parseDockerImages(raw *rawEgg) []v1alpha1.DockerImage {
 	return images
 }
 
-// parseStartup returns the startup command: a string (PTDL) or the first of the named
-// startup_commands (PLCN_v3).
-func parseStartup(raw *rawEgg) string {
+// DefaultStartupName names the startup command of formats that have only one (PTDL).
+const DefaultStartupName = "Default"
+
+// parseStartup returns the startup commands: a string (PTDL) or the named startup_commands (PLCN_v3).
+func parseStartup(raw *rawEgg) []v1alpha1.StartupCommand {
 	if raw.Startup != "" {
-		return raw.Startup
+		return []v1alpha1.StartupCommand{{Name: DefaultStartupName, Command: raw.Startup}}
 	}
-	if pairs := mappingPairs(&raw.StartupCommands); len(pairs) > 0 {
-		return pairs[0][1]
+	var cmds []v1alpha1.StartupCommand
+	for _, kv := range mappingPairs(&raw.StartupCommands) {
+		cmds = append(cmds, v1alpha1.StartupCommand{Name: kv[0], Command: kv[1]})
 	}
-	return ""
+	return cmds
+}
+
+// StartupCommands returns the startup commands of an egg; older eggs have only Startup.
+func StartupCommands(s *v1alpha1.EggSpec) []v1alpha1.StartupCommand {
+	if len(s.StartupCommands) > 0 || s.Startup == "" {
+		return s.StartupCommands
+	}
+	return []v1alpha1.StartupCommand{{Name: DefaultStartupName, Command: s.Startup}}
 }
 
 // parseVariables converts the variables, ordered by their sort field (file order otherwise).

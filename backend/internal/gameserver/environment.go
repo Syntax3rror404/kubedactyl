@@ -12,10 +12,16 @@ import (
 	"app/internal/egg"
 )
 
-// StartupCommand returns the effective (unsubstituted) startup command.
+// StartupCommand returns the effective (unsubstituted) startup command: the server's own, else the egg
+// command it picked, else the egg's default.
 func StartupCommand(gs *v1alpha1.GameServer, e *v1alpha1.Egg) string {
 	if gs.Spec.Startup != "" {
 		return gs.Spec.Startup
+	}
+	for _, c := range e.Spec.StartupCommands {
+		if c.Name == gs.Spec.StartupName {
+			return c.Command
+		}
 	}
 	return e.Spec.Startup
 }
