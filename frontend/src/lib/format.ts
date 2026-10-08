@@ -64,14 +64,22 @@ export function serverEggName(gs: GameServer, egg?: Egg): string {
 }
 
 /** Address players connect to: the external domain (when configured) or the load balancer IP. */
+/** Whether an IP is an IPv6 address. */
+export const isIPv6 = (ip: string) => ip.includes(":")
+
 /** "host:port"; IPv6 addresses in brackets ("[2001:db8::5]:25565"). */
 function hostPort(host: string, port: number): string {
-  return host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`
+  return isIPv6(host) ? `[${host}]:${port}` : `${host}:${port}`
+}
+
+/** The load balancer IPs of a server (one per IP family, the main family first). */
+export function serverIPs(gs: GameServer): string[] {
+  return gs.status?.addresses?.length ? gs.status.addresses : [gs.status?.address ?? ""].filter(Boolean)
 }
 
 /** Every address of a server: the external domain, or each load balancer IP (one per IP family). */
 export function serverAddresses(gs: GameServer, externalDomain?: string): string[] {
-  const ips = gs.status?.addresses?.length ? gs.status.addresses : [gs.status?.address ?? ""].filter(Boolean)
+  const ips = serverIPs(gs)
   if (!ips.length) return []
   return (externalDomain ? [externalDomain] : ips).map((host) => hostPort(host, gs.spec.ports[0]))
 }

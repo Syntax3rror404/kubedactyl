@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"cmp"
 	"context"
 	"maps"
-	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,7 +68,7 @@ func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer)
 	if err != nil {
 		return err
 	}
-	gs.Status.Addresses = loadBalancerIPs(svc)
+	gs.Status.Addresses = gameserver.LoadBalancerIPs(svc)
 	gs.Status.Address = ""
 	if len(gs.Status.Addresses) > 0 {
 		gs.Status.Address = gs.Status.Addresses[0]
@@ -101,30 +99,6 @@ func mergeServiceMetadata(svc, want *corev1.Service) {
 			delete(svc.Annotations, key)
 		}
 	}
-}
-
-// loadBalancerIPs are the IPs the load balancer assigned (none while pending) in the order of the
-// service's IP families, so the first is of the cluster's main family (Cilium lists fixed IPs in
-// the order they were given).
-func loadBalancerIPs(svc *corev1.Service) []string {
-	var ips []string
-	for _, ing := range svc.Status.LoadBalancer.Ingress {
-		if ing.IP != "" {
-			ips = append(ips, ing.IP)
-		}
-	}
-	rank := func(ip string) int {
-		family := corev1.IPv4Protocol
-		if strings.Contains(ip, ":") {
-			family = corev1.IPv6Protocol
-		}
-		if i := slices.Index(svc.Spec.IPFamilies, family); i >= 0 {
-			return i
-		}
-		return len(svc.Spec.IPFamilies)
-	}
-	slices.SortStableFunc(ips, func(a, b string) int { return cmp.Compare(rank(a), rank(b)) })
-	return ips
 }
 
 // mergePorts keeps the node ports allocated by Kubernetes for unchanged ports.

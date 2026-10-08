@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"net/netip"
-	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -220,16 +218,12 @@ func (a *API) checkPoolIP(ctx context.Context, pool, ips string) error {
 	if ips == "" {
 		return nil
 	}
-	var addrs []netip.Addr
-	for ip := range strings.SplitSeq(ips, ",") {
-		addr, err := netip.ParseAddr(strings.TrimSpace(ip))
-		if err != nil {
-			return validation.Field("loadBalancerIP", errors.New("invalid load balancer IP"))
-		}
-		if slices.ContainsFunc(addrs, func(b netip.Addr) bool { return b.Is4() == addr.Is4() }) {
-			return validation.Field("loadBalancerIP", errors.New("give at most one IP per IP family"))
-		}
-		addrs = append(addrs, addr)
+	addrs, err := gameserver.ParseIPs(ips)
+	if err != nil {
+		return validation.Field("loadBalancerIP", errors.New("invalid load balancer IP"))
+	}
+	if len(addrs) > 2 || len(addrs) == 2 && gameserver.IPFamily(addrs[0]) == gameserver.IPFamily(addrs[1]) {
+		return validation.Field("loadBalancerIP", errors.New("give at most one IP per IP family"))
 	}
 	if pool == "" {
 		return nil

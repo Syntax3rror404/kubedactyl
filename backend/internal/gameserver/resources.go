@@ -101,25 +101,64 @@ func Service(gs *v1alpha1.GameServer, poolLabels map[string]string) *corev1.Serv
 	return svc
 }
 
-// FixedIPs keeps the fixed IPs (comma separated) of the service's IP families. Cilium assigns
-// requested IPs of any family, so an IPv6 address would stay on a service without IPv6. A new
-// service has no families yet: then all are kept, the next reconcile drops the others.
-func FixedIPs(fixed string, families []corev1.IPFamily) string {
-	var keep []string
-	for ip := range strings.SplitSeq(fixed, ",") {
+// ParseIPs parses a comma separated list of IPs (the fixed IPs of a server).
+func ParseIPs(list string) ([]netip.Addr, error) {
+	var addrs []netip.Addr
+	for ip := range strings.SplitSeq(list, ",") {
 		addr, err := netip.ParseAddr(strings.TrimSpace(ip))
 		if err != nil {
-			continue
+			return nil, err
 		}
-		family := corev1.IPv4Protocol
-		if addr.Is6() {
-			family = corev1.IPv6Protocol
-		}
-		if len(families) == 0 || slices.Contains(families, family) {
+		addrs = append(addrs, addr)
+	}
+	return addrs, nil
+}
+
+// IPFamily is the family of an address.
+func IPFamily(addr netip.Addr) corev1.IPFamily {
+	if addr.Is6() {
+		return corev1.IPv6Protocol
+	}
+	return corev1.IPv4Protocol
+}
+
+// FixedIPs keeps the fixed IPs (comma separated) of the service's IP families. Cilium assigns
+// requested IPs of any family, so an IPv6 address would stay on a service without IPv6. A new
+// service has no families yet: then all are kept, the next reconcile drops the others. An invalid
+// list (the API rejects it) requests none.
+func FixedIPs(fixed string, families []corev1.IPFamily) string {
+	addrs, _ := ParseIPs(fixed)
+	var keep []string
+	for _, addr := range addrs {
+		if len(families) == 0 || slices.Contains(families, IPFamily(addr)) {
 			keep = append(keep, addr.String())
 		}
 	}
 	return strings.Join(keep, ",")
+}
+
+// LoadBalancerIPs are the IPs the load balancer assigned to the service (none while pending) in
+// the order of its IP families, so the first is of the cluster's main family (Cilium lists fixed
+// IPs in the order they were given).
+func LoadBalancerIPs(svc *corev1.Service) []string {
+	var addrs []netip.Addr
+	for _, ing := range svc.Status.LoadBalancer.Ingress {
+		if addr, err := netip.ParseAddr(ing.IP); err == nil {
+			addrs = append(addrs, addr)
+		}
+	}
+	rank := func(addr netip.Addr) int {
+		if i := slices.Index(svc.Spec.IPFamilies, IPFamily(addr)); i >= 0 {
+			return i
+		}
+		return len(svc.Spec.IPFamilies)
+	}
+	slices.SortStableFunc(addrs, func(a, b netip.Addr) int { return cmp.Compare(rank(a), rank(b)) })
+	ips := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		ips = append(ips, addr.String())
+	}
+	return ips
 }
 
 // ipFamilyPolicy is PreferDualStack with IPv6: the API server keeps only the families the

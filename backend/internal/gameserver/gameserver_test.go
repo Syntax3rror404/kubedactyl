@@ -1,6 +1,7 @@
 package gameserver
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -311,5 +312,20 @@ func TestFixedIPs(t *testing.T) {
 		if got := FixedIPs(tc.fixed, tc.families); got != tc.want {
 			t.Errorf("FixedIPs(%q, %v) = %q, want %q", tc.fixed, tc.families, got, tc.want)
 		}
+	}
+}
+
+func TestLoadBalancerIPsFollowFamilies(t *testing.T) {
+	svc := &corev1.Service{}
+	svc.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+		{IP: "2001:db8::5"}, {Hostname: "lb"}, {IP: "192.0.2.5"},
+	}
+	svc.Spec.IPFamilies = []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}
+	if got := LoadBalancerIPs(svc); !slices.Equal(got, []string{"192.0.2.5", "2001:db8::5"}) {
+		t.Errorf("IPv4 first: %v", got)
+	}
+	svc.Spec.IPFamilies = []corev1.IPFamily{corev1.IPv6Protocol, corev1.IPv4Protocol}
+	if got := LoadBalancerIPs(svc); !slices.Equal(got, []string{"2001:db8::5", "192.0.2.5"}) {
+		t.Errorf("IPv6 first: %v", got)
 	}
 }

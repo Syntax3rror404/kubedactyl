@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { formatPoolUsage, poolUsage } from "@/lib/format"
+import { formatPoolUsage, isIPv6, poolUsage } from "@/lib/format"
 import type { Pool, TrafficPolicy } from "@/lib/types"
 
 /**
@@ -115,7 +115,7 @@ function ipv4Only(fixedIPs: string) {
   return fixedIPs
     .split(",")
     .map((ip) => ip.trim())
-    .filter((ip) => ip && !ip.includes(":"))
+    .filter((ip) => ip && !isIPv6(ip))
     .join(",")
 }
 
@@ -138,7 +138,7 @@ export function IPv6Field({
   unavailable?: string
   onChange: (ipv6: boolean, fixedIPs: string) => void
 }) {
-  const missing = checked && !!addresses?.length && !addresses.some((a) => a.includes(":"))
+  const missing = checked && !!addresses?.length && !addresses.some(isIPv6)
   const warning = checked && unavailable ? "IPv6 not available in cluster." : missing && "no IPv6 address assigned."
   return (
     <Field orientation="horizontal">

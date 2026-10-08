@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
 import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
-import { serverAddress } from "@/lib/format"
+import { serverAddress, serverIPs } from "@/lib/format"
 import { usePools, useSettings } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
@@ -27,7 +27,7 @@ export function NetworkCard({
 }) {
   const settings = useSettings().data
   const pools = usePools(isAdmin)
-  const address = (server.status?.addresses ?? [server.status?.address]).filter(Boolean).join(", ") || undefined
+  const address = serverIPs(server).join(", ") || undefined
   const saved = server.spec.loadBalancerPool ?? ""
   if (!isAdmin && !settings?.loadBalancerPools?.length) return null
   const poolField = (
