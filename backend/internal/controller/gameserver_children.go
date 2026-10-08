@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"cmp"
 	"context"
 	"maps"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,17 +56,25 @@ func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer)
 	want := gameserver.Service(gs, poolLabels)
 	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: want.Name, Namespace: want.Namespace}}
 	err := kube.CreateOrPatch(ctx, r.Reader, r.Client, svc, func() error {
+		want.Annotations[gameserver.AnnotationFixedIPs] = gameserver.FixedIPs(
+			gs.Spec.LoadBalancerIP, svc.Spec.IPFamilies,
+		)
 		mergeServiceMetadata(svc, want)
 		svc.Spec.Type = want.Spec.Type
 		svc.Spec.Selector = want.Spec.Selector
 		svc.Spec.ExternalTrafficPolicy = want.Spec.ExternalTrafficPolicy
+		svc.Spec.IPFamilyPolicy = want.Spec.IPFamilyPolicy
 		svc.Spec.Ports = mergePorts(svc.Spec.Ports, want.Spec.Ports)
 		return controllerutil.SetControllerReference(gs, svc, r.Scheme())
 	})
 	if err != nil {
 		return err
 	}
-	gs.Status.Address = loadBalancerIP(svc)
+	gs.Status.Addresses = loadBalancerIPs(svc)
+	gs.Status.Address = ""
+	if len(gs.Status.Addresses) > 0 {
+		gs.Status.Address = gs.Status.Addresses[0]
+	}
 	return nil
 }
 
@@ -84,7 +94,7 @@ func mergeServiceMetadata(svc, want *corev1.Service) {
 	if svc.Annotations == nil {
 		svc.Annotations = map[string]string{}
 	}
-	for _, key := range []string{"lbipam.cilium.io/ips", gameserver.AnnotationPoolLabels} {
+	for _, key := range []string{gameserver.AnnotationFixedIPs, gameserver.AnnotationPoolLabels} {
 		if v := want.Annotations[key]; v != "" {
 			svc.Annotations[key] = v
 		} else {
@@ -93,14 +103,28 @@ func mergeServiceMetadata(svc, want *corev1.Service) {
 	}
 }
 
-// loadBalancerIP is the first IP the load balancer assigned ("" while pending).
-func loadBalancerIP(svc *corev1.Service) string {
+// loadBalancerIPs are the IPs the load balancer assigned (none while pending) in the order of the
+// service's IP families, so the first is of the cluster's main family (Cilium lists fixed IPs in
+// the order they were given).
+func loadBalancerIPs(svc *corev1.Service) []string {
+	var ips []string
 	for _, ing := range svc.Status.LoadBalancer.Ingress {
 		if ing.IP != "" {
-			return ing.IP
+			ips = append(ips, ing.IP)
 		}
 	}
-	return ""
+	rank := func(ip string) int {
+		family := corev1.IPv4Protocol
+		if strings.Contains(ip, ":") {
+			family = corev1.IPv6Protocol
+		}
+		if i := slices.Index(svc.Spec.IPFamilies, family); i >= 0 {
+			return i
+		}
+		return len(svc.Spec.IPFamilies)
+	}
+	slices.SortStableFunc(ips, func(a, b string) int { return cmp.Compare(rank(a), rank(b)) })
+	return ips
 }
 
 // mergePorts keeps the node ports allocated by Kubernetes for unchanged ports.

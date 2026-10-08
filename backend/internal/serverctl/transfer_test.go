@@ -33,6 +33,7 @@ func transferFixture(t *testing.T) (*Ops, client.Client, *v1alpha1.GameServer) {
 			Phase:             v1alpha1.PhaseOffline,
 			InstalledRevision: 2,
 			Address:           "192.168.1.20",
+			Addresses:         []string{"192.168.1.20", "2001:db8::20"},
 		},
 	}
 	pvc := &corev1.PersistentVolumeClaim{
@@ -85,8 +86,8 @@ func TestTransferMovesServerAndVolume(t *testing.T) {
 	if got.Labels[tenancy.LabelOwner] != "bob" || got.Spec.EggRef != "paper" || got.Spec.InstallRevision != 2 {
 		t.Errorf("moved server: %+v %+v", got.Labels, got.Spec)
 	}
-	if got.Spec.LoadBalancerIP != "192.168.1.20" {
-		t.Errorf("the address must stay: %q", got.Spec.LoadBalancerIP)
+	if got.Spec.LoadBalancerIP != "192.168.1.20,2001:db8::20" {
+		t.Errorf("both addresses must stay: %q", got.Spec.LoadBalancerIP)
 	}
 	if got.Annotations[gameserver.AnnotationMovedVolume] != "pv-1" ||
 		got.Annotations[gameserver.AnnotationInstalledRevision] != "2" {

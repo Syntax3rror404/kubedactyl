@@ -82,12 +82,17 @@ type GameServerSpec struct {
 	// gets the labels of the pool's service selector.
 	// +optional
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty"`
-	// LoadBalancerIP requests a specific IP from the load balancer pool.
+	// LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
+	// separated by a comma. The server then gets only these addresses.
 	// +optional
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 	// ExternalTrafficPolicy of the service; empty means Local.
 	// +optional
 	ExternalTrafficPolicy TrafficPolicy `json:"externalTrafficPolicy,omitempty"`
+	// IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
+	// server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+	// +optional
+	IPv6 bool `json:"ipv6,omitempty"`
 	// State is the desired power state.
 	// +kubebuilder:default=Stopped
 	State PowerState `json:"state,omitempty"`
@@ -168,8 +173,11 @@ type ScheduleStatus struct {
 type GameServerStatus struct {
 	Phase   Phase  `json:"phase,omitempty"`
 	Message string `json:"message,omitempty"`
-	// Address is the external IP assigned by the load balancer.
+	// Address is the external IP assigned by the load balancer (the first of Addresses).
 	Address string `json:"address,omitempty"`
+	// Addresses are all external IPs assigned by the load balancer (one per IP family).
+	// +optional
+	Addresses []string `json:"addresses,omitempty"`
 	// InstalledRevision is the last completed install revision.
 	InstalledRevision int64 `json:"installedRevision,omitempty"`
 	// InstallExitCode is the exit code of the last install script run.

@@ -87,6 +87,7 @@ func newHarness(t *testing.T) *harness {
 	aliceSrv := server("alice-srv", "alice")
 	aliceSrv.Spec.LoadBalancerPool = "general-pool"
 	aliceSrv.Status.Address = "10.0.0.5"
+	aliceSrv.Status.Addresses = []string{"10.0.0.5", "2001:db8::5"}
 	panel := &v1alpha1.PanelSettings{
 		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.SettingsName, Namespace: sysNS},
 		Spec: v1alpha1.PanelSettingsSpec{
@@ -275,6 +276,7 @@ func TestUserUpdateRestrictions(t *testing.T) {
 		{"memory", map[string]any{"memoryMiB": 8192}, 403},
 		{"ports", map[string]any{"ports": []int{1}}, 403},
 		{"traffic policy", map[string]any{"externalTrafficPolicy": "Cluster"}, 403},
+		{"IPv6", map[string]any{"ipv6": true}, 403},
 		{"startup", map[string]any{"startup": "rm -rf /"}, 403},
 		{"unknown startup command", map[string]any{"startupName": "rm -rf /"}, 422},
 		{"egg startup command", map[string]any{"startupName": "Flags"}, 200},
@@ -346,6 +348,18 @@ func TestAdminSetsTrafficPolicy(t *testing.T) {
 	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
 	if gs.Spec.ExternalTrafficPolicy != v1alpha1.TrafficCluster {
 		t.Errorf("traffic policy not stored: %q", gs.Spec.ExternalTrafficPolicy)
+	}
+}
+
+func TestAdminSetsIPv6(t *testing.T) {
+	h := newHarness(t)
+	admin := h.login("admin")
+	code, body := h.do("PATCH", "/api/servers/alice-srv", admin, map[string]any{"ipv6": true})
+	expect(t, "IPv6", code, 200, body)
+	gs := &v1alpha1.GameServer{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
+	if !gs.Spec.IPv6 {
+		t.Error("IPv6 not stored")
 	}
 }
 
@@ -628,12 +642,13 @@ func TestSettingsStorageAndPools(t *testing.T) {
 		t.Errorf("user settings: %d %s", code, body)
 	}
 	code, body = h.do("GET", "/api/servers/alice-srv", alice, nil)
-	if code != 200 || !strings.Contains(body, `"address":"play.example.com"`) || strings.Contains(body, "10.0.0.5") {
+	if code != 200 || !strings.Contains(body, `"address":"play.example.com"`) || strings.Contains(body, "10.0.0.5") ||
+		strings.Contains(body, "2001:db8::5") {
 		t.Errorf("user must see the external domain instead of the IP: %s", body)
 	}
 	code, body = h.do("GET", "/api/servers", admin, nil)
-	if code != 200 || !strings.Contains(body, "10.0.0.5") {
-		t.Errorf("admin must see the IP: %s", body)
+	if code != 200 || !strings.Contains(body, "10.0.0.5") || !strings.Contains(body, "2001:db8::5") {
+		t.Errorf("admin must see the IPs: %s", body)
 	}
 
 	code, body = h.do("PATCH", "/api/servers/alice-srv", alice, map[string]string{"loadBalancerPool": "secret-pool"})

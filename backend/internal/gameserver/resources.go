@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/netip"
 	"slices"
 	"strings"
 
@@ -78,10 +79,11 @@ func Service(gs *v1alpha1.GameServer, poolLabels map[string]string) *corev1.Serv
 			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicy(
 				cmp.Or(gs.Spec.ExternalTrafficPolicy, v1alpha1.TrafficLocal),
 			),
+			IPFamilyPolicy: ipFamilyPolicy(gs.Spec.IPv6),
 		},
 	}
 	if gs.Spec.LoadBalancerIP != "" {
-		svc.Annotations["lbipam.cilium.io/ips"] = gs.Spec.LoadBalancerIP
+		svc.Annotations[AnnotationFixedIPs] = FixedIPs(gs.Spec.LoadBalancerIP, nil)
 	}
 	if len(poolLabels) > 0 {
 		svc.Annotations[AnnotationPoolLabels] = strings.Join(slices.Sorted(maps.Keys(poolLabels)), ",")
@@ -97,6 +99,37 @@ func Service(gs *v1alpha1.GameServer, poolLabels map[string]string) *corev1.Serv
 		}
 	}
 	return svc
+}
+
+// FixedIPs keeps the fixed IPs (comma separated) of the service's IP families. Cilium assigns
+// requested IPs of any family, so an IPv6 address would stay on a service without IPv6. A new
+// service has no families yet: then all are kept, the next reconcile drops the others.
+func FixedIPs(fixed string, families []corev1.IPFamily) string {
+	var keep []string
+	for ip := range strings.SplitSeq(fixed, ",") {
+		addr, err := netip.ParseAddr(strings.TrimSpace(ip))
+		if err != nil {
+			continue
+		}
+		family := corev1.IPv4Protocol
+		if addr.Is6() {
+			family = corev1.IPv6Protocol
+		}
+		if len(families) == 0 || slices.Contains(families, family) {
+			keep = append(keep, addr.String())
+		}
+	}
+	return strings.Join(keep, ",")
+}
+
+// ipFamilyPolicy is PreferDualStack with IPv6: the API server keeps only the families the
+// cluster has, so single stack clusters are unaffected. Switching back to SingleStack makes the
+// API server release the second family.
+func ipFamilyPolicy(ipv6 bool) *corev1.IPFamilyPolicy {
+	if ipv6 {
+		return ptr.To(corev1.IPFamilyPolicyPreferDualStack)
+	}
+	return ptr.To(corev1.IPFamilyPolicySingleStack)
 }
 
 // sameNodeAsVolume keeps all pods that mount the data volume on one node, because the

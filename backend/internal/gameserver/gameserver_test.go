@@ -132,6 +132,14 @@ func TestGamePod(t *testing.T) {
 	if p := Service(gs, nil).Spec.ExternalTrafficPolicy; p != corev1.ServiceExternalTrafficPolicyCluster {
 		t.Errorf("traffic policy Cluster: %s", p)
 	}
+	// Explicit SingleStack (not nil), so switching IPv6 off releases the second family.
+	if p := svc.Spec.IPFamilyPolicy; p == nil || *p != corev1.IPFamilyPolicySingleStack {
+		t.Errorf("default IP family policy: %v", p)
+	}
+	gs.Spec.IPv6 = true
+	if p := Service(gs, nil).Spec.IPFamilyPolicy; p == nil || *p != corev1.IPFamilyPolicyPreferDualStack {
+		t.Errorf("IPv6 IP family policy: %v", p)
+	}
 }
 
 func TestInstallPod(t *testing.T) {
@@ -284,5 +292,24 @@ func TestFilesPodRunsAsGameUser(t *testing.T) {
 	}
 	if add := init.SecurityContext.Capabilities.Add; len(add) != 2 {
 		t.Errorf("ownership fix capabilities: %v", add)
+	}
+}
+
+func TestFixedIPs(t *testing.T) {
+	v4, v6 := corev1.IPv4Protocol, corev1.IPv6Protocol
+	for _, tc := range []struct {
+		fixed    string
+		families []corev1.IPFamily
+		want     string
+	}{
+		{"192.0.2.170, 2001:db8::5", nil, "192.0.2.170,2001:db8::5"}, // a new service: all
+		{"192.0.2.170, 2001:db8::5", []corev1.IPFamily{v4}, "192.0.2.170"},
+		{"192.0.2.170, 2001:db8::5", []corev1.IPFamily{v4, v6}, "192.0.2.170,2001:db8::5"},
+		{"2001:db8::5", []corev1.IPFamily{v4}, ""},
+		{"", []corev1.IPFamily{v4}, ""},
+	} {
+		if got := FixedIPs(tc.fixed, tc.families); got != tc.want {
+			t.Errorf("FixedIPs(%q, %v) = %q, want %q", tc.fixed, tc.families, got, tc.want)
+		}
 	}
 }

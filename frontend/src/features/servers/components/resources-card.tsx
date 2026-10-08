@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FieldError } from "@/components/ui/field"
 import { ResourceSliders } from "@/features/servers/components/resource-sliders"
 import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
-import { formatCpuLimit, formatMiB, serverAddress } from "@/lib/format"
+import { formatCpuLimit, formatMiB, serverAddresses } from "@/lib/format"
 import type { GameServer } from "@/lib/types"
 
 /** Settings page: memory, CPU and disk sliders (administrators). */
@@ -67,7 +67,7 @@ export function ResourceSummary({ server, domain }: { server: GameServer; domain
             ["Disk", formatMiB(r.diskMiB)],
             ["Storage class", server.spec.storageClass ?? "default"],
             ["Ports", server.spec.ports.join(", ")],
-            ["Address", serverAddress(server, domain) ?? "pending"],
+            ["Address", serverAddresses(server, domain).join(", ") || "pending"],
           ]}
         />
       </CardContent>

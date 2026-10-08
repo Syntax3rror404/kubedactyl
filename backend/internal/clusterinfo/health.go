@@ -102,7 +102,7 @@ func (s *Service) gatherHealth(ctx context.Context) healthInputs {
 		in.settings, in.settingsErr = s.Settings.Current(ctx)
 		in.storageClasses, in.storageErr = settings.ListStorageClasses(ctx, s.Reader)
 		if in.cilium {
-			in.pools, in.poolsErr = settings.ListPools(ctx, s.Reader)
+			in.pools, in.poolsErr = settings.ListPoolsWithUsage(ctx, s.Reader)
 		}
 		if in.settings.OIDC.Enabled {
 			in.oidcErr = sso.Discover(ctx, in.settings.OIDC.IssuerURL)

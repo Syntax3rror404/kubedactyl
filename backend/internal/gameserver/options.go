@@ -39,6 +39,8 @@ const (
 	// AnnotationExitHandled marks a terminated game pod whose exit was processed. The pod
 	// is kept until the next start so its console output stays available.
 	AnnotationExitHandled = "kubedactyl.io/exit-handled"
+	// AnnotationFixedIPs asks Cilium LB IPAM for the server's fixed IPs (comma separated).
+	AnnotationFixedIPs = "lbipam.cilium.io/ips"
 	// AnnotationPoolLabels lists the service label keys set for the load balancer pool,
 	// so they can be removed when the server moves to another pool.
 	AnnotationPoolLabels = "kubedactyl.io/pool-labels"

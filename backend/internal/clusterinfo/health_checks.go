@@ -87,7 +87,7 @@ func checkMetrics(in healthInputs) checks.Check {
 	return checks.New("metrics", "Metrics server", checks.OK, "")
 }
 
-// checkLoadBalancer: Cilium LB IPAM is installed and every enabled pool exists and has free IPs.
+// checkLoadBalancer: Cilium LB IPAM is installed and every enabled pool exists and has free IPs (in each family).
 func checkLoadBalancer(in healthInputs) checks.Check {
 	const id, label = "loadBalancer", "Load balancer pools"
 	switch {
@@ -109,6 +109,13 @@ func checkLoadBalancer(in healthInputs) checks.Check {
 			gone = append(gone, name)
 		case in.pools[i].IPsAvailable == 0:
 			full = append(full, name)
+		default:
+			// A mixed pool can run out of IPv4 while it still has IPv6 addresses.
+			for _, f := range in.pools[i].Families {
+				if f.Available == 0 {
+					full = append(full, name+" ("+f.Family+")")
+				}
+			}
 		}
 	}
 	switch {

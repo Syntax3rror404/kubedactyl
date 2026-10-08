@@ -2723,7 +2723,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Cilium LB IPAM pools with their address blocks, usage and the service labels that select them.",
+                "description": "Cilium LB IPAM pools with their address blocks, usage (also per IP family) and the service labels\nthat select them.",
                 "produces": [
                     "application/json"
                 ],
@@ -4256,8 +4256,12 @@ const docTemplate = `{
                     "type": "string",
                     "example": "ghcr.io/pelican-eggs/yolks:java_21"
                 },
+                "ipv6": {
+                    "description": "IPv6 also asks for an IPv6 address (dual stack clusters).",
+                    "type": "boolean"
+                },
                 "loadBalancerIP": {
-                    "description": "LoadBalancerIP optionally requests a fixed IP from the pool.",
+                    "description": "LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).",
                     "type": "string",
                     "example": "192.168.1.70"
                 },
@@ -4820,6 +4824,11 @@ const docTemplate = `{
                     "description": "Error is set when the pools cannot be read (e.g. Cilium LB IPAM is not installed).",
                     "type": "string"
                 },
+                "ipv6Missing": {
+                    "description": "IPv6Missing says why servers get no IPv6 address even from a pool with an IPv6 block\n(\"\" when they can or it is unknown).",
+                    "type": "string",
+                    "example": "No IPv6 service CIDR · IPv6 off in Cilium"
+                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -5330,7 +5339,12 @@ const docTemplate = `{
                 "image": {
                     "type": "string"
                 },
+                "ipv6": {
+                    "description": "IPv6 also asks for an IPv6 address (dual stack clusters); admins only.",
+                    "type": "boolean"
+                },
                 "loadBalancerIP": {
+                    "description": "LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma.",
                     "type": "string"
                 },
                 "loadBalancerPool": {
@@ -5776,15 +5790,22 @@ const docTemplate = `{
                 "disabled": {
                     "type": "boolean"
                 },
+                "families": {
+                    "description": "Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both\ntogether. Only the pools API and the health check fill them in.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/settings.PoolFamily"
+                    }
+                },
                 "ipsAvailable": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "ipsTotal": {
-                    "description": "IPs as reported by Cilium in the pool status (-1 when unknown).",
-                    "type": "integer"
+                    "description": "IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:\nan IPv6 block holds more addresses than an int64 (a /64 has 2^64).",
+                    "type": "number"
                 },
                 "ipsUsed": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "name": {
                     "type": "string",
@@ -5803,6 +5824,33 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "settings.PoolFamily": {
+            "type": "object",
+            "required": [
+                "available",
+                "family",
+                "total",
+                "used"
+            ],
+            "properties": {
+                "available": {
+                    "type": "number"
+                },
+                "family": {
+                    "type": "string",
+                    "enum": [
+                        "IPv4",
+                        "IPv6"
+                    ]
+                },
+                "total": {
+                    "type": "number"
+                },
+                "used": {
+                    "type": "number"
                 }
             }
         },
@@ -6351,8 +6399,12 @@ const docTemplate = `{
                     "description": "InstallRevision triggers a (re)install whenever it differs from status.installedRevision.\n+kubebuilder:default=1",
                     "type": "integer"
                 },
+                "ipv6": {
+                    "description": "IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the\nserver gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.\n+optional",
+                    "type": "boolean"
+                },
                 "loadBalancerIP": {
-                    "description": "LoadBalancerIP requests a specific IP from the load balancer pool.\n+optional",
+                    "description": "LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family\nseparated by a comma. The server then gets only these addresses.\n+optional",
                     "type": "string"
                 },
                 "loadBalancerPool": {
@@ -6414,8 +6466,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
-                    "description": "Address is the external IP assigned by the load balancer.",
+                    "description": "Address is the external IP assigned by the load balancer (the first of Addresses).",
                     "type": "string"
+                },
+                "addresses": {
+                    "description": "Addresses are all external IPs assigned by the load balancer (one per IP family).\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "diskMeasuredAt": {
                     "type": "string"

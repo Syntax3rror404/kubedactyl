@@ -92,9 +92,15 @@ spec:
                   from status.installedRevision.
                 format: int64
                 type: integer
+              ipv6:
+                description: |-
+                  IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
+                  server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+                type: boolean
               loadBalancerIP:
-                description: LoadBalancerIP requests a specific IP from the load balancer
-                  pool.
+                description: |-
+                  LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
+                  separated by a comma. The server then gets only these addresses.
                 type: string
               loadBalancerPool:
                 description: |-
@@ -252,8 +258,15 @@ spec:
             description: GameServerStatus defines the observed state of a game server.
             properties:
               address:
-                description: Address is the external IP assigned by the load balancer.
+                description: Address is the external IP assigned by the load balancer
+                  (the first of Addresses).
                 type: string
+              addresses:
+                description: Addresses are all external IPs assigned by the load balancer
+                  (one per IP family).
+                items:
+                  type: string
+                type: array
               diskMeasuredAt:
                 format: date-time
                 type: string

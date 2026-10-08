@@ -36,10 +36,12 @@ type CreateServerRequest struct {
 	StorageClass string `json:"storageClass,omitempty" example:"longhorn"`
 	// LoadBalancerPool the address comes from (default: the default of the panel settings).
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty" example:"general-pool"`
-	// LoadBalancerIP optionally requests a fixed IP from the pool.
+	// LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty" example:"192.168.1.70"`
 	// ExternalTrafficPolicy of the service (default Local: the server sees the players' IPs).
 	ExternalTrafficPolicy v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
+	// IPv6 also asks for an IPv6 address (dual stack clusters).
+	IPv6 bool `json:"ipv6,omitempty"`
 	// Owner is the username the server belongs to (default: the calling admin).
 	Owner string `json:"owner,omitempty" example:"alice"`
 	// StartOnCompletion starts the server once the installation is finished.
@@ -142,6 +144,7 @@ func (a *API) newGameServer(
 			LoadBalancerPool:      pool,
 			LoadBalancerIP:        req.LoadBalancerIP,
 			ExternalTrafficPolicy: req.ExternalTrafficPolicy,
+			IPv6:                  req.IPv6,
 			State:                 state,
 			InstallRevision:       1,
 			SkipInstall:           req.SkipInstall,

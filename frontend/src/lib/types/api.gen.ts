@@ -380,6 +380,8 @@ export interface HttpapiCreateInviteRequest {
 }
 
 export interface HttpapiCreateServerRequest {
+  /** IPv6 also asks for an IPv6 address (dual stack clusters). */
+  ipv6?: boolean;
   /** @example 2000 */
   cpuMillis?: number;
   /** @example 10240 */
@@ -394,7 +396,7 @@ export interface HttpapiCreateServerRequest {
   /** @example "ghcr.io/pelican-eggs/yolks:java_21" */
   image?: string;
   /**
-   * LoadBalancerIP optionally requests a fixed IP from the pool.
+   * LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).
    * @example "192.168.1.70"
    */
   loadBalancerIP?: string;
@@ -634,6 +636,12 @@ export interface HttpapiOIDCSignIn {
 }
 
 export interface HttpapiPoolList {
+  /**
+   * IPv6Missing says why servers get no IPv6 address even from a pool with an IPv6 block
+   * ("" when they can or it is unknown).
+   * @example "No IPv6 service CIDR · IPv6 off in Cilium"
+   */
+  ipv6Missing?: string;
   /** Error is set when the pools cannot be read (e.g. Cilium LB IPAM is not installed). */
   error?: string;
   items: SettingsPool[];
@@ -933,6 +941,8 @@ export interface HttpapiUpdateSchedulesRequest {
 }
 
 export interface HttpapiUpdateServerRequest {
+  /** IPv6 also asks for an IPv6 address (dual stack clusters); admins only. */
+  ipv6?: boolean;
   cpuMillis?: number;
   crashRestart?: boolean;
   diskMiB?: number;
@@ -941,6 +951,7 @@ export interface HttpapiUpdateServerRequest {
   /** ExternalTrafficPolicy of the service; admins only. */
   externalTrafficPolicy?: "Local" | "Cluster";
   image?: string;
+  /** LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma. */
   loadBalancerIP?: string;
   /**
    * LoadBalancerPool moves the server to another enabled pool (its address changes).
@@ -1199,8 +1210,16 @@ export interface SettingsPool {
   blocks: string[];
   conflict: boolean;
   disabled: boolean;
+  /**
+   * Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
+   * together. Only the pools API and the health check fill them in.
+   */
+  families?: SettingsPoolFamily[];
   ipsAvailable: number;
-  /** IPs as reported by Cilium in the pool status (-1 when unknown). */
+  /**
+   * IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
+   * an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
+   */
   ipsTotal: number;
   ipsUsed: number;
   /** @example "general-pool" */
@@ -1210,6 +1229,13 @@ export interface SettingsPool {
   selectable: boolean;
   /** ServiceLabels are set on a server's service so that the pool selects it. */
   serviceLabels: Record<string, string>;
+}
+
+export interface SettingsPoolFamily {
+  available: number;
+  family: "IPv4" | "IPv6";
+  total: number;
+  used: number;
 }
 
 export interface SettingsStorageClass {
@@ -1403,6 +1429,12 @@ export interface V1Alpha1GameServer {
 
 export interface V1Alpha1GameServerSpec {
   /**
+   * IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
+   * server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+   * +optional
+   */
+  ipv6?: boolean;
+  /**
    * CrashRestart restarts the server after a crash (not twice within 60 seconds).
    * +kubebuilder:default=true
    */
@@ -1429,7 +1461,8 @@ export interface V1Alpha1GameServerSpec {
    */
   installRevision?: number;
   /**
-   * LoadBalancerIP requests a specific IP from the load balancer pool.
+   * LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
+   * separated by a comma. The server then gets only these addresses.
    * +optional
    */
   loadBalancerIP?: string;
@@ -1493,8 +1526,13 @@ export interface V1Alpha1GameServerSpec {
 }
 
 export interface V1Alpha1GameServerStatus {
-  /** Address is the external IP assigned by the load balancer. */
+  /** Address is the external IP assigned by the load balancer (the first of Addresses). */
   address?: string;
+  /**
+   * Addresses are all external IPs assigned by the load balancer (one per IP family).
+   * +optional
+   */
+  addresses?: string[];
   diskMeasuredAt?: string;
   /**
    * DiskUsedBytes is the last measured size of the server files; the files pod that

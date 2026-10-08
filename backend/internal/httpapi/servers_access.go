@@ -75,7 +75,7 @@ func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alph
 }
 
 // visibleServer strips variables that the egg hides from users. With an external domain,
-// users see the domain as the address instead of the load balancer IP.
+// users see the domain as the address instead of the load balancer IPs.
 func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
 	if p.Admin() {
 		return gs
@@ -86,6 +86,7 @@ func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domai
 		if out.Status.Address != "" {
 			out.Status.Address = domain
 		}
+		out.Status.Addresses = nil
 	}
 	if e == nil {
 		return out
@@ -125,7 +126,8 @@ var errAdminOnly = errors.New("only administrators may change this setting")
 // checkUserUpdate enforces what a non-admin may change on a server.
 func checkUserUpdate(req *UpdateServerRequest, gs *v1alpha1.GameServer, e *v1alpha1.Egg) error {
 	if req.Startup != nil || req.MemoryMiB != nil || req.CPUMillis != nil || req.DiskMiB != nil || req.Ports != nil ||
-		req.LoadBalancerIP != nil || req.ExternalTrafficPolicy != nil || req.StopTimeoutSeconds != nil {
+		req.LoadBalancerIP != nil || req.ExternalTrafficPolicy != nil || req.IPv6 != nil ||
+		req.StopTimeoutSeconds != nil {
 		return forbidden(errAdminOnly)
 	}
 	if req.Image != nil && *req.Image != gs.Spec.Image {

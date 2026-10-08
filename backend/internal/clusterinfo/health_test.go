@@ -111,6 +111,17 @@ func TestHealthProblems(t *testing.T) {
 			"no free address",
 		},
 		{
+			"IPv4 of a mixed pool full",
+			func(in *healthInputs) {
+				in.pools[0].Families = []settings.PoolFamily{
+					{Family: "IPv4", Total: 2, Used: 2}, {Family: "IPv6", Total: 1.8e19, Available: 1.8e19},
+				}
+			},
+			"loadBalancer",
+			checks.Warning,
+			"general-pool (IPv4)",
+		},
+		{
 			"no pool enabled",
 			func(in *healthInputs) { in.settings.LoadBalancerPools = nil },
 			"loadBalancer",

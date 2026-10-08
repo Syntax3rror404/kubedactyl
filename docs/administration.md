@@ -96,19 +96,33 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
   open one of their servers (switching tabs of the same server does not show it again; admins do not
   get it).
 - **External domain:** users see `domain:port` instead of the load balancer IP; the API replaces
-  `status.address` with the domain (and drops a fixed IP) in responses for users. Admins still see the
-  IP. The domain must resolve or be forwarded to the IPs of the enabled pools.
+  `status.address` with the domain (and drops a fixed IP and `status.addresses`) in responses for users.
+  Admins still see the IPs. The domain must resolve or be forwarded to the IPs of the enabled pools.
 - **Storage classes:** every StorageClass of the cluster is listed (provisioner, reclaim policy,
   binding, expansion); the checked ones appear in the storage dropdown of *New server*, one is the
   default. `spec.storageClass` of a server cannot change later (CEL rule on the CRD).
 - **Load balancer pools:** every `CiliumLoadBalancerIPPool` (`cilium.io/v2`, falls back to `v2alpha1`)
-  with blocks, free IPs and its service selector. A server stores the pool **name**; the controller
+  with blocks, free IPs per IP family and its service selector. Cilium reports one count for IPv4 and
+  IPv6 together, so the panel counts each family itself: the addresses of the blocks, and as used the
+  load balancer IPs of all services in the cluster plus the first and last IP of CIDR blocks when the pool
+  sets `allowFirstLastIPs: No`. A server stores the pool **name**; the controller
   sets the `matchLabels` of the pool's `serviceSelector` on the service (e.g. pool `general-pool` →
   `lb.cilium.io/pool=general`) and removes the labels of the previous pool when it moves
   (annotation `kubedactyl.io/pool-labels`). Pools that are disabled, use `matchExpressions` or select
   by service namespace/name cannot be enabled. Users can move their servers between enabled pools
   (the address changes; Cilium releases the old IP and assigns a new one, verified live). A fixed IP
-  must be inside the pool's blocks and is cleared when the pool changes.
+  must be inside the pool's blocks and is cleared when the pool changes; give one per IP family,
+  separated by a comma, because a server with fixed IPs gets only these (a transfer fixes all of them).
+  The service asks only for fixed IPs of its own IP families: Cilium would assign a fixed IPv6 address
+  to a service without IPv6 too, where it does not work.
+- **IPv6:** a switch per server (admins). It sets `ipFamilyPolicy: PreferDualStack` on the service: the
+  API server keeps only the families the cluster has, so on a single stack cluster nothing changes. On a
+  dual stack cluster Cilium assigns an IPv6 address when the pool has an IPv6 block (the IPv4 address
+  does not depend on it). The game must listen on IPv6: eggs that bind to `{{SERVER_IP}}` (`0.0.0.0`)
+  listen only on IPv4. The server shows every address (`status.addresses`); with an external domain,
+  add an AAAA record for the IPv6 addresses. Pools with an IPv6 block get the badge "IPv6 not available
+  in cluster" (and the switch a warning) when the `ServiceCIDR` objects (Kubernetes 1.33+) have no IPv6
+  range or `kube-system/cilium-config` has `enable-ipv6: false`.
 
 - **OpenID Connect:** identity provider, client and groups; see [Single sign-on](oidc.md#panel-settings).
 - **Panel updates:** see [Self-upgrades](installation.md#self-upgrades).

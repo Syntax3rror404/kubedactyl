@@ -30,8 +30,17 @@ const poolsYAML = `
     - {type: cilium.io/IPsTotal, status: Unknown, message: "61"}
     - {type: cilium.io/IPsAvailable, status: Unknown, message: "55"}
     - {type: cilium.io/IPsUsed, status: Unknown, message: "6"}
+- metadata: {name: dual-stack-pool}
+  spec:
+    blocks: [{cidr: 192.0.2.160/27}, {cidr: "2001:db8::/64"}]
+  status:
+    conditions:
+    - {type: cilium.io/IPsTotal, status: Unknown, message: "18446744073709551648"}
+    - {type: cilium.io/IPsAvailable, status: Unknown, message: "18446744073709551647"}
+    - {type: cilium.io/IPsUsed, status: Unknown, message: "1"}
 - metadata: {name: cidr-pool}
   spec:
+    allowFirstLastIPs: "No"
     blocks: [{cidr: 10.10.0.0/28}, {start: 10.20.0.1}]
 - metadata: {name: expr-pool}
   spec:
@@ -75,6 +84,11 @@ func TestParsePool(t *testing.T) {
 	if !g.Contains("192.168.1.60") || !g.Contains("192.168.1.120") || g.Contains("192.168.1.121") ||
 		g.Contains("bogus") {
 		t.Error("range containment wrong")
+	}
+
+	// Cilium counts the addresses of an IPv6 block too: more than an int64 holds.
+	if d := pools["dual-stack-pool"]; d.IPsTotal < 1.8e19 || d.IPsAvailable < 1.8e19 || d.IPsUsed != 1 {
+		t.Errorf("dual-stack-pool usage = %+v", d)
 	}
 
 	c := pools["cidr-pool"]

@@ -800,8 +800,12 @@ definitions:
       image:
         example: ghcr.io/pelican-eggs/yolks:java_21
         type: string
+      ipv6:
+        description: IPv6 also asks for an IPv6 address (dual stack clusters).
+        type: boolean
       loadBalancerIP:
-        description: LoadBalancerIP optionally requests a fixed IP from the pool.
+        description: LoadBalancerIP optionally requests a fixed IP from the pool (one
+          per IP family, separated by a comma).
         example: 192.168.1.70
         type: string
       loadBalancerPool:
@@ -1218,6 +1222,12 @@ definitions:
       error:
         description: Error is set when the pools cannot be read (e.g. Cilium LB IPAM
           is not installed).
+        type: string
+      ipv6Missing:
+        description: |-
+          IPv6Missing says why servers get no IPv6 address even from a pool with an IPv6 block
+          ("" when they can or it is unknown).
+        example: No IPv6 service CIDR · IPv6 off in Cilium
         type: string
       items:
         items:
@@ -1662,7 +1672,13 @@ definitions:
         - Cluster
       image:
         type: string
+      ipv6:
+        description: IPv6 also asks for an IPv6 address (dual stack clusters); admins
+          only.
+        type: boolean
       loadBalancerIP:
+        description: 'LoadBalancerIP fixes the address: one IP, or one per IP family
+          separated by a comma.'
         type: string
       loadBalancerPool:
         description: |-
@@ -2046,13 +2062,22 @@ definitions:
         type: boolean
       disabled:
         type: boolean
+      families:
+        description: |-
+          Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
+          together. Only the pools API and the health check fill them in.
+        items:
+          $ref: '#/definitions/settings.PoolFamily'
+        type: array
       ipsAvailable:
-        type: integer
+        type: number
       ipsTotal:
-        description: IPs as reported by Cilium in the pool status (-1 when unknown).
-        type: integer
+        description: |-
+          IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
+          an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
+        type: number
       ipsUsed:
-        type: integer
+        type: number
       name:
         example: general-pool
         type: string
@@ -2078,6 +2103,25 @@ definitions:
     - name
     - selectable
     - serviceLabels
+    type: object
+  settings.PoolFamily:
+    properties:
+      available:
+        type: number
+      family:
+        enum:
+        - IPv4
+        - IPv6
+        type: string
+      total:
+        type: number
+      used:
+        type: number
+    required:
+    - available
+    - family
+    - total
+    - used
     type: object
   settings.StorageClass:
     properties:
@@ -2706,9 +2750,16 @@ definitions:
           InstallRevision triggers a (re)install whenever it differs from status.installedRevision.
           +kubebuilder:default=1
         type: integer
+      ipv6:
+        description: |-
+          IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
+          server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+          +optional
+        type: boolean
       loadBalancerIP:
         description: |-
-          LoadBalancerIP requests a specific IP from the load balancer pool.
+          LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
+          separated by a comma. The server then gets only these addresses.
           +optional
         type: string
       loadBalancerPool:
@@ -2783,8 +2834,16 @@ definitions:
   v1alpha1.GameServerStatus:
     properties:
       address:
-        description: Address is the external IP assigned by the load balancer.
+        description: Address is the external IP assigned by the load balancer (the
+          first of Addresses).
         type: string
+      addresses:
+        description: |-
+          Addresses are all external IPs assigned by the load balancer (one per IP family).
+          +optional
+        items:
+          type: string
+        type: array
       diskMeasuredAt:
         type: string
       diskUsedBytes:
@@ -4855,8 +4914,9 @@ paths:
       - Settings
   /settings/load-balancer-pools:
     get:
-      description: Cilium LB IPAM pools with their address blocks, usage and the service
-        labels that select them.
+      description: |-
+        Cilium LB IPAM pools with their address blocks, usage (also per IP family) and the service labels
+        that select them.
       produces:
       - application/json
       responses:

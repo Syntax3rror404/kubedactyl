@@ -27,7 +27,7 @@ import { RestartBanner } from "@/features/servers/components/restart-banner"
 import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
 import { RemovingNotice, SuspendedBanner, SuspendedNotice } from "@/features/servers/components/locked-notice"
 import { useAuth } from "@/hooks/use-auth"
-import { isRemoving, phaseOf, serverAddress, serverEggName, serverName } from "@/lib/format"
+import { isRemoving, phaseOf, serverAddresses, serverEggName, serverName } from "@/lib/format"
 import { useEgg, useServer, useSettings } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
@@ -75,7 +75,7 @@ function ServerFrame({ gs }: { gs: GameServer }) {
   const domain = settings.data?.externalDomain
   const { isAdmin } = useAuth()
   const phase = phaseOf(gs)
-  const address = serverAddress(gs, domain)
+  const addresses = serverAddresses(gs, domain)
   const base = `/servers/${name}`
   const current = pathname.slice(base.length).replace(/^\//, "").split("/")[0]
   // Owners of a suspended server only see the notice; admins keep full access. A server being removed is locked
@@ -103,11 +103,13 @@ function ServerFrame({ gs }: { gs: GameServer }) {
               {eggName}
             </Link>
             <span>·</span>
-            {address ? (
-              <span className="inline-flex items-center font-mono text-foreground">
-                {address}
-                <CopyButton value={address} label="Copy address" />
-              </span>
+            {addresses.length ? (
+              addresses.map((address) => (
+                <span key={address} className="inline-flex items-center font-mono text-foreground">
+                  {address}
+                  <CopyButton value={address} label="Copy address" />
+                </span>
+              ))
             ) : (
               <span>waiting for load balancer IP…</span>
             )}

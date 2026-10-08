@@ -10,16 +10,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DefaultCell, type Selection, type SelectionHandlers } from "@/features/settings/components/default-cell"
+import { formatCount, formatPoolSize, poolUsage } from "@/lib/format"
 import type { Pool } from "@/lib/types"
 
 /** All Cilium LB IPAM pools; the checked ones can be selected for servers. */
 export function PoolsCard({
   pools,
+  ipv6Missing,
   loadError,
   fieldError,
   selection,
   ...handlers
-}: { pools?: Pool[]; loadError?: string; fieldError?: string; selection: Selection } & SelectionHandlers) {
+}: {
+  pools?: Pool[]
+  /** Why servers get no IPv6 address even from a pool with an IPv6 block. */
+  ipv6Missing?: string
+  loadError?: string
+  fieldError?: string
+  selection: Selection
+} & SelectionHandlers) {
   return (
     <Card>
       <CardHeader>
@@ -52,7 +61,7 @@ export function PoolsCard({
             </TableHeader>
             <TableBody>
               {pools.map((p) => (
-                <PoolRow key={p.name} pool={p} selection={selection} {...handlers} />
+                <PoolRow key={p.name} pool={p} ipv6Missing={ipv6Missing} selection={selection} {...handlers} />
               ))}
             </TableBody>
           </Table>
@@ -65,12 +74,14 @@ export function PoolsCard({
 
 function PoolRow({
   pool: p,
+  ipv6Missing,
   selection,
   onToggle,
   onDefault,
-}: { pool: Pool; selection: Selection } & SelectionHandlers) {
+}: { pool: Pool; ipv6Missing?: string; selection: Selection } & SelectionHandlers) {
   const on = selection.enabled.includes(p.name)
   const labels = Object.entries(p.serviceLabels ?? {})
+  const usage = poolUsage(p)
   const checkbox = (
     <Checkbox
       checked={on}
@@ -99,6 +110,18 @@ function PoolRow({
           {p.disabled && <Badge variant="outline">disabled</Badge>}
           {p.conflict && <Badge variant="destructive">conflict</Badge>}
         </div>
+        {ipv6Missing && usage.some((u) => u.family === "IPv6") && (
+          <div className="mt-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="border-amber-500/40 text-amber-500">
+                  IPv6 not available in cluster
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>{ipv6Missing}</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
         {p.reason && <p className="mt-0.5 text-xs text-muted-foreground">{p.reason}</p>}
       </TableCell>
       <TableCell className="hidden font-mono text-xs md:table-cell">
@@ -107,12 +130,27 @@ function PoolRow({
         ))}
       </TableCell>
       <TableCell>
-        {p.ipsTotal >= 0 ? (
-          <div className="space-y-1">
-            <div className="font-mono text-xs tabular-nums">
-              {p.ipsAvailable} <span className="text-muted-foreground">/ {p.ipsTotal}</span>
-            </div>
-            <UsageBar value={p.ipsUsed} max={p.ipsTotal} />
+        {usage.length ? (
+          <div className="space-y-2">
+            {usage.map((u) => (
+              <div key={u.family ?? "all"} className="space-y-1">
+                <div className="font-mono text-xs tabular-nums">
+                  {u.family && <span className="text-muted-foreground">{u.family} </span>}
+                  {u.family === "IPv6" ? (
+                    <>
+                      {formatCount(u.used)}{" "}
+                      <span className="text-muted-foreground">used of {formatPoolSize(u.total)}</span>
+                    </>
+                  ) : (
+                    <>
+                      {formatCount(u.available)} <span className="text-muted-foreground">/ {formatCount(u.total)}</span>
+                    </>
+                  )}
+                </div>
+                {/* An IPv6 block never runs out: its bar would always be empty. */}
+                {u.family !== "IPv6" && <UsageBar value={u.used} max={u.total} />}
+              </div>
+            ))}
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">unknown</span>

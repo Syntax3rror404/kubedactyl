@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/netip"
+	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,11 +29,18 @@ type Pool struct {
 	// Selectable is false when the pool cannot be targeted by service labels.
 	Selectable bool   `json:"selectable"`
 	Reason     string `json:"reason,omitempty"`
-	// IPs as reported by Cilium in the pool status (-1 when unknown).
-	IPsTotal     int64 `json:"ipsTotal"`
-	IPsAvailable int64 `json:"ipsAvailable"`
-	IPsUsed      int64 `json:"ipsUsed"`
-	Conflict     bool  `json:"conflict"`
+	// IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
+	// an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
+	IPsTotal     float64 `json:"ipsTotal"`
+	IPsAvailable float64 `json:"ipsAvailable"`
+	IPsUsed      float64 `json:"ipsUsed"`
+	Conflict     bool    `json:"conflict"`
+	// Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
+	// together. Only the pools API and the health check fill them in.
+	Families []PoolFamily `json:"families,omitempty"`
+
+	ranges           []addrRange
+	reserveFirstLast bool
 }
 
 // ErrNoCilium is returned when the cluster has no CiliumLoadBalancerIPPool resource.
@@ -81,27 +89,15 @@ func GetPool(ctx context.Context, r client.Reader, name string) (Pool, error) {
 func parsePool(u *unstructured.Unstructured) Pool {
 	p := Pool{
 		Name:          u.GetName(),
-		Blocks:        []string{},
 		ServiceLabels: map[string]string{},
 		IPsTotal:      -1,
 		IPsAvailable:  -1,
 		IPsUsed:       -1,
 	}
 	p.Disabled, _, _ = unstructured.NestedBool(u.Object, "spec", "disabled")
-	blocks, _, _ := unstructured.NestedSlice(u.Object, "spec", "blocks")
-	for _, b := range blocks {
-		m, _ := b.(map[string]any)
-		if cidr, _ := m["cidr"].(string); cidr != "" {
-			p.Blocks = append(p.Blocks, cidr)
-		} else if start, _ := m["start"].(string); start != "" {
-			stop, _ := m["stop"].(string)
-			if stop == "" || stop == start {
-				p.Blocks = append(p.Blocks, start)
-			} else {
-				p.Blocks = append(p.Blocks, start+"-"+stop)
-			}
-		}
-	}
+	allowFirstLast, _, _ := unstructured.NestedString(u.Object, "spec", "allowFirstLastIPs")
+	p.reserveFirstLast = allowFirstLast == "No"
+	p.Blocks, p.ranges = parseBlocks(u)
 
 	p.Selectable = true
 	sel, hasSel, _ := unstructured.NestedMap(u.Object, "spec", "serviceSelector")
@@ -127,14 +123,13 @@ func parsePool(u *unstructured.Unstructured) Pool {
 	for _, c := range conds {
 		m, _ := c.(map[string]any)
 		msg, _ := m["message"].(string)
-		n, err := strconv.ParseInt(msg, 10, 64)
 		switch m["type"] {
 		case "cilium.io/IPsTotal":
-			p.IPsTotal = valueOr(n, err)
+			p.IPsTotal = count(msg)
 		case "cilium.io/IPsAvailable":
-			p.IPsAvailable = valueOr(n, err)
+			p.IPsAvailable = count(msg)
 		case "cilium.io/IPsUsed":
-			p.IPsUsed = valueOr(n, err)
+			p.IPsUsed = count(msg)
 		case "cilium.io/PoolConflict":
 			p.Conflict = m["status"] == "True"
 		}
@@ -142,37 +137,47 @@ func parsePool(u *unstructured.Unstructured) Pool {
 	return p
 }
 
-func valueOr(n int64, err error) int64 {
-	if err != nil {
+// parseBlocks returns the blocks as shown ("10.0.0.0/24", "10.0.0.10-10.0.0.20") and their ranges.
+func parseBlocks(u *unstructured.Unstructured) ([]string, []addrRange) {
+	shown := []string{}
+	var ranges []addrRange
+	blocks, _, _ := unstructured.NestedSlice(u.Object, "spec", "blocks")
+	for _, b := range blocks {
+		m, _ := b.(map[string]any)
+		cidr, _ := m["cidr"].(string)
+		start, _ := m["start"].(string)
+		stop, _ := m["stop"].(string)
+		switch {
+		case cidr == "" && start == "":
+			continue
+		case cidr != "":
+			shown = append(shown, cidr)
+		case stop == "" || stop == start:
+			shown = append(shown, start)
+		default:
+			shown = append(shown, start+"-"+stop)
+		}
+		if r, ok := parseRange(cidr, start, stop); ok {
+			ranges = append(ranges, r)
+		}
+	}
+	return shown, ranges
+}
+
+// count reads an address count of the pool status (-1 when it is not a number). Cilium writes
+// arbitrarily large integers (big.Int), so it is parsed as a big.Int and rounded to a float64.
+func count(msg string) float64 {
+	n, ok := new(big.Int).SetString(msg, 10)
+	if !ok {
 		return -1
 	}
-	return n
+	return toFloat(n)
 }
 
 // Contains reports whether the IP is inside one of the pool's blocks.
 func (p Pool) Contains(ip string) bool {
 	addr, err := netip.ParseAddr(ip)
-	if err != nil {
-		return false
-	}
-	for _, b := range p.Blocks {
-		if prefix, err := netip.ParsePrefix(b); err == nil {
-			if prefix.Contains(addr) {
-				return true
-			}
-			continue
-		}
-		start, stop, found := strings.Cut(b, "-")
-		if !found {
-			stop = start
-		}
-		lo, err1 := netip.ParseAddr(start)
-		hi, err2 := netip.ParseAddr(stop)
-		if err1 == nil && err2 == nil && lo.Compare(addr) <= 0 && addr.Compare(hi) <= 0 {
-			return true
-		}
-	}
-	return false
+	return err == nil && slices.ContainsFunc(p.ranges, func(r addrRange) bool { return r.contains(addr) })
 }
 
 // PoolResolver resolves pool names to service labels for the controller. Results are

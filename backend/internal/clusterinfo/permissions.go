@@ -81,6 +81,11 @@ func (s *Service) permissionChecks() []permissionCheck {
 		{label: "Read node metrics", verb: "list", group: "metrics.k8s.io", resource: "nodes"},
 		{label: "List storage classes", verb: "list", group: "storage.k8s.io", resource: "storageclasses"},
 		{label: "List load balancer pools", verb: "list", group: "cilium.io", resource: "ciliumloadbalancerippools"},
+		// The free addresses of a pool count the load balancer IPs of every service in the cluster.
+		{label: "List services", verb: "list", resource: "services"},
+		// Whether servers can get IPv6 addresses.
+		{label: "List service CIDRs", verb: "list", group: "networking.k8s.io", resource: "servicecidrs"},
+		{label: "Read the Cilium config", verb: "get", resource: "configmaps", name: settings.CiliumConfig.Name},
 		{label: "Manage secrets", verb: "create", resource: "secrets", scope: "panel"},
 		{label: "Store the OIDC client secret", verb: "patch", resource: "secrets", name: settings.OIDCSecret,
 			scope: "panel"},

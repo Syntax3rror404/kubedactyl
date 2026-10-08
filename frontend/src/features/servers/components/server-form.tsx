@@ -9,7 +9,12 @@ import { EggOption } from "@/features/eggs/components/egg-option"
 import { CreateSummary } from "@/features/servers/components/create-summary"
 import { FormSection } from "@/features/servers/components/form-section"
 import { OwnerSelect } from "@/features/servers/components/owner-select"
-import { PlacementSelect, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
+import {
+  IPv6Field,
+  PlacementSelect,
+  PoolField,
+  TrafficPolicyField,
+} from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
 import { ResourceSliders } from "@/features/servers/components/resource-sliders"
 import { StartupCommandField } from "@/features/servers/components/startup-command-field"
@@ -123,11 +128,7 @@ export function ServerForm({
           </FieldGroup>
         </FormSection>
 
-        <FormSection
-          step={3}
-          title="Resources"
-          description="Memory is exposed as SERVER_MEMORY; the container limit adds a small overhead for the runtime."
-        >
+        <FormSection step={3} title="Resources" description="Memory is exposed as SERVER_MEMORY.">
           <ResourceSliders
             memory={f.memory}
             onMemoryChange={(v) => shared.set("memory", v)}
@@ -183,9 +184,17 @@ export function ServerForm({
                 placeholder="assigned automatically"
                 className="font-mono"
               />
-              <FieldDescription>Must be a free address of the selected pool.</FieldDescription>
+              <FieldDescription>
+                Free addresses of the selected pool, one per IP family separated by a comma.
+              </FieldDescription>
             </Field>
             <TrafficPolicyField value={f.trafficPolicy} onChange={(v) => shared.set("trafficPolicy", v)} />
+            <IPv6Field
+              checked={f.ipv6}
+              fixedIPs={f.lbIP}
+              unavailable={pools.data?.ipv6Missing}
+              onChange={(ipv6, lbIP) => shared.setDraft((d) => ({ ...d, ipv6, lbIP }))}
+            />
           </FieldGroup>
         </FormSection>
 
@@ -233,6 +242,7 @@ export function ServerForm({
               loadBalancerPool: pool || undefined,
               loadBalancerIP: f.lbIP.trim() || undefined,
               externalTrafficPolicy: f.trafficPolicy,
+              ipv6: f.ipv6 || undefined,
               owner: f.owner,
               startOnCompletion: f.start,
             })

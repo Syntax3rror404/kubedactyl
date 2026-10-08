@@ -1,11 +1,13 @@
 package serverctl
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -116,7 +118,8 @@ func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1al
 	}
 	moved.Labels[tenancy.LabelOwner] = owner
 	if moved.Spec.LoadBalancerIP == "" {
-		moved.Spec.LoadBalancerIP = gs.Status.Address
+		// All addresses: fixing only one would cost the server its IPv6 address.
+		moved.Spec.LoadBalancerIP = cmp.Or(strings.Join(gs.Status.Addresses, ","), gs.Status.Address)
 	}
 	return moved
 }

@@ -129,6 +129,7 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
 
       <PoolsCard
         pools={pools.data?.items}
+        ipv6Missing={pools.data?.ipv6Missing}
         loadError={pools.data?.error ?? pools.error?.message}
         fieldError={errors.loadBalancerPools}
         selection={pool}

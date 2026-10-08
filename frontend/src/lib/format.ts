@@ -1,6 +1,6 @@
 // Formatting helpers for the UI (sizes, CPU, durations, relative times, names, roles and phases).
 
-import type { Egg, GameServer, Phase, Role, UserView } from "@/lib/types"
+import type { Egg, GameServer, Phase, Pool, Role, UserView } from "@/lib/types"
 
 export function formatBytes(bytes: number | null | undefined, digits = 1): string {
   if (bytes == null) return "-"
@@ -64,10 +64,20 @@ export function serverEggName(gs: GameServer, egg?: Egg): string {
 }
 
 /** Address players connect to: the external domain (when configured) or the load balancer IP. */
+/** "host:port"; IPv6 addresses in brackets ("[2001:db8::5]:25565"). */
+function hostPort(host: string, port: number): string {
+  return host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`
+}
+
+/** Every address of a server: the external domain, or each load balancer IP (one per IP family). */
+export function serverAddresses(gs: GameServer, externalDomain?: string): string[] {
+  const ips = gs.status?.addresses?.length ? gs.status.addresses : [gs.status?.address ?? ""].filter(Boolean)
+  if (!ips.length) return []
+  return (externalDomain ? [externalDomain] : ips).map((host) => hostPort(host, gs.spec.ports[0]))
+}
+
 export function serverAddress(gs: GameServer, externalDomain?: string): string | null {
-  const ip = gs.status?.address
-  if (!ip) return null
-  return `${externalDomain || ip}:${gs.spec.ports[0]}`
+  return serverAddresses(gs, externalDomain)[0] ?? null
 }
 
 export function phaseOf(gs?: GameServer): Phase {
@@ -84,6 +94,32 @@ export const activePhases: Phase[] = ["Starting", "Running", "Stopping"]
 
 /** Phases in which the server can be started (no game process, files can be restored). */
 export const stoppedPhases: Phase[] = ["Offline", "InstallFailed"]
+
+/** Large counts in short form (IPv6 pools hold 2^64 addresses: "1.8e19"). */
+export function formatCount(n: number): string {
+  return n < 1e9 ? `${n}` : n.toExponential(1).replace("e+", "e")
+}
+
+/** Size of an address block: a power of two for large ones ("2^64"), else the count. */
+export function formatPoolSize(n: number): string {
+  const bits = Math.log2(n)
+  return n >= 2 ** 20 && Number.isInteger(bits) ? `2^${bits}` : formatCount(n)
+}
+
+/** Address usage of a pool per IP family; one row without family when only Cilium's total is known. */
+export function poolUsage(p: Pool): { family?: string; total: number; available: number; used: number }[] {
+  if (p.families?.length) return p.families
+  return p.ipsTotal >= 0 ? [{ total: p.ipsTotal, available: p.ipsAvailable, used: p.ipsUsed }] : []
+}
+
+/** "IPv4 63 of 64 free"; IPv6 counts the used addresses ("IPv6 1 used of 2^64"): a block never runs out. */
+export function formatPoolUsage(u: ReturnType<typeof poolUsage>[number]): string {
+  const text =
+    u.family === "IPv6"
+      ? `${formatCount(u.used)} used of ${formatPoolSize(u.total)}`
+      : `${formatCount(u.available)} of ${formatCount(u.total)} free`
+  return u.family ? `${u.family} ${text}` : text
+}
 
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`

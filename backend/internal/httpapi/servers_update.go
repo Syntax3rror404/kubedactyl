@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net"
 	"net/http"
+	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -34,11 +35,14 @@ type UpdateServerRequest struct {
 	// LoadBalancerPool moves the server to another enabled pool (its address changes).
 	// Users may change it; a fixed IP is cleared unless a new one is given.
 	LoadBalancerPool *string `json:"loadBalancerPool,omitempty"`
-	LoadBalancerIP   *string `json:"loadBalancerIP,omitempty"`
+	// LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma.
+	LoadBalancerIP *string `json:"loadBalancerIP,omitempty"`
 	// ExternalTrafficPolicy of the service; admins only.
 	ExternalTrafficPolicy *v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
-	CrashRestart          *bool                   `json:"crashRestart,omitempty"`
-	StopTimeoutSeconds    *int64                  `json:"stopTimeoutSeconds,omitempty"`
+	// IPv6 also asks for an IPv6 address (dual stack clusters); admins only.
+	IPv6               *bool  `json:"ipv6,omitempty"`
+	CrashRestart       *bool  `json:"crashRestart,omitempty"`
+	StopTimeoutSeconds *int64 `json:"stopTimeoutSeconds,omitempty"`
 }
 
 // updateServer godoc
@@ -199,6 +203,9 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 	if req.ExternalTrafficPolicy != nil {
 		s.ExternalTrafficPolicy = *req.ExternalTrafficPolicy
 	}
+	if req.IPv6 != nil {
+		s.IPv6 = *req.IPv6
+	}
 	if req.LoadBalancerIP != nil || req.LoadBalancerPool != nil {
 		if err := a.checkPoolIP(ctx, s.LoadBalancerPool, s.LoadBalancerIP); err != nil {
 			return err
@@ -207,13 +214,22 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 	return nil
 }
 
-// checkPoolIP verifies that a fixed IP is valid and inside the pool.
-func (a *API) checkPoolIP(ctx context.Context, pool, ip string) error {
-	if ip == "" {
+// checkPoolIP verifies that the fixed IPs (one per IP family, separated by a comma) are valid
+// and inside the pool.
+func (a *API) checkPoolIP(ctx context.Context, pool, ips string) error {
+	if ips == "" {
 		return nil
 	}
-	if net.ParseIP(ip) == nil {
-		return validation.Field("loadBalancerIP", errors.New("invalid load balancer IP"))
+	var addrs []netip.Addr
+	for ip := range strings.SplitSeq(ips, ",") {
+		addr, err := netip.ParseAddr(strings.TrimSpace(ip))
+		if err != nil {
+			return validation.Field("loadBalancerIP", errors.New("invalid load balancer IP"))
+		}
+		if slices.ContainsFunc(addrs, func(b netip.Addr) bool { return b.Is4() == addr.Is4() }) {
+			return validation.Field("loadBalancerIP", errors.New("give at most one IP per IP family"))
+		}
+		addrs = append(addrs, addr)
 	}
 	if pool == "" {
 		return nil
@@ -222,9 +238,11 @@ func (a *API) checkPoolIP(ctx context.Context, pool, ip string) error {
 	if err != nil {
 		return err
 	}
-	if !p.Contains(ip) {
-		err := fmt.Errorf("%s is not in pool %s (%s)", ip, pool, strings.Join(p.Blocks, ", "))
-		return validation.Field("loadBalancerIP", err)
+	for _, addr := range addrs {
+		if !p.Contains(addr.String()) {
+			err := fmt.Errorf("%s is not in pool %s (%s)", addr, pool, strings.Join(p.Blocks, ", "))
+			return validation.Field("loadBalancerIP", err)
+		}
 	}
 	return nil
 }

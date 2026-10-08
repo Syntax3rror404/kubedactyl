@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
+import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
 import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
 import { serverAddress } from "@/lib/format"
@@ -9,8 +9,8 @@ import { usePools, useSettings } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
 /**
- * Settings page: the load balancer pool; administrators also set the ports, a fixed IP and the
- * traffic policy. Users only see it when pools are configured.
+ * Settings page: the load balancer pool; administrators also set the ports, fixed IPs, the
+ * traffic policy and IPv6. Users only see it when pools are configured.
  */
 export function NetworkCard({
   server,
@@ -27,7 +27,7 @@ export function NetworkCard({
 }) {
   const settings = useSettings().data
   const pools = usePools(isAdmin)
-  const address = server.status?.address
+  const address = (server.status?.addresses ?? [server.status?.address]).filter(Boolean).join(", ") || undefined
   const saved = server.spec.loadBalancerPool ?? ""
   if (!isAdmin && !settings?.loadBalancerPools?.length) return null
   const poolField = (
@@ -81,6 +81,13 @@ export function NetworkCard({
               {errors.loadBalancerIP && <FieldError>{errors.loadBalancerIP}</FieldError>}
             </Field>
             <TrafficPolicyField value={draft.trafficPolicy} onChange={(trafficPolicy) => onChange({ trafficPolicy })} />
+            <IPv6Field
+              checked={draft.ipv6}
+              fixedIPs={draft.lbIP}
+              addresses={server.spec.ipv6 ? server.status?.addresses : undefined}
+              unavailable={pools.data?.ipv6Missing}
+              onChange={(ipv6, lbIP) => onChange({ ipv6, lbIP })}
+            />
           </FieldGroup>
         ) : (
           <FieldGroup>{poolField}</FieldGroup>

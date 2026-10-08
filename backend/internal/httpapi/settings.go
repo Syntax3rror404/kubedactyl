@@ -26,6 +26,9 @@ type PoolList struct {
 	Items []settings.Pool `json:"items"`
 	// Error is set when the pools cannot be read (e.g. Cilium LB IPAM is not installed).
 	Error string `json:"error,omitempty"`
+	// IPv6Missing says why servers get no IPv6 address even from a pool with an IPv6 block
+	// ("" when they can or it is unknown).
+	IPv6Missing string `json:"ipv6Missing,omitempty" example:"No IPv6 service CIDR · IPv6 off in Cilium"`
 }
 
 // RequestRates are the requests per second of the signed-in user and, for administrators, the
@@ -160,14 +163,15 @@ func (a *API) listStorageClasses(c *gin.Context) {
 // listLoadBalancerPools godoc
 //
 //	@Summary		Load balancer IP pools of the cluster
-//	@Description	Cilium LB IPAM pools with their address blocks, usage and the service labels that select them.
+//	@Description	Cilium LB IPAM pools with their address blocks, usage (also per IP family) and the service labels
+//	@Description	that select them.
 //	@Tags			Settings
 //	@Produce		json
 //	@Success		200	{object}	PoolList
 //	@Security		BearerAuth
 //	@Router			/settings/load-balancer-pools [get]
 func (a *API) listLoadBalancerPools(c *gin.Context) {
-	pools, err := settings.ListPools(c, a.Reader)
+	pools, err := settings.ListPoolsWithUsage(c, a.Reader)
 	if errors.Is(err, settings.ErrNoCilium) {
 		c.JSON(http.StatusOK, PoolList{Items: []settings.Pool{}, Error: err.Error()})
 		return
@@ -176,7 +180,7 @@ func (a *API) listLoadBalancerPools(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PoolList{Items: pools})
+	c.JSON(http.StatusOK, PoolList{Items: pools, IPv6Missing: settings.IPv6Missing(c, a.Reader)})
 }
 
 // LegalTexts are the imprint and privacy policy shown in the footer of every page.

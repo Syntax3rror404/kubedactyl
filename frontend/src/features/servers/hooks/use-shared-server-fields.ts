@@ -14,6 +14,7 @@ export function useSharedServerFields() {
     ports: [] as number[],
     lbIP: "",
     trafficPolicy: "Local" as TrafficPolicy,
+    ipv6: false,
     // Empty means the default of the panel settings.
     storageClass: "",
     pool: "",
