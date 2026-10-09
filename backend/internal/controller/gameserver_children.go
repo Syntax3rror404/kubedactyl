@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -18,6 +19,8 @@ import (
 	"app/internal/kube"
 )
 
+// ensurePVC creates the data volume claim or grows it and records its storage class (a different
+// class in the spec starts a storage migration).
 func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) error {
 	want := gameserver.PVC(gs, r.Opts)
 	cur := &corev1.PersistentVolumeClaim{}
@@ -27,11 +30,13 @@ func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) err
 		if err := controllerutil.SetControllerReference(gs, want, r.Scheme()); err != nil {
 			return err
 		}
+		gs.Status.StorageClass = ptr.Deref(want.Spec.StorageClassName, "")
 		return client.IgnoreAlreadyExists(r.Create(ctx, want))
 	}
 	if err != nil {
 		return err
 	}
+	gs.Status.StorageClass = ptr.Deref(cur.Spec.StorageClassName, "")
 	// Longhorn volumes can be expanded online, never shrunk.
 	wantSize := want.Spec.Resources.Requests[corev1.ResourceStorage]
 	curSize := cur.Spec.Resources.Requests[corev1.ResourceStorage]

@@ -182,6 +182,51 @@ func TestInstallPod(t *testing.T) {
 	}
 }
 
+func TestMigrating(t *testing.T) {
+	gs, _ := testServer()
+	for _, c := range []struct {
+		spec, status string
+		want         bool
+	}{{"b", "a", true}, {"a", "a", false}, {"b", "", false}, {"", "a", false}} {
+		gs.Spec.StorageClass, gs.Status.StorageClass = c.spec, c.status
+		if Migrating(gs) != c.want {
+			t.Errorf("spec %q, status %q: migrating = %v", c.spec, c.status, !c.want)
+		}
+	}
+}
+
+func TestMigrateLog(t *testing.T) {
+	done, total, problem := MigrateLog("progress 0 250\nprogress 100 250\nprogress 200 250\n")
+	if done != 200 || total != 250 || problem != "" {
+		t.Errorf("running: %d of %d, %q", done, total, problem)
+	}
+	_, _, problem = MigrateLog("progress 250 250\nverified 250 5000905\n")
+	if problem != "" {
+		t.Errorf("verified copy reports %q", problem)
+	}
+	_, _, problem = MigrateLog("progress 0 250\ntar: can't change directory to '/to': No such file\nprogress 100 250\n")
+	if problem != "tar: can't change directory to '/to': No such file" {
+		t.Errorf("problem = %q", problem)
+	}
+}
+
+func TestMigratePod(t *testing.T) {
+	gs, _ := testServer()
+	pod := MigratePod(gs, Options{})
+	c := pod.Spec.Containers[0]
+	if !c.VolumeMounts[0].ReadOnly || pod.Spec.Volumes[1].PersistentVolumeClaim.ClaimName != "survival-abcde-migrate" {
+		t.Errorf("the copy reads the data volume read-only into the new claim: %+v %+v",
+			c.VolumeMounts, pod.Spec.Volumes)
+	}
+	if caps := c.SecurityContext.Capabilities; caps == nil || len(caps.Drop) != 1 || caps.Drop[0] != "ALL" {
+		t.Errorf("migrate pod must drop all capabilities first: %+v", caps)
+	}
+	gs.Spec.StorageClass = "fast"
+	if claim := MigrateClaim(gs, Options{}); *claim.Spec.StorageClassName != "fast" || claim.Spec.VolumeName != "" {
+		t.Errorf("claim: %+v", claim.Spec)
+	}
+}
+
 func TestMemoryOverhead(t *testing.T) {
 	for in, want := range map[int64]int64{1024: 1177, 2048: 2355, 4096: 4505, 8192: 8601} {
 		if got := memoryLimitMiB(in); got != want {
@@ -196,6 +241,7 @@ func TestVolumeAffinity(t *testing.T) {
 		"game":    GamePod(gs, e, Options{}),
 		"install": InstallPod(gs, e, Options{}),
 		"files":   FilesPod(gs, Options{}),
+		"migrate": MigratePod(gs, Options{}),
 	} {
 		if pod.Labels[LabelVolume] != gs.Name {
 			t.Errorf("%s pod lacks the volume label: %v", role, pod.Labels)

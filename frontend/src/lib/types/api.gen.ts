@@ -629,6 +629,16 @@ export interface HttpapiLoginResponse {
   user: HttpapiUserView;
 }
 
+export interface HttpapiMigrateRequest {
+  /**
+   * StartOnCompletion starts the server once the migration has ended.
+   * @example true
+   */
+  startOnCompletion?: boolean;
+  /** @example "longhorn" */
+  storageClass: string;
+}
+
 export interface HttpapiModuleVersion {
   /** @example "Gin" */
   name: string;
@@ -1546,9 +1556,9 @@ export interface V1Alpha1GameServerSpec {
    */
   stopTimeoutSeconds?: number;
   /**
-   * StorageClass of the data volume; it cannot be changed once the volume exists.
+   * StorageClass of the data volume. Changing it moves the server files to a new volume of that
+   * class (status.migration); the server stays stopped meanwhile.
    * +optional
-   * +kubebuilder:validation:XValidation:rule="self == oldSelf",message="storageClass cannot be changed"
    */
   storageClass?: string;
   /**
@@ -1570,10 +1580,6 @@ export interface V1Alpha1GameServerStatus {
    */
   addresses?: string[];
   diskMeasuredAt?: string;
-  /**
-   * DiskUsedBytes is the last measured size of the server files; the files pod that
-   * measures it only runs on demand.
-   */
   diskUsedBytes?: number;
   /** InstallExitCode is the exit code of the last install script run. */
   installExitCode?: number;
@@ -1584,6 +1590,11 @@ export interface V1Alpha1GameServerStatus {
   /** LastExitCode is the exit code of the last terminated game process. */
   lastExitCode?: number;
   message?: string;
+  /**
+   * Migration is the running or last failed storage migration.
+   * +optional
+   */
+  migration?: V1Alpha1StorageMigration;
   observedGeneration?: number;
   phase?: V1Alpha1Phase;
   /** PodUID identifies the current game pod. */
@@ -1610,6 +1621,13 @@ export interface V1Alpha1GameServerStatus {
    * +optional
    */
   stopTasksStartedAt?: string;
+  /**
+   * DiskUsedBytes is the last measured size of the server files; the files pod that
+   * measures it only runs on demand.
+   * StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+   * +optional
+   */
+  storageClass?: string;
 }
 
 export interface V1Alpha1InstallScript {
@@ -1776,6 +1794,38 @@ export type V1Alpha1ServiceType = "LoadBalancer" | "ClusterIP";
 export interface V1Alpha1StartupCommand {
   command: string;
   name: string;
+}
+
+export interface V1Alpha1StorageMigration {
+  /**
+   * Done of Total files copied.
+   * +optional
+   */
+  done?: number;
+  /**
+   * Error tells why a failed migration stopped; the server stays on its volume.
+   * +optional
+   */
+  error?: string;
+  /** From is the storage class the server moves away from, To the one it moves to. */
+  from: string;
+  /** +optional */
+  previousVolume?: string;
+  startedAt: string;
+  /**
+   * Step is Preparing (stopping the server, creating the new volume), Copying, Switching (binding
+   * the server to the new volume) or Failed.
+   * +kubebuilder:validation:Enum=Preparing;Copying;Switching;Failed
+   */
+  step: "Preparing" | "Copying" | "Switching" | "Failed";
+  to: string;
+  /** +optional */
+  total?: number;
+  /**
+   * Volume is the new persistent volume, PreviousVolume the old one (both set when switching).
+   * +optional
+   */
+  volume?: string;
 }
 
 export type V1Alpha1TrafficPolicy = "Local" | "Cluster";

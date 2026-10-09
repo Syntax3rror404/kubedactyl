@@ -1,5 +1,6 @@
 import { XIcon } from "lucide-react"
 
+import { ProgressStripe } from "@/components/common/callout"
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { JobStateIcon } from "@/components/common/job-state-icon"
 import { ProgressBar } from "@/components/common/progress-bar"
@@ -75,6 +76,7 @@ function JobRow({ server, job: j }: { server: string; job: ServerJob }) {
   const t = p && transfer(p)
   return (
     <li className="relative space-y-2 overflow-hidden px-4 py-3">
+      {j.state === "running" && <ProgressStripe />}
       <div className="flex items-center gap-2">
         <JobStateIcon state={j.state} />
         <span className="min-w-0 flex-1 truncate">

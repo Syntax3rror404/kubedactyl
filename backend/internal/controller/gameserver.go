@@ -202,6 +202,9 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 	if err := r.ensureService(ctx, gs); err != nil {
 		return reconcile.Result{}, fmt.Errorf("service: %w", err)
 	}
+	if res, busy, err := r.reconcileMigration(ctx, gs); busy {
+		return res, err
+	}
 	// The files pod is created on demand: for the file manager and the pre-start steps.
 	if r.Files.Active(files.RefOf(gs)) {
 		if _, err := r.ensureFilesPod(ctx, gs); err != nil {
@@ -233,28 +236,33 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 	return result, err
 }
 
-// finalize releases the data volume: the "longhorn" storage class retains volumes,
-// so the reclaim policy is switched to Delete before the claim goes away, unless the
-// server was transferred to another owner, which keeps using the volume.
+// finalize releases the volumes of the server: the "longhorn" storage class retains volumes,
+// so the reclaim policy is switched to Delete before the claims go away, unless the server was
+// transferred to another owner, which keeps using the volume. A storage migration can hold a
+// second claim and, while it switches, two released volumes.
 func (r *Reconciler) finalize(ctx context.Context, gs *v1alpha1.GameServer) (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(gs, gameserver.Finalizer) {
 		return reconcile.Result{}, nil
 	}
 	r.Hub.Remove(gs.Name)
-	pvc := &corev1.PersistentVolumeClaim{}
-	err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.PVCName(gs.Name)}, pvc)
-	if err == nil && pvc.Spec.VolumeName != "" && gs.Annotations[gameserver.AnnotationKeepVolume] == "" {
-		pv := &corev1.PersistentVolume{}
-		if err := r.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, pv); err == nil &&
-			pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
-			patch := client.MergeFrom(pv.DeepCopy())
-			pv.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimDelete
-			if err := r.Patch(ctx, pv, patch); err != nil {
+	if gs.Annotations[gameserver.AnnotationKeepVolume] == "" {
+		var volumes []string
+		if m := gs.Status.Migration; m != nil {
+			volumes = append(volumes, m.Volume, m.PreviousVolume)
+		}
+		for _, name := range []string{gameserver.PVCName(gs.Name), gameserver.MigrateName(gs.Name)} {
+			pvc := &corev1.PersistentVolumeClaim{}
+			err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: name}, pvc)
+			if client.IgnoreNotFound(err) != nil {
+				return reconcile.Result{}, err
+			}
+			volumes = append(volumes, pvc.Spec.VolumeName)
+		}
+		for _, pv := range volumes {
+			if err := r.reclaim(ctx, pv, corev1.PersistentVolumeReclaimDelete); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
-	} else if client.IgnoreNotFound(err) != nil {
-		return reconcile.Result{}, err
 	}
 	controllerutil.RemoveFinalizer(gs, gameserver.Finalizer)
 	return reconcile.Result{}, r.Update(ctx, gs)

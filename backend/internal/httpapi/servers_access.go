@@ -154,7 +154,7 @@ func checkUserUpdate(req *UpdateServerRequest, gs *v1alpha1.GameServer, e *v1alp
 }
 
 // notLocked blocks everything but viewing for everyone while a server is being removed (its finalizer still
-// runs) and for the owners of a suspended server.
+// runs) or its files move to another storage class, and for the owners of a suspended server.
 func (a *API) notLocked(c *gin.Context) {
 	gs, ok := a.loadServer(c)
 	if !ok {
@@ -162,6 +162,10 @@ func (a *API) notLocked(c *gin.Context) {
 	}
 	if gs.DeletionTimestamp != nil {
 		a.fail(c, serverctl.ErrRemoving)
+		return
+	}
+	if gameserver.Migrating(gs) {
+		a.fail(c, serverctl.ErrMigrating)
 		return
 	}
 	if gs.Spec.Suspended && !principal(c).Admin() {

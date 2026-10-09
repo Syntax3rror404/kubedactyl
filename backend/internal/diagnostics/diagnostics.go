@@ -84,6 +84,8 @@ func state(gs *v1alpha1.GameServer) checks.Check {
 	switch {
 	case gs.Spec.Suspended:
 		return checks.New(id, label, checks.Error, "The server is suspended by an administrator.")
+	case gameserver.Migrating(gs):
+		return checks.New(id, label, checks.Error, "The server files are moving to another storage class.")
 	case gs.Status.Phase == v1alpha1.PhaseRunning:
 		return checks.New(id, label, checks.OK, "The server is running.")
 	case gs.Status.Phase == v1alpha1.PhaseStarting:

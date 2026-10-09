@@ -99,6 +99,13 @@ export function phaseOf(gs?: GameServer): Phase {
   return gs?.status?.phase ?? "Pending"
 }
 
+/** The server files move to a volume of another storage class; the server is locked until they have. */
+export function isMigrating(gs: GameServer): boolean {
+  const { storageClass } = gs.spec
+  const current = gs.status?.storageClass
+  return !!storageClass && !!current && storageClass !== current
+}
+
 /** A deleted server stays until its finalizer has released the volume; nothing can be done with it anymore. */
 export function isRemoving(gs: GameServer): boolean {
   return !!gs.metadata.deletionTimestamp

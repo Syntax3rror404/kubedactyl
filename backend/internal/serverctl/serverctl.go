@@ -51,6 +51,9 @@ func (o *Ops) Power(ctx context.Context, gs *v1alpha1.GameServer, signal string)
 		if gs.Spec.Suspended {
 			return ErrSuspended
 		}
+		if gameserver.Migrating(gs) {
+			return ErrMigrating
+		}
 		if o.Files != nil && o.Files.Busy(files.RefOf(gs), files.JobRestore) {
 			return files.ErrRestoring
 		}

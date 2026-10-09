@@ -263,7 +263,7 @@ tests enforce the ones marked (enforced).
   need lives in `components/common`, `components/layout`, `hooks/` and `lib/`.
 - **Names**: one word per action on every layer: `list`, `get`, `create`, `update`, `delete`, plus the
   domain verbs `pull` (the server fetches a URL; "download" is only the browser download), `decompress`,
-  `probe`, `transfer` (a server moves to another owner), and the actions that are not data changes: `send`
+  `probe`, `transfer` (a server moves to another owner), `migrate` (a server moves to another storage class), and the actions that are not data changes: `send`
   (power, command), `run`, `reinstall`, `suspend`, `rename`, `upload`, `compress`, `open` (console, file
   session), `read`/`write` (file contents), `restore`, `import`/`export`, `start` (upgrade job), `accept` (an invite creates an account), `renew` (an invite gets a new link). Go handlers are `<verb><Thing>` (`getServerStats`, `listClusterNodes`), api methods
   `api.<area>.<verb>…` (`api.servers.getStats`), query hooks `use<Thing>` (`useServerStats`), mutation hooks

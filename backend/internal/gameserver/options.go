@@ -29,6 +29,7 @@ const (
 	RoleGame    = "game"
 	RoleInstall = "install"
 	RoleFiles   = "files"
+	RoleMigrate = "migrate"
 
 	AnnotationInstallRevision = "kubedactyl.io/install-revision"
 	// AnnotationRestart requests a restart of a running server.
@@ -112,3 +113,6 @@ func GamePodName(server string) string       { return server + "-game" }
 func InstallPodName(server string) string    { return server + "-install" }
 func FilesPodName(server string) string      { return server + "-files" }
 func InstallConfigName(server string) string { return server + "-install" }
+
+// MigrateName names the pod and the new claim of a storage migration.
+func MigrateName(server string) string { return server + "-migrate" }

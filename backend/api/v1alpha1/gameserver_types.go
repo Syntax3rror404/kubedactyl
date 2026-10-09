@@ -86,9 +86,9 @@ type GameServerSpec struct {
 	// Ports are published as TCP and UDP. The first one is the primary port (SERVER_PORT).
 	// +kubebuilder:validation:MinItems=1
 	Ports []int32 `json:"ports"`
-	// StorageClass of the data volume; it cannot be changed once the volume exists.
+	// StorageClass of the data volume. Changing it moves the server files to a new volume of that
+	// class (status.migration); the server stays stopped meanwhile.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="storageClass cannot be changed"
 	StorageClass string `json:"storageClass,omitempty"`
 	// ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
 	// when it gets a load balancer again.
@@ -185,6 +185,41 @@ type ScheduleStatus struct {
 	LastResult string `json:"lastResult,omitempty"`
 }
 
+// Steps of a storage migration.
+const (
+	MigrationPreparing = "Preparing"
+	MigrationCopying   = "Copying"
+	MigrationSwitching = "Switching"
+	MigrationFailed    = "Failed"
+)
+
+// StorageMigration moves the files of a stopped server to a volume of another storage class: a
+// pod copies them and checks the copy, then the server's claim is bound to the new volume. The old
+// volume is deleted only once the server uses the new one.
+type StorageMigration struct {
+	// From is the storage class the server moves away from, To the one it moves to.
+	From string `json:"from"`
+	To   string `json:"to"`
+	// Step is Preparing (stopping the server, creating the new volume), Copying, Switching (binding
+	// the server to the new volume) or Failed.
+	// +kubebuilder:validation:Enum=Preparing;Copying;Switching;Failed
+	Step      string      `json:"step"      enums:"Preparing,Copying,Switching,Failed"`
+	StartedAt metav1.Time `json:"startedAt"`
+	// Done of Total files copied.
+	// +optional
+	Done int64 `json:"done,omitempty"`
+	// +optional
+	Total int64 `json:"total,omitempty"`
+	// Volume is the new persistent volume, PreviousVolume the old one (both set when switching).
+	// +optional
+	Volume string `json:"volume,omitempty"`
+	// +optional
+	PreviousVolume string `json:"previousVolume,omitempty"`
+	// Error tells why a failed migration stopped; the server stays on its volume.
+	// +optional
+	Error string `json:"error,omitempty"`
+}
+
 // GameServerStatus defines the observed state of a game server.
 type GameServerStatus struct {
 	Phase   Phase  `json:"phase,omitempty"`
@@ -223,9 +258,15 @@ type GameServerStatus struct {
 	RestartRequired bool `json:"restartRequired,omitempty"`
 	// DiskUsedBytes is the last measured size of the server files; the files pod that
 	// measures it only runs on demand.
-	DiskUsedBytes      *int64       `json:"diskUsedBytes,omitempty"`
-	DiskMeasuredAt     *metav1.Time `json:"diskMeasuredAt,omitempty"`
-	ObservedGeneration int64        `json:"observedGeneration,omitempty"`
+	// StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+	// +optional
+	StorageClass string `json:"storageClass,omitempty"`
+	// Migration is the running or last failed storage migration.
+	// +optional
+	Migration          *StorageMigration `json:"migration,omitempty"`
+	DiskUsedBytes      *int64            `json:"diskUsedBytes,omitempty"`
+	DiskMeasuredAt     *metav1.Time      `json:"diskMeasuredAt,omitempty"`
+	ObservedGeneration int64             `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

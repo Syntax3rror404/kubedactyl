@@ -214,6 +214,8 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.DELETE("/servers/:server", a.deleteServer)
 	adm.POST("/servers/:server/suspend", a.notLocked, a.suspendServer)
 	adm.POST("/servers/:server/transfer", a.notLocked, a.transferServer)
+	adm.POST("/servers/:server/migrate", a.notLocked, a.migrateServer)
+	adm.POST("/servers/:server/migrate/cancel", a.cancelMigration)
 	adm.GET("/users", a.listUsers)
 	adm.POST("/users", a.createUser)
 	adm.GET("/users/:user", a.getUser)

@@ -18,6 +18,7 @@ export function PlacementSelect({
   options,
   defaultName,
   extra,
+  placeholder = "none enabled",
   onChange,
 }: {
   id: string
@@ -26,13 +27,15 @@ export function PlacementSelect({
   defaultName?: string
   /** One more choice after the options. */
   extra?: { value: string; label: string }
+  /** Shown while nothing is selected. */
+  placeholder?: string
   onChange: (value: string) => void
 }) {
   const items = value && !options.includes(value) && value !== extra?.value ? [value, ...options] : options
   return (
     <Select value={value} onValueChange={onChange} disabled={items.length === 0 && !extra}>
       <SelectTrigger id={id} className="w-full font-mono">
-        <SelectValue placeholder="none enabled" />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {items.map((o) => (

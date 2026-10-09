@@ -29,9 +29,10 @@ const crashWindow = 60 * time.Second
 func (r *Reconciler) reconcileGame(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg,
 ) (reconcile.Result, error) {
-	// A suspended server is stopped and stays stopped.
-	wantRunning := gs.Spec.State == v1alpha1.PowerRunning && !gs.Spec.Suspended
-	restart := gs.Annotations[gameserver.AnnotationRestart] != "" && !gs.Spec.Suspended
+	// A suspended server is stopped and stays stopped, a migrating one until its files have moved.
+	locked := gs.Spec.Suspended || gameserver.Migrating(gs)
+	wantRunning := gs.Spec.State == v1alpha1.PowerRunning && !locked
+	restart := gs.Annotations[gameserver.AnnotationRestart] != "" && !locked
 
 	pod := &corev1.Pod{}
 	err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.GamePodName(gs.Name)}, pod)

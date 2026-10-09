@@ -25,9 +25,14 @@ import { FilesPodLight } from "@/features/servers/components/files-pod-light"
 import { PowerControls } from "@/features/servers/components/power-controls"
 import { RestartBanner } from "@/features/servers/components/restart-banner"
 import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
-import { RemovingNotice, SuspendedBanner, SuspendedNotice } from "@/features/servers/components/locked-notice"
+import {
+  MigrationNotice,
+  RemovingNotice,
+  SuspendedBanner,
+  SuspendedNotice,
+} from "@/features/servers/components/locked-notice"
 import { useAuth } from "@/hooks/use-auth"
-import { isRemoving, phaseOf, serverAddresses, serverEggName, serverName } from "@/lib/format"
+import { isMigrating, isRemoving, phaseOf, serverAddresses, serverEggName, serverName } from "@/lib/format"
 import { useEgg, useServer, useSettings } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
@@ -48,7 +53,7 @@ const tabs = [
 ]
 
 /** Frame of all server pages: header with status and power buttons, tabs, notices; locked view for suspended servers
- * (owners) and servers being removed (everyone). */
+ * (owners) and servers being removed or migrated (everyone). */
 export function ServerLayout() {
   const { server: name = "" } = useParams()
   const server = useServer(name)
@@ -78,11 +83,12 @@ function ServerFrame({ gs }: { gs: GameServer }) {
   const addresses = serverAddresses(gs, domain)
   const base = `/servers/${name}`
   const current = pathname.slice(base.length).replace(/^\//, "").split("/")[0]
-  // Owners of a suspended server only see the notice; admins keep full access. A server being removed is locked
-  // for everyone.
+  // Owners of a suspended server only see the notice; admins keep full access. A server being removed or migrated
+  // is locked for everyone.
   const removing = isRemoving(gs)
+  const migrating = isMigrating(gs)
   const suspended = !!gs.spec.suspended
-  const locked = removing || (suspended && !isAdmin)
+  const locked = removing || migrating || (suspended && !isAdmin)
   const eggName = serverEggName(gs, egg.data)
   const installer = egg.data?.spec.install?.container
 
@@ -133,7 +139,7 @@ function ServerFrame({ gs }: { gs: GameServer }) {
           <p className="text-muted-foreground">Follow the output in the console. {gs.status?.message}</p>
         </Callout>
       )}
-      {gs.status?.message && phase !== "Installing" && !suspended && !removing && (
+      {gs.status?.message && phase !== "Installing" && !suspended && !locked && (
         <Callout tone="warning" icon={<AlertTriangleIcon />}>
           <p className="break-all">{gs.status.message}</p>
         </Callout>
@@ -141,6 +147,8 @@ function ServerFrame({ gs }: { gs: GameServer }) {
 
       {removing ? (
         <RemovingNotice />
+      ) : migrating ? (
+        <MigrationNotice server={gs} isAdmin={isAdmin} />
       ) : locked ? (
         <SuspendedNotice />
       ) : (

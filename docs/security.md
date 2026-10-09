@@ -61,7 +61,9 @@ Measures for exposing the panel to the internet:
 - **Pods:** no pod gets a service account token. Game pods run as UID 988 with a read-only root filesystem
   and no capabilities. The files helper runs file operations the same way; only its init container hands files
   back to UID 988 as root, without following links. The panel uses a files pod only when its server controls it
-  (owner reference; otherwise 409).
+  (owner reference; otherwise 409). The copy pod of a storage migration runs as root with only `CHOWN`,
+  `DAC_OVERRIDE`, `FOWNER` and `FSETID` (to keep owners and modes) and reads the old volume read-only; it runs
+  fixed commands, no user code.
 - **File manager:** symbolic links (made by the game, a plugin or an archive) never lead out of the volume:
   every read, download, listing, write, extraction and download target is resolved first (404 outside), and the
   egg's `file_denylist` applies to where a link really points. The editor reads at most its limit plus one

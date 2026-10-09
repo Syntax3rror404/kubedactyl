@@ -60,6 +60,7 @@ out of the box.
 - **Invites instead of passwords by mail.** Send a one-time link or show a QR code; the new user picks a name and
   a password. Or create users with a start password they must change.
 - **Move servers between users.** A transfer keeps the files, the backups and the address.
+- **Move servers to another storage class.** The files are copied and checked before the old volume goes.
 - **Suspend** a server: it stops and is locked for its owner, nothing is deleted.
 - **One namespace per user:** the servers of different users are separated by namespace and NetworkPolicy.
 - **Cluster page** with nodes, hardware, live usage, the panel's identity and every permission it needs.

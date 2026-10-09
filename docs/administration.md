@@ -53,6 +53,7 @@ grant access and the role; see [Single sign-on](oidc.md).
 | Own servers: view, power, console, commands, files, backups, stats, reinstall | ✓ (not while suspended) | ✓ (all servers) |
 | Suspend / unsuspend servers | - | ✓ |
 | Transfer servers to another user | - | ✓ |
+| Migrate servers to another storage class | - | ✓ |
 | Server settings: display name, crash restart, egg image, egg startup command, **editable** egg variables, load balancer pool (enabled pools, or none when allowed) | ✓ | ✓ |
 | Server resources, ports, IP, own startup command, stop timeout, custom image | - | ✓ |
 | Create / delete servers (with owner) | - | ✓ |
@@ -101,7 +102,8 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
   Admins still see the IPs. The domain must resolve or be forwarded to the IPs of the enabled pools.
 - **Storage classes:** every StorageClass of the cluster is listed (provisioner, reclaim policy,
   binding, expansion); the checked ones appear in the storage dropdown of *New server*, one is the
-  default. `spec.storageClass` of a server cannot change later (CEL rule on the CRD).
+  default. *Migrate storage class* in the danger zone of a server moves it to another enabled class (see
+  [Storage migration](#storage-migration)).
 - **Load balancer pools:** every `CiliumLoadBalancerIPPool` (`cilium.io/v2`, falls back to `v2alpha1`)
   with blocks, free IPs per IP family and its service selector. Cilium reports one count for IPv4 and
   IPv6 together, so the panel counts each family itself: the addresses of the blocks, and as used the
@@ -138,6 +140,28 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
 On the first start the settings are created from `--storage-class` and `--lb-pool` (pool name or the
 value of its `lb.cilium.io/pool` selector label), and servers without a storage class / pool are
 filled in from their existing PVC and service.
+
+## Storage migration
+
+*Migrate storage class* in the danger zone of a server's *Settings* tab (`POST /api/servers/{server}/migrate`) moves
+its files, backups included, to a volume of another enabled storage class. The server is stopped (as with *Stop*) and
+locked for everyone until the migration has ended; the server page shows the step and the files copied.
+
+1. The controller deletes the game and files pods and creates the claim `<server>-migrate` of the new class.
+2. The pod `<server>-migrate` (helper image, root with only `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `FSETID`) mounts
+   the data volume read-only and copies everything with owners, modes and links, then compares the number of
+   entries and bytes of both volumes.
+3. Both volumes are set to `Retain`, the claims are deleted and the new volume is bound to `<server>-data`
+   (annotation `kubedactyl.io/moved-volume`).
+4. Once that claim is bound, the old volume is set to `Delete` and removed by Kubernetes.
+
+The state lives in `status.migration` and `spec.storageClass` / `status.storageClass` (the class of the bound
+volume), so a restart of the panel continues where it stopped. A failed copy deletes the new volume and leaves
+the server on its old one (`spec.storageClass` is set back, the error shows in the danger zone). *Cancel* on
+the server page (`POST /api/servers/{server}/migrate/cancel`) works until the switch in step 3. The server
+stays stopped afterwards unless *Start the server after the migration* was switched on (`startOnCompletion`,
+off by default): then it starts as soon as the migration has ended, also after a failure or a cancel (on its
+old volume). Changing `spec.storageClass` with kubectl starts a migration too.
 
 ## Cluster page
 

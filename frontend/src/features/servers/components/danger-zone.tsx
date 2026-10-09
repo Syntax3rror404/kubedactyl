@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { MigrateServer } from "@/features/servers/components/migrate-server"
 import { TransferServer } from "@/features/servers/components/transfer-server"
 import { suspendFeedback } from "@/features/servers/lib/feedback"
 import { serverName } from "@/lib/format"
@@ -14,7 +15,7 @@ import { failed } from "@/lib/notify"
 import { useDeleteServer, useReinstallServer, useSuspendServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
-/** Reinstall, and for admins suspend, transfer and delete, all behind a confirmation. */
+/** Reinstall, and for admins suspend, transfer, storage migration and delete, all behind a confirmation. */
 export function DangerZone({
   server,
   className,
@@ -100,6 +101,7 @@ export function DangerZone({
           </DangerRow>
         )}
         {isAdmin && <TransferServer server={server} />}
+        {isAdmin && <MigrateServer server={server} />}
         {isAdmin && (
           <DangerRow
             title="Delete server"

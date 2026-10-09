@@ -1215,6 +1215,18 @@ definitions:
     - token
     - user
     type: object
+  httpapi.MigrateRequest:
+    properties:
+      startOnCompletion:
+        description: StartOnCompletion starts the server once the migration has ended.
+        example: true
+        type: boolean
+      storageClass:
+        example: longhorn
+        type: string
+    required:
+    - storageClass
+    type: object
   httpapi.ModuleVersion:
     properties:
       name:
@@ -2866,9 +2878,9 @@ definitions:
         type: integer
       storageClass:
         description: |-
-          StorageClass of the data volume; it cannot be changed once the volume exists.
+          StorageClass of the data volume. Changing it moves the server files to a new volume of that
+          class (status.migration); the server stays stopped meanwhile.
           +optional
-          +kubebuilder:validation:XValidation:rule="self == oldSelf",message="storageClass cannot be changed"
         type: string
       suspended:
         description: |-
@@ -2898,9 +2910,6 @@ definitions:
       diskMeasuredAt:
         type: string
       diskUsedBytes:
-        description: |-
-          DiskUsedBytes is the last measured size of the server files; the files pod that
-          measures it only runs on demand.
         type: integer
       installExitCode:
         description: InstallExitCode is the exit code of the last install script run.
@@ -2916,6 +2925,12 @@ definitions:
         type: integer
       message:
         type: string
+      migration:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.StorageMigration'
+        description: |-
+          Migration is the running or last failed storage migration.
+          +optional
       observedGeneration:
         type: integer
       phase:
@@ -2948,6 +2963,13 @@ definitions:
         description: |-
           StopTasksStartedAt is set while the "stopping" schedules of the current pod run; the
           stop is sent when they are done.
+          +optional
+        type: string
+      storageClass:
+        description: |-
+          DiskUsedBytes is the last measured size of the server files; the files pod that
+          measures it only runs on demand.
+          StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
           +optional
         type: string
     type: object
@@ -3181,6 +3203,54 @@ definitions:
     required:
     - command
     - name
+    type: object
+  v1alpha1.StorageMigration:
+    properties:
+      done:
+        description: |-
+          Done of Total files copied.
+          +optional
+        type: integer
+      error:
+        description: |-
+          Error tells why a failed migration stopped; the server stays on its volume.
+          +optional
+        type: string
+      from:
+        description: From is the storage class the server moves away from, To the
+          one it moves to.
+        type: string
+      previousVolume:
+        description: +optional
+        type: string
+      startedAt:
+        type: string
+      step:
+        description: |-
+          Step is Preparing (stopping the server, creating the new volume), Copying, Switching (binding
+          the server to the new volume) or Failed.
+          +kubebuilder:validation:Enum=Preparing;Copying;Switching;Failed
+        enum:
+        - Preparing
+        - Copying
+        - Switching
+        - Failed
+        type: string
+      to:
+        type: string
+      total:
+        description: +optional
+        type: integer
+      volume:
+        description: |-
+          Volume is the new persistent volume, PreviousVolume the old one (both set when switching).
+          +optional
+        type: string
+    required:
+    - from
+    - startedAt
+    - step
+    - to
     type: object
   v1alpha1.TrafficPolicy:
     enum:
@@ -4715,6 +4785,74 @@ paths:
       summary: Cancel a background job
       tags:
       - Backups
+  /servers/{server}/migrate:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Stops the server and copies its files, backups included, to a new volume of the storage class
+        (status.migration). The server is locked until it uses the checked copy; the old volume is
+        deleted then. A failed copy leaves the server on its volume. With startOnCompletion the server
+        starts when the migration has ended.
+      parameters:
+      - description: Server name
+        in: path
+        name: server
+        required: true
+        type: string
+      - description: Storage class
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.MigrateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1alpha1.GameServer'
+        "409":
+          description: a job or the install runs, or it is the current class
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "422":
+          description: the storage class is not enabled
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Move a server to another storage class
+      tags:
+      - Servers
+  /servers/{server}/migrate/cancel:
+    post:
+      description: |-
+        Ends a migration before the server switches to the new volume; the copy is deleted and the server
+        stays on its volume.
+      parameters:
+      - description: Server name
+        in: path
+        name: server
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1alpha1.GameServer'
+        "409":
+          description: no migration is running or it is switching already
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a storage migration
+      tags:
+      - Servers
   /servers/{server}/power:
     post:
       consumes:

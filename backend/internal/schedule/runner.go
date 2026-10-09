@@ -16,6 +16,7 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/console"
 	"app/internal/files"
+	"app/internal/gameserver"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 )
@@ -57,7 +58,8 @@ func (r *Runner) tick(ctx context.Context, minute time.Time) {
 		return
 	}
 	for _, gs := range list.Items {
-		if !tenancy.Owns(gs.Namespace) || !gs.DeletionTimestamp.IsZero() || gs.Spec.Suspended {
+		if !tenancy.Owns(gs.Namespace) || !gs.DeletionTimestamp.IsZero() || gs.Spec.Suspended ||
+			gameserver.Migrating(&gs) {
 			continue
 		}
 		for _, s := range gs.Spec.Schedules {

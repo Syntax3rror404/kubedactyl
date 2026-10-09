@@ -246,12 +246,10 @@ spec:
                 format: int64
                 type: integer
               storageClass:
-                description: StorageClass of the data volume; it cannot be changed
-                  once the volume exists.
+                description: |-
+                  StorageClass of the data volume. Changing it moves the server files to a new volume of that
+                  class (status.migration); the server stays stopped meanwhile.
                 type: string
-                x-kubernetes-validations:
-                - message: storageClass cannot be changed
-                  rule: self == oldSelf
               suspended:
                 description: Suspended servers are stopped and cannot be started or
                   used by their owner (admins only).
@@ -280,9 +278,6 @@ spec:
                 format: date-time
                 type: string
               diskUsedBytes:
-                description: |-
-                  DiskUsedBytes is the last measured size of the server files; the files pod that
-                  measures it only runs on demand.
                 format: int64
                 type: integer
               installExitCode:
@@ -305,6 +300,51 @@ spec:
                 type: integer
               message:
                 type: string
+              migration:
+                description: Migration is the running or last failed storage migration.
+                properties:
+                  done:
+                    description: Done of Total files copied.
+                    format: int64
+                    type: integer
+                  error:
+                    description: Error tells why a failed migration stopped; the server
+                      stays on its volume.
+                    type: string
+                  from:
+                    description: From is the storage class the server moves away from,
+                      To the one it moves to.
+                    type: string
+                  previousVolume:
+                    type: string
+                  startedAt:
+                    format: date-time
+                    type: string
+                  step:
+                    description: |-
+                      Step is Preparing (stopping the server, creating the new volume), Copying, Switching (binding
+                      the server to the new volume) or Failed.
+                    enum:
+                    - Preparing
+                    - Copying
+                    - Switching
+                    - Failed
+                    type: string
+                  to:
+                    type: string
+                  total:
+                    format: int64
+                    type: integer
+                  volume:
+                    description: Volume is the new persistent volume, PreviousVolume
+                      the old one (both set when switching).
+                    type: string
+                required:
+                - from
+                - startedAt
+                - step
+                - to
+                type: object
               observedGeneration:
                 format: int64
                 type: integer
@@ -353,6 +393,12 @@ spec:
                   StopTasksStartedAt is set while the "stopping" schedules of the current pod run; the
                   stop is sent when they are done.
                 format: date-time
+                type: string
+              storageClass:
+                description: |-
+                  DiskUsedBytes is the last measured size of the server files; the files pod that
+                  measures it only runs on demand.
+                  StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
                 type: string
             type: object
         required:

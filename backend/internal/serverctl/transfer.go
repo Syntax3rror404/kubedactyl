@@ -18,6 +18,7 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/files"
 	"app/internal/gameserver"
+	"app/internal/kube"
 	"app/internal/tenancy"
 )
 
@@ -58,45 +59,37 @@ func (o *Ops) Transfer(
 	if err != nil {
 		return nil, err
 	}
-	moved := transferred(gs, owner, namespace, pv.Name)
+	moved := transferred(gs, owner, namespace, pv)
 	if err := o.removeKeepingVolume(ctx, gs); err != nil {
 		return nil, err
 	}
-	if err := o.rebind(ctx, pv, moved); err != nil {
-		return nil, fmt.Errorf("volume %s is kept, binding it failed: %w", pv.Name, err)
+	// The volume is reserved for the claim of the moved server, which the controller creates.
+	err = kube.ReserveVolume(ctx, o.Reader, o.Client, pv, moved.Namespace, gameserver.PVCName(moved.Name))
+	if err != nil {
+		return nil, fmt.Errorf("volume %s is kept, binding it failed: %w", pv, err)
 	}
 	if err := o.Client.Create(ctx, moved); err != nil {
-		return nil, fmt.Errorf("volume %s is kept, creating the server failed: %w", pv.Name, err)
+		return nil, fmt.Errorf("volume %s is kept, creating the server failed: %w", pv, err)
 	}
 	return moved, nil
 }
 
 // retainVolume returns the server's persistent volume after making sure it survives its claim.
-func (o *Ops) retainVolume(ctx context.Context, gs *v1alpha1.GameServer) (*corev1.PersistentVolume, error) {
+func (o *Ops) retainVolume(ctx context.Context, gs *v1alpha1.GameServer) (string, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
 	if err := o.Reader.Get(
 		ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.PVCName(gs.Name)}, pvc,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNoVolume
+			return "", ErrNoVolume
 		}
-		return nil, err
+		return "", err
 	}
 	if pvc.Spec.VolumeName == "" || pvc.Status.Phase != corev1.ClaimBound {
-		return nil, ErrNoVolume
+		return "", ErrNoVolume
 	}
-	pv := &corev1.PersistentVolume{}
-	if err := o.Reader.Get(ctx, client.ObjectKey{Name: pvc.Spec.VolumeName}, pv); err != nil {
-		return nil, err
-	}
-	if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimRetain {
-		patch := client.MergeFrom(pv.DeepCopy())
-		pv.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain
-		if err := o.Client.Patch(ctx, pv, patch); err != nil {
-			return nil, err
-		}
-	}
-	return pv, nil
+	err := kube.SetReclaimPolicy(ctx, o.Reader, o.Client, pvc.Spec.VolumeName, corev1.PersistentVolumeReclaimRetain)
+	return pvc.Spec.VolumeName, err
 }
 
 // transferred is the server object for the new owner: same name and spec, the load balancer
@@ -176,19 +169,4 @@ func (o *Ops) waitGone(ctx context.Context, key client.ObjectKey, obj client.Obj
 		case <-time.After(transferPoll):
 		}
 	}
-}
-
-// rebind reserves the released volume for the claim of the moved server, which the
-// controller creates with the same name in the new namespace.
-func (o *Ops) rebind(ctx context.Context, pv *corev1.PersistentVolume, moved *v1alpha1.GameServer) error {
-	cur := &corev1.PersistentVolume{}
-	if err := o.Reader.Get(ctx, client.ObjectKeyFromObject(pv), cur); err != nil {
-		return err
-	}
-	patch := client.MergeFrom(cur.DeepCopy())
-	cur.Spec.ClaimRef = &corev1.ObjectReference{
-		Kind: "PersistentVolumeClaim", APIVersion: "v1",
-		Namespace: moved.Namespace, Name: gameserver.PVCName(moved.Name),
-	}
-	return o.Client.Patch(ctx, cur, patch)
 }

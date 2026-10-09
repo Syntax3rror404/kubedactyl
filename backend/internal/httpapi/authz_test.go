@@ -331,6 +331,7 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 		{"PATCH", "/api/users/bob"}, {"GET", "/api/egg-library"}, {"GET", "/api/egg-library/egg"},
 		{"GET", "/api/egg-library/repository"}, {"GET", "/api/invites"}, {"POST", "/api/invites"},
 		{"DELETE", "/api/invites/1a2b3c4d5e6f"}, {"POST", "/api/invites/1a2b3c4d5e6f/renew"},
+		{"POST", "/api/servers/alice-srv/migrate"}, {"POST", "/api/servers/alice-srv/migrate/cancel"},
 	} {
 		code, body := h.do(r.method, r.path, alice, map[string]string{})
 		expect(t, "user "+r.method+" "+r.path, code, 403, body)
@@ -401,6 +402,54 @@ func TestAdminTransferChecks(t *testing.T) {
 	expect(t, "transfer to an unknown user", code, 422, body)
 	code, body = h.do("POST", "/api/servers/alice-srv/transfer", admin, map[string]string{})
 	expect(t, "transfer without owner", code, 400, body)
+}
+
+func TestAdminMigratesStorage(t *testing.T) {
+	h := newHarness(t)
+	alice, admin := h.login("alice"), h.login("admin")
+	key := client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}
+	gs := &v1alpha1.GameServer{}
+	_ = h.client.Get(t.Context(), key, gs)
+	gs.Status.StorageClass = "longhorn"
+	if err := h.client.Status().Update(t.Context(), gs); err != nil {
+		t.Fatal(err)
+	}
+	code, body := h.do("POST", "/api/servers/alice-srv/migrate", admin, map[string]string{})
+	expect(t, "migrate without storage class", code, 400, body)
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate", admin, map[string]string{"storageClass": "fast"})
+	expect(t, "migrate to a class that is not enabled", code, 422, body)
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate", admin, map[string]string{"storageClass": "longhorn"})
+	expect(t, "migrate to the current class", code, 409, body)
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate/cancel", admin, nil)
+	expect(t, "cancel without migration", code, 409, body)
+
+	_ = h.client.Get(t.Context(), key, gs)
+	gs.Status.StorageClass = "old"
+	if err := h.client.Status().Update(t.Context(), gs); err != nil {
+		t.Fatal(err)
+	}
+	migrate := map[string]any{"storageClass": "longhorn", "startOnCompletion": true}
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate", admin, migrate)
+	expect(t, "migrate", code, 200, body)
+	_ = h.client.Get(t.Context(), key, gs)
+	if gs.Spec.StorageClass != "longhorn" || gs.Spec.State != v1alpha1.PowerRunning {
+		t.Errorf("migrate: %+v", gs.Spec)
+	}
+	code, body = h.do("GET", "/api/servers/alice-srv", alice, nil)
+	expect(t, "owner sees a migrating server", code, 200, body)
+	code, body = h.do("PATCH", "/api/servers/alice-srv", alice, map[string]string{"displayName": "x"})
+	expect(t, "owner changes a migrating server", code, 409, body)
+	code, body = h.do("POST", "/api/servers/alice-srv/power", admin, map[string]string{"signal": "start"})
+	expect(t, "admin starts a migrating server", code, 409, body)
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate", admin, map[string]string{"storageClass": "longhorn"})
+	expect(t, "migrate twice", code, 409, body)
+
+	code, body = h.do("POST", "/api/servers/alice-srv/migrate/cancel", admin, nil)
+	expect(t, "cancel", code, 200, body)
+	_ = h.client.Get(t.Context(), key, gs)
+	if gs.Spec.StorageClass != "old" {
+		t.Errorf("cancel keeps class %q", gs.Spec.StorageClass)
+	}
 }
 
 func TestAdminCreatesUsersAndServers(t *testing.T) {

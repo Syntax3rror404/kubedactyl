@@ -1,10 +1,13 @@
-import { LockIcon, LockOpenIcon, Trash2Icon } from "lucide-react"
+import { ForkliftIcon, LockIcon, LockOpenIcon, Trash2Icon, XIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { Callout } from "@/components/common/callout"
+import { ProgressBar } from "@/components/common/progress-bar"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { suspendFeedback } from "@/features/servers/lib/feedback"
-import { useSuspendServer } from "@/lib/queries"
+import { failed } from "@/lib/notify"
+import { useCancelMigration, useSuspendServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
 /** Replaces the tabs for the owner of a suspended server. */
@@ -55,6 +58,52 @@ export function SuspendedBanner({ server }: { server: GameServer }) {
         <span className="font-medium">Suspended.</span> The owner cannot start or use this server until it is
         unsuspended.
       </p>
+    </Callout>
+  )
+}
+
+/**
+ * Replaces the tabs while the server files move to another storage class: the step, the files copied and, for
+ * admins, a button that calls the migration off until the server switches to the new volume.
+ */
+export function MigrationNotice({ server, isAdmin }: { server: GameServer; isAdmin: boolean }) {
+  const to = server.spec.storageClass
+  const m = server.status?.migration?.to === to ? server.status?.migration : undefined
+  const step = m?.step ?? "Preparing"
+  const cancel = useCancelMigration(server.metadata.name, {
+    onSuccess: () => toast.success("Storage migration cancelled"),
+    onError: failed("cancel the storage migration"),
+  })
+  const text = {
+    Preparing: `Stopping the server and creating a volume of ${to}.`,
+    Copying: `Copying the files to ${to}: ${(m?.done ?? 0).toLocaleString("en-US")} of ${(m?.total ?? 0).toLocaleString("en-US")} files.`,
+    Switching: "Files copied and checked, switching to the new volume.",
+    Failed: "",
+  }[step]
+  return (
+    <Callout
+      tone="info"
+      icon={<ForkliftIcon />}
+      title="Server blocked, storage migration in progress"
+      progress
+      action={
+        isAdmin &&
+        step !== "Switching" && (
+          <Button size="sm" variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
+            {cancel.isPending ? <Spinner /> : <XIcon />}
+            Cancel
+          </Button>
+        )
+      }
+    >
+      <p className="text-muted-foreground">
+        {text} {server.status?.message}
+      </p>
+      <ProgressBar
+        value={step === "Switching" ? 1 : step === "Copying" && m?.total ? m.done : undefined}
+        max={step === "Switching" ? 1 : m?.total}
+        className="mt-2 h-1.5"
+      />
     </Callout>
   )
 }

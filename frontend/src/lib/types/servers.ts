@@ -8,6 +8,7 @@ export type {
   HttpapiBackupList as BackupList,
   HttpapiCreateServerRequest as CreateServerRequest,
   HttpapiJobList as JobList,
+  HttpapiMigrateRequest as MigrateRequest,
   HttpapiScheduleList as ScheduleList,
   HttpapiScheduleView as ScheduleView,
   HttpapiServerDiagnostics as ServerDiagnostics,

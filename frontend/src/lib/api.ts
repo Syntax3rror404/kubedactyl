@@ -26,6 +26,7 @@ import type {
   InviteDetails,
   InviteView,
   JobList,
+  MigrateRequest,
   LegalTexts,
   LibraryEggContent,
   LibraryList,
@@ -240,6 +241,8 @@ export const api = {
     suspend: (server: string, suspended: boolean) =>
       request<GameServer>("POST", `${srv(server)}/suspend`, { suspended }),
     transfer: (server: string, owner: string) => request<GameServer>("POST", `${srv(server)}/transfer`, { owner }),
+    migrate: (server: string, body: MigrateRequest) => request<GameServer>("POST", `${srv(server)}/migrate`, body),
+    cancelMigration: (server: string) => request<GameServer>("POST", `${srv(server)}/migrate/cancel`),
     getStats: (server: string) => request<ServerStats>("GET", `${srv(server)}/stats`),
     getDiagnostics: (server: string) => request<ServerDiagnostics>("GET", `${srv(server)}/diagnostics`),
     listJobs: (server: string) => request<JobList>("GET", `${srv(server)}/jobs`).then((r) => r.items),

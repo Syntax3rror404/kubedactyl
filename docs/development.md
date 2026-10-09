@@ -120,7 +120,7 @@ backend/
     controller/           reconcilers: gameserver*.go (entry, children, install, game, cleanup of finished pods)
                             · files_reaper.go (idle files pods) · user*.go (user namespaces, network policy)
     gameserver/           Kubernetes objects of a server (pods, PVC, service, placement, resources), validation, pre-start steps
-    serverctl/            power actions, console commands, reinstall, suspend, transfer (shared by API and schedules)
+    serverctl/            power actions, console commands, reinstall, suspend, transfer, migrate (shared by API and schedules)
     schedule/             cron schedules of servers
     eggstore/ · users/    storing eggs (create, import, update from URL, delete) · accounts (create, change, last-admin rule)
     validation/           field validation errors (422 with messages per field)
