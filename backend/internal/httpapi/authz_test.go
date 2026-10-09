@@ -690,6 +690,23 @@ func TestSettingsStorageAndPools(t *testing.T) {
 		t.Errorf("pool not changed: %q", gs.Spec.LoadBalancerPool)
 	}
 
+	clusterIP := map[string]string{"serviceType": "ClusterIP"}
+	code, body = h.do("PATCH", "/api/servers/alice-srv", alice, clusterIP)
+	expect(t, "user picks ClusterIP while the settings do not allow it", code, 422, body)
+	panel := &v1alpha1.PanelSettings{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: v1alpha1.SettingsName}, panel)
+	panel.Spec.AllowClusterIP = true
+	if err := h.client.Update(t.Context(), panel); err != nil {
+		t.Fatal(err)
+	}
+	h.api.Settings.Forget()
+	code, body = h.do("PATCH", "/api/servers/alice-srv", alice, clusterIP)
+	expect(t, "user picks ClusterIP", code, 200, body)
+	code, body = h.do("PATCH", "/api/servers/alice-srv", admin, map[string]string{"loadBalancerIP": "10.0.0.7"})
+	expect(t, "fixed IP on a ClusterIP server", code, 422, body)
+	code, body = h.do("PATCH", "/api/servers/alice-srv", alice, map[string]string{"serviceType": "LoadBalancer"})
+	expect(t, "user picks the load balancer again", code, 200, body)
+
 	req := map[string]any{
 		"displayName": "Fast",
 		"egg":         "paper",

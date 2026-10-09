@@ -15,6 +15,7 @@ import (
 
 	"app/api/v1alpha1"
 	"app/internal/checks"
+	"app/internal/gameserver"
 )
 
 // Resolver looks up addresses (net.Resolver implements it).
@@ -48,6 +49,12 @@ type Input struct {
 func (d *Diagnoser) Run(ctx context.Context, in Input) []checks.Check {
 	gs := in.Server
 	list := []checks.Check{installation(gs), state(gs), restart(gs), disk(gs), address(in)}
+	if gameserver.ClusterOnly(gs) {
+		return append(list,
+			checks.New("domain", "External domain", checks.Skipped,
+				"The server has no load balancer: players connect through a service in the cluster, "+
+					"e.g. a proxy server."))
+	}
 	if in.Domain == "" {
 		return append(list,
 			checks.New("domain", "External domain", checks.Skipped,
@@ -136,6 +143,9 @@ func disk(gs *v1alpha1.GameServer) checks.Check {
 func address(in Input) checks.Check {
 	const id, label = "address", "Server address"
 	gs := in.Server
+	if gameserver.ClusterOnly(gs) {
+		return checks.New(id, label, checks.OK, gs.Status.Address+", reachable only inside the cluster.")
+	}
 	if gs.Status.Address == "" {
 		return checks.New(
 			id,

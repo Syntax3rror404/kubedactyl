@@ -45,7 +45,7 @@ func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) err
 
 func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer) error {
 	var poolLabels map[string]string
-	if gs.Spec.LoadBalancerPool != "" {
+	if gs.Spec.LoadBalancerPool != "" && !gameserver.ClusterOnly(gs) {
 		var err error
 		if poolLabels, err = r.Pools.ServiceLabels(ctx, gs.Spec.LoadBalancerPool); err != nil {
 			return err
@@ -62,7 +62,7 @@ func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer)
 		svc.Spec.Selector = want.Spec.Selector
 		svc.Spec.ExternalTrafficPolicy = want.Spec.ExternalTrafficPolicy
 		svc.Spec.IPFamilyPolicy = want.Spec.IPFamilyPolicy
-		svc.Spec.Ports = mergePorts(svc.Spec.Ports, want.Spec.Ports)
+		svc.Spec.Ports = mergePorts(svc.Spec.Ports, want.Spec.Ports, want.Spec.Type)
 		return controllerutil.SetControllerReference(gs, svc, r.Scheme())
 	})
 	if err != nil {
@@ -70,7 +70,10 @@ func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer)
 	}
 	gs.Status.Addresses = gameserver.LoadBalancerIPs(svc)
 	gs.Status.Address = ""
-	if len(gs.Status.Addresses) > 0 {
+	if gameserver.ClusterOnly(gs) {
+		gs.Status.Addresses = nil
+		gs.Status.Address = gameserver.ClusterAddress(gs)
+	} else if len(gs.Status.Addresses) > 0 {
 		gs.Status.Address = gs.Status.Addresses[0]
 	}
 	return nil
@@ -101,8 +104,12 @@ func mergeServiceMetadata(svc, want *corev1.Service) {
 	}
 }
 
-// mergePorts keeps the node ports allocated by Kubernetes for unchanged ports.
-func mergePorts(cur, want []corev1.ServicePort) []corev1.ServicePort {
+// mergePorts keeps the node ports allocated by Kubernetes for unchanged ports; a ClusterIP
+// service has none.
+func mergePorts(cur, want []corev1.ServicePort, typ corev1.ServiceType) []corev1.ServicePort {
+	if typ == corev1.ServiceTypeClusterIP {
+		return want
+	}
 	nodePorts := map[string]int32{}
 	for _, p := range cur {
 		nodePorts[p.Name] = p.NodePort

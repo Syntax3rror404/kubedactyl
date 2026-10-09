@@ -158,6 +158,16 @@ func TestRun(t *testing.T) {
 			"general-pool",
 		},
 		{"no domain", server(nil), "", nil, nil, "domain", checks.Skipped, "No external domain"},
+		{
+			"cluster only",
+			server(func(g *v1alpha1.GameServer) { g.Spec.ServiceType = v1alpha1.ServiceClusterIP }),
+			"play.example.com",
+			nil,
+			nil,
+			"domain",
+			checks.Skipped,
+			"no load balancer",
+		},
 		{"no A record", server(nil), "play.example.com", fakeResolver{}, nil, "dns-a", checks.Error, "no A record"},
 		{
 			"A to load balancer",

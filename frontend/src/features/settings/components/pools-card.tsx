@@ -5,21 +5,27 @@ import { UsageBar } from "@/components/common/usage-bar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { FieldError } from "@/components/ui/field"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DefaultCell, type Selection, type SelectionHandlers } from "@/features/settings/components/default-cell"
 import { formatCount, formatPoolSize, poolUsage } from "@/lib/format"
 import type { Pool } from "@/lib/types"
 
-/** All Cilium LB IPAM pools; the checked ones can be selected for servers. */
+/**
+ * All Cilium LB IPAM pools; the checked ones can be selected for servers. "Allow ClusterIP" lets
+ * owners publish a server only inside the cluster.
+ */
 export function PoolsCard({
   pools,
   ipv6Missing,
   loadError,
   fieldError,
   selection,
+  allowClusterIP,
+  onAllowClusterIP,
   ...handlers
 }: {
   pools?: Pool[]
@@ -28,6 +34,8 @@ export function PoolsCard({
   loadError?: string
   fieldError?: string
   selection: Selection
+  allowClusterIP: boolean
+  onAllowClusterIP: (allow: boolean) => void
 } & SelectionHandlers) {
   return (
     <Card>
@@ -67,6 +75,10 @@ export function PoolsCard({
           </Table>
         )}
         {fieldError && <FieldError className="mx-6 mt-3">{fieldError}</FieldError>}
+        <Field orientation="horizontal" className="mx-6 mt-6 w-auto">
+          <Switch id="cluster-ip" checked={allowClusterIP} onCheckedChange={onAllowClusterIP} />
+          <FieldLabel htmlFor="cluster-ip">Allow ClusterIP</FieldLabel>
+        </Field>
       </CardContent>
     </Card>
   )

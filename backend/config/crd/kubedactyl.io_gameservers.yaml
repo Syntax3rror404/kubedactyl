@@ -213,6 +213,14 @@ spec:
                 x-kubernetes-list-map-keys:
                 - name
                 x-kubernetes-list-type: map
+              serviceType:
+                description: |-
+                  ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
+                  when it gets a load balancer again.
+                enum:
+                - LoadBalancer
+                - ClusterIP
+                type: string
               skipInstall:
                 description: SkipInstall skips the egg install script.
                 type: boolean
@@ -258,8 +266,9 @@ spec:
             description: GameServerStatus defines the observed state of a game server.
             properties:
               address:
-                description: Address is the external IP assigned by the load balancer
-                  (the first of Addresses).
+                description: |-
+                  Address is the external IP assigned by the load balancer (the first of Addresses), or the
+                  service's DNS name inside the cluster (<service>.<namespace>.svc) for a ClusterIP server.
                 type: string
               addresses:
                 description: Addresses are all external IPs assigned by the load balancer

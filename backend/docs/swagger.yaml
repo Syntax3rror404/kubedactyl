@@ -827,6 +827,14 @@ definitions:
         items:
           type: integer
         type: array
+      serviceType:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ServiceType'
+        description: ServiceType ClusterIP publishes the server only inside the cluster
+          (when the settings allow it).
+        enum:
+        - LoadBalancer
+        - ClusterIP
       skipInstall:
         type: boolean
       startOnCompletion:
@@ -1418,6 +1426,12 @@ definitions:
     type: object
   httpapi.SettingsView:
     properties:
+      allowClusterIP:
+        description: |-
+          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+          cluster (service type ClusterIP).
+          +optional
+        type: boolean
       allowPrivateNetworks:
         description: |-
           AllowPrivateNetworks lets game servers reach private networks (other namespaces,
@@ -1705,6 +1719,15 @@ definitions:
         items:
           type: integer
         type: array
+      serviceType:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ServiceType'
+        description: |-
+          ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow
+          it; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.
+        enum:
+        - LoadBalancer
+        - ClusterIP
       startup:
         type: string
       startupName:
@@ -1716,6 +1739,12 @@ definitions:
     type: object
   httpapi.UpdateSettingsRequest:
     properties:
+      allowClusterIP:
+        description: |-
+          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+          cluster (service type ClusterIP).
+          +optional
+        type: boolean
       allowPrivateNetworks:
         description: |-
           AllowPrivateNetworks lets game servers reach private networks (other namespaces,
@@ -2801,6 +2830,13 @@ definitions:
         items:
           $ref: '#/definitions/v1alpha1.Schedule'
         type: array
+      serviceType:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ServiceType'
+        description: |-
+          ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
+          when it gets a load balancer again.
+          +optional
       skipInstall:
         description: |-
           SkipInstall skips the egg install script.
@@ -2848,8 +2884,9 @@ definitions:
   v1alpha1.GameServerStatus:
     properties:
       address:
-        description: Address is the external IP assigned by the load balancer (the
-          first of Addresses).
+        description: |-
+          Address is the external IP assigned by the load balancer (the first of Addresses), or the
+          service's DNS name inside the cluster (<service>.<namespace>.svc) for a ClusterIP server.
         type: string
       addresses:
         description: |-
@@ -3127,6 +3164,14 @@ definitions:
     required:
     - action
     type: object
+  v1alpha1.ServiceType:
+    enum:
+    - LoadBalancer
+    - ClusterIP
+    type: string
+    x-enum-varnames:
+    - ServiceLoadBalancer
+    - ServiceClusterIP
   v1alpha1.StartupCommand:
     properties:
       command:

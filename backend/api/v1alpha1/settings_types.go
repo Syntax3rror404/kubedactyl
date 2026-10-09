@@ -25,6 +25,10 @@ type PanelSettingsSpec struct {
 	// DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
 	// +optional
 	DefaultLoadBalancerPool string `json:"defaultLoadBalancerPool,omitempty"`
+	// AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+	// cluster (service type ClusterIP).
+	// +optional
+	AllowClusterIP bool `json:"allowClusterIP,omitempty"`
 	// AllowPrivateNetworks lets game servers reach private networks (other namespaces,
 	// nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
 	// policy that only allows the internet, the cluster DNS and the user's own servers.

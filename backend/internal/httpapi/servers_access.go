@@ -12,6 +12,7 @@ import (
 
 	"app/api/v1alpha1"
 	"app/internal/egg"
+	"app/internal/gameserver"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 )
@@ -75,13 +76,14 @@ func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alph
 }
 
 // visibleServer strips variables that the egg hides from users. With an external domain,
-// users see the domain as the address instead of the load balancer IPs.
+// users see the domain as the address instead of the load balancer IPs (a ClusterIP server
+// keeps its DNS name inside the cluster).
 func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
 	if p.Admin() {
 		return gs
 	}
 	out := gs.DeepCopy()
-	if domain != "" {
+	if domain != "" && !gameserver.ClusterOnly(gs) {
 		out.Spec.LoadBalancerIP = ""
 		if out.Status.Address != "" {
 			out.Status.Address = domain

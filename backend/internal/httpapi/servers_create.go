@@ -34,6 +34,8 @@ type CreateServerRequest struct {
 	Ports       []int32           `json:"ports"                 binding:"required" example:"25565"`
 	// StorageClass of the data volume (default: the default of the panel settings).
 	StorageClass string `json:"storageClass,omitempty" example:"longhorn"`
+	// ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it).
+	ServiceType v1alpha1.ServiceType `json:"serviceType,omitempty" binding:"omitempty,oneof=LoadBalancer ClusterIP"`
 	// LoadBalancerPool the address comes from (default: the default of the panel settings).
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty" example:"general-pool"`
 	// LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).
@@ -97,14 +99,8 @@ func (a *API) newGameServer(
 	if req.Image == "" {
 		req.Image = e.Spec.DockerImages[0].Image
 	}
-	resources := v1alpha1.Resources{MemoryMiB: req.MemoryMiB, CPUMillis: req.CPUMillis, DiskMiB: req.DiskMiB}
-	if err := gameserver.ValidateResources(resources); err != nil {
-		return nil, err
-	}
-	if err := gameserver.ValidatePorts(req.Ports); err != nil {
-		return nil, err
-	}
-	if err := gameserver.ValidateStartupName(e, req.StartupName); err != nil {
+	resources, err := validateServer(req, e)
+	if err != nil {
 		return nil, err
 	}
 	storageClass, pool, err := a.choosePlacement(ctx, req)
@@ -141,6 +137,7 @@ func (a *API) newGameServer(
 			Resources:             resources,
 			Ports:                 req.Ports,
 			StorageClass:          storageClass,
+			ServiceType:           req.ServiceType,
 			LoadBalancerPool:      pool,
 			LoadBalancerIP:        req.LoadBalancerIP,
 			ExternalTrafficPolicy: req.ExternalTrafficPolicy,
@@ -154,8 +151,20 @@ func (a *API) newGameServer(
 	}, nil
 }
 
+// validateServer checks the resources, ports and startup command of a create request.
+func validateServer(req *CreateServerRequest, e *v1alpha1.Egg) (v1alpha1.Resources, error) {
+	resources := v1alpha1.Resources{MemoryMiB: req.MemoryMiB, CPUMillis: req.CPUMillis, DiskMiB: req.DiskMiB}
+	if err := gameserver.ValidateResources(resources); err != nil {
+		return resources, err
+	}
+	if err := gameserver.ValidatePorts(req.Ports); err != nil {
+		return resources, err
+	}
+	return resources, gameserver.ValidateStartupName(e, req.StartupName)
+}
+
 // choosePlacement picks storage class and load balancer pool (the panel defaults when the
-// request names none) and checks a fixed IP against the pool.
+// request names none) and checks the service type and a fixed IP against the pool.
 func (a *API) choosePlacement(ctx context.Context, req *CreateServerRequest) (storageClass, pool string, err error) {
 	set, err := a.Settings.Get(ctx)
 	if err != nil {
@@ -172,6 +181,9 @@ func (a *API) choosePlacement(ctx context.Context, req *CreateServerRequest) (st
 		req.LoadBalancerPool, set.DefaultLoadBalancerPool, set.LoadBalancerPools, "load balancer pool",
 	)
 	if err != nil {
+		return "", "", err
+	}
+	if err := checkServiceType(set, req.ServiceType, req.LoadBalancerIP); err != nil {
 		return "", "", err
 	}
 	if err := a.checkPoolIP(ctx, pool, req.LoadBalancerIP); err != nil {

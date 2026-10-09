@@ -4328,6 +4328,18 @@ const docTemplate = `{
                         25565
                     ]
                 },
+                "serviceType": {
+                    "description": "ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it).",
+                    "enum": [
+                        "LoadBalancer",
+                        "ClusterIP"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ServiceType"
+                        }
+                    ]
+                },
                 "skipInstall": {
                     "type": "boolean"
                 },
@@ -5116,6 +5128,10 @@ const docTemplate = `{
                 "oidcClientSecretSet"
             ],
             "properties": {
+                "allowClusterIP": {
+                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
+                    "type": "boolean"
+                },
                 "allowPrivateNetworks": {
                     "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
                     "type": "boolean"
@@ -5420,6 +5436,18 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "serviceType": {
+                    "description": "ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow\nit; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.",
+                    "enum": [
+                        "LoadBalancer",
+                        "ClusterIP"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ServiceType"
+                        }
+                    ]
+                },
                 "startup": {
                     "type": "string"
                 },
@@ -5435,6 +5463,10 @@ const docTemplate = `{
         "httpapi.UpdateSettingsRequest": {
             "type": "object",
             "properties": {
+                "allowClusterIP": {
+                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
+                    "type": "boolean"
+                },
                 "allowPrivateNetworks": {
                     "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
                     "type": "boolean"
@@ -6488,6 +6520,14 @@ const docTemplate = `{
                         "$ref": "#/definitions/v1alpha1.Schedule"
                     }
                 },
+                "serviceType": {
+                    "description": "ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for\nwhen it gets a load balancer again.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ServiceType"
+                        }
+                    ]
+                },
                 "skipInstall": {
                     "description": "SkipInstall skips the egg install script.\n+optional",
                     "type": "boolean"
@@ -6526,7 +6566,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
-                    "description": "Address is the external IP assigned by the load balancer (the first of Addresses).",
+                    "description": "Address is the external IP assigned by the load balancer (the first of Addresses), or the\nservice's DNS name inside the cluster (\u003cservice\u003e.\u003cnamespace\u003e.svc) for a ClusterIP server.",
                     "type": "string"
                 },
                 "addresses": {
@@ -6814,6 +6854,17 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "v1alpha1.ServiceType": {
+            "type": "string",
+            "enum": [
+                "LoadBalancer",
+                "ClusterIP"
+            ],
+            "x-enum-varnames": [
+                "ServiceLoadBalancer",
+                "ServiceClusterIP"
+            ]
         },
         "v1alpha1.StartupCommand": {
             "type": "object",

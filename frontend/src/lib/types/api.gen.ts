@@ -414,6 +414,8 @@ export interface HttpapiCreateServerRequest {
   owner?: string;
   /** @example [25565] */
   ports: number[];
+  /** ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it). */
+  serviceType?: "LoadBalancer" | "ClusterIP";
   skipInstall?: boolean;
   /**
    * StartOnCompletion starts the server once the installation is finished.
@@ -762,6 +764,12 @@ export interface HttpapiServerStats {
 
 export interface HttpapiSettingsView {
   /**
+   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+   * cluster (service type ClusterIP).
+   * +optional
+   */
+  allowClusterIP?: boolean;
+  /**
    * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
    * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
    * policy that only allows the internet, the cluster DNS and the user's own servers.
@@ -968,6 +976,11 @@ export interface HttpapiUpdateServerRequest {
   loadBalancerPool?: string;
   memoryMiB?: number;
   ports?: number[];
+  /**
+   * ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow
+   * it; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.
+   */
+  serviceType?: "LoadBalancer" | "ClusterIP";
   startup?: string;
   /** StartupName picks one of the egg's startup commands ("" = its default); owners may change it. */
   startupName?: string;
@@ -975,6 +988,12 @@ export interface HttpapiUpdateServerRequest {
 }
 
 export interface HttpapiUpdateSettingsRequest {
+  /**
+   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+   * cluster (service type ClusterIP).
+   * +optional
+   */
+  allowClusterIP?: boolean;
   /**
    * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
    * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
@@ -1495,6 +1514,12 @@ export interface V1Alpha1GameServerSpec {
    */
   schedules?: V1Alpha1Schedule[];
   /**
+   * ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
+   * when it gets a load balancer again.
+   * +optional
+   */
+  serviceType?: V1Alpha1ServiceType;
+  /**
    * SkipInstall skips the egg install script.
    * +optional
    */
@@ -1534,7 +1559,10 @@ export interface V1Alpha1GameServerSpec {
 }
 
 export interface V1Alpha1GameServerStatus {
-  /** Address is the external IP assigned by the load balancer (the first of Addresses). */
+  /**
+   * Address is the external IP assigned by the load balancer (the first of Addresses), or the
+   * service's DNS name inside the cluster (<service>.<namespace>.svc) for a ClusterIP server.
+   */
   address?: string;
   /**
    * Addresses are all external IPs assigned by the load balancer (one per IP family).
@@ -1742,6 +1770,8 @@ export interface V1Alpha1ScheduleTask {
    */
   payload?: string;
 }
+
+export type V1Alpha1ServiceType = "LoadBalancer" | "ClusterIP";
 
 export interface V1Alpha1StartupCommand {
   command: string;

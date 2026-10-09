@@ -53,6 +53,11 @@ spec:
             description: PanelSettingsSpec holds the settings an administrator manages
               in the panel.
             properties:
+              allowClusterIP:
+                description: |-
+                  AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+                  cluster (service type ClusterIP).
+                type: boolean
               allowPrivateNetworks:
                 description: |-
                   AllowPrivateNetworks lets game servers reach private networks (other namespaces,

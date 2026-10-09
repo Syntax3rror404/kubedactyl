@@ -53,7 +53,7 @@ grant access and the role; see [Single sign-on](oidc.md).
 | Own servers: view, power, console, commands, files, backups, stats, reinstall | ✓ (not while suspended) | ✓ (all servers) |
 | Suspend / unsuspend servers | - | ✓ |
 | Transfer servers to another user | - | ✓ |
-| Server settings: display name, crash restart, egg image, egg startup command, **editable** egg variables, load balancer pool (enabled pools) | ✓ | ✓ |
+| Server settings: display name, crash restart, egg image, egg startup command, **editable** egg variables, load balancer pool (enabled pools, or none when allowed) | ✓ | ✓ |
 | Server resources, ports, IP, own startup command, stop timeout, custom image | - | ✓ |
 | Create / delete servers (with owner) | - | ✓ |
 | Eggs: list / view (hidden variables and install script stripped) | ✓ | ✓ full |
@@ -124,6 +124,13 @@ shows objects in its own namespace and its own `<namespace>-user-*` namespaces.
   add an AAAA record for the IPv6 addresses. Pools with an IPv6 block get the badge "IPv6 not available
   in cluster" (and the switch a warning) when the `ServiceCIDR` objects (Kubernetes 1.33+) have no IPv6
   range or `kube-system/cilium-config` has `enable-ipv6: false`.
+- **ClusterIP:** the switch "Allow ClusterIP" below the pools (`allowClusterIP`). Owners can then pick
+  "ClusterIP" instead of a pool: the service becomes `ClusterIP` (`spec.serviceType`), without pool labels,
+  fixed IPs or traffic policy, and Cilium releases the load balancer IP. The server keeps its pool for
+  when it gets a load balancer again. Its address is the service's DNS name `<server>.<namespace>.svc`,
+  shown to users instead of the external domain; diagnostics skip the DNS and router checks. With network
+  isolation on, it is reachable from the owner's other servers (e.g. a proxy server) and from namespaces
+  that are not user namespaces (e.g. a gateway), not from other users' servers.
 
 - **OpenID Connect:** identity provider, client and groups; see [Single sign-on](oidc.md#panel-settings).
 - **Panel updates:** see [Self-upgrades](installation.md#self-upgrades).

@@ -63,7 +63,6 @@ export function serverEggName(gs: GameServer, egg?: Egg): string {
   return egg?.spec.displayName ?? gs.spec.eggRef
 }
 
-/** Address players connect to: the external domain (when configured) or the load balancer IP. */
 /** Whether an IP is an IPv6 address. */
 export const isIPv6 = (ip: string) => ip.includes(":")
 
@@ -72,18 +71,26 @@ function hostPort(host: string, port: number): string {
   return isIPv6(host) ? `[${host}]:${port}` : `${host}:${port}`
 }
 
-/** The load balancer IPs of a server (one per IP family, the main family first). */
+/**
+ * The load balancer IPs of a server (one per IP family, the main family first), or the DNS name of a
+ * server without load balancer.
+ */
 export function serverIPs(gs: GameServer): string[] {
   return gs.status?.addresses?.length ? gs.status.addresses : [gs.status?.address ?? ""].filter(Boolean)
 }
 
-/** Every address of a server: the external domain, or each load balancer IP (one per IP family). */
+/**
+ * Every address of a server: the external domain, or each load balancer IP (one per IP family). A server
+ * without load balancer keeps its DNS name inside the cluster.
+ */
 export function serverAddresses(gs: GameServer, externalDomain?: string): string[] {
   const ips = serverIPs(gs)
   if (!ips.length) return []
-  return (externalDomain ? [externalDomain] : ips).map((host) => hostPort(host, gs.spec.ports[0]))
+  const domain = gs.spec.serviceType !== "ClusterIP" && externalDomain
+  return (domain ? [domain] : ips).map((host) => hostPort(host, gs.spec.ports[0]))
 }
 
+/** Address players connect to: the external domain (when configured) or the load balancer IP. */
 export function serverAddress(gs: GameServer, externalDomain?: string): string | null {
   return serverAddresses(gs, externalDomain)[0] ?? null
 }

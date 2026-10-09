@@ -26,6 +26,18 @@ const (
 	TrafficCluster TrafficPolicy = "Cluster"
 )
 
+// ServiceType is how a game server is published.
+// +kubebuilder:validation:Enum=LoadBalancer;ClusterIP
+type ServiceType string
+
+const (
+	// ServiceLoadBalancer gives the server an address of its load balancer pool.
+	ServiceLoadBalancer ServiceType = "LoadBalancer"
+	// ServiceClusterIP publishes the server only inside the cluster (e.g. behind a proxy server);
+	// it is reached through its service's DNS name.
+	ServiceClusterIP ServiceType = "ClusterIP"
+)
+
 // Phase is the observed state of a game server.
 type Phase string
 
@@ -78,6 +90,10 @@ type GameServerSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="storageClass cannot be changed"
 	StorageClass string `json:"storageClass,omitempty"`
+	// ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
+	// when it gets a load balancer again.
+	// +optional
+	ServiceType ServiceType `json:"serviceType,omitempty"`
 	// LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service
 	// gets the labels of the pool's service selector.
 	// +optional
@@ -173,7 +189,8 @@ type ScheduleStatus struct {
 type GameServerStatus struct {
 	Phase   Phase  `json:"phase,omitempty"`
 	Message string `json:"message,omitempty"`
-	// Address is the external IP assigned by the load balancer (the first of Addresses).
+	// Address is the external IP assigned by the load balancer (the first of Addresses), or the
+	// service's DNS name inside the cluster (<service>.<namespace>.svc) for a ClusterIP server.
 	Address string `json:"address,omitempty"`
 	// Addresses are all external IPs assigned by the load balancer (one per IP family).
 	// +optional

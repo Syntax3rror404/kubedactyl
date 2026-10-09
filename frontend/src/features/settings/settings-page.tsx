@@ -71,7 +71,7 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
   const change = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
   const storage: Selection = { enabled: value.storageClasses ?? [], defaultName: value.defaultStorageClass ?? "" }
   const pool: Selection = { enabled: value.loadBalancerPools ?? [], defaultName: value.defaultLoadBalancerPool ?? "" }
-  const exampleIP = servers.data?.find((s) => s.status?.address)?.status?.address
+  const exampleIP = servers.data?.find((s) => s.status?.address && s.spec.serviceType !== "ClusterIP")?.status?.address
 
   return (
     <div className="space-y-6">
@@ -133,6 +133,8 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
         loadError={pools.data?.error ?? pools.error?.message}
         fieldError={errors.loadBalancerPools}
         selection={pool}
+        allowClusterIP={value.allowClusterIP ?? false}
+        onAllowClusterIP={(allowClusterIP) => change({ allowClusterIP })}
         {...handlers(pool, (s) => change({ loadBalancerPools: s.enabled, defaultLoadBalancerPool: s.defaultName }))}
       />
 

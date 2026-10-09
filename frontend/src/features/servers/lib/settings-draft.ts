@@ -1,6 +1,21 @@
 import { serverName } from "@/lib/format"
 import type { GameServer, UpdateServerRequest } from "@/lib/types"
 
+/** Pool selection of a server without load balancer (Cilium pool names have no capitals). */
+export const noLoadBalancer = "ClusterIP"
+
+/** The pool selection of a saved server: its pool, or noLoadBalancer. */
+export function poolValue(server: GameServer) {
+  return server.spec.serviceType === "ClusterIP" ? noLoadBalancer : (server.spec.loadBalancerPool ?? "")
+}
+
+/** The service type and pool of a pool selection. */
+export function poolRequest(pool: string) {
+  return pool === noLoadBalancer
+    ? ({ serviceType: "ClusterIP" } as const)
+    : ({ serviceType: "LoadBalancer", loadBalancerPool: pool } as const)
+}
+
 /** Form values of the server settings page, starting from the saved server. */
 export function settingsDraft(server: GameServer) {
   const s = server.spec
@@ -13,7 +28,7 @@ export function settingsDraft(server: GameServer) {
     lbIP: s.loadBalancerIP ?? "",
     trafficPolicy: s.externalTrafficPolicy ?? "Local",
     ipv6: s.ipv6 ?? false,
-    pool: s.loadBalancerPool ?? "",
+    pool: poolValue(server),
     crashRestart: s.crashRestart ?? true,
     stopTimeout: s.stopTimeoutSeconds ?? 600,
   }
@@ -26,7 +41,7 @@ export type SettingsChange = (patch: Partial<SettingsDraft>) => void
 
 /** The update request; users may only change the name, crash restarts and the pool. */
 export function settingsChanges(server: GameServer, d: SettingsDraft, isAdmin: boolean): UpdateServerRequest {
-  const pool = d.pool !== (server.spec.loadBalancerPool ?? "") && { loadBalancerPool: d.pool }
+  const pool = d.pool !== poolValue(server) && poolRequest(d.pool)
   if (!isAdmin) return { displayName: d.displayName, crashRestart: d.crashRestart, ...pool }
   return {
     displayName: d.displayName,

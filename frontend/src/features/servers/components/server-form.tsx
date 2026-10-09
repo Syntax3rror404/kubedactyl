@@ -20,6 +20,7 @@ import { ResourceSliders } from "@/features/servers/components/resource-sliders"
 import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
+import { noLoadBalancer, poolRequest } from "@/features/servers/lib/settings-draft"
 import { startupCommandOf } from "@/features/servers/lib/startup"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
@@ -55,6 +56,7 @@ export function ServerForm({
   const storageClass = f.storageClass || settings.data?.defaultStorageClass || ""
   const pool = f.pool || settings.data?.defaultLoadBalancerPool || ""
   const domain = settings.data?.externalDomain
+  const clusterOnly = pool === noLoadBalancer
 
   const create = useCreateServer({
     onSuccess: (gs) => {
@@ -154,7 +156,11 @@ export function ServerForm({
         <FormSection
           step={4}
           title="Network"
-          description={`Every port is published as TCP and UDP on a load balancer IP of the selected pool.${domain ? ` Users connect via ${domain}:${f.ports[0] ?? ""}.` : ""}`}
+          description={
+            clusterOnly
+              ? "Every port is published as TCP and UDP inside the cluster only."
+              : `Every port is published as TCP and UDP on a load balancer IP of the selected pool.${domain ? ` Users connect via ${domain}:${f.ports[0] ?? ""}.` : ""}`
+          }
         >
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
             <Field data-invalid={f.ports.length === 0}>
@@ -172,23 +178,28 @@ export function ServerForm({
               value={pool}
               options={settings.data?.loadBalancerPools ?? []}
               defaultName={settings.data?.defaultLoadBalancerPool}
+              allowClusterIP={settings.data?.allowClusterIP}
               onChange={(v) => shared.set("pool", v)}
               pools={pools.data?.items}
             />
-            <Field>
-              <FieldLabel htmlFor="lbip">Fixed IP (optional)</FieldLabel>
-              <Input
-                id="lbip"
-                value={f.lbIP}
-                onChange={(e) => shared.set("lbIP", e.target.value)}
-                placeholder="assigned automatically"
-                className="font-mono"
-              />
-              <FieldDescription>
-                Free addresses of the selected pool, one per IP family separated by a comma.
-              </FieldDescription>
-            </Field>
-            <TrafficPolicyField value={f.trafficPolicy} onChange={(v) => shared.set("trafficPolicy", v)} />
+            {!clusterOnly && (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="lbip">Fixed IP (optional)</FieldLabel>
+                  <Input
+                    id="lbip"
+                    value={f.lbIP}
+                    onChange={(e) => shared.set("lbIP", e.target.value)}
+                    placeholder="assigned automatically"
+                    className="font-mono"
+                  />
+                  <FieldDescription>
+                    Free addresses of the selected pool, one per IP family separated by a comma.
+                  </FieldDescription>
+                </Field>
+                <TrafficPolicyField value={f.trafficPolicy} onChange={(v) => shared.set("trafficPolicy", v)} />
+              </>
+            )}
             <IPv6Field
               checked={f.ipv6}
               fixedIPs={f.lbIP}
@@ -239,8 +250,8 @@ export function ServerForm({
               diskMiB: f.disk,
               ports: f.ports,
               storageClass: storageClass || undefined,
-              loadBalancerPool: pool || undefined,
-              loadBalancerIP: f.lbIP.trim() || undefined,
+              ...(pool && poolRequest(pool)),
+              loadBalancerIP: (!clusterOnly && f.lbIP.trim()) || undefined,
               externalTrafficPolicy: f.trafficPolicy,
               ipv6: f.ipv6 || undefined,
               owner: f.owner,

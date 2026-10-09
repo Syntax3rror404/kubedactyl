@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { noLoadBalancer } from "@/features/servers/lib/settings-draft"
 import { formatPoolUsage, isIPv6, poolUsage } from "@/lib/format"
 import type { Pool, TrafficPolicy } from "@/lib/types"
 
@@ -16,17 +17,20 @@ export function PlacementSelect({
   value,
   options,
   defaultName,
+  extra,
   onChange,
 }: {
   id: string
   value: string
   options: string[]
   defaultName?: string
+  /** One more choice after the options. */
+  extra?: { value: string; label: string }
   onChange: (value: string) => void
 }) {
-  const items = value && !options.includes(value) ? [value, ...options] : options
+  const items = value && !options.includes(value) && value !== extra?.value ? [value, ...options] : options
   return (
-    <Select value={value} onValueChange={onChange} disabled={items.length === 0}>
+    <Select value={value} onValueChange={onChange} disabled={items.length === 0 && !extra}>
       <SelectTrigger id={id} className="w-full font-mono">
         <SelectValue placeholder="none enabled" />
       </SelectTrigger>
@@ -44,16 +48,21 @@ export function PlacementSelect({
             )}
           </SelectItem>
         ))}
+        {extra && <SelectItem value={extra.value}>{extra.label}</SelectItem>}
       </SelectContent>
     </Select>
   )
 }
 
-/** Load balancer pool selection with the pool's addresses (admins get pool details). */
+/**
+ * Load balancer pool selection with the pool's addresses (admins get pool details) and, when the
+ * settings allow it, "ClusterIP" (noLoadBalancer).
+ */
 export function PoolField({
   value,
   options,
   defaultName,
+  allowClusterIP,
   onChange,
   pools,
   hint,
@@ -61,17 +70,30 @@ export function PoolField({
   value: string
   options: string[]
   defaultName?: string
+  allowClusterIP?: boolean
   onChange: (value: string) => void
   pools?: Pool[]
   hint?: string
 }) {
   const pool = pools?.find((p) => p.name === value)
+  const clusterOnly = value === noLoadBalancer
   return (
     <Field>
       <FieldLabel htmlFor="pool">Load balancer pool</FieldLabel>
-      <PlacementSelect id="pool" value={value} options={options} defaultName={defaultName} onChange={onChange} />
+      <PlacementSelect
+        id="pool"
+        value={value}
+        options={options}
+        defaultName={defaultName}
+        extra={allowClusterIP || clusterOnly ? { value: noLoadBalancer, label: "ClusterIP" } : undefined}
+        onChange={onChange}
+      />
       <FieldDescription>
-        {pool ? [pool.blocks?.join(", "), ...poolUsage(pool).map(formatPoolUsage)].filter(Boolean).join(" · ") : hint}
+        {clusterOnly
+          ? "Reachable only inside the cluster, e.g. through a proxy server."
+          : pool
+            ? [pool.blocks?.join(", "), ...poolUsage(pool).map(formatPoolUsage)].filter(Boolean).join(" · ")
+            : hint}
       </FieldDescription>
     </Field>
   )

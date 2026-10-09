@@ -99,8 +99,8 @@ func (o *Ops) retainVolume(ctx context.Context, gs *v1alpha1.GameServer) (*corev
 	return pv, nil
 }
 
-// transferred is the server object for the new owner: same name and spec, the address fixed
-// to the current one, and annotations that bind the moved volume and skip the installation.
+// transferred is the server object for the new owner: same name and spec, the load balancer
+// address fixed to the current one, and annotations that bind the moved volume and skip the installation.
 func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1alpha1.GameServer {
 	moved := &v1alpha1.GameServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,7 +117,7 @@ func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1al
 		moved.Labels = map[string]string{}
 	}
 	moved.Labels[tenancy.LabelOwner] = owner
-	if moved.Spec.LoadBalancerIP == "" {
+	if moved.Spec.LoadBalancerIP == "" && !gameserver.ClusterOnly(gs) {
 		// All addresses: fixing only one would cost the server its IPv6 address.
 		moved.Spec.LoadBalancerIP = cmp.Or(strings.Join(gs.Status.Addresses, ","), gs.Status.Address)
 	}

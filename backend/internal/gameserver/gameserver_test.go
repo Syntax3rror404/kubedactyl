@@ -141,6 +141,15 @@ func TestGamePod(t *testing.T) {
 	if p := Service(gs, nil).Spec.IPFamilyPolicy; p == nil || *p != corev1.IPFamilyPolicyPreferDualStack {
 		t.Errorf("IPv6 IP family policy: %v", p)
 	}
+	gs.Spec.ServiceType, gs.Spec.LoadBalancerIP = v1alpha1.ServiceClusterIP, "192.0.2.5"
+	svc = Service(gs, map[string]string{"lb.cilium.io/pool": "general"})
+	if svc.Spec.Type != corev1.ServiceTypeClusterIP || svc.Spec.ExternalTrafficPolicy != "" ||
+		svc.Labels["lb.cilium.io/pool"] != "" || len(svc.Annotations) != 0 {
+		t.Errorf("ClusterIP service = %+v", svc)
+	}
+	if a := ClusterAddress(gs); a != gs.Name+"."+gs.Namespace+".svc" {
+		t.Errorf("cluster address = %s", a)
+	}
 }
 
 func TestInstallPod(t *testing.T) {

@@ -30,6 +30,9 @@ type UpdateServerRequest struct {
 	CPUMillis   *int64            `json:"cpuMillis,omitempty"`
 	DiskMiB     *int64            `json:"diskMiB,omitempty"`
 	Ports       []int32           `json:"ports,omitempty"`
+	// ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow
+	// it; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.
+	ServiceType *v1alpha1.ServiceType `json:"serviceType,omitempty" binding:"omitempty,oneof=LoadBalancer ClusterIP"`
 	// LoadBalancerPool moves the server to another enabled pool (its address changes).
 	// Users may change it; a fixed IP is cleared unless a new one is given.
 	LoadBalancerPool *string `json:"loadBalancerPool,omitempty"`
@@ -177,16 +180,17 @@ func applyResources(req *UpdateServerRequest, s *v1alpha1.GameServerSpec) error 
 	return nil
 }
 
-// applyNetwork moves the server to another enabled pool (clearing a fixed IP of the old pool),
-// sets a fixed IP, which must lie inside the pool, and the external traffic policy.
+// applyNetwork moves the server to another enabled pool (clearing a fixed IP of the old pool) or
+// into the cluster only, sets a fixed IP, which must lie inside the pool, and the external
+// traffic policy.
 func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1alpha1.GameServerSpec) error {
+	set, err := a.Settings.Current(ctx)
+	if err != nil {
+		return err
+	}
 	if req.LoadBalancerPool != nil && *req.LoadBalancerPool != s.LoadBalancerPool {
 		if *req.LoadBalancerPool == "" {
 			return validation.Field("loadBalancerPool", errors.New("select a load balancer pool"))
-		}
-		set, err := a.Settings.Get(ctx)
-		if err != nil {
-			return err
 		}
 		_, err = settings.Choose(*req.LoadBalancerPool, "", set.LoadBalancerPools, "load balancer pool")
 		if err != nil {
@@ -194,6 +198,12 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 		}
 		s.LoadBalancerPool = *req.LoadBalancerPool
 		s.LoadBalancerIP = ""
+	}
+	if req.ServiceType != nil && *req.ServiceType != s.ServiceType {
+		s.ServiceType = *req.ServiceType
+		if s.ServiceType == v1alpha1.ServiceClusterIP {
+			s.LoadBalancerIP = ""
+		}
 	}
 	if req.LoadBalancerIP != nil {
 		s.LoadBalancerIP = *req.LoadBalancerIP
@@ -204,10 +214,27 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 	if req.IPv6 != nil {
 		s.IPv6 = *req.IPv6
 	}
-	if req.LoadBalancerIP != nil || req.LoadBalancerPool != nil {
-		if err := a.checkPoolIP(ctx, s.LoadBalancerPool, s.LoadBalancerIP); err != nil {
+	if req.ServiceType != nil || req.LoadBalancerIP != nil {
+		if err := checkServiceType(set, s.ServiceType, s.LoadBalancerIP); err != nil {
 			return err
 		}
+	}
+	if req.LoadBalancerIP != nil || req.LoadBalancerPool != nil {
+		return a.checkPoolIP(ctx, s.LoadBalancerPool, s.LoadBalancerIP)
+	}
+	return nil
+}
+
+// checkServiceType allows ClusterIP servers only when the settings do, and without a fixed IP.
+func checkServiceType(set v1alpha1.PanelSettingsSpec, typ v1alpha1.ServiceType, ips string) error {
+	if typ != v1alpha1.ServiceClusterIP {
+		return nil
+	}
+	if !set.AllowClusterIP {
+		return validation.Field("serviceType", fmt.Errorf("service type ClusterIP %w", settings.ErrNotEnabled))
+	}
+	if ips != "" {
+		return validation.Field("loadBalancerIP", errors.New("a server without load balancer has no fixed IP"))
 	}
 	return nil
 }

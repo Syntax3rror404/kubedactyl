@@ -62,31 +62,34 @@ func PVC(gs *v1alpha1.GameServer, opts Options) *corev1.PersistentVolumeClaim {
 
 // Service exposes every allocation as TCP and UDP. poolLabels are the
 // labels the service needs to get its address from the selected load balancer pool.
+// A ClusterIP server gets neither pool labels nor fixed IPs.
 func Service(gs *v1alpha1.GameServer, poolLabels map[string]string) *corev1.Service {
-	l := labels(gs.Name, "network")
-	maps.Copy(l, poolLabels)
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ServiceName(gs.Name),
 			Namespace:   gs.Namespace,
-			Labels:      l,
+			Labels:      labels(gs.Name, "network"),
 			Annotations: map[string]string{},
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeLoadBalancer,
-			Selector: map[string]string{LabelServer: gs.Name, LabelRole: RoleGame},
-			// Local by default: the game server sees the players' IPs (ban lists etc.).
-			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicy(
-				cmp.Or(gs.Spec.ExternalTrafficPolicy, v1alpha1.TrafficLocal),
-			),
+			Type:           corev1.ServiceTypeClusterIP,
+			Selector:       map[string]string{LabelServer: gs.Name, LabelRole: RoleGame},
 			IPFamilyPolicy: ipFamilyPolicy(gs.Spec.IPv6),
 		},
 	}
-	if gs.Spec.LoadBalancerIP != "" {
-		svc.Annotations[AnnotationFixedIPs] = FixedIPs(gs.Spec.LoadBalancerIP, nil)
-	}
-	if len(poolLabels) > 0 {
-		svc.Annotations[AnnotationPoolLabels] = strings.Join(slices.Sorted(maps.Keys(poolLabels)), ",")
+	if !ClusterOnly(gs) {
+		svc.Spec.Type = corev1.ServiceTypeLoadBalancer
+		// Local by default: the game server sees the players' IPs (ban lists etc.).
+		svc.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicy(
+			cmp.Or(gs.Spec.ExternalTrafficPolicy, v1alpha1.TrafficLocal),
+		)
+		if gs.Spec.LoadBalancerIP != "" {
+			svc.Annotations[AnnotationFixedIPs] = FixedIPs(gs.Spec.LoadBalancerIP, nil)
+		}
+		maps.Copy(svc.Labels, poolLabels)
+		if len(poolLabels) > 0 {
+			svc.Annotations[AnnotationPoolLabels] = strings.Join(slices.Sorted(maps.Keys(poolLabels)), ",")
+		}
 	}
 	for _, p := range gs.Spec.Ports {
 		for _, proto := range []corev1.Protocol{corev1.ProtocolTCP, corev1.ProtocolUDP} {
@@ -99,6 +102,16 @@ func Service(gs *v1alpha1.GameServer, poolLabels map[string]string) *corev1.Serv
 		}
 	}
 	return svc
+}
+
+// ClusterOnly tells whether a server is published only inside the cluster (no load balancer).
+func ClusterOnly(gs *v1alpha1.GameServer) bool {
+	return gs.Spec.ServiceType == v1alpha1.ServiceClusterIP
+}
+
+// ClusterAddress is the DNS name of a server's service inside the cluster.
+func ClusterAddress(gs *v1alpha1.GameServer) string {
+	return ServiceName(gs.Name) + "." + gs.Namespace + ".svc"
 }
 
 // ParseIPs parses a comma separated list of IPs (the fixed IPs of a server).

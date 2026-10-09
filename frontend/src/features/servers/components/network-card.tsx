@@ -3,14 +3,19 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
-import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
+import {
+  noLoadBalancer,
+  poolValue,
+  type SettingsChange,
+  type SettingsDraft,
+} from "@/features/servers/lib/settings-draft"
 import { serverAddress, serverIPs } from "@/lib/format"
 import { usePools, useSettings } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
 /**
- * Settings page: the load balancer pool; administrators also set the ports, fixed IPs, the
- * traffic policy and IPv6. Users only see it when pools are configured.
+ * Settings page: the load balancer pool (or none); administrators also set the ports, fixed IPs,
+ * the traffic policy and IPv6. Users only see it when they have a choice.
  */
 export function NetworkCard({
   server,
@@ -28,13 +33,15 @@ export function NetworkCard({
   const settings = useSettings().data
   const pools = usePools(isAdmin)
   const address = serverIPs(server).join(", ") || undefined
-  const saved = server.spec.loadBalancerPool ?? ""
-  if (!isAdmin && !settings?.loadBalancerPools?.length) return null
+  const saved = poolValue(server)
+  const clusterOnly = draft.pool === noLoadBalancer
+  if (!isAdmin && !settings?.loadBalancerPools?.length && !settings?.allowClusterIP) return null
   const poolField = (
     <PoolField
       value={draft.pool}
       options={settings?.loadBalancerPools ?? []}
       defaultName={settings?.defaultLoadBalancerPool}
+      allowClusterIP={settings?.allowClusterIP}
       // A fixed IP belongs to the previous pool.
       onChange={(pool) => onChange(pool === saved ? { pool } : { pool, lbIP: "" })}
       pools={pools.data?.items}
@@ -65,22 +72,31 @@ export function NetworkCard({
               {errors.ports && <FieldError>{errors.ports}</FieldError>}
             </Field>
             {poolField}
-            <Field data-invalid={!!errors.loadBalancerIP}>
-              <FieldLabel htmlFor="ip">Fixed load balancer IP</FieldLabel>
-              <Input
-                id="ip"
-                value={draft.lbIP}
-                onChange={(e) => onChange({ lbIP: e.target.value })}
-                placeholder={address ?? "automatic"}
-                className="font-mono"
-              />
-              <FieldDescription>
-                Current address: {address ?? "pending"}
-                {settings?.externalDomain && address && `, users see ${serverAddress(server, settings.externalDomain)}`}
-              </FieldDescription>
-              {errors.loadBalancerIP && <FieldError>{errors.loadBalancerIP}</FieldError>}
-            </Field>
-            <TrafficPolicyField value={draft.trafficPolicy} onChange={(trafficPolicy) => onChange({ trafficPolicy })} />
+            {!clusterOnly && (
+              <>
+                <Field data-invalid={!!errors.loadBalancerIP}>
+                  <FieldLabel htmlFor="ip">Fixed load balancer IP</FieldLabel>
+                  <Input
+                    id="ip"
+                    value={draft.lbIP}
+                    onChange={(e) => onChange({ lbIP: e.target.value })}
+                    placeholder={address ?? "automatic"}
+                    className="font-mono"
+                  />
+                  <FieldDescription>
+                    Current address: {address ?? "pending"}
+                    {settings?.externalDomain &&
+                      address &&
+                      `, users see ${serverAddress(server, settings.externalDomain)}`}
+                  </FieldDescription>
+                  {errors.loadBalancerIP && <FieldError>{errors.loadBalancerIP}</FieldError>}
+                </Field>
+                <TrafficPolicyField
+                  value={draft.trafficPolicy}
+                  onChange={(trafficPolicy) => onChange({ trafficPolicy })}
+                />
+              </>
+            )}
             <IPv6Field
               checked={draft.ipv6}
               fixedIPs={draft.lbIP}
