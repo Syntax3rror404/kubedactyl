@@ -459,7 +459,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | go.yaml.in/yaml/v3 | v3.0.5 | Apache-2.0 AND MIT |
 | golang.org/x/crypto | v0.57.0 | BSD-3-Clause |
 | golang.org/x/mod | v0.41.0 | BSD-3-Clause |
-| golang.org/x/net | v0.59.0 | BSD-3-Clause |
+| golang.org/x/net | v0.60.0 | BSD-3-Clause |
 | golang.org/x/oauth2 | v0.37.0 | BSD-3-Clause |
 | golang.org/x/sync | v0.23.0 | BSD-3-Clause |
 | golang.org/x/sys | v0.48.0 | BSD-3-Clause |
@@ -633,7 +633,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | comma-separated-tokens | 2.0.3 | MIT |
 | cookie-es | 3.1.1 | MIT |
 | crelt | 1.0.7 | MIT |
-| cronstrue | 3.30.0 | MIT |
+| cronstrue | 3.31.0 | MIT |
 | d3-array | 3.2.4 | ISC |
 | d3-color | 3.1.0 | ISC |
 | d3-format | 3.1.2 | ISC |
@@ -664,7 +664,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | internmap | 2.0.3 | ISC |
 | is-plain-obj | 4.1.0 | MIT |
 | longest-streak | 3.1.0 | MIT |
-| lucide-react | 1.52.0 | ISC |
+| lucide-react | 1.54.0 | ISC |
 | markdown-table | 3.0.4 | MIT |
 | mdast-util-find-and-replace | 3.0.2 | MIT |
 | mdast-util-from-markdown | 2.0.3 | MIT |
@@ -729,7 +729,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | remark-rehype | 11.1.2 | MIT |
 | reselect | 5.1.1 | MIT |
 | reselect | 5.2.0 | MIT |
-| rolldown | 1.2.11 | MIT |
+| rolldown | 1.2.13 | MIT |
 | scheduler | 0.28.0 | MIT |
 | shadcn | 4.21.4 | MIT |
 | sonner | 2.0.8 | MIT |
@@ -756,7 +756,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | vfile | 6.0.3 | MIT |
 | vfile-message | 4.0.3 | MIT |
 | victory-vendor | 37.3.6 | MIT AND ISC |
-| vite | 8.3.3 | MIT |
+| vite | 8.3.4 | MIT |
 | w3c-keyname | 2.2.8 | MIT |
 | zwitch | 2.0.4 | MIT |
 

@@ -21,8 +21,10 @@ function Keyframes() {
   )
 }
 
-// Time from the answer until the check or cross stands still (the shake after a cross ends last: 0.55 s + 0.55 s).
-export const verifyMs = 1100
+// Time from the answer until the animation has ended: the pop after a check (0.55 s + 0.4 s) and the shake after a
+// cross (0.55 s + 0.55 s).
+export const verifyOkMs = 950
+export const verifyFailMs = 1100
 
 const radius = 27
 const circumference = 2 * Math.PI * radius

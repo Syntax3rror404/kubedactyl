@@ -89,7 +89,7 @@ In the realm of your users:
 Saving checks that the issuer answers (its discovery document). The client secret is stored in the Secret
 `kubedactyl-oidc` in the panel namespace, never in the settings; the API only says whether one is stored
 (`oidcClientSecretSet`). An empty field on the card keeps the stored secret. The sidebar health check
-*Single sign-on* shows when the IdP cannot be reached.
+*OIDC* shows when the IdP cannot be reached.
 
 ## Troubleshooting
 

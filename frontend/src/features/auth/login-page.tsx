@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { Navigate, useNavigate, useSearchParams } from "react-router"
 
 import { UnveilPassword } from "@/components/common/unveil-password"
-import { VerifyMark, verifyMs, type VerifyState } from "@/components/common/verify-mark"
+import { VerifyMark, verifyFailMs, verifyOkMs, type VerifyState } from "@/components/common/verify-mark"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
@@ -28,8 +28,6 @@ type Answer = "ok" | "fail"
 // The ticks turn at least this long, so a fast answer (or one already known, back from the identity provider)
 // still shows the wait and the ring closing.
 const minWaitMs = 500
-// The finished check or cross stays this long before the panel opens or the form comes back.
-const holdMs = verifyMs + 1000
 
 /**
  * What the sign-in page shows instead of the form: waiting for the panel (password) or the identity provider
@@ -61,9 +59,13 @@ function useSignInFlow(target: string, sso: string | null) {
     return () => clearTimeout(timer)
   }, [result])
 
+  // The panel opens or the form comes back as soon as the check or cross has finished.
   useEffect(() => {
     if (!shown) return
-    const timer = setTimeout(() => (shown === "ok" ? navigate(target, { replace: true }) : reset()), holdMs)
+    const timer = setTimeout(
+      () => (shown === "ok" ? navigate(target, { replace: true }) : reset()),
+      shown === "ok" ? verifyOkMs : verifyFailMs,
+    )
     return () => clearTimeout(timer)
   }, [shown, navigate, target])
 

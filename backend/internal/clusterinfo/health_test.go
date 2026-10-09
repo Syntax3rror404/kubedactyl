@@ -161,7 +161,7 @@ func TestHealthProblems(t *testing.T) {
 			func(in *healthInputs) { in.settings.OIDC.Enabled = false },
 			"oidc",
 			checks.Skipped,
-			"off",
+			"disabled",
 		},
 		{
 			"identity provider down",
