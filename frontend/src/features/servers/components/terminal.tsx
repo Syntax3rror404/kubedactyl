@@ -83,6 +83,17 @@ export function Terminal({
     const fit = new FitAddon()
     t.loadAddon(fit)
     t.open(el.current!)
+    // xterm swallows Ctrl/Cmd+C as a terminal key; copy the selection instead.
+    t.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown" || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "c") return true
+      if (!t.hasSelection()) return true
+      if (navigator.clipboard) {
+        e.preventDefault()
+        navigator.clipboard.writeText(t.getSelection()).catch(() => document.execCommand("copy"))
+      }
+      // Without the Clipboard API (insecure context) fall through to the native copy event.
+      return false
+    })
     term.current = t
     const resize = new ResizeObserver(() => {
       try {
