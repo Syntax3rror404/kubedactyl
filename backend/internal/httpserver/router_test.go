@@ -107,7 +107,7 @@ func TestDocumentedRoutesExist(t *testing.T) {
 }
 
 // TestWebUIIsCachedAndCompressed: hashed assets are cached for a year, text files are sent gzip compressed to
-// browsers that accept it, unknown paths and folders get index.html.
+// browsers that accept it, unknown paths and folders get index.html, missing assets a 404.
 func TestWebUIIsCachedAndCompressed(t *testing.T) {
 	script := strings.Repeat("console.log('kubedactyl');", 100)
 	frontend := fstest.MapFS{
@@ -153,6 +153,11 @@ func TestWebUIIsCachedAndCompressed(t *testing.T) {
 		if !strings.Contains(w.Body.String(), "<title>Kubedactyl") || w.Header().Get("Cache-Control") != "no-cache" {
 			t.Errorf("%s: %d %v %q", path, w.Code, w.Header(), w.Body.String())
 		}
+	}
+	// A tab of an older build reloads on the 404 instead of reading index.html as a script.
+	w = get("/assets/gone-abc.js", "")
+	if w.Code != http.StatusNotFound || strings.Contains(w.Body.String(), "<title>") {
+		t.Errorf("missing asset: %d %q", w.Code, w.Body.String())
 	}
 	// Files without a hash in their name are revalidated: unchanged, the answer is 304 without a body.
 	etag := get("/", "gzip").Header().Get("ETag")

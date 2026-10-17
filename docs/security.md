@@ -49,7 +49,7 @@ Measures for exposing the panel to the internet:
   (up to 128 KiB each) are not sent again.
 - **Web UI files:** hashed files under `assets/` are cached for a year (`immutable`), `index.html` and the other
   files are revalidated (`no-cache` + ETag: 304 while unchanged); text files are sent gzip compressed (compressed
-  once at start).
+  once at start). A missing asset is a 404; a tab of an older build reloads once to get the new one.
 - **Requests** are limited to 8 MiB (uploads stream and are not limited); websocket connections only
   from the same origin (localhost ports only in dev mode).
 - **No information leaks:** internal errors show details only to administrators; `/api/info` only

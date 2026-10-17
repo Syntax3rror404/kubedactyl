@@ -91,13 +91,21 @@ func contentType(name string, data []byte) string {
 }
 
 // serve answers with a file of the build and falls back to index.html for unknown paths (client-side routing).
+// A missing asset is a 404: a tab of an older build asks for chunks that are gone, and index.html would reach it as
+// a script with the wrong type.
 func (s *staticFiles) serve(c *gin.Context) {
 	name := strings.TrimPrefix(c.Request.URL.Path, "/")
 	if name == "" {
 		name = "index.html"
 	}
+	info, err := fs.Stat(s.fs, name)
+	if errors.Is(err, fs.ErrNotExist) && strings.HasPrefix(name, "assets/") && path.Ext(name) != "" {
+		c.Header("Cache-Control", "no-store")
+		c.String(http.StatusNotFound, "Not found")
+		return
+	}
 	// Folders are no files either: no listing of assets/.
-	if info, err := fs.Stat(s.fs, name); errors.Is(err, fs.ErrNotExist) || (err == nil && info.IsDir()) {
+	if errors.Is(err, fs.ErrNotExist) || (err == nil && info.IsDir()) {
 		name = "index.html"
 	} else if err != nil {
 		c.Status(http.StatusInternalServerError)
