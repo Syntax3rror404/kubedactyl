@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type {
   AcceptInviteRequest,
   CreatedInvite,
@@ -13,32 +13,35 @@ import type {
   UserView,
 } from "@/lib/types"
 
+/** All accounts (admins). */
 export const useUsers = () => useQuery({ queryKey: keys.users, queryFn: api.users.list })
 
+/** Creates an account. */
 export const useCreateUser = (cb?: MutationCallbacks<UserView, CreateUserRequest>) =>
-  useApiMutation(api.users.create, (qc) => refresh(qc, keys.users), cb)
+  useApiMutation(api.users.create, refreshes(keys.users), cb)
 
+/** Changes an account. */
 export const useUpdateUser = (cb?: MutationCallbacks<UserView, { name: string; changes: UpdateUserRequest }>) =>
-  useApiMutation(
-    ({ name, changes }) => api.users.update(name, changes),
-    (qc) => refresh(qc, keys.users),
-    cb,
-  )
+  useApiMutation(({ name, changes }) => api.users.update(name, changes), refreshes(keys.users), cb)
 
 /** Deleting a user also deletes their servers. */
 export const useDeleteUser = (cb?: MutationCallbacks<void, string>) =>
-  useApiMutation(api.users.delete, (qc) => refresh(qc, keys.users, keys.servers), cb)
+  useApiMutation(api.users.delete, refreshes(keys.users, keys.servers), cb)
 
+/** All invites, also expired ones (admins). */
 export const useInvites = () => useQuery({ queryKey: keys.invites, queryFn: api.invites.list })
 
+/** Creates an invite; the answer holds the link, shown only once. */
 export const useCreateInvite = (cb?: MutationCallbacks<CreatedInvite, CreateInviteRequest>) =>
-  useApiMutation(api.invites.create, (qc) => refresh(qc, keys.invites), cb)
+  useApiMutation(api.invites.create, refreshes(keys.invites), cb)
 
+/** Gives an invite a new link; the old one stops working. */
 export const useRenewInvite = (cb?: MutationCallbacks<CreatedInvite, string>) =>
-  useApiMutation(api.invites.renew, (qc) => refresh(qc, keys.invites), cb)
+  useApiMutation(api.invites.renew, refreshes(keys.invites), cb)
 
+/** Revokes an invite. */
 export const useDeleteInvite = (cb?: MutationCallbacks<void, string>) =>
-  useApiMutation(api.invites.delete, (qc) => refresh(qc, keys.invites), cb)
+  useApiMutation(api.invites.delete, refreshes(keys.invites), cb)
 
 /** Whether an invite link works (public; no retry: an invalid link stays invalid). */
 export const useInvite = (token: string) =>

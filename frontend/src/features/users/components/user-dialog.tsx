@@ -1,8 +1,8 @@
 import { toast } from "sonner"
 
-import { CopyButton } from "@/components/common/copy-button"
+import { CopyField } from "@/components/common/copy-button"
 import { OidcBadge } from "@/components/common/role-badge"
-import { UnveilPassword } from "@/components/common/unveil-password"
+import { PasswordField } from "@/components/common/unveil-password"
 import { UsernameField } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
@@ -89,10 +89,7 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
         {oidc && (
           <Field>
             <FieldLabel>Identity provider user ID</FieldLabel>
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
-              <code className="flex-1 truncate font-mono text-xs">{oidc.subject}</code>
-              <CopyButton value={oidc.subject} label="Copy user ID" />
-            </div>
+            <CopyField value={oidc.subject} label="Copy user ID" />
             <FieldDescription className="break-all">{oidc.issuer}</FieldDescription>
           </Field>
         )}
@@ -125,15 +122,7 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
             {oidc ? (
               <Input id="u-role" readOnly value={roleLabel(role)} />
             ) : (
-              <Select value={role} onValueChange={(v) => set("role", v as Role)}>
-                <SelectTrigger id="u-role" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
+              <RoleSelect id="u-role" value={role} onChange={(v) => set("role", v)} />
             )}
           </Field>
         </div>
@@ -194,25 +183,40 @@ function PasswordFields({
 }) {
   return (
     <>
-      <Field data-invalid={tooShort || !!error}>
-        <FieldLabel htmlFor="u-password">{isNew ? "Password" : "New password"}</FieldLabel>
-        <UnveilPassword
-          id="u-password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => onPassword(e.target.value)}
-          aria-invalid={tooShort || !!error}
-        />
-        {error ? (
-          <FieldError>{error}</FieldError>
-        ) : (
-          <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash.</FieldDescription>
-        )}
-      </Field>
+      <PasswordField
+        id="u-password"
+        label={isNew ? "Password" : "New password"}
+        autoComplete="new-password"
+        value={password}
+        onChange={onPassword}
+        invalid={tooShort}
+        error={error}
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash.`}
+      />
       <Field orientation="horizontal">
         <Switch id="u-must-change" checked={mustChange} onCheckedChange={onMustChange} />
         <FieldLabel htmlFor="u-must-change">Must choose a new password after signing in</FieldLabel>
       </Field>
     </>
+  )
+}
+
+const roles: Role[] = ["user", "admin"]
+
+/** The role picker of the user and invite dialogs. */
+export function RoleSelect({ id, value, onChange }: { id: string; value: Role; onChange: (role: Role) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as Role)}>
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {roles.map((r) => (
+          <SelectItem key={r} value={r}>
+            {roleLabel(r)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

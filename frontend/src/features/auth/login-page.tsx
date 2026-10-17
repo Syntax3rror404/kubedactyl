@@ -2,10 +2,10 @@ import { KeyRoundIcon, LogInIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Navigate, useNavigate, useSearchParams } from "react-router"
 
-import { UnveilPassword } from "@/components/common/unveil-password"
+import { PasswordField } from "@/components/common/unveil-password"
 import { VerifyMark, verifyFailMs, verifyOkMs, type VerifyState } from "@/components/common/verify-mark"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { AuthShell } from "@/features/auth/components/auth-shell"
@@ -138,62 +138,57 @@ export function LoginPage() {
 
   return (
     <AuthShell title="Sign in">
-      <Card className="bg-card/80 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-        </CardHeader>
-        {/* Form and progress share one cell, so the card keeps its height when they swap. */}
-        <CardContent className="grid *:col-start-1 *:row-start-1">
-          <form
-            onSubmit={submit}
-            inert={!!flow.state}
-            className={cn("transition-opacity duration-300", flow.state && "opacity-0")}
-          >
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="username">Username</FieldLabel>
-                <Input
-                  id="username"
-                  autoComplete="username"
-                  autoFocus
-                  value={draft.username}
-                  onChange={(e) => set("username", e.target.value)}
-                />
-              </Field>
-              <Field data-invalid={!!error}>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <UnveilPassword
-                  id="password"
-                  autoComplete="current-password"
-                  value={draft.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  aria-invalid={!!error}
-                />
-                {error && <FieldError>{error}</FieldError>}
-              </Field>
-              <Button type="submit" className="w-full" disabled={!draft.username || !draft.password}>
-                <LogInIcon />
-                Sign in
-              </Button>
-              {sso.data?.enabled && (
-                <>
-                  <FieldSeparator />
-                  <Field>
-                    <Button variant="outline" className="w-full" asChild>
-                      <a href={urls.oidcStart(target)} onClick={() => flow.wait("sso")}>
-                        <KeyRoundIcon />
-                        Sign in with {sso.data.name}
-                      </a>
-                    </Button>
-                    {ssoError && <FieldError>{ssoError}</FieldError>}
-                  </Field>
-                </>
-              )}
-            </FieldGroup>
-          </form>
-          {flow.via && flow.state && <SignInProgress via={flow.via} state={flow.state} />}
-        </CardContent>
-      </Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+      </CardHeader>
+      {/* Form and progress share one cell, so the card keeps its height when they swap. */}
+      <CardContent className="grid *:col-start-1 *:row-start-1">
+        <form
+          onSubmit={submit}
+          inert={!!flow.state}
+          className={cn("transition-opacity duration-300", flow.state && "opacity-0")}
+        >
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <Input
+                id="username"
+                autoComplete="username"
+                autoFocus
+                value={draft.username}
+                onChange={(e) => set("username", e.target.value)}
+              />
+            </Field>
+            <PasswordField
+              id="password"
+              label="Password"
+              autoComplete="current-password"
+              value={draft.password}
+              onChange={(v) => set("password", v)}
+              error={error}
+            />
+            <Button type="submit" className="w-full" disabled={!draft.username || !draft.password}>
+              <LogInIcon />
+              Sign in
+            </Button>
+            {sso.data?.enabled && (
+              <>
+                <FieldSeparator />
+                <Field>
+                  <Button variant="outline" className="w-full" asChild>
+                    <a href={urls.oidcStart(target)} onClick={() => flow.wait("sso")}>
+                      <KeyRoundIcon />
+                      Sign in with {sso.data.name}
+                    </a>
+                  </Button>
+                  {ssoError && <FieldError>{ssoError}</FieldError>}
+                </Field>
+              </>
+            )}
+          </FieldGroup>
+        </form>
+        {flow.via && flow.state && <SignInProgress via={flow.via} state={flow.state} />}
+      </CardContent>
     </AuthShell>
   )
 }

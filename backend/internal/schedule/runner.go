@@ -38,7 +38,7 @@ type Runner struct {
 	running map[string]bool
 }
 
-// Start implements manager.Runnable.
+// Start checks the schedules at the start of every minute until the panel stops.
 func (r *Runner) Start(ctx context.Context) error {
 	for {
 		next := time.Now().Truncate(time.Minute).Add(time.Minute)
@@ -57,14 +57,15 @@ func (r *Runner) tick(ctx context.Context, minute time.Time) {
 		r.Log.Warn("listing servers for schedules", "err", err)
 		return
 	}
-	for _, gs := range list.Items {
+	for i := range list.Items {
+		gs := &list.Items[i]
 		if !tenancy.Owns(gs.Namespace) || !gs.DeletionTimestamp.IsZero() || gs.Spec.Suspended ||
-			gameserver.Migrating(&gs) {
+			gameserver.Migrating(gs) {
 			continue
 		}
 		for _, s := range gs.Spec.Schedules {
 			if s.Enabled && s.Event == "" && Due(s.Cron, minute) {
-				r.start(client.ObjectKeyFromObject(&gs), s)
+				r.start(client.ObjectKeyFromObject(gs), s)
 			}
 		}
 	}
@@ -240,7 +241,7 @@ func (r *Runner) record(ctx context.Context, ref types.NamespacedName, name, res
 	}
 }
 
-// backup creates a backup and waits for it (like a backup started on the Backups tab).
+// backup creates a backup and waits for it, so the next task runs after it.
 func (r *Runner) backup(ctx context.Context, gs *v1alpha1.GameServer, label string) error {
 	if r.Files == nil {
 		return errors.New("backups are not available")

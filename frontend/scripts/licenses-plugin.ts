@@ -183,6 +183,7 @@ function section(p: Pkg): string {
   return `### ${p.name} ${p.version} (${p.license})\n\n${codeBlock(texts.join("\n\n"))}`
 }
 
+/** Vite plugin that checks the npm table against the bundle and writes licenses-npm.md. */
 export function thirdPartyLicenses(): Plugin {
   let root = ""
   return {

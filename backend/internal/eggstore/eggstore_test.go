@@ -1,6 +1,7 @@
 package eggstore
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -90,5 +91,14 @@ func TestUpdateFromURLNeedsURL(t *testing.T) {
 	s := newStore(t, egg)
 	if _, err := s.UpdateFromURL(context.Background(), "paper"); !errors.Is(err, ErrNoUpdateURL) {
 		t.Errorf("without update URL: %v", err)
+	}
+}
+
+func TestReadFileRefusesLargeFiles(t *testing.T) {
+	if data, err := ReadFile(bytes.NewReader(make([]byte, MaxSize))); err != nil || len(data) != MaxSize {
+		t.Errorf("file of MaxSize: %d bytes, %v", len(data), err)
+	}
+	if _, err := ReadFile(bytes.NewReader(make([]byte, MaxSize+1))); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("larger file: err = %v, want ErrTooLarge", err)
 	}
 }

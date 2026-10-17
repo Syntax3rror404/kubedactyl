@@ -9,6 +9,11 @@ export function pickedCommand(egg: EggSpec | undefined, choice: StartupChoice) {
   return commands.find((c) => c.name === choice.startupName) ?? commands[0]
 }
 
+/** The default value of every egg variable, keyed by its environment name. */
+export function defaultEnvironment(egg: EggSpec): Record<string, string> {
+  return Object.fromEntries((egg.variables ?? []).map((v) => [v.envVariable, v.defaultValue ?? ""]))
+}
+
 /** The (unsubstituted) command a server runs with the choice: its own, else the picked egg command. */
 export function startupCommandOf(egg: EggSpec | undefined, choice: StartupChoice): string {
   return choice.startup || pickedCommand(egg, choice)?.command || ""

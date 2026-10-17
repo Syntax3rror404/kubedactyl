@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,9 +16,10 @@ import (
 
 	"app/api/v1alpha1"
 	"app/internal/testutil"
+	"app/internal/validation"
 )
 
-// Shaped like the pools of the homelab cluster (Cilium 1.18, cilium.io/v2).
+// Shaped like the pools Cilium 1.18 serves (cilium.io/v2).
 const poolsYAML = `
 - metadata: {name: general-pool}
   spec:
@@ -235,5 +237,55 @@ func TestCurrentKeepsSettingsUntilTheyChange(t *testing.T) {
 	}
 	if got := brand(); got != "Saved" {
 		t.Errorf("after a save: %q", got)
+	}
+}
+
+// poolLister counts the lists of the pool resolver and has no pools.
+type poolLister struct {
+	client.Reader
+	lists atomic.Int32
+}
+
+func (c *poolLister) List(context.Context, client.ObjectList, ...client.ListOption) error {
+	c.lists.Add(1)
+	return nil
+}
+
+func TestPoolResolverKeepsList(t *testing.T) {
+	reader := &poolLister{}
+	r := &PoolResolver{Reader: reader, pools: testPools(t), fetched: time.Now()}
+	ctx := context.Background()
+
+	labels, err := r.ServiceLabels(ctx, "general-pool")
+	if err != nil || labels["lb.cilium.io/pool"] != "general" {
+		t.Fatalf("labels = %v, %v", labels, err)
+	}
+	labels["lb.cilium.io/pool"] = "changed"
+	if again, _ := r.ServiceLabels(ctx, "general-pool"); again["lb.cilium.io/pool"] != "general" {
+		t.Errorf("a caller changed the kept labels: %v", again)
+	}
+
+	// A missing pool is answered from the fresh list; only an older one is loaded again.
+	for range 3 {
+		if _, err := r.ServiceLabels(ctx, "deleted-pool"); err == nil {
+			t.Fatal("deleted-pool resolved")
+		}
+	}
+	if n := reader.lists.Load(); n != 0 {
+		t.Errorf("listed %d times for a missing pool within the miss window", n)
+	}
+	r.fetched = time.Now().Add(-poolMissTTL - time.Second)
+	if _, err := r.ServiceLabels(ctx, "deleted-pool"); err == nil || reader.lists.Load() != 1 {
+		t.Errorf("err = %v, lists = %d; want an error after one list", err, reader.lists.Load())
+	}
+}
+
+func TestNormalizeReportsFirstField(t *testing.T) {
+	spec := v1alpha1.PanelSettingsSpec{BrandLogo: "https://example.com/logo.png", Favicon: "bogus"}
+	for range 20 {
+		_, err := normalizeBranding(spec)
+		if errs, ok := err.(validation.Errors); !ok || errs["brandLogo"] == "" {
+			t.Fatalf("err = %v, want brandLogo first", err)
+		}
 	}
 }

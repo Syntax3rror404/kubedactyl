@@ -2,7 +2,7 @@ import { useState } from "react"
 import { DownloadIcon } from "lucide-react"
 
 import { Callout } from "@/components/common/callout"
-import { CopyButton } from "@/components/common/copy-button"
+import { CopyField } from "@/components/common/copy-button"
 import { UsernameField, UsernameHint } from "@/components/common/username-field"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { QrCode } from "@/features/users/components/qr-code"
+import { RoleSelect } from "@/features/users/components/user-dialog"
 import { downloadQrCode } from "@/features/users/lib/qr-code"
 import { useDraft } from "@/hooks/use-draft"
 import { formatDate } from "@/lib/format"
@@ -69,15 +69,7 @@ function InviteForm({ onCreated }: { onCreated: (invite: CreatedInvite) => void 
           />
           <Field>
             <FieldLabel htmlFor="i-role">Role</FieldLabel>
-            <Select value={draft.role} onValueChange={(v) => set("role", v as Role)}>
-              <SelectTrigger id="i-role" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-              </SelectContent>
-            </Select>
+            <RoleSelect id="i-role" value={draft.role} onChange={(v) => set("role", v)} />
           </Field>
         </div>
         <UsernameHint error={errors.username} hint="Leave the username empty to let the invited person choose it." />
@@ -114,10 +106,7 @@ export function InviteLink({ invite, onClose }: { invite: CreatedInvite; onClose
       </DialogHeader>
       <div className="flex flex-col items-center gap-4 py-4">
         <QrCode value={link} className="size-56" />
-        <div className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
-          <code className="flex-1 font-mono text-xs break-all">{link}</code>
-          <CopyButton value={link} label="Copy link" />
-        </div>
+        <CopyField value={link} label="Copy link" wrap className="w-full" />
         <Callout tone="warning" className="w-full">
           Copy or save it now, it is not shown again. Renewing the invite creates a new link.
         </Callout>

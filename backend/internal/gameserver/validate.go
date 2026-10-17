@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"app/api/v1alpha1"
@@ -30,12 +31,9 @@ func ValidateVariables(e *v1alpha1.Egg, env map[string]string) error {
 
 // ValidateStartupName accepts the name of one of the egg's startup commands or "" (its default).
 func ValidateStartupName(e *v1alpha1.Egg, name string) error {
-	for _, c := range egg.StartupCommands(&e.Spec) {
-		if c.Name == name {
-			return nil
-		}
-	}
-	if name == "" {
+	if name == "" || slices.ContainsFunc(egg.StartupCommands(&e.Spec), func(c v1alpha1.StartupCommand) bool {
+		return c.Name == name
+	}) {
 		return nil
 	}
 	return validation.Field("startupName", errors.New("unknown startup command"))

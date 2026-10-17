@@ -25,30 +25,31 @@ type CreateServerRequest struct {
 	Egg         string `json:"egg"                   binding:"required" example:"paper"`
 	Image       string `json:"image,omitempty"                          example:"ghcr.io/pelican-eggs/yolks:java_21"`
 	Startup     string `json:"startup,omitempty"`
-	// StartupName picks one of the egg's startup commands ("" = its default).
+	// StartupName picks one of the egg's startup commands. Empty: the egg's default.
 	StartupName string            `json:"startupName,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	MemoryMiB   int64             `json:"memoryMiB"             binding:"required" example:"4096"`
 	CPUMillis   int64             `json:"cpuMillis,omitempty"                      example:"2000"`
 	DiskMiB     int64             `json:"diskMiB"               binding:"required" example:"10240"`
 	Ports       []int32           `json:"ports"                 binding:"required" example:"25565"`
-	// StorageClass of the data volume (default: the default of the panel settings).
+	// StorageClass of the data volume. Empty: the panel default.
 	StorageClass string `json:"storageClass,omitempty" example:"longhorn"`
-	// ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it).
+	// ServiceType ClusterIP publishes the server only inside the cluster. Only when the settings allow it.
 	ServiceType v1alpha1.ServiceType `json:"serviceType,omitempty" binding:"omitempty,oneof=LoadBalancer ClusterIP"`
-	// LoadBalancerPool the address comes from (default: the default of the panel settings).
+	// LoadBalancerPool the address comes from. Empty: the panel default.
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty" example:"general-pool"`
-	// LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).
+	// LoadBalancerIP fixes the address: one IP of the pool, or one per IP family separated by a comma. Optional.
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty" example:"192.168.1.70"`
-	// ExternalTrafficPolicy of the service (default Local: the server sees the players' IPs).
+	// ExternalTrafficPolicy of the service. Empty: Local, the server sees the players' IPs.
 	ExternalTrafficPolicy v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
-	// IPv6 also asks for an IPv6 address (dual stack clusters).
+	// IPv6 also asks for an IPv6 address. Only with a dual stack cluster.
 	IPv6 bool `json:"ipv6,omitempty"`
-	// Owner is the username the server belongs to (default: the calling admin).
+	// Owner is the username the server belongs to. Empty: the calling admin.
 	Owner string `json:"owner,omitempty" example:"alice"`
 	// StartOnCompletion starts the server once the installation is finished.
 	StartOnCompletion bool `json:"startOnCompletion,omitempty" example:"true"`
-	SkipInstall       bool `json:"skipInstall,omitempty"`
+	// SkipInstall creates the server without running the install script.
+	SkipInstall bool `json:"skipInstall,omitempty"`
 }
 
 // createServer godoc
@@ -65,8 +66,7 @@ type CreateServerRequest struct {
 //	@Router			/servers [post]
 func (a *API) createServer(c *gin.Context) {
 	var req CreateServerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	e, ok := a.loadEgg(c, req.Egg)
@@ -90,27 +90,33 @@ func (a *API) createServer(c *gin.Context) {
 	c.JSON(http.StatusCreated, gs)
 }
 
-// newGameServer validates a create request and builds the GameServer object: resources and
-// ports, storage class and pool (defaults from the panel settings), variables (egg defaults,
-// checked against the egg rules), the owner's namespace and a free server name.
+// newGameServer validates a create request and builds the GameServer object.
+//  1. Resources and ports, checked against the egg.
+//  2. Placement: storage class and pool, the panel defaults when the request names none.
+//  3. Variables: the egg defaults plus the request, checked against the egg rules.
+//  4. Owner and name: the owner's namespace and a free server name.
 func (a *API) newGameServer(
 	ctx context.Context, req *CreateServerRequest, e *v1alpha1.Egg,
 ) (*v1alpha1.GameServer, error) {
 	if req.Image == "" {
 		req.Image = e.Spec.DockerImages[0].Image
 	}
+	// 1. Resources and ports
 	resources, err := validateServer(req, e)
 	if err != nil {
 		return nil, err
 	}
+	// 2. Placement
 	storageClass, pool, err := a.choosePlacement(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+	// 3. Variables
 	env := serverEnvironment(e, req.Environment)
 	if err := gameserver.ValidateVariables(e, env); err != nil {
 		return nil, err
 	}
+	// 4. Owner and name
 	namespace, err := a.ownerNamespace(ctx, req.Owner)
 	if err != nil {
 		return nil, err

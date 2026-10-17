@@ -9,17 +9,17 @@ const SettingsName = "panel"
 
 // PanelSettingsSpec holds the settings an administrator manages in the panel.
 type PanelSettingsSpec struct {
-	// ExternalDomain is shown to users as the server address (domain:port) instead of the
-	// load balancer IP. Empty shows the IP.
+	// ExternalDomain is shown to users as the server address (domain:port) instead of the load
+	// balancer IP. Empty: shows the IP.
 	// +optional
 	ExternalDomain string `json:"externalDomain,omitempty"`
-	// StorageClasses can be selected for server volumes.
+	// StorageClasses are the storage classes servers may use for their volume.
 	// +optional
 	StorageClasses []string `json:"storageClasses,omitempty"`
 	// DefaultStorageClass is preselected for new servers (one of StorageClasses).
 	// +optional
 	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
-	// LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+	// LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
 	// +optional
 	LoadBalancerPools []string `json:"loadBalancerPools,omitempty"`
 	// DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
@@ -66,27 +66,26 @@ type PanelSettingsSpec struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=180000
 	Favicon string `json:"favicon,omitempty"`
-	// SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+	// SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
 	// shortening it also ends older sessions.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=720
 	SessionHours int32 `json:"sessionHours,omitempty"`
-	// APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+	// APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
 	// tokens created before, counted from their creation.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3650
 	APITokenMaxDays int32 `json:"apiTokenMaxDays,omitempty"`
-	// KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-	// (default 50, bursts of twice that). It applies at once.
+	// KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+	// twice that). Empty: 50. It applies at once.
 	// +optional
 	// +kubebuilder:validation:Minimum=5
 	// +kubebuilder:validation:Maximum=1000
 	KubeAPIQPS int32 `json:"kubeApiQps,omitempty"`
-	// KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-	// bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-	// one user cannot use up KubeAPIQPS for everybody. It applies at once.
+	// KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+	// that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=200
@@ -123,10 +122,10 @@ type OIDCSettings struct {
 	// header must not send the code elsewhere.
 	// +optional
 	RedirectURL string `json:"redirectUrl,omitempty"`
-	// UsernameClaim holds the panel username (default preferred_username).
+	// UsernameClaim holds the panel username. Empty: preferred_username.
 	// +optional
 	UsernameClaim string `json:"usernameClaim,omitempty"`
-	// GroupsClaim holds the groups of the user (default groups).
+	// GroupsClaim holds the groups of the user. Empty: groups.
 	// +optional
 	GroupsClaim string `json:"groupsClaim,omitempty"`
 	// Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody

@@ -4,7 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -54,71 +54,69 @@ export function SetupPage() {
 
   return (
     <AuthShell wide title="Setup">
-      <Card className="bg-card/80 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RocketIcon className="size-4" />
-            Set up Kubedactyl
-          </CardTitle>
-          <CardDescription>Create the first administrator.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit}>
-            <FieldGroup>
-              {(!linkToken || errors.token) && (
-                <Field data-invalid={!!errors.token}>
-                  <FieldLabel htmlFor="token">Setup token</FieldLabel>
-                  <Input
-                    id="token"
-                    autoFocus
-                    value={draft.token}
-                    onChange={(e) => set("token", e.target.value)}
-                    className="font-mono"
-                    aria-invalid={!!errors.token}
-                  />
-                  {errors.token ? (
-                    <FieldError>{errors.token}</FieldError>
-                  ) : (
-                    <FieldDescription>
-                      Part of the setup link in the panel log, or KUBEDACTYL_SETUP_TOKEN.
-                    </FieldDescription>
-                  )}
-                </Field>
-              )}
-              <NewAccountFields
-                username={draft.username}
-                displayName={draft.displayName}
-                onUsername={(v) => set("username", v)}
-                onDisplayName={(v) => set("displayName", v)}
-                error={errors.username}
-                displayPlaceholder="Administrator"
-              />
-              <NewPasswordFields
-                password={draft.password}
-                confirm={draft.confirm}
-                onPassword={(v) => set("password", v)}
-                onConfirm={(v) => set("confirm", v)}
-                error={errors.password}
-                autoFocus={!!linkToken}
-              />
-              {errors.form && <FieldError>{errors.form}</FieldError>}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={
-                  setupAdmin.isPending ||
-                  !draft.username ||
-                  !draft.token.trim() ||
-                  !newPasswordReady(draft.password, draft.confirm)
-                }
-              >
-                {setupAdmin.isPending ? <Spinner /> : <ShieldCheckIcon />}
-                Create administrator
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <RocketIcon className="size-4" />
+          Set up Kubedactyl
+        </CardTitle>
+        <CardDescription>Create the first administrator.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit}>
+          <FieldGroup>
+            {(!linkToken || errors.token) && (
+              <Field data-invalid={!!errors.token}>
+                <FieldLabel htmlFor="token">Setup token</FieldLabel>
+                <Input
+                  id="token"
+                  autoFocus
+                  value={draft.token}
+                  onChange={(e) => set("token", e.target.value)}
+                  className="font-mono"
+                  aria-invalid={!!errors.token}
+                />
+                {errors.token ? (
+                  <FieldError>{errors.token}</FieldError>
+                ) : (
+                  <FieldDescription>
+                    Part of the setup link in the panel log, or KUBEDACTYL_SETUP_TOKEN.
+                  </FieldDescription>
+                )}
+              </Field>
+            )}
+            <NewAccountFields
+              username={draft.username}
+              displayName={draft.displayName}
+              onUsername={(v) => set("username", v)}
+              onDisplayName={(v) => set("displayName", v)}
+              error={errors.username}
+              displayPlaceholder="Administrator"
+            />
+            <NewPasswordFields
+              password={draft.password}
+              confirm={draft.confirm}
+              onPassword={(v) => set("password", v)}
+              onConfirm={(v) => set("confirm", v)}
+              error={errors.password}
+              autoFocus={!!linkToken}
+            />
+            {errors.form && <FieldError>{errors.form}</FieldError>}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={
+                setupAdmin.isPending ||
+                !draft.username ||
+                !draft.token.trim() ||
+                !newPasswordReady(draft.password, draft.confirm)
+              }
+            >
+              {setupAdmin.isPending ? <Spinner /> : <ShieldCheckIcon />}
+              Create administrator
+            </Button>
+          </FieldGroup>
+        </form>
+      </CardContent>
     </AuthShell>
   )
 }

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldError, FieldGroup } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { AuthShell } from "@/features/auth/components/auth-shell"
@@ -23,27 +23,25 @@ export function InvitePage() {
 
   return (
     <AuthShell wide title="Invite">
-      <Card className="bg-card/80 backdrop-blur">
-        {invite.data ? (
-          <AccountForm token={token} invite={invite.data} />
-        ) : invite.isLoading ? (
-          <CardContent className="flex justify-center py-6">
-            <Spinner className="size-6" />
-          </CardContent>
-        ) : (
-          <CardHeader>
-            <CardTitle>Invite link not valid</CardTitle>
-            <CardDescription>
-              The link was used already, has expired or was revoked. Ask your administrator for a new one. If you
-              already have an account,{" "}
-              <Link to="/login" className="underline underline-offset-4">
-                sign in
-              </Link>
-              .
-            </CardDescription>
-          </CardHeader>
-        )}
-      </Card>
+      {invite.data ? (
+        <AccountForm token={token} invite={invite.data} />
+      ) : invite.isLoading ? (
+        <CardContent className="flex justify-center py-6">
+          <Spinner className="size-6" />
+        </CardContent>
+      ) : (
+        <CardHeader>
+          <CardTitle>Invite link not valid</CardTitle>
+          <CardDescription>
+            The link was used already, has expired or was revoked. Ask your administrator for a new one. If you already
+            have an account,{" "}
+            <Link to="/login" className="underline underline-offset-4">
+              sign in
+            </Link>
+            .
+          </CardDescription>
+        </CardHeader>
+      )}
     </AuthShell>
   )
 }

@@ -32,10 +32,10 @@ type UserSpec struct {
 	// the user signs in only through the identity provider (OIDC).
 	// +optional
 	PasswordHash string `json:"passwordHash,omitempty"`
-	// MustChangePassword makes the user replace the password (set by an administrator) after signing in.
+	// MustChangePassword makes the user replace the password set by an administrator after signing in.
 	MustChangePassword bool `json:"mustChangePassword,omitempty"`
 	Disabled           bool `json:"disabled,omitempty"`
-	// SessionEpoch invalidates all sessions of the user when it is increased.
+	// SessionEpoch ends all sessions of the user when it is increased.
 	SessionEpoch int64      `json:"sessionEpoch,omitempty"`
 	Tokens       []APIToken `json:"tokens,omitempty"`
 	// OIDC links the account to a user of the identity provider; only that user may sign in to it
@@ -46,7 +46,7 @@ type UserSpec struct {
 
 // OIDCIdentity names a user of an OpenID Connect identity provider.
 type OIDCIdentity struct {
-	Issuer  string `json:"issuer" `
+	Issuer  string `json:"issuer"`
 	Subject string `json:"subject"`
 }
 

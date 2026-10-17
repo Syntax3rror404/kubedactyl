@@ -146,9 +146,7 @@ function EggWizard({ initial, copyOf }: { initial: EggSpec; copyOf?: string }) {
           <CardTitle>{current.title}</CardTitle>
           <CardDescription>
             {current.description}
-            {current.id === "process" || current.id === "variables" || current.id === "install"
-              ? " Optional, you can skip this step."
-              : ""}
+            {current.id !== "review" && current.optional ? " Optional, you can skip this step." : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>

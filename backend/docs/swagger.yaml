@@ -57,8 +57,9 @@ definitions:
       impersonating:
         type: string
       method:
-        description: 'Method: client-certificate, token, exec, auth-provider, basic,
-          service-account or none.'
+        description: |-
+          Method is how the panel signs in: client-certificate, token, exec, auth-provider, basic,
+          service-account or none.
         example: exec
         type: string
       tokenPreview:
@@ -792,8 +793,8 @@ definitions:
       externalTrafficPolicy:
         allOf:
         - $ref: '#/definitions/v1alpha1.TrafficPolicy'
-        description: 'ExternalTrafficPolicy of the service (default Local: the server
-          sees the players'' IPs).'
+        description: 'ExternalTrafficPolicy of the service. Empty: Local, the server
+          sees the players'' IPs.'
         enum:
         - Local
         - Cluster
@@ -801,24 +802,23 @@ definitions:
         example: ghcr.io/pelican-eggs/yolks:java_21
         type: string
       ipv6:
-        description: IPv6 also asks for an IPv6 address (dual stack clusters).
+        description: IPv6 also asks for an IPv6 address. Only with a dual stack cluster.
         type: boolean
       loadBalancerIP:
-        description: LoadBalancerIP optionally requests a fixed IP from the pool (one
-          per IP family, separated by a comma).
+        description: 'LoadBalancerIP fixes the address: one IP of the pool, or one
+          per IP family separated by a comma. Optional.'
         example: 192.168.1.70
         type: string
       loadBalancerPool:
-        description: 'LoadBalancerPool the address comes from (default: the default
-          of the panel settings).'
+        description: 'LoadBalancerPool the address comes from. Empty: the panel default.'
         example: general-pool
         type: string
       memoryMiB:
         example: 4096
         type: integer
       owner:
-        description: 'Owner is the username the server belongs to (default: the calling
-          admin).'
+        description: 'Owner is the username the server belongs to. Empty: the calling
+          admin.'
         example: alice
         type: string
       ports:
@@ -830,12 +830,13 @@ definitions:
       serviceType:
         allOf:
         - $ref: '#/definitions/v1alpha1.ServiceType'
-        description: ServiceType ClusterIP publishes the server only inside the cluster
-          (when the settings allow it).
+        description: ServiceType ClusterIP publishes the server only inside the cluster.
+          Only when the settings allow it.
         enum:
         - LoadBalancer
         - ClusterIP
       skipInstall:
+        description: SkipInstall creates the server without running the install script.
         type: boolean
       startOnCompletion:
         description: StartOnCompletion starts the server once the installation is
@@ -845,12 +846,11 @@ definitions:
       startup:
         type: string
       startupName:
-        description: StartupName picks one of the egg's startup commands ("" = its
-          default).
+        description: 'StartupName picks one of the egg''s startup commands. Empty:
+          the egg''s default.'
         type: string
       storageClass:
-        description: 'StorageClass of the data volume (default: the default of the
-          panel settings).'
+        description: 'StorageClass of the data volume. Empty: the panel default.'
         example: longhorn
         type: string
     required:
@@ -863,8 +863,8 @@ definitions:
   httpapi.CreateTokenRequest:
     properties:
       expiresInDays:
-        description: 'ExpiresInDays is the lifetime: 1 up to the longest API token
-          lifetime of the panel.'
+        description: ExpiresInDays is the lifetime of the token (days), from 1 to
+          the longest API token lifetime of the panel.
         example: 90
         type: integer
       name:
@@ -1035,6 +1035,8 @@ definitions:
       error:
         type: string
       idleTimeoutSeconds:
+        description: IdleTimeoutSeconds is how long the container stays after the
+          last file operation (seconds).
         example: 60
         type: integer
       message:
@@ -1218,7 +1220,8 @@ definitions:
   httpapi.MigrateRequest:
     properties:
       startOnCompletion:
-        description: StartOnCompletion starts the server once the migration has ended.
+        description: StartOnCompletion starts the server once the migration has finished
+          (not after a failure or cancel).
         example: true
         type: boolean
       storageClass:
@@ -1453,7 +1456,7 @@ definitions:
         type: boolean
       apiTokenMaxDays:
         description: |-
-          APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
           tokens created before, counted from their creation.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1506,8 +1509,8 @@ definitions:
         type: array
       externalDomain:
         description: |-
-          ExternalDomain is shown to users as the server address (domain:port) instead of the
-          load balancer IP. Empty shows the IP.
+          ExternalDomain is shown to users as the server address (domain:port) instead of the load
+          balancer IP. Empty: shows the IP.
           +optional
         type: string
       favicon:
@@ -1517,17 +1520,16 @@ definitions:
         type: string
       kubeApiQps:
         description: |-
-          KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-          (default 50, bursts of twice that). It applies at once.
+          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+          twice that). Empty: 50. It applies at once.
           +optional
           +kubebuilder:validation:Minimum=5
           +kubebuilder:validation:Maximum=1000
         type: integer
       kubeApiUserQps:
         description: |-
-          KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-          bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-          one user cannot use up KubeAPIQPS for everybody. It applies at once.
+          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+          that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
           +optional
           +kubebuilder:validation:Minimum=1
           +kubebuilder:validation:Maximum=200
@@ -1541,7 +1543,7 @@ definitions:
         type: string
       loadBalancerPools:
         description: |-
-          LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
           +optional
         items:
           type: string
@@ -1570,7 +1572,7 @@ definitions:
         type: string
       sessionHours:
         description: |-
-          SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+          SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
           shortening it also ends older sessions.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1578,7 +1580,7 @@ definitions:
         type: integer
       storageClasses:
         description: |-
-          StorageClasses can be selected for server volumes.
+          StorageClasses are the storage classes servers may use for their volume.
           +optional
         items:
           type: string
@@ -1706,15 +1708,15 @@ definitions:
       externalTrafficPolicy:
         allOf:
         - $ref: '#/definitions/v1alpha1.TrafficPolicy'
-        description: ExternalTrafficPolicy of the service; admins only.
+        description: ExternalTrafficPolicy of the service. Admins only.
         enum:
         - Local
         - Cluster
       image:
         type: string
       ipv6:
-        description: IPv6 also asks for an IPv6 address (dual stack clusters); admins
-          only.
+        description: IPv6 also asks for an IPv6 address. Only with a dual stack cluster.
+          Admins only.
         type: boolean
       loadBalancerIP:
         description: 'LoadBalancerIP fixes the address: one IP, or one per IP family
@@ -1743,8 +1745,8 @@ definitions:
       startup:
         type: string
       startupName:
-        description: StartupName picks one of the egg's startup commands ("" = its
-          default); owners may change it.
+        description: 'StartupName picks one of the egg''s startup commands. Empty:
+          the egg''s default. Owners may change it.'
         type: string
       stopTimeoutSeconds:
         type: integer
@@ -1766,7 +1768,7 @@ definitions:
         type: boolean
       apiTokenMaxDays:
         description: |-
-          APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
           tokens created before, counted from their creation.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1819,8 +1821,8 @@ definitions:
         type: array
       externalDomain:
         description: |-
-          ExternalDomain is shown to users as the server address (domain:port) instead of the
-          load balancer IP. Empty shows the IP.
+          ExternalDomain is shown to users as the server address (domain:port) instead of the load
+          balancer IP. Empty: shows the IP.
           +optional
         type: string
       favicon:
@@ -1830,17 +1832,16 @@ definitions:
         type: string
       kubeApiQps:
         description: |-
-          KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-          (default 50, bursts of twice that). It applies at once.
+          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+          twice that). Empty: 50. It applies at once.
           +optional
           +kubebuilder:validation:Minimum=5
           +kubebuilder:validation:Maximum=1000
         type: integer
       kubeApiUserQps:
         description: |-
-          KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-          bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-          one user cannot use up KubeAPIQPS for everybody. It applies at once.
+          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+          that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
           +optional
           +kubebuilder:validation:Minimum=1
           +kubebuilder:validation:Maximum=200
@@ -1854,7 +1855,7 @@ definitions:
         type: string
       loadBalancerPools:
         description: |-
-          LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
           +optional
         items:
           type: string
@@ -1884,7 +1885,7 @@ definitions:
         type: string
       sessionHours:
         description: |-
-          SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+          SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
           shortening it also ends older sessions.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1892,7 +1893,7 @@ definitions:
         type: integer
       storageClasses:
         description: |-
-          StorageClasses can be selected for server volumes.
+          StorageClasses are the storage classes servers may use for their volume.
           +optional
         items:
           type: string
@@ -1976,8 +1977,8 @@ definitions:
       lastLoginAt:
         type: string
       mustChangePassword:
-        description: 'MustChangePassword: the user has to replace the password set
-          by an administrator first.'
+        description: MustChangePassword is true while the user has to replace the
+          password set by an administrator.
         type: boolean
       namespace:
         example: kubedactyl-user-alice
@@ -2519,7 +2520,9 @@ definitions:
         description: File is the path relative to the server root (/home/container).
         type: string
       parser:
-        description: +kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml
+        description: |-
+          Parser is the format of the file; "file" replaces whole lines that start with Match.
+          +kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml
         type: string
       replace:
         items:
@@ -2778,7 +2781,8 @@ definitions:
           +kubebuilder:default=true
         type: boolean
       displayName:
-        description: DisplayName is a human friendly name.
+        description: 'DisplayName is the name shown in the panel. Empty: uses the
+          object name.'
         type: string
       eggRef:
         description: EggRef is the name of the Egg in the same namespace.
@@ -2787,14 +2791,14 @@ definitions:
         additionalProperties:
           type: string
         description: |-
-          Environment holds values for the egg variables.
+          Environment holds the values of the egg variables. Missing ones use the egg's defaults.
           +optional
         type: object
       externalTrafficPolicy:
         allOf:
         - $ref: '#/definitions/v1alpha1.TrafficPolicy'
         description: |-
-          ExternalTrafficPolicy of the service; empty means Local.
+          ExternalTrafficPolicy of the server's service. Empty: uses Local. Admins only.
           +optional
       image:
         description: Image is the runtime image (one of the egg's docker images or
@@ -2802,25 +2806,25 @@ definitions:
         type: string
       installRevision:
         description: |-
-          InstallRevision triggers a (re)install whenever it differs from status.installedRevision.
+          InstallRevision reinstalls the server whenever it differs from status.installedRevision.
           +kubebuilder:default=1
         type: integer
       ipv6:
         description: |-
-          IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
-          server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+          IPv6 gives the server an address of each IP family the cluster has (PreferDualStack). Only with
+          a dual stack cluster and a pool with an IPv6 block. Admins only.
           +optional
         type: boolean
       loadBalancerIP:
         description: |-
-          LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
-          separated by a comma. The server then gets only these addresses.
+          LoadBalancerIP fixes the server's addresses: one IP, or one per IP family separated by a comma,
+          from the load balancer pool. Empty: the pool picks.
           +optional
         type: string
       loadBalancerPool:
         description: |-
-          LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service
-          gets the labels of the pool's service selector.
+          LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service gets the labels
+          of the pool's service selector.
           +optional
         type: string
       ports:
@@ -2834,7 +2838,7 @@ definitions:
         $ref: '#/definitions/v1alpha1.Resources'
       schedules:
         description: |-
-          Schedules run tasks at fixed times.
+          Schedules run tasks at fixed times or events of the server.
           +optional
           +listType=map
           +listMapKey=name
@@ -2846,45 +2850,46 @@ definitions:
         allOf:
         - $ref: '#/definitions/v1alpha1.ServiceType'
         description: |-
-          ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
-          when it gets a load balancer again.
+          ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).
+          Empty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.
           +optional
       skipInstall:
         description: |-
-          SkipInstall skips the egg install script.
+          SkipInstall creates the server without running the egg's install script.
           +optional
         type: boolean
       startup:
         description: |-
-          Startup overrides the egg's startup command.
+          Startup replaces the egg's startup command. Empty: uses StartupName.
           +optional
         type: string
       startupName:
         description: |-
-          StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
-          means its default. Startup wins when set.
+          StartupName picks one of the egg's startup commands by name. Empty or unknown: uses the egg's
+          default. Ignored when Startup is set.
           +optional
         type: string
       state:
         allOf:
         - $ref: '#/definitions/v1alpha1.PowerState'
         description: |-
-          State is the desired power state.
+          State is the power state the server should be in.
           +kubebuilder:default=Stopped
       stopTimeoutSeconds:
         description: |-
-          StopTimeoutSeconds is how long to wait after the stop command before killing the server.
+          StopTimeoutSeconds is how long the server may take to stop after the stop command before it
+          is killed (seconds).
           +kubebuilder:default=600
         type: integer
       storageClass:
         description: |-
-          StorageClass of the data volume. Changing it moves the server files to a new volume of that
-          class (status.migration); the server stays stopped meanwhile.
+          StorageClass of the server's volume. Changing it moves the files to a new volume of that class
+          (status.migration); the server is locked meanwhile. Admins only.
           +optional
         type: string
       suspended:
         description: |-
-          Suspended servers are stopped and cannot be started or used by their owner (admins only).
+          Suspended stops the server and locks it for its owner. Admins only.
           +optional
         type: boolean
     required:
@@ -2910,6 +2915,9 @@ definitions:
       diskMeasuredAt:
         type: string
       diskUsedBytes:
+        description: |-
+          DiskUsedBytes is the last measured size of the server files (bytes). It is measured only
+          while the files pod runs, which happens on demand.
         type: integer
       installExitCode:
         description: InstallExitCode is the exit code of the last install script run.
@@ -2967,9 +2975,7 @@ definitions:
         type: string
       storageClass:
         description: |-
-          DiskUsedBytes is the last measured size of the server files; the files pod that
-          measures it only runs on demand.
-          StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+          StorageClass of the bound volume. While spec.storageClass differs, the server is migrating.
           +optional
         type: string
     type: object
@@ -3008,7 +3014,7 @@ definitions:
         type: boolean
       groupsClaim:
         description: |-
-          GroupsClaim holds the groups of the user (default groups).
+          GroupsClaim holds the groups of the user. Empty: groups.
           +optional
         type: string
       issuerUrl:
@@ -3048,7 +3054,7 @@ definitions:
         type: string
       usernameClaim:
         description: |-
-          UsernameClaim holds the panel username (default preferred_username).
+          UsernameClaim holds the panel username. Empty: preferred_username.
           +optional
         type: string
     type: object
@@ -3082,17 +3088,17 @@ definitions:
     properties:
       cpuMillis:
         description: |-
-          CPUMillis limits CPU usage (1000 = one core); 0 means unlimited.
+          CPUMillis limits the CPU of the server (millicores, 1000 = one core). 0 = unlimited.
           +optional
         type: integer
       diskMiB:
         description: |-
-          DiskMiB is the size of the persistent volume.
+          DiskMiB is the size of the server's volume (MiB).
           +kubebuilder:validation:Minimum=256
         type: integer
       memoryMiB:
         description: |-
-          MemoryMiB is the memory available to the server (SERVER_MEMORY).
+          MemoryMiB is the memory of the server (MiB), also passed to it as SERVER_MEMORY.
           +kubebuilder:validation:Minimum=64
         type: integer
     required:
@@ -3147,7 +3153,7 @@ definitions:
   v1alpha1.ScheduleStatus:
     properties:
       lastResult:
-        description: 'LastResult is "ok", "skipped: …" or "failed: …".'
+        description: 'LastResult is "ok", "skipped: <reason>" or "failed: <reason>".'
         type: string
       lastRunAt:
         type: string
@@ -3172,7 +3178,7 @@ definitions:
         type: string
       delaySeconds:
         description: |-
-          DelaySeconds waits before this task (after the previous one).
+          DelaySeconds waits before this task, counted from the end of the previous one (seconds).
           +optional
           +kubebuilder:validation:Minimum=0
           +kubebuilder:validation:Maximum=900
@@ -3208,12 +3214,12 @@ definitions:
     properties:
       done:
         description: |-
-          Done of Total files copied.
+          Done is the number of files copied so far, Total the number of all files.
           +optional
         type: integer
       error:
         description: |-
-          Error tells why a failed migration stopped; the server stays on its volume.
+          Error tells why the migration failed. The server stays on its old volume.
           +optional
         type: string
       from:
@@ -4793,7 +4799,7 @@ paths:
         Stops the server and copies its files, backups included, to a new volume of the storage class
         (status.migration). The server is locked until it uses the checked copy; the old volume is
         deleted then. A failed copy leaves the server on its volume. With startOnCompletion the server
-        starts when the migration has ended.
+        starts when the migration has finished; a failed or cancelled one leaves it stopped.
       parameters:
       - description: Server name
         in: path

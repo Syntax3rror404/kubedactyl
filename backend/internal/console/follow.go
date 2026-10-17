@@ -7,14 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"app/internal/gameserver"
-
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	"k8s.io/apimachinery/pkg/types"
+	"app/internal/gameserver"
 )
 
 // follow streams the output of a pod's main container into the hub until the container has
@@ -25,7 +24,11 @@ func (h *Hub) follow(ctx context.Context, namespace, server, pod string, uid typ
 	for ctx.Err() == nil {
 		rc, err := f.open(ctx)
 		if err != nil {
-			// The container may still be starting; retry.
+			// A starting container has no log yet: retry until it runs. A pod that is gone or a container that
+			// ended without a stream has nothing more to deliver.
+			if apierrors.IsNotFound(err) || h.containerTerminated(ctx, namespace, pod) {
+				return
+			}
 			sleep(ctx, 2*time.Second)
 			continue
 		}

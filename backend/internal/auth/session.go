@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -58,21 +57,35 @@ func (s *Signer) mac(payload string) string {
 	return base64.RawURLEncoding.EncodeToString(m.Sum(nil))
 }
 
-// Sign returns a token "<payload>.<signature>".
-func (s *Signer) Sign(sess Session) (string, error) {
-	if sess.Nonce == "" {
-		b := make([]byte, 8)
-		if _, err := rand.Read(b); err != nil {
-			return "", err
-		}
-		sess.Nonce = base64.RawURLEncoding.EncodeToString(b)
-	}
-	raw, err := json.Marshal(sess)
+// seal encodes v as JSON and signs it: "<payload>.<signature>". The prefix goes into the signature only.
+func (s *Signer) seal(prefix string, v any) (string, error) {
+	raw, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
 	payload := base64.RawURLEncoding.EncodeToString(raw)
-	return payload + "." + s.mac(payload), nil
+	return payload + "." + s.mac(prefix+payload), nil
+}
+
+// open checks the signature of a sealed token and returns its JSON and signature.
+func (s *Signer) open(prefix, token string) (raw []byte, sig string, err error) {
+	payload, sig, ok := strings.Cut(token, ".")
+	if !ok || !hmac.Equal([]byte(sig), []byte(s.mac(prefix+payload))) {
+		return nil, "", ErrInvalidToken
+	}
+	raw, err = base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, "", ErrInvalidToken
+	}
+	return raw, sig, nil
+}
+
+// Sign returns a token "<payload>.<signature>".
+func (s *Signer) Sign(sess Session) (string, error) {
+	if sess.Nonce == "" {
+		sess.Nonce = base64.RawURLEncoding.EncodeToString(randomBytes(8))
+	}
+	return s.seal("", sess)
 }
 
 // Revoke invalidates a valid session token until it expires (logout).
@@ -104,12 +117,8 @@ func (s *Signer) isRevoked(sig string) bool {
 
 // Verify checks signature, expiry and revocation and returns the session.
 func (s *Signer) Verify(token string, now time.Time) (Session, error) {
-	payload, sig, ok := strings.Cut(token, ".")
-	if !ok || !hmac.Equal([]byte(sig), []byte(s.mac(payload))) || s.isRevoked(sig) {
-		return Session{}, ErrInvalidToken
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(payload)
-	if err != nil {
+	raw, sig, err := s.open("", token)
+	if err != nil || s.isRevoked(sig) {
 		return Session{}, ErrInvalidToken
 	}
 	var sess Session
@@ -139,24 +148,15 @@ func (s *Signer) KnownDevice(token, user string, now time.Time) bool {
 // SignValue signs a JSON value for one purpose until expires: "<payload>.<signature>". The purpose is part of the
 // signature, so a value signed for one use is never accepted for another (and no session token as either).
 func (s *Signer) SignValue(purpose string, v any, expires time.Time) (string, error) {
-	raw, err := json.Marshal(signedValue[any]{ExpiresAt: expires.Unix(), Value: v})
-	if err != nil {
-		return "", err
-	}
-	payload := base64.RawURLEncoding.EncodeToString(raw)
-	return payload + "." + s.mac(purpose+"|"+payload), nil
+	return s.seal(purpose+"|", signedValue[any]{ExpiresAt: expires.Unix(), Value: v})
 }
 
 // VerifyValue checks the signature and expiry of a value signed by SignValue and decodes it into v (left
 // unchanged when the check fails).
 func (s *Signer) VerifyValue(purpose, token string, v any, now time.Time) error {
-	payload, sig, ok := strings.Cut(token, ".")
-	if !ok || !hmac.Equal([]byte(sig), []byte(s.mac(purpose+"|"+payload))) {
-		return ErrInvalidToken
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(payload)
+	raw, _, err := s.open(purpose+"|", token)
 	if err != nil {
-		return ErrInvalidToken
+		return err
 	}
 	var sv signedValue[json.RawMessage]
 	if err := json.Unmarshal(raw, &sv); err != nil || now.Unix() >= sv.ExpiresAt {

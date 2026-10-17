@@ -37,7 +37,15 @@ export function settingsDraft(server: GameServer) {
 export type SettingsDraft = ReturnType<typeof settingsDraft>
 
 /** Change handler of the settings cards. */
-export type SettingsChange = (patch: Partial<SettingsDraft>) => void
+type SettingsChange = (patch: Partial<SettingsDraft>) => void
+
+/** What every card of the settings page gets: the saved server, the draft and the errors of the last save. */
+export interface SettingsCardProps {
+  server: GameServer
+  draft: SettingsDraft
+  onChange: SettingsChange
+  errors: Record<string, string>
+}
 
 /** The update request; users may only change the name, crash restarts and the pool. */
 export function settingsChanges(server: GameServer, d: SettingsDraft, isAdmin: boolean): UpdateServerRequest {

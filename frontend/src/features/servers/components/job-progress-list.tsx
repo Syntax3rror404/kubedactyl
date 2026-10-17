@@ -6,7 +6,7 @@ import { JobStateIcon } from "@/components/common/job-state-icon"
 import { ProgressBar } from "@/components/common/progress-bar"
 import { Button } from "@/components/ui/button"
 import { jobKinds } from "@/features/servers/lib/jobs"
-import { formatBytes, formatDuration, formatRelativeTime, secondsSince } from "@/lib/format"
+import { formatBytes, formatDuration, formatNumber, formatRelativeTime, secondsSince } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useCancelJob } from "@/lib/queries"
 import type { ServerJob } from "@/lib/types"
@@ -16,7 +16,7 @@ type Progress = NonNullable<ServerJob["progress"]>
 
 /** An amount in the unit of the progress: "1,204 files" or "1.2 GiB" (bytes of an archive read or a download). */
 function amount(unit: Progress["unit"], n: number) {
-  return unit === "bytes" ? formatBytes(n) : `${Math.round(n).toLocaleString("en-US")} files`
+  return unit === "bytes" ? formatBytes(n) : `${formatNumber(n)} files`
 }
 
 /**
@@ -28,7 +28,7 @@ function transfer(p: Progress) {
   const seconds = secondsSince(p.startedAt)
   const rate = seconds >= 3 ? p.done / seconds : 0
   const known = p.total > 0
-  const done = p.unit === "bytes" ? formatBytes(p.done) : p.done.toLocaleString("en-US")
+  const done = p.unit === "bytes" ? formatBytes(p.done) : formatNumber(p.done)
   return {
     size: known ? `${done} / ${amount(p.unit, p.total)}` : amount(p.unit, p.done),
     speed: rate > 0 ? `${amount(p.unit, rate)}/s` : "",
@@ -52,7 +52,7 @@ export function JobProgressList({
   jobs?: ServerJob[]
   kinds: ServerJob["kind"][]
   limit?: number
-  // false hides a job as soon as it has finished well or was cancelled (a toast says so); failed ones stay.
+  /** false hides a job as soon as it has finished well or was cancelled (a toast says so); failed ones stay. */
   showDone?: boolean
 }) {
   // Finished jobs stay visible for ten minutes.

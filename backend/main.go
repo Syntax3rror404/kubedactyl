@@ -146,9 +146,7 @@ func parseFlags() config {
 		"storage class enabled in the panel settings on the first start",
 	)
 	flag.StringVar(
-		&o.LoadBalancerPool,
-		"lb-pool",
-		envOr("LB_POOL", "general"),
+		&o.LoadBalancerPool, "lb-pool", envOr("LB_POOL", "general"),
 		"Cilium LB IPAM pool enabled in the panel settings on the first start (name or lb.cilium.io/pool label value)",
 	)
 	flag.StringVar(
@@ -166,13 +164,11 @@ func parseFlags() config {
 	cfg.serviceAccount = os.Getenv("KUBEDACTYL_SERVICE_ACCOUNT")
 	cfg.admissionPolicy = os.Getenv("KUBEDACTYL_ADMISSION_POLICY")
 	cfg.upgrade = selfupgrade.Config{
-		Chart:   os.Getenv("KUBEDACTYL_UPGRADE_CHART"),
-		Release: os.Getenv("KUBEDACTYL_HELM_RELEASE"),
-		ServiceAccount: os.Getenv(
-			"KUBEDACTYL_UPGRADE_SERVICE_ACCOUNT",
-		),
-		Image:   os.Getenv("KUBEDACTYL_IMAGE"),
-		Current: appVersion,
+		Chart:          os.Getenv("KUBEDACTYL_UPGRADE_CHART"),
+		Release:        os.Getenv("KUBEDACTYL_HELM_RELEASE"),
+		ServiceAccount: os.Getenv("KUBEDACTYL_UPGRADE_SERVICE_ACCOUNT"),
+		Image:          os.Getenv("KUBEDACTYL_IMAGE"),
+		Current:        appVersion,
 	}
 	return cfg
 }

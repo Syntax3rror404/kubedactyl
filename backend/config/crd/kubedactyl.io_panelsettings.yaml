@@ -66,7 +66,7 @@ spec:
                 type: boolean
               apiTokenMaxDays:
                 description: |-
-                  APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+                  APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
                   tokens created before, counted from their creation.
                 format: int32
                 maximum: 3650
@@ -111,25 +111,24 @@ spec:
                 type: array
               externalDomain:
                 description: |-
-                  ExternalDomain is shown to users as the server address (domain:port) instead of the
-                  load balancer IP. Empty shows the IP.
+                  ExternalDomain is shown to users as the server address (domain:port) instead of the load
+                  balancer IP. Empty: shows the IP.
                 type: string
               favicon:
                 maxLength: 180000
                 type: string
               kubeApiQps:
                 description: |-
-                  KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-                  (default 50, bursts of twice that). It applies at once.
+                  KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+                  twice that). Empty: 50. It applies at once.
                 format: int32
                 maximum: 1000
                 minimum: 5
                 type: integer
               kubeApiUserQps:
                 description: |-
-                  KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-                  bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-                  one user cannot use up KubeAPIQPS for everybody. It applies at once.
+                  KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+                  that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
                 format: int32
                 maximum: 200
                 minimum: 1
@@ -141,8 +140,8 @@ spec:
                 maxLength: 20000
                 type: string
               loadBalancerPools:
-                description: LoadBalancerPools are the Cilium LB IPAM pools that can
-                  be selected for servers.
+                description: LoadBalancerPools are the Cilium LB IPAM pools servers
+                  may take their address from.
                 items:
                   type: string
                 type: array
@@ -161,8 +160,8 @@ spec:
                   enabled:
                     type: boolean
                   groupsClaim:
-                    description: GroupsClaim holds the groups of the user (default
-                      groups).
+                    description: 'GroupsClaim holds the groups of the user. Empty:
+                      groups.'
                     type: string
                   issuerUrl:
                     description: |-
@@ -194,7 +193,7 @@ spec:
                   userGroup:
                     type: string
                   usernameClaim:
-                    description: UsernameClaim holds the panel username (default preferred_username).
+                    description: 'UsernameClaim holds the panel username. Empty: preferred_username.'
                     type: string
                 type: object
               privacyPolicy:
@@ -207,14 +206,15 @@ spec:
                 type: string
               sessionHours:
                 description: |-
-                  SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+                  SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
                   shortening it also ends older sessions.
                 format: int32
                 maximum: 720
                 minimum: 1
                 type: integer
               storageClasses:
-                description: StorageClasses can be selected for server volumes.
+                description: StorageClasses are the storage classes servers may use
+                  for their volume.
                 items:
                   type: string
                 type: array

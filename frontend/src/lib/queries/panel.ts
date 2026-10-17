@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { api, setThrottledHandler, type Throttle } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { PanelSettings, UpdateSettingsRequest, UpgradeJob, UpgradeStatus } from "@/lib/types"
 
 /** Panel name and version (public; shown in the footer). */
@@ -56,8 +56,10 @@ export function useThrottle() {
   return throttle
 }
 
+/** The panel settings; every user reads them (address, storage classes, pools). */
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.settings.get, staleTime: 60_000 })
 
+/** The storage classes of the cluster (admins). */
 export const useStorageClasses = () =>
   useQuery({ queryKey: keys.storageClasses, queryFn: api.settings.listStorageClasses })
 
@@ -108,5 +110,6 @@ export const useRefreshUpgradeStatus = (cb?: MutationCallbacks<UpgradeStatus, vo
     cb,
   )
 
+/** Starts the upgrade job to a chart version. */
 export const useStartUpgrade = (cb?: MutationCallbacks<UpgradeJob, string>) =>
-  useApiMutation(api.upgrade.start, (qc) => refresh(qc, keys.upgrade), cb)
+  useApiMutation(api.upgrade.start, refreshes(keys.upgrade), cb)

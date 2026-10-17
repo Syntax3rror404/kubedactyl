@@ -21,7 +21,7 @@ type Updater struct {
 	Log      *slog.Logger
 }
 
-// Start implements manager.Runnable: the first check runs a minute after the start.
+// Start checks the eggs every Interval until the panel stops, the first time a minute after the start.
 func (u *Updater) Start(ctx context.Context) error {
 	wait := time.Minute
 	for {

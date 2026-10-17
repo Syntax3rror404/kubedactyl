@@ -2,10 +2,10 @@ import { KeyRoundIcon, LogOutIcon } from "lucide-react"
 import { Navigate, useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { UnveilPassword } from "@/components/common/unveil-password"
+import { PasswordField } from "@/components/common/unveil-password"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FieldError, FieldGroup } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { AuthShell } from "@/features/auth/components/auth-shell"
 import { NewPasswordFields } from "@/features/auth/components/new-password-fields"
@@ -38,53 +38,48 @@ export function ChangePasswordPage() {
 
   return (
     <AuthShell title="New password">
-      <Card className="bg-card/80 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Choose your password</CardTitle>
-          <CardDescription>
-            Your administrator set a start password. Replace it with your own to continue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit}>
-            <FieldGroup>
-              <Field data-invalid={!!errors.current}>
-                <FieldLabel htmlFor="current">Start password</FieldLabel>
-                <UnveilPassword
-                  id="current"
-                  autoComplete="current-password"
-                  autoFocus
-                  value={draft.current}
-                  onChange={(e) => set("current", e.target.value)}
-                  aria-invalid={!!errors.current}
-                />
-                {errors.current && <FieldError>{errors.current}</FieldError>}
-              </Field>
-              <NewPasswordFields
-                password={draft.password}
-                confirm={draft.confirm}
-                onPassword={(v) => set("password", v)}
-                onConfirm={(v) => set("confirm", v)}
-                error={errors.new}
-                label="New password"
-              />
-              {errors.form && <FieldError>{errors.form}</FieldError>}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={change.isPending || !draft.current || !newPasswordReady(draft.password, draft.confirm)}
-              >
-                {change.isPending ? <Spinner /> : <KeyRoundIcon />}
-                Save password
-              </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => logout.mutate()}>
-                <LogOutIcon />
-                Sign out
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+      <CardHeader>
+        <CardTitle>Choose your password</CardTitle>
+        <CardDescription>
+          Your administrator set a start password. Replace it with your own to continue.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit}>
+          <FieldGroup>
+            <PasswordField
+              id="current"
+              label="Start password"
+              autoComplete="current-password"
+              autoFocus
+              value={draft.current}
+              onChange={(v) => set("current", v)}
+              error={errors.current}
+            />
+            <NewPasswordFields
+              password={draft.password}
+              confirm={draft.confirm}
+              onPassword={(v) => set("password", v)}
+              onConfirm={(v) => set("confirm", v)}
+              error={errors.new}
+              label="New password"
+            />
+            {errors.form && <FieldError>{errors.form}</FieldError>}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={change.isPending || !draft.current || !newPasswordReady(draft.password, draft.confirm)}
+            >
+              {change.isPending ? <Spinner /> : <KeyRoundIcon />}
+              Save password
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => logout.mutate()}>
+              <LogOutIcon />
+              Sign out
+            </Button>
+          </FieldGroup>
+        </form>
+      </CardContent>
     </AuthShell>
   )
 }

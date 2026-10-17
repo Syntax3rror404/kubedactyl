@@ -71,11 +71,8 @@ func IsolationPolicy(namespace string) *networkingv1.NetworkPolicy {
 // ensureNetworkPolicy applies or removes the isolation policy according to the panel settings.
 func (r *UserReconciler) ensureNetworkPolicy(ctx context.Context, namespace string) error {
 	settings := &v1alpha1.PanelSettings{}
-	if err := r.Reader.Get(
-		ctx, client.ObjectKey{Namespace: tenancy.SystemNamespace, Name: v1alpha1.SettingsName}, settings,
-	); client.IgnoreNotFound(
-		err,
-	) != nil {
+	key := client.ObjectKey{Namespace: tenancy.SystemNamespace, Name: v1alpha1.SettingsName}
+	if err := r.Reader.Get(ctx, key, settings); client.IgnoreNotFound(err) != nil {
 		return err
 	}
 	cur := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: NetworkPolicyName, Namespace: namespace}}

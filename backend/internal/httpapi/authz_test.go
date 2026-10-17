@@ -152,11 +152,16 @@ func (h *harness) do(method, path, token string, body any) (int, string) {
 	return w.Code, w.Body.String()
 }
 
+// login signs in with the password of the test users and returns the session token.
 func (h *harness) login(user string) string {
 	h.t.Helper()
-	code, body := h.do(
-		"POST", "/api/auth/login", "", map[string]string{"username": user, "password": user + "-password"},
-	)
+	return h.loginWith(user, user+"-password")
+}
+
+// loginWith signs in with a password and returns the session token.
+func (h *harness) loginWith(user, password string) string {
+	h.t.Helper()
+	code, body := h.do("POST", "/api/auth/login", "", map[string]string{"username": user, "password": password})
 	if code != 200 {
 		h.t.Fatalf("login %s: %d %s", user, code, body)
 	}
@@ -643,7 +648,7 @@ func TestParallelLoginsAreThrottled(t *testing.T) {
 
 func TestLoginThrottlingAcrossUsernames(t *testing.T) {
 	h := newHarness(t)
-	// Password spraying: a few tries per name, many names: the client limit stops it.
+	// Password spraying (a few tries per name, many names) is stopped by the client limit.
 	for i := range 20 {
 		h.do(
 			"POST", "/api/auth/login", "",

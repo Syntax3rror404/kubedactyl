@@ -3,14 +3,13 @@ import { AlertTriangleIcon, NetworkIcon } from "lucide-react"
 import { Callout } from "@/components/common/callout"
 import { UsageBar } from "@/components/common/usage-bar"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Field, FieldError, FieldLabel } from "@/components/ui/field"
+import { FieldError } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DefaultCell, type Selection, type SelectionHandlers } from "@/features/settings/components/default-cell"
+import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
 import { formatCount, formatPoolSize, poolUsage } from "@/lib/format"
 import type { Pool } from "@/lib/types"
 
@@ -38,49 +37,46 @@ export function PoolsCard({
   onAllowClusterIP: (allow: boolean) => void
 } & SelectionHandlers) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <NetworkIcon className="size-4" />
-          Load balancer pools
-        </CardTitle>
-        <CardDescription>
-          Checked Cilium pools can be picked for servers. Users can move their servers between them.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-0">
-        {loadError ? (
-          <Callout tone="warning" icon={<AlertTriangleIcon />} className="mx-6">
-            <p>{loadError}</p>
-          </Callout>
-        ) : !pools ? (
-          <Skeleton className="mx-6 h-32" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10 pl-6" />
-                <TableHead>Pool</TableHead>
-                <TableHead className="hidden md:table-cell">Addresses</TableHead>
-                <TableHead className="w-40">Free</TableHead>
-                <TableHead className="hidden lg:table-cell">Service labels</TableHead>
-                <TableHead className="w-32 pr-6 text-right" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pools.map((p) => (
-                <PoolRow key={p.name} pool={p} ipv6Missing={ipv6Missing} selection={selection} {...handlers} />
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        {fieldError && <FieldError className="mx-6 mt-3">{fieldError}</FieldError>}
-        <Field orientation="horizontal" className="mx-6 mt-6 w-auto">
-          <Switch id="cluster-ip" checked={allowClusterIP} onCheckedChange={onAllowClusterIP} />
-          <FieldLabel htmlFor="cluster-ip">Allow ClusterIP</FieldLabel>
-        </Field>
-      </CardContent>
-    </Card>
+    <SettingsCard
+      icon={NetworkIcon}
+      title="Load balancer pools"
+      description="Checked Cilium pools can be picked for servers. Users can move their servers between them."
+      contentClassName="px-0"
+    >
+      {loadError ? (
+        <Callout tone="warning" icon={<AlertTriangleIcon />} className="mx-6">
+          <p>{loadError}</p>
+        </Callout>
+      ) : !pools ? (
+        <Skeleton className="mx-6 h-32" />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10 pl-6" />
+              <TableHead>Pool</TableHead>
+              <TableHead className="hidden md:table-cell">Addresses</TableHead>
+              <TableHead className="w-40">Free</TableHead>
+              <TableHead className="hidden lg:table-cell">Service labels</TableHead>
+              <TableHead className="w-32 pr-6 text-right" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pools.map((p) => (
+              <PoolRow key={p.name} pool={p} ipv6Missing={ipv6Missing} selection={selection} {...handlers} />
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {fieldError && <FieldError className="mx-6 mt-3">{fieldError}</FieldError>}
+      <SwitchField
+        id="cluster-ip"
+        label="Allow ClusterIP"
+        checked={allowClusterIP}
+        onChange={onAllowClusterIP}
+        className="mx-6 mt-6 w-auto"
+      />
+    </SettingsCard>
   )
 }
 

@@ -86,7 +86,7 @@ try {
       ...eggs.slice(0, 1).flatMap((e) => [`/eggs/${e.metadata.name}`, `/eggs/${e.metadata.name}/edit`]),
     )
   for (const s of servers.slice(0, 1))
-    for (const tab of ["", "/files", "/startup", "/schedules", "/backups", "/settings"])
+    for (const tab of ["", "/files", "/startup", "/schedules", "/tasks", "/backups", "/diagnostics", "/settings"])
       pages.push(`/servers/${s.metadata.name}${tab}`)
   for (const theme of ["light", "dark"]) {
     await page.evaluateOnNewDocument((t) => localStorage.setItem("app-theme", t), theme)

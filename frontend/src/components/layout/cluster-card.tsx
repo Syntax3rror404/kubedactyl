@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 import { ChevronRightIcon } from "lucide-react"
 import { Link } from "react-router"
 
@@ -100,14 +100,19 @@ export function ClusterCard() {
         </ul>
       )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-muted-foreground">
-        <dt>Version</dt>
-        <dd className="truncate text-right font-mono">{c.version}</dd>
-        <dt>Namespace</dt>
-        <dd className="truncate text-right font-mono">{c.namespace}</dd>
-        <dt>Storage</dt>
-        <dd className="truncate text-right font-mono">{c.storageClass}</dd>
-        <dt>LB pool</dt>
-        <dd className="truncate text-right font-mono">{c.loadBalancerPool}</dd>
+        {(
+          [
+            ["Version", c.version],
+            ["Namespace", c.namespace],
+            ["Storage", c.storageClass],
+            ["LB pool", c.loadBalancerPool],
+          ] as const
+        ).map(([label, value]) => (
+          <Fragment key={label}>
+            <dt>{label}</dt>
+            <dd className="truncate text-right font-mono">{value}</dd>
+          </Fragment>
+        ))}
       </dl>
     </>,
   )

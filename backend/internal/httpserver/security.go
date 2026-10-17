@@ -53,7 +53,7 @@ func limitBody(c *gin.Context) {
 // proxies the client IP is the peer address, so X-Forwarded-For cannot be spoofed.
 func ParseTrustedProxies(v string) []string {
 	var out []string
-	for _, p := range strings.Split(v, ",") {
+	for p := range strings.SplitSeq(v, ",") {
 		if p = strings.TrimSpace(p); p != "" {
 			out = append(out, p)
 		}

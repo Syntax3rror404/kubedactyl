@@ -212,6 +212,29 @@ func TestValidateSpec(t *testing.T) {
 	}
 }
 
+func TestDisplayNameLimitCountsCharacters(t *testing.T) {
+	s := sample()
+	s.DisplayName = strings.Repeat("服", 191)
+	if err := ValidateSpec(s); err != nil {
+		t.Errorf("191 characters rejected: %v", err)
+	}
+	s.DisplayName += "服"
+	if err, _ := ValidateSpec(s).(FieldErrors); err["displayName"] == "" {
+		t.Error("192 characters accepted")
+	}
+}
+
+func TestTypedNumbers(t *testing.T) {
+	for value, tag := range map[string]string{
+		"25565": "!!int", "-1": "!!int", "0.5": "!!float", "1e5": "!!float", "99999999999999999999": "!!float",
+		"+5": "!!str", "NaN": "!!str", "Infinity": "!!str", "1.": "!!str", "01": "!!str", " 5": "!!str",
+	} {
+		if n := typed(value, "number"); n.Tag != tag || n.Value != value {
+			t.Errorf("typed(%q) = %s %q, want %s", value, n.Tag, n.Value, tag)
+		}
+	}
+}
+
 func TestNormalizeStartupCommands(t *testing.T) {
 	older := &v1alpha1.EggSpec{Startup: " java -jar x "}
 	Normalize(older)

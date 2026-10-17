@@ -44,7 +44,7 @@ type LibraryEgg struct {
 //	@Security		BearerAuth
 //	@Router			/egg-library [get]
 func (a *API) listLibraryEggs(c *gin.Context) {
-	set, err := a.Settings.Get(c)
+	set, err := a.Settings.Current(c)
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -90,7 +90,7 @@ func (a *API) getLibraryRepository(c *gin.Context) {
 //	@Security	BearerAuth
 //	@Router		/egg-library/egg [get]
 func (a *API) getLibraryEgg(c *gin.Context) {
-	set, err := a.Settings.Get(c)
+	set, err := a.Settings.Current(c)
 	if err != nil {
 		a.fail(c, err)
 		return

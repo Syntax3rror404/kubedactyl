@@ -47,19 +47,20 @@ func (l *Limiter) recent(key string, now time.Time) []time.Time {
 func (l *Limiter) Take(key string, now time.Time) (bool, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if recent := l.recent(key, now); len(recent) >= l.max {
+	recent := l.recent(key, now)
+	if len(recent) >= l.max {
 		return false, l.window - now.Sub(recent[0])
 	}
 	if now.Sub(l.swept) >= l.window {
 		l.sweep(now)
 	}
-	if _, known := l.failures[key]; !known && len(l.failures) >= l.maxKeys {
+	if len(recent) == 0 && len(l.failures) >= l.maxKeys {
 		l.sweep(now)
 		if len(l.failures) >= l.maxKeys {
 			l.evictOldest()
 		}
 	}
-	l.failures[key] = append(l.recent(key, now), now)
+	l.failures[key] = append(recent, now)
 	return true, 0
 }
 

@@ -22,10 +22,8 @@ func (d *Diagnoser) routerChecks(ctx context.Context, in Input, v4 []netip.Addr)
 		id, label := fmt.Sprintf("router-%d", port), fmt.Sprintf("Router forwarding, port %d", port)
 		switch {
 		case !public.IsValid():
-			out[i] = checks.New(
-				id, label, checks.Skipped,
-				"The domain has no public IPv4 address, so there is no router forwarding to test.",
-			)
+			out[i] = checks.New(id, label, checks.Skipped,
+				"The domain has no public IPv4 address, so there is no router forwarding to test.")
 		case gs.Status.Phase != v1alpha1.PhaseRunning:
 			out[i] = checks.New(id, label, checks.Skipped, "Start the server to test the forwarding.")
 		default:
@@ -40,42 +38,20 @@ func (d *Diagnoser) routerChecks(ctx context.Context, in Input, v4 []netip.Addr)
 // on it: the panel cannot test UDP, and many games (e.g. Factorio) only use UDP. So it first
 // connects to the server's own address; a game without TCP gets a neutral note instead.
 func (d *Diagnoser) routerCheck(ctx context.Context, id, label string, in Input, target netip.AddrPort) checks.Check {
-	lb := "the server's address"
-	if in.ShowAddresses {
-		lb = in.Server.Status.Address
-	}
 	inside, err := netip.ParseAddr(in.Server.Status.Address)
 	if err != nil || d.tcpOpen(ctx, netip.AddrPortFrom(inside, target.Port())) != nil {
-		return checks.New(
-			id,
-			label,
-			checks.Skipped,
-			fmt.Sprintf(
-				"The game does not accept TCP on port %d (it probably uses only UDP), so the forwarding "+
-					"cannot be tested (UDP cannot be tested from the panel).",
-				target.Port(),
-			),
-		)
+		return checks.New(id, label, checks.Skipped, fmt.Sprintf("The game does not accept TCP on port %d "+
+			"(it probably uses only UDP), so the forwarding cannot be tested (UDP cannot be tested from the panel).",
+			target.Port()))
 	}
 	if err := d.tcpOpen(ctx, target); err != nil {
-		return checks.New(
-			id,
-			label,
-			checks.Warning,
-			fmt.Sprintf(
-				"The game accepts TCP on port %d, but not through the public address %s. "+
-					"Either the router does not forward the port to %s, or it does not answer on its own public "+
-					"address from inside (then players outside can still connect; ask one to try).",
-				target.Port(),
-				target.Addr(),
-				lb,
-			),
-		)
+		return checks.New(id, label, checks.Warning, fmt.Sprintf("The game accepts TCP on port %d, but not "+
+			"through the public address %s. Either the router does not forward the port to %s, or it does not "+
+			"answer on its own public address from inside (then players outside can still connect; ask one to try).",
+			target.Port(), target.Addr(), shown(in, in.Server.Status.Address, "the server's address")))
 	}
-	return checks.New(
-		id, label, checks.OK,
-		fmt.Sprintf("TCP port %d answers through the public address %s.", target.Port(), target.Addr()),
-	)
+	return checks.New(id, label, checks.OK,
+		fmt.Sprintf("TCP port %d answers through the public address %s.", target.Port(), target.Addr()))
 }
 
 // tcpOpen reports whether a TCP connection to target can be opened.

@@ -19,7 +19,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// Output of the probe script on node-1 (GMKtec M5 Pro).
+// Output of the probe script on a mini PC.
 const probeOutput = `cpu_model=AMD Ryzen 7 5700U with Radeon Graphics
 cpu_model_fallback=
 cpu_threads=16

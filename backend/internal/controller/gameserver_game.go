@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
@@ -21,7 +20,7 @@ import (
 	"app/internal/gameserver"
 )
 
-// crashWindow: a second crash within this time does not trigger another restart.
+// crashWindow is how soon a second crash stops the server instead of restarting it.
 const crashWindow = 60 * time.Second
 
 // reconcileGame drives the game pod towards the desired power state: it follows a pod that
@@ -35,7 +34,7 @@ func (r *Reconciler) reconcileGame(
 	restart := gs.Annotations[gameserver.AnnotationRestart] != "" && !locked
 
 	pod := &corev1.Pod{}
-	err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.GamePodName(gs.Name)}, pod)
+	err := r.getChild(ctx, gs, gameserver.GamePodName(gs.Name), pod)
 	switch {
 	case err != nil && !apierrors.IsNotFound(err):
 		return reconcile.Result{}, err
@@ -71,7 +70,7 @@ func (r *Reconciler) removeExitedPod(
 	ctx context.Context, pod *corev1.Pod, start bool,
 ) (res reconcile.Result, done bool, err error) {
 	if start && pod.DeletionTimestamp == nil {
-		if err := r.Delete(ctx, pod, client.GracePeriodSeconds(0)); client.IgnoreNotFound(err) != nil {
+		if err := r.deleteNow(ctx, pod); err != nil {
 			return reconcile.Result{}, true, err
 		}
 	} else if wait, err := r.removeTerminated(ctx, pod); err != nil {
@@ -88,22 +87,24 @@ func (r *Reconciler) removeExitedPod(
 // clearPodState resets the status fields of the previous game pod.
 func (r *Reconciler) clearPodState(ctx context.Context, gs *v1alpha1.GameServer) error {
 	gs.Status.RestartRequired = false
-	if gs.Status.PodUID != "" {
+	if uid := gs.Status.PodUID; uid != "" {
 		// The pod vanished without passing handleExit, e.g. after a kill.
 		r.Hub.Daemon(gs.Name, "Server marked as offline...")
+		r.seenTerminated.Delete(types.UID(uid))
+		stopTaskLimits.Delete(uid)
 	}
-	gs.Status.PodUID = ""
-	gs.Status.StopRequestedAt = nil
-	gs.Status.StopTasksStartedAt = nil
+	setPod(gs, "")
 	if _, ok := gs.Annotations[gameserver.AnnotationStopSent]; !ok {
 		return nil
 	}
-	patch := client.MergeFrom(gs.DeepCopy())
-	delete(gs.Annotations, gameserver.AnnotationStopSent)
-	status := gs.Status // Patch overwrites the status with the stored one
-	err := r.Patch(ctx, gs, patch)
-	gs.Status = status
-	return err
+	return r.patchServer(ctx, gs, func() { delete(gs.Annotations, gameserver.AnnotationStopSent) })
+}
+
+// setPod records the game pod the status describes ("" for none); its stop has not started.
+func setPod(gs *v1alpha1.GameServer, uid string) {
+	gs.Status.PodUID = uid
+	gs.Status.StopRequestedAt = nil
+	gs.Status.StopTasksStartedAt = nil
 }
 
 // offlineMessage keeps a crash message visible until the server is started again.
@@ -147,11 +148,7 @@ func (r *Reconciler) startGame(
 		r.setPhase(gs, v1alpha1.PhaseStarting, "pre-start failed: "+err.Error())
 		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 	}
-	want := gameserver.GamePod(gs, egg, r.Opts)
-	if err := controllerutil.SetControllerReference(gs, want, r.Scheme()); err != nil {
-		return reconcile.Result{}, err
-	}
-	if err := r.Create(ctx, want); client.IgnoreAlreadyExists(err) != nil {
+	if err := r.createOwned(ctx, gs, gameserver.GamePod(gs, egg, r.Opts)); err != nil {
 		return reconcile.Result{}, err
 	}
 	now := metav1.Now()
@@ -200,10 +197,8 @@ func (r *Reconciler) reconcileGamePod(
 // trackPod records a new pod in the status, follows its output and compares its runtime hash.
 func (r *Reconciler) trackPod(gs *v1alpha1.GameServer, egg *v1alpha1.Egg, pod *corev1.Pod) {
 	if gs.Status.PodUID != string(pod.UID) {
-		gs.Status.PodUID = string(pod.UID)
+		setPod(gs, string(pod.UID))
 		gs.Status.StartedAt = &pod.CreationTimestamp
-		gs.Status.StopRequestedAt = nil
-		gs.Status.StopTasksStartedAt = nil
 		if gs.Status.Phase == v1alpha1.PhaseRunning {
 			gs.Status.Phase = v1alpha1.PhaseStarting
 		}
@@ -223,18 +218,14 @@ func (r *Reconciler) handleExit(
 	gs.Status.LastExitCode = ptr.To(code)
 	if pod.DeletionTimestamp == nil {
 		patch := client.MergeFrom(pod.DeepCopy())
-		if pod.Annotations == nil {
-			pod.Annotations = map[string]string{}
-		}
-		pod.Annotations[gameserver.AnnotationExitHandled] = "true"
+		metav1.SetMetaDataAnnotation(&pod.ObjectMeta, gameserver.AnnotationExitHandled, "true")
 		if err := r.Patch(ctx, pod, patch); client.IgnoreNotFound(err) != nil {
 			return reconcile.Result{}, err
 		}
 	}
 	r.Hub.ForgetPod(pod.UID)
-	gs.Status.PodUID = ""
-	gs.Status.StopRequestedAt = nil
-	gs.Status.StopTasksStartedAt = nil
+	stopTaskLimits.Delete(string(pod.UID))
+	setPod(gs, "")
 
 	if restart {
 		r.Hub.Daemon(gs.Name, "Server marked as offline, restarting...")
@@ -272,13 +263,9 @@ func (r *Reconciler) handleCrash(
 	if crashRestart {
 		r.Hub.Daemon(gs.Name, "Aborting automatic restart, last crash occurred less than 60 seconds ago.")
 	}
-	patch := client.MergeFrom(gs.DeepCopy())
-	gs.Spec.State = v1alpha1.PowerStopped
-	status := gs.Status
-	if err := r.Patch(ctx, gs, patch); err != nil {
+	if err := r.patchServer(ctx, gs, func() { gs.Spec.State = v1alpha1.PowerStopped }); err != nil {
 		return reconcile.Result{}, err
 	}
-	gs.Status = status
 	r.setPhase(gs, v1alpha1.PhaseOffline, "crashed ("+detail+")")
 	return reconcile.Result{}, nil
 }
@@ -286,11 +273,8 @@ func (r *Reconciler) handleCrash(
 // clearRestart removes the restart request and keeps the server wanted running (the next
 // reconcile creates the new pod).
 func (r *Reconciler) clearRestart(ctx context.Context, gs *v1alpha1.GameServer) error {
-	patch := client.MergeFrom(gs.DeepCopy())
-	delete(gs.Annotations, gameserver.AnnotationRestart)
-	gs.Spec.State = v1alpha1.PowerRunning
-	status := gs.Status
-	err := r.Patch(ctx, gs, patch)
-	gs.Status = status
-	return err
+	return r.patchServer(ctx, gs, func() {
+		delete(gs.Annotations, gameserver.AnnotationRestart)
+		gs.Spec.State = v1alpha1.PowerRunning
+	})
 }

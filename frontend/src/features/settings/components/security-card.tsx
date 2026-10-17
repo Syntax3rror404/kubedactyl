@@ -1,6 +1,5 @@
 import { ShieldIcon } from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
@@ -12,7 +11,7 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
+import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
 
 type Security = {
   allowPrivateNetworks: boolean
@@ -23,7 +22,7 @@ type Security = {
 
 /**
  * Network isolation of user namespaces (NetworkPolicy kubedactyl-isolation), how long sign-ins and API tokens stay
- * valid, and whether the Scumentation (Swagger UI at /swagger/) is served.
+ * valid, and whether the API documentation (Swagger UI at /swagger/) is served.
  */
 export function SecurityCard({
   values,
@@ -35,50 +34,37 @@ export function SecurityCard({
   errors: Record<string, string>
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShieldIcon className="size-4" />
-          Security
-        </CardTitle>
-        <CardDescription>Network isolation, lifetimes of sign-ins and API tokens, and the API docs.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup className="gap-6">
-          <FieldSet>
-            <FieldLegend variant="label">Network isolation</FieldLegend>
-            <Field orientation="horizontal">
-              <Switch
-                id="isolation"
-                checked={!values.allowPrivateNetworks}
-                onCheckedChange={(isolated) => onChange({ allowPrivateNetworks: !isolated })}
-              />
-              <div>
-                <FieldLabel htmlFor="isolation">Isolate user namespaces (recommended)</FieldLabel>
-                <FieldDescription>
-                  Servers only reach the internet, the cluster DNS and their owner's other servers. Players are not
-                  affected.
-                </FieldDescription>
-              </div>
-            </Field>
-          </FieldSet>
-          <FieldSeparator />
-          <LifetimeFields values={values} onChange={onChange} errors={errors} />
-          <FieldSeparator />
-          <FieldSet>
-            <FieldLegend variant="label">API documentation</FieldLegend>
-            <Field orientation="horizontal">
-              <Switch
-                id="api-docs"
-                checked={!values.disableApiDocs}
-                onCheckedChange={(enabled) => onChange({ disableApiDocs: !enabled })}
-              />
-              <FieldLabel htmlFor="api-docs">Enable Swagger UI</FieldLabel>
-            </Field>
-          </FieldSet>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <SettingsCard
+      icon={ShieldIcon}
+      title="Security"
+      description="Network isolation, lifetimes of sign-ins and API tokens, and the API docs."
+    >
+      <FieldGroup className="gap-6">
+        <FieldSet>
+          <FieldLegend variant="label">Network isolation</FieldLegend>
+          <SwitchField
+            id="isolation"
+            label="Isolate user namespaces (recommended)"
+            checked={!values.allowPrivateNetworks}
+            onChange={(isolated) => onChange({ allowPrivateNetworks: !isolated })}
+          >
+            Servers only reach the internet, the cluster DNS and their owner's other servers. Players are not affected.
+          </SwitchField>
+        </FieldSet>
+        <FieldSeparator />
+        <LifetimeFields values={values} onChange={onChange} errors={errors} />
+        <FieldSeparator />
+        <FieldSet>
+          <FieldLegend variant="label">API documentation</FieldLegend>
+          <SwitchField
+            id="api-docs"
+            label="Enable Swagger UI"
+            checked={!values.disableApiDocs}
+            onChange={(enabled) => onChange({ disableApiDocs: !enabled })}
+          />
+        </FieldSet>
+      </FieldGroup>
+    </SettingsCard>
   )
 }
 
@@ -96,41 +82,60 @@ function LifetimeFields({
     <FieldSet>
       <FieldLegend variant="label">Sessions and API tokens</FieldLegend>
       <FieldGroup className="grid gap-6 sm:grid-cols-2">
-        <Field data-invalid={errors.sessionHours ? true : undefined}>
-          <FieldLabel htmlFor="session-hours">Sign-in lasts (hours)</FieldLabel>
-          <Input
-            id="session-hours"
-            type="number"
-            min={1}
-            max={720}
-            value={values.sessionHours}
-            onChange={(e) => onChange({ sessionHours: e.target.valueAsNumber || 0 })}
-            aria-invalid={errors.sessionHours ? true : undefined}
-          />
-          {errors.sessionHours ? (
-            <FieldError>{errors.sessionHours}</FieldError>
-          ) : (
-            <FieldDescription>After that, users sign in again (1-720 hours).</FieldDescription>
-          )}
-        </Field>
-        <Field data-invalid={errors.apiTokenMaxDays ? true : undefined}>
-          <FieldLabel htmlFor="token-days">API tokens last at most (days)</FieldLabel>
-          <Input
-            id="token-days"
-            type="number"
-            min={1}
-            max={3650}
-            value={values.apiTokenMaxDays}
-            onChange={(e) => onChange({ apiTokenMaxDays: e.target.valueAsNumber || 0 })}
-            aria-invalid={errors.apiTokenMaxDays ? true : undefined}
-          />
-          {errors.apiTokenMaxDays ? (
-            <FieldError>{errors.apiTokenMaxDays}</FieldError>
-          ) : (
-            <FieldDescription>Counted from creation, also for existing tokens (1-3650 days).</FieldDescription>
-          )}
-        </Field>
+        <LifetimeField
+          id="session-hours"
+          label="Sign-in lasts (hours)"
+          hint="After that, users sign in again (1-720 hours)."
+          max={720}
+          value={values.sessionHours}
+          onChange={(sessionHours) => onChange({ sessionHours })}
+          error={errors.sessionHours}
+        />
+        <LifetimeField
+          id="token-days"
+          label="API tokens last at most (days)"
+          hint="Counted from creation, also for existing tokens (1-3650 days)."
+          max={3650}
+          value={values.apiTokenMaxDays}
+          onChange={(apiTokenMaxDays) => onChange({ apiTokenMaxDays })}
+          error={errors.apiTokenMaxDays}
+        />
       </FieldGroup>
     </FieldSet>
+  )
+}
+
+/** A lifetime from 1 to max; an empty field counts as 0, which the panel refuses. */
+function LifetimeField({
+  id,
+  label,
+  hint,
+  max,
+  value,
+  onChange,
+  error,
+}: {
+  id: string
+  label: string
+  hint: string
+  max: number
+  value: number
+  onChange: (value: number) => void
+  error?: string
+}) {
+  return (
+    <Field data-invalid={error ? true : undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        min={1}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.valueAsNumber || 0)}
+        aria-invalid={error ? true : undefined}
+      />
+      {error ? <FieldError>{error}</FieldError> : <FieldDescription>{hint}</FieldDescription>}
+    </Field>
   )
 }

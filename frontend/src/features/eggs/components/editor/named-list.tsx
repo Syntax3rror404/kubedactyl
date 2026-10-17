@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { move, type FieldErrors } from "@/features/eggs/lib/egg-draft"
+import { move, patchAt, removeAt, type FieldErrors } from "@/features/eggs/lib/egg-draft"
 
 type Entry<K extends string> = { name: string } & Record<K, string>
 
@@ -43,8 +43,7 @@ export function NamedList<K extends string>({
   onFocusValue?: (index: number) => void
   children?: ReactNode
 }) {
-  const set = (i: number, patch: Partial<Entry<K>>) =>
-    onChange(items.map((item, j) => (j === i ? { ...item, ...patch } : item)))
+  const set = (i: number, patch: Partial<Entry<K>>) => onChange(patchAt(items, i, patch))
   const Value = multiline ? Textarea : Input
   return (
     <Field data-invalid={!!errors[path]}>
@@ -75,37 +74,13 @@ export function NamedList<K extends string>({
                 aria-invalid={!!valueError}
               />
               <div className="flex gap-1">
-                <Button
-                  type="button"
+                <ReorderButtons
+                  index={i}
+                  count={items.length}
                   size="icon"
-                  variant="ghost"
-                  title="Move up"
-                  disabled={i === 0}
-                  onClick={() => onChange(move(items, i, -1))}
-                >
-                  <ArrowUpIcon />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="Move down"
-                  disabled={i === items.length - 1}
-                  onClick={() => onChange(move(items, i, 1))}
-                >
-                  <ArrowDownIcon />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="Remove"
-                  className="text-destructive"
-                  disabled={items.length === 1}
-                  onClick={() => onChange(items.filter((_, j) => j !== i))}
-                >
-                  <Trash2Icon />
-                </Button>
+                  onMove={(by) => onChange(move(items, i, by))}
+                  onRemove={items.length > 1 ? () => onChange(removeAt(items, i)) : undefined}
+                />
               </div>
               {(nameError || valueError) && (
                 <FieldError className="sm:col-span-3">{valueError ?? `Name ${nameError}`}</FieldError>
@@ -128,5 +103,56 @@ export function NamedList<K extends string>({
       </div>
       {children}
     </Field>
+  )
+}
+
+/** Move up, move down and remove buttons of a list entry; without onRemove the remove button is disabled. */
+export function ReorderButtons({
+  index,
+  count,
+  size,
+  onMove,
+  onRemove,
+}: {
+  index: number
+  count: number
+  size: "icon" | "icon-sm"
+  onMove: (by: -1 | 1) => void
+  onRemove?: () => void
+}) {
+  return (
+    <>
+      <Button
+        type="button"
+        size={size}
+        variant="ghost"
+        title="Move up"
+        disabled={index === 0}
+        onClick={() => onMove(-1)}
+      >
+        <ArrowUpIcon />
+      </Button>
+      <Button
+        type="button"
+        size={size}
+        variant="ghost"
+        title="Move down"
+        disabled={index === count - 1}
+        onClick={() => onMove(1)}
+      >
+        <ArrowDownIcon />
+      </Button>
+      <Button
+        type="button"
+        size={size}
+        variant="ghost"
+        title="Remove"
+        className="text-destructive"
+        disabled={!onRemove}
+        onClick={onRemove}
+      >
+        <Trash2Icon />
+      </Button>
+    </>
   )
 }

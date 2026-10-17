@@ -2,16 +2,13 @@ import { useQuery, type QueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { CreateServerRequest, GameServer, MigrateRequest, PowerSignal, UpdateServerRequest } from "@/lib/types"
 
-export const useServers = () =>
-  useQuery({
-    queryKey: keys.servers,
-    queryFn: api.servers.list,
-    refetchInterval: 3000,
-  })
+/** The servers the user may see, polled every 3 s. */
+export const useServers = () => useQuery({ queryKey: keys.servers, queryFn: api.servers.list, refetchInterval: 3000 })
 
+/** One server, polled every 2 s; nothing is loaded without a name. */
 export const useServer = (server: string) =>
   useQuery({
     queryKey: keys.server(server),
@@ -20,6 +17,7 @@ export const useServer = (server: string) =>
     enabled: server !== "",
   })
 
+/** CPU, memory, disk and uptime of a server, polled every 3 s. */
 export const useServerStats = (server: string, enabled = true) =>
   useQuery({
     queryKey: keys.serverStats(server),
@@ -39,7 +37,7 @@ export const useServerDiagnostics = (server: string) =>
   })
 
 /** Reloads the job list of a server: after a job was started or cancelled. */
-export const refreshJobs = (server: string) => (qc: QueryClient) => refresh(qc, keys.jobs(server))
+export const refreshJobs = (server: string) => refreshes(keys.jobs(server))
 
 /** Background jobs (backup, restore, pull, compress, decompress); polled faster while one runs. */
 export const useServerJobs = (server: string) =>
@@ -53,16 +51,18 @@ export const useServerJobs = (server: string) =>
 export const useCancelJob = (server: string, cb?: MutationCallbacks<void, string>) =>
   useApiMutation((job) => api.servers.cancelJob(server, job), refreshJobs(server), cb)
 
-// A poll that was running before the change would overwrite the answer with the older state.
+// Stored from the answer; a poll still running is cancelled first, its older state would overwrite it.
 const storeServer = (qc: QueryClient, gs: GameServer) => {
   void qc.cancelQueries({ queryKey: keys.server(gs.metadata.name) })
   qc.setQueryData(keys.server(gs.metadata.name), gs)
   refresh(qc, keys.servers)
 }
 
+/** Creates a server; the list loads again. */
 export const useCreateServer = (cb?: MutationCallbacks<GameServer, CreateServerRequest>) =>
-  useApiMutation(api.servers.create, (qc) => refresh(qc, keys.servers), cb)
+  useApiMutation(api.servers.create, refreshes(keys.servers), cb)
 
+/** Saves server settings; the answer is stored as the server. */
 export const useUpdateServer = (server: string, cb?: MutationCallbacks<GameServer, UpdateServerRequest>) =>
   useApiMutation((changes) => api.servers.update(server, changes), storeServer, cb)
 
@@ -88,7 +88,7 @@ export const useAcceptEula = (server: string, cb?: MutationCallbacks<void, void>
       await api.files.write(server, "eula.txt", "eula=true\n")
       await api.servers.sendPower(server, "start")
     },
-    (qc) => refresh(qc, keys.server(server)),
+    refreshes(keys.server(server)),
     cb,
   )
 
@@ -109,18 +109,11 @@ export const useDeleteServer = (server: string, cb?: MutationCallbacks<void, voi
 
 /** Sends a power signal (start/stop/restart/kill). */
 export const useSendPower = (server: string, cb?: MutationCallbacks<void, PowerSignal>) =>
-  useApiMutation(
-    (signal) => api.servers.sendPower(server, signal),
-    (qc) => refresh(qc, keys.server(server), keys.servers),
-    cb,
-  )
+  useApiMutation((signal) => api.servers.sendPower(server, signal), refreshes(keys.server(server), keys.servers), cb)
 
+/** Runs the egg's install script again. */
 export const useReinstallServer = (server: string, cb?: MutationCallbacks<void, void>) =>
-  useApiMutation(
-    () => api.servers.reinstall(server),
-    (qc) => refresh(qc, keys.server(server)),
-    cb,
-  )
+  useApiMutation(() => api.servers.reinstall(server), refreshes(keys.server(server)), cb)
 
 /** Moves a stopped server with its data to another user; admins only. */
 export const useTransferServer = (server: string, cb?: MutationCallbacks<GameServer, string>) =>

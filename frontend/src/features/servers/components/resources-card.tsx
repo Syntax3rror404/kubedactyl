@@ -2,22 +2,12 @@ import { DetailList } from "@/components/common/detail-list"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldError } from "@/components/ui/field"
 import { ResourceSliders } from "@/features/servers/components/resource-sliders"
-import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
+import type { SettingsCardProps } from "@/features/servers/lib/settings-draft"
 import { formatCpuLimit, formatMiB, serverAddresses } from "@/lib/format"
 import type { GameServer } from "@/lib/types"
 
 /** Settings page: memory, CPU and disk sliders (administrators). */
-export function ResourcesCard({
-  server,
-  draft,
-  onChange,
-  errors,
-}: {
-  server: GameServer
-  draft: SettingsDraft
-  onChange: SettingsChange
-  errors: Record<string, string>
-}) {
+export function ResourcesCard({ server, draft, onChange, errors }: SettingsCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -37,14 +27,11 @@ export function ResourcesCard({
           onDiskChange={(disk) => onChange({ disk })}
           minDisk={server.spec.resources.diskMiB}
         />
-        {["memoryMiB", "cpuMillis", "diskMiB"].map(
-          (k) =>
-            errors[k] && (
-              <FieldError key={k} className="mt-3">
-                {errors[k]}
-              </FieldError>
-            ),
-        )}
+        {["memoryMiB", "cpuMillis", "diskMiB"].map((k) => (
+          <FieldError key={k} className="mt-3">
+            {errors[k]}
+          </FieldError>
+        ))}
       </CardContent>
     </Card>
   )

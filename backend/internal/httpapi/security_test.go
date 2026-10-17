@@ -60,16 +60,6 @@ func TestPasswordChangesRevokeTokens(t *testing.T) {
 	}
 }
 
-// loginWith signs in with a password and returns the session token.
-func (h *harness) loginWith(user, password string) string {
-	h.t.Helper()
-	code, body := h.do("POST", "/api/auth/login", "", map[string]string{"username": user, "password": password})
-	expect(h.t, "login "+user, code, 200, body)
-	var res LoginResponse
-	_ = json.Unmarshal([]byte(body), &res)
-	return res.Token
-}
-
 // TestLoginThrottlingPerAccount: failures from many addresses (or a spoofed X-Forwarded-For)
 // still count for the account, but cannot lock the user out of a browser they signed in with before.
 func TestLoginThrottlingPerAccount(t *testing.T) {

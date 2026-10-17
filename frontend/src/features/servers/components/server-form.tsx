@@ -21,7 +21,7 @@ import { StartupCommandField } from "@/features/servers/components/startup-comma
 import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
 import { noLoadBalancer, poolRequest } from "@/features/servers/lib/settings-draft"
-import { startupCommandOf } from "@/features/servers/lib/startup"
+import { defaultEnvironment, startupCommandOf } from "@/features/servers/lib/startup"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
 import { useCreateServer, usePools, useSettings } from "@/lib/queries"
@@ -49,7 +49,7 @@ export function ServerForm({
     image: egg.spec.dockerImages[0]?.image ?? "",
     startup: "",
     startupName: "",
-    env: Object.fromEntries((egg.spec.variables ?? []).map((v) => [v.envVariable, v.defaultValue ?? ""])),
+    env: defaultEnvironment(egg.spec),
   })
   const { image, startup, startupName, env } = own.draft
   const displayName = f.name.trim() || egg.spec.displayName
@@ -149,7 +149,7 @@ export function ServerForm({
               defaultName={settings.data?.defaultStorageClass}
               onChange={(v) => shared.set("storageClass", v)}
             />
-            <FieldDescription>Fixed for the life of the volume.</FieldDescription>
+            <FieldDescription>Admins can migrate it later.</FieldDescription>
           </Field>
         </FormSection>
 

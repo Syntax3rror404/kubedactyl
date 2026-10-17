@@ -61,10 +61,12 @@ func (a *API) listServers(c *gin.Context) {
 		return
 	}
 	list.Items = ownServers(list.Items)
-	eggs := a.eggsByName(c)
-	domain := a.externalDomain(c)
-	for i := range list.Items {
-		list.Items[i] = *visibleServer(p, &list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
+	if !p.Admin() {
+		eggs := a.eggsByName(c)
+		domain := a.externalDomain(c)
+		for i := range list.Items {
+			hideFromUser(&list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
+		}
 	}
 	sort.Slice(list.Items, func(i, j int) bool {
 		return strings.ToLower(list.Items[i].Spec.DisplayName) < strings.ToLower(list.Items[j].Spec.DisplayName)
@@ -87,11 +89,14 @@ func (a *API) getServer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var e *v1alpha1.Egg // stays nil when the egg is gone (like in listServers)
-	if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
-		e = found
+	if !principal(c).Admin() {
+		var e *v1alpha1.Egg // stays nil when the egg is gone (like in listServers)
+		if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
+			e = found
+		}
+		hideFromUser(gs, e, a.externalDomain(c))
 	}
-	c.JSON(http.StatusOK, visibleServer(principal(c), gs, e, a.externalDomain(c)))
+	c.JSON(http.StatusOK, gs)
 }
 
 // externalDomain is shown to users instead of the load balancer IP (read on every poll, so from

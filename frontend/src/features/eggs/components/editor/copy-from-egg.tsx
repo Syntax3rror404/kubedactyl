@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useEggs } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
 
-/** Copies settings from another egg once (Pelican/Pterodactyl "Copy Settings From", without inheritance). */
+/** Copies settings from another egg once; later changes of that egg do not carry over. */
 export function CopyFromEgg({
   exclude,
   label,

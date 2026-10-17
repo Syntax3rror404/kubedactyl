@@ -33,7 +33,7 @@ type FilesReaper struct {
 // reapInterval is how often the reaper looks for idle files pods.
 const reapInterval = 10 * time.Second
 
-// Start implements manager.Runnable.
+// Start removes idle files pods every reapInterval until the panel stops.
 func (f *FilesReaper) Start(ctx context.Context) error {
 	t := time.NewTicker(reapInterval)
 	defer t.Stop()
@@ -81,9 +81,8 @@ func (f *FilesReaper) reap(ctx context.Context) error {
 // anyway. Attaching a volume that another pod just released can take over a minute.
 const filesStartLimit = 10 * time.Minute
 
-// idlePod reports whether a files pod can go: its time is up (files.StopsAt: not used for
-// files.IdleTimeout since it became ready), or it has been starting for longer than
-// filesStartLimit.
+// idlePod reports whether a files pod can go: it was not used for files.IdleTimeout since it
+// became ready (files.StopsAt), or it has been starting for longer than filesStartLimit.
 func idlePod(pod *corev1.Pod, lastUse, now time.Time) bool {
 	if pod.DeletionTimestamp != nil {
 		return false

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"strconv"
 	"strings"
 
@@ -44,17 +45,16 @@ func jsonToNode(dec *json.Decoder) (*yaml.Node, error) {
 			return jsonArrayToNode(dec)
 		}
 	case string:
-		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v}, nil
+		return scalar("!!str", v), nil
 	case json.Number:
-		tag := "!!int"
 		if strings.ContainsAny(v.String(), ".eE") {
-			tag = "!!float"
+			return scalar("!!float", v.String()), nil
 		}
-		return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: v.String()}, nil
+		return scalar("!!int", v.String()), nil
 	case bool:
-		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(v)}, nil
+		return boolean(v), nil
 	case nil:
-		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: "null"}, nil
+		return null(), nil
 	}
 	return nil, fmt.Errorf("unexpected JSON token %v", tok)
 }
@@ -72,7 +72,7 @@ func jsonObjectToNode(dec *json.Decoder) (*yaml.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		n.Content = append(n.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, val)
+		n.Content = append(n.Content, scalar("!!str", key), val)
 	}
 	_, err := dec.Token() // closing }
 	return n, err
@@ -92,6 +92,15 @@ func jsonArrayToNode(dec *json.Decoder) (*yaml.Node, error) {
 	return n, err
 }
 
+// scalar returns a scalar node with a YAML tag ("!!str", "!!int", ...).
+func scalar(tag, value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
+}
+
+func null() *yaml.Node { return scalar("!!null", "null") }
+
+func boolean(b bool) *yaml.Node { return scalar("!!bool", strconv.FormatBool(b)) }
+
 // stringList accepts a list of strings; PHP exports empty lists as "{}".
 func stringList(n *yaml.Node) []string {
 	if n == nil || n.Kind != yaml.SequenceNode {
@@ -106,15 +115,18 @@ func stringList(n *yaml.Node) []string {
 	return out
 }
 
-func mappingPairs(n *yaml.Node) [][2]string {
-	if n == nil || n.Kind != yaml.MappingNode {
-		return nil
+// entries yields the keys and value nodes of a mapping in file order (nothing for other nodes).
+func entries(n *yaml.Node) iter.Seq2[string, *yaml.Node] {
+	return func(yield func(string, *yaml.Node) bool) {
+		if n == nil || n.Kind != yaml.MappingNode {
+			return
+		}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			if !yield(n.Content[i].Value, n.Content[i+1]) {
+				return
+			}
+		}
 	}
-	var out [][2]string
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		out = append(out, [2]string{n.Content[i].Value, n.Content[i+1].Value})
-	}
-	return out
 }
 
 func scalarString(n *yaml.Node) string {

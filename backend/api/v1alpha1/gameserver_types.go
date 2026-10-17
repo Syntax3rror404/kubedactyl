@@ -53,81 +53,82 @@ const (
 
 // Resources of a game server.
 type Resources struct {
-	// MemoryMiB is the memory available to the server (SERVER_MEMORY).
+	// MemoryMiB is the memory of the server (MiB), also passed to it as SERVER_MEMORY.
 	// +kubebuilder:validation:Minimum=64
 	MemoryMiB int64 `json:"memoryMiB"`
-	// CPUMillis limits CPU usage (1000 = one core); 0 means unlimited.
+	// CPUMillis limits the CPU of the server (millicores, 1000 = one core). 0 = unlimited.
 	// +optional
 	CPUMillis int64 `json:"cpuMillis,omitempty"`
-	// DiskMiB is the size of the persistent volume.
+	// DiskMiB is the size of the server's volume (MiB).
 	// +kubebuilder:validation:Minimum=256
 	DiskMiB int64 `json:"diskMiB"`
 }
 
 // GameServerSpec defines the desired state of a game server.
 type GameServerSpec struct {
-	// DisplayName is a human friendly name.
+	// DisplayName is the name shown in the panel. Empty: uses the object name.
 	DisplayName string `json:"displayName,omitempty"`
 	// EggRef is the name of the Egg in the same namespace.
 	EggRef string `json:"eggRef"`
 	// Image is the runtime image (one of the egg's docker images or a custom one).
 	Image string `json:"image"`
-	// Startup overrides the egg's startup command.
+	// Startup replaces the egg's startup command. Empty: uses StartupName.
 	// +optional
 	Startup string `json:"startup,omitempty"`
-	// StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
-	// means its default. Startup wins when set.
+	// StartupName picks one of the egg's startup commands by name. Empty or unknown: uses the egg's
+	// default. Ignored when Startup is set.
 	// +optional
 	StartupName string `json:"startupName,omitempty"`
-	// Environment holds values for the egg variables.
+	// Environment holds the values of the egg variables. Missing ones use the egg's defaults.
 	// +optional
 	Environment map[string]string `json:"environment,omitempty"`
 	Resources   Resources         `json:"resources"`
 	// Ports are published as TCP and UDP. The first one is the primary port (SERVER_PORT).
 	// +kubebuilder:validation:MinItems=1
 	Ports []int32 `json:"ports"`
-	// StorageClass of the data volume. Changing it moves the server files to a new volume of that
-	// class (status.migration); the server stays stopped meanwhile.
+	// StorageClass of the server's volume. Changing it moves the files to a new volume of that class
+	// (status.migration); the server is locked meanwhile. Admins only.
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`
-	// ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
-	// when it gets a load balancer again.
+	// ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).
+	// Empty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.
 	// +optional
 	ServiceType ServiceType `json:"serviceType,omitempty"`
-	// LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service
-	// gets the labels of the pool's service selector.
+	// LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service gets the labels
+	// of the pool's service selector.
 	// +optional
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty"`
-	// LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
-	// separated by a comma. The server then gets only these addresses.
+	// LoadBalancerIP fixes the server's addresses: one IP, or one per IP family separated by a comma,
+	// from the load balancer pool. Empty: the pool picks.
 	// +optional
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
-	// ExternalTrafficPolicy of the service; empty means Local.
+	// ExternalTrafficPolicy of the server's service. Empty: uses Local. Admins only.
 	// +optional
 	ExternalTrafficPolicy TrafficPolicy `json:"externalTrafficPolicy,omitempty"`
-	// IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
-	// server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+	// IPv6 gives the server an address of each IP family the cluster has (PreferDualStack). Only with
+	// a dual stack cluster and a pool with an IPv6 block. Admins only.
 	// +optional
 	IPv6 bool `json:"ipv6,omitempty"`
-	// State is the desired power state.
+	// State is the power state the server should be in.
 	// +kubebuilder:default=Stopped
 	State PowerState `json:"state,omitempty"`
-	// InstallRevision triggers a (re)install whenever it differs from status.installedRevision.
+	// InstallRevision reinstalls the server whenever it differs from status.installedRevision.
 	// +kubebuilder:default=1
 	InstallRevision int64 `json:"installRevision,omitempty"`
-	// SkipInstall skips the egg install script.
+	// SkipInstall creates the server without running the egg's install script.
 	// +optional
 	SkipInstall bool `json:"skipInstall,omitempty"`
 	// CrashRestart restarts the server after a crash (not twice within 60 seconds).
 	// +kubebuilder:default=true
 	CrashRestart *bool `json:"crashRestart,omitempty"`
-	// StopTimeoutSeconds is how long to wait after the stop command before killing the server.
+	// StopTimeoutSeconds is how long the server may take to stop after the stop command before it
+	// is killed (seconds).
 	// +kubebuilder:default=600
 	StopTimeoutSeconds int64 `json:"stopTimeoutSeconds,omitempty"`
-	// Suspended servers are stopped and cannot be started or used by their owner (admins only).
+	// Suspended stops the server and locks it for its owner. Admins only.
 	// +optional
 	Suspended bool `json:"suspended,omitempty"`
-	// Schedules run tasks at fixed times.
+	// Schedules run tasks at fixed times or events of the server.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -170,7 +171,7 @@ type ScheduleTask struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=500
 	Payload string `json:"payload,omitempty"`
-	// DelaySeconds waits before this task (after the previous one).
+	// DelaySeconds waits before this task, counted from the end of the previous one (seconds).
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=900
@@ -181,7 +182,7 @@ type ScheduleTask struct {
 type ScheduleStatus struct {
 	Name      string       `json:"name"`
 	LastRunAt *metav1.Time `json:"lastRunAt,omitempty"`
-	// LastResult is "ok", "skipped: …" or "failed: …".
+	// LastResult is "ok", "skipped: <reason>" or "failed: <reason>".
 	LastResult string `json:"lastResult,omitempty"`
 }
 
@@ -205,7 +206,7 @@ type StorageMigration struct {
 	// +kubebuilder:validation:Enum=Preparing;Copying;Switching;Failed
 	Step      string      `json:"step"      enums:"Preparing,Copying,Switching,Failed"`
 	StartedAt metav1.Time `json:"startedAt"`
-	// Done of Total files copied.
+	// Done is the number of files copied so far, Total the number of all files.
 	// +optional
 	Done int64 `json:"done,omitempty"`
 	// +optional
@@ -215,7 +216,7 @@ type StorageMigration struct {
 	Volume string `json:"volume,omitempty"`
 	// +optional
 	PreviousVolume string `json:"previousVolume,omitempty"`
-	// Error tells why a failed migration stopped; the server stays on its volume.
+	// Error tells why the migration failed. The server stays on its old volume.
 	// +optional
 	Error string `json:"error,omitempty"`
 }
@@ -256,17 +257,17 @@ type GameServerStatus struct {
 	// RestartRequired is set while the running game pod was created with other runtime
 	// settings (image, startup, variables, memory, CPU, ports) than the spec has now.
 	RestartRequired bool `json:"restartRequired,omitempty"`
-	// DiskUsedBytes is the last measured size of the server files; the files pod that
-	// measures it only runs on demand.
-	// StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+	// StorageClass of the bound volume. While spec.storageClass differs, the server is migrating.
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`
 	// Migration is the running or last failed storage migration.
 	// +optional
-	Migration          *StorageMigration `json:"migration,omitempty"`
-	DiskUsedBytes      *int64            `json:"diskUsedBytes,omitempty"`
-	DiskMeasuredAt     *metav1.Time      `json:"diskMeasuredAt,omitempty"`
-	ObservedGeneration int64             `json:"observedGeneration,omitempty"`
+	Migration *StorageMigration `json:"migration,omitempty"`
+	// DiskUsedBytes is the last measured size of the server files (bytes). It is measured only
+	// while the files pod runs, which happens on demand.
+	DiskUsedBytes      *int64       `json:"diskUsedBytes,omitempty"`
+	DiskMeasuredAt     *metav1.Time `json:"diskMeasuredAt,omitempty"`
+	ObservedGeneration int64        `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

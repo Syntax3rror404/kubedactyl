@@ -1,4 +1,5 @@
-// Package files implements the file manager on top of exec in the helper pod.
+// Package files is the file manager of the servers: file operations, backups and background jobs
+// run as scripts in the files pod of a server.
 package files
 
 import (
@@ -121,10 +122,10 @@ func (m *Manager) run(
 }
 
 // checkLinks applies the denylist to where the paths really lead, so a symbolic link cannot get
-// around it: follow resolves every link (files that are read or written), otherwise only the
-// folder (an entry that is deleted or moved: a link itself). It returns the resolved paths
-// relative to the root ("/plugins"). Without a denylist nothing is checked here (nil); the
-// scripts keep every path inside the volume (inside).
+// around it. With follow every link is resolved (a file that is read or written), otherwise only
+// the folder, because deleting or moving an entry touches the link itself. It returns the resolved
+// paths relative to the root ("/plugins"), or nil without a denylist (the scripts keep every path
+// inside the volume anyway).
 func (m *Manager) checkLinks(
 	ctx context.Context, server Ref, denylist []string, follow bool, abs ...string,
 ) ([]string, error) {
@@ -161,22 +162,32 @@ func checkReal(reals []string, denylist []string) ([]string, error) {
 	return rels, nil
 }
 
-// realDir is the folder a checked directory really is (relative to the root): the entries of a
-// folder behind a link are checked against the denylist where they really are.
-func realDir(dir string, reals []string) string {
+// resolve is Resolve plus checkLinks for one path that is followed. It also returns where the path
+// really leads (realDir).
+func (m *Manager) resolve(ctx context.Context, server Ref, rel string, denylist []string) (string, string, error) {
+	abs, err := Resolve(rel, denylist)
+	if err != nil {
+		return "", "", err
+	}
+	reals, err := m.checkLinks(ctx, server, denylist, true, abs)
+	if err != nil {
+		return "", "", err
+	}
+	return abs, realDir(rel, reals), nil
+}
+
+// realDir is where a checked path really leads (relative to the root): the entries of a folder
+// behind a link are checked against the denylist where they really are.
+func realDir(rel string, reals []string) string {
 	if len(reals) > 0 {
 		return reals[0]
 	}
-	return path.Clean("/" + dir)
+	return path.Clean("/" + rel)
 }
 
 // List returns the entries of a directory.
 func (m *Manager) List(ctx context.Context, server Ref, dir string, denylist []string) ([]Entry, error) {
-	abs, err := Resolve(dir, denylist)
-	if err != nil {
-		return nil, err
-	}
-	reals, err := m.checkLinks(ctx, server, denylist, true, abs)
+	abs, real, err := m.resolve(ctx, server, dir, denylist)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +206,7 @@ done`, abs)
 		return nil, err
 	}
 	entries := parseListing(out.String(), func(name string) bool {
-		return Denied(path.Join(realDir(dir, reals), name), denylist)
+		return Denied(path.Join(real, name), denylist)
 	})
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].IsDir != entries[j].IsDir {
@@ -231,11 +242,8 @@ func parseListing(out string, skip func(name string) bool) []Entry {
 // Read returns the content of a file up to maxSize bytes. It reads one byte more to tell a file
 // that is too large (also one that grows or is not a regular file behind a link).
 func (m *Manager) Read(ctx context.Context, server Ref, file string, maxSize int, denylist []string) ([]byte, error) {
-	abs, err := Resolve(file, denylist)
+	abs, _, err := m.resolve(ctx, server, file, denylist)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
 		return nil, err
 	}
 	out := kube.LimitedBuffer{Max: maxSize + 1}
@@ -250,11 +258,8 @@ head -c "$2" "$1"`, abs, strconv.Itoa(out.Max))
 
 // Download streams a file to w.
 func (m *Manager) Download(ctx context.Context, server Ref, file string, w io.Writer, denylist []string) error {
-	abs, err := Resolve(file, denylist)
+	abs, _, err := m.resolve(ctx, server, file, denylist)
 	if err != nil {
-		return err
-	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
 		return err
 	}
 	return m.run(ctx, server, nil, w, `[ -f "$1" ] || exit 3
@@ -279,11 +284,8 @@ func (m *Manager) Write(ctx context.Context, server Ref, file string, r io.Reade
 
 // CreateFolder creates a directory.
 func (m *Manager) CreateFolder(ctx context.Context, server Ref, dir string, denylist []string) error {
-	abs, err := Resolve(dir, denylist)
+	abs, _, err := m.resolve(ctx, server, dir, denylist)
 	if err != nil {
-		return err
-	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
 		return err
 	}
 	return m.run(ctx, server, nil, nil, `inside "$(real "$1")"
@@ -292,7 +294,7 @@ mkdir -p -- "$1"`, abs)
 
 // Delete removes files and directories (a link, not what it points to).
 func (m *Manager) Delete(ctx context.Context, server Ref, paths []string, denylist []string) error {
-	var abs []string
+	abs := make([]string, 0, len(paths))
 	for _, p := range paths {
 		a, err := Resolve(p, denylist)
 		if err != nil {
@@ -355,20 +357,13 @@ pack "$out" "" "$@"`
 func (m *Manager) Compress(
 	ctx context.Context, server Ref, dir, archive string, names []string, denylist []string, report func(Progress),
 ) error {
-	absDir, err := Resolve(dir, denylist)
-	if err != nil {
-		return err
-	}
-	reals, err := m.checkLinks(ctx, server, denylist, true, absDir)
+	absDir, real, err := m.resolve(ctx, server, dir, denylist)
 	if err != nil {
 		return err
 	}
 	args := []string{absDir, archive}
 	for _, n := range names {
-		if strings.Contains(n, "/") || n == ".." || n == "." || n == "" {
-			return ErrDenied
-		}
-		if Denied(path.Join(realDir(dir, reals), n), denylist) {
+		if strings.Contains(n, "/") || n == ".." || n == "." || n == "" || Denied(path.Join(real, n), denylist) {
 			return ErrDenied
 		}
 		args = append(args, "./"+n)
@@ -403,11 +398,8 @@ merge "$tmp" .`
 func (m *Manager) Decompress(
 	ctx context.Context, server Ref, file string, denylist []string, report func(Progress),
 ) error {
-	abs, err := Resolve(file, denylist)
+	abs, _, err := m.resolve(ctx, server, file, denylist)
 	if err != nil {
-		return err
-	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
 		return err
 	}
 	return m.run(ctx, server, nil, &progressWriter{report: report}, decompressScript, abs)

@@ -66,7 +66,8 @@ spec:
                   within 60 seconds).
                 type: boolean
               displayName:
-                description: DisplayName is a human friendly name.
+                description: 'DisplayName is the name shown in the panel. Empty: uses
+                  the object name.'
                 type: string
               eggRef:
                 description: EggRef is the name of the Egg in the same namespace.
@@ -74,10 +75,12 @@ spec:
               environment:
                 additionalProperties:
                   type: string
-                description: Environment holds values for the egg variables.
+                description: Environment holds the values of the egg variables. Missing
+                  ones use the egg's defaults.
                 type: object
               externalTrafficPolicy:
-                description: ExternalTrafficPolicy of the service; empty means Local.
+                description: 'ExternalTrafficPolicy of the server''s service. Empty:
+                  uses Local. Admins only.'
                 enum:
                 - Local
                 - Cluster
@@ -88,24 +91,24 @@ spec:
                 type: string
               installRevision:
                 default: 1
-                description: InstallRevision triggers a (re)install whenever it differs
+                description: InstallRevision reinstalls the server whenever it differs
                   from status.installedRevision.
                 format: int64
                 type: integer
               ipv6:
                 description: |-
-                  IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
-                  server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+                  IPv6 gives the server an address of each IP family the cluster has (PreferDualStack). Only with
+                  a dual stack cluster and a pool with an IPv6 block. Admins only.
                 type: boolean
               loadBalancerIP:
                 description: |-
-                  LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
-                  separated by a comma. The server then gets only these addresses.
+                  LoadBalancerIP fixes the server's addresses: one IP, or one per IP family separated by a comma,
+                  from the load balancer pool. Empty: the pool picks.
                 type: string
               loadBalancerPool:
                 description: |-
-                  LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service
-                  gets the labels of the pool's service selector.
+                  LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service gets the labels
+                  of the pool's service selector.
                 type: string
               ports:
                 description: Ports are published as TCP and UDP. The first one is
@@ -119,17 +122,18 @@ spec:
                 description: Resources of a game server.
                 properties:
                   cpuMillis:
-                    description: CPUMillis limits CPU usage (1000 = one core); 0 means
-                      unlimited.
+                    description: CPUMillis limits the CPU of the server (millicores,
+                      1000 = one core). 0 = unlimited.
                     format: int64
                     type: integer
                   diskMiB:
-                    description: DiskMiB is the size of the persistent volume.
+                    description: DiskMiB is the size of the server's volume (MiB).
                     format: int64
                     minimum: 256
                     type: integer
                   memoryMiB:
-                    description: MemoryMiB is the memory available to the server (SERVER_MEMORY).
+                    description: MemoryMiB is the memory of the server (MiB), also
+                      passed to it as SERVER_MEMORY.
                     format: int64
                     minimum: 64
                     type: integer
@@ -138,7 +142,7 @@ spec:
                 - memoryMiB
                 type: object
               schedules:
-                description: Schedules run tasks at fixed times.
+                description: Schedules run tasks at fixed times or events of the server.
                 items:
                   description: |-
                     Schedule runs its tasks one after another whenever the cron expression matches or, with
@@ -186,8 +190,8 @@ spec:
                             - backup
                             type: string
                           delaySeconds:
-                            description: DelaySeconds waits before this task (after
-                              the previous one).
+                            description: DelaySeconds waits before this task, counted
+                              from the end of the previous one (seconds).
                             format: int32
                             maximum: 900
                             minimum: 0
@@ -215,44 +219,47 @@ spec:
                 x-kubernetes-list-type: map
               serviceType:
                 description: |-
-                  ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
-                  when it gets a load balancer again.
+                  ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).
+                  Empty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.
                 enum:
                 - LoadBalancer
                 - ClusterIP
                 type: string
               skipInstall:
-                description: SkipInstall skips the egg install script.
+                description: SkipInstall creates the server without running the egg's
+                  install script.
                 type: boolean
               startup:
-                description: Startup overrides the egg's startup command.
+                description: 'Startup replaces the egg''s startup command. Empty:
+                  uses StartupName.'
                 type: string
               startupName:
                 description: |-
-                  StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
-                  means its default. Startup wins when set.
+                  StartupName picks one of the egg's startup commands by name. Empty or unknown: uses the egg's
+                  default. Ignored when Startup is set.
                 type: string
               state:
                 default: Stopped
-                description: State is the desired power state.
+                description: State is the power state the server should be in.
                 enum:
                 - Running
                 - Stopped
                 type: string
               stopTimeoutSeconds:
                 default: 600
-                description: StopTimeoutSeconds is how long to wait after the stop
-                  command before killing the server.
+                description: |-
+                  StopTimeoutSeconds is how long the server may take to stop after the stop command before it
+                  is killed (seconds).
                 format: int64
                 type: integer
               storageClass:
                 description: |-
-                  StorageClass of the data volume. Changing it moves the server files to a new volume of that
-                  class (status.migration); the server stays stopped meanwhile.
+                  StorageClass of the server's volume. Changing it moves the files to a new volume of that class
+                  (status.migration); the server is locked meanwhile. Admins only.
                 type: string
               suspended:
-                description: Suspended servers are stopped and cannot be started or
-                  used by their owner (admins only).
+                description: Suspended stops the server and locks it for its owner.
+                  Admins only.
                 type: boolean
             required:
             - eggRef
@@ -278,6 +285,9 @@ spec:
                 format: date-time
                 type: string
               diskUsedBytes:
+                description: |-
+                  DiskUsedBytes is the last measured size of the server files (bytes). It is measured only
+                  while the files pod runs, which happens on demand.
                 format: int64
                 type: integer
               installExitCode:
@@ -304,12 +314,13 @@ spec:
                 description: Migration is the running or last failed storage migration.
                 properties:
                   done:
-                    description: Done of Total files copied.
+                    description: Done is the number of files copied so far, Total
+                      the number of all files.
                     format: int64
                     type: integer
                   error:
-                    description: Error tells why a failed migration stopped; the server
-                      stays on its volume.
+                    description: Error tells why the migration failed. The server
+                      stays on its old volume.
                     type: string
                   from:
                     description: From is the storage class the server moves away from,
@@ -365,7 +376,8 @@ spec:
                   description: ScheduleStatus is the result of the last run of a schedule.
                   properties:
                     lastResult:
-                      description: 'LastResult is "ok", "skipped: …" or "failed: …".'
+                      description: 'LastResult is "ok", "skipped: <reason>" or "failed:
+                        <reason>".'
                       type: string
                     lastRunAt:
                       format: date-time
@@ -395,10 +407,8 @@ spec:
                 format: date-time
                 type: string
               storageClass:
-                description: |-
-                  DiskUsedBytes is the last measured size of the server files; the files pod that
-                  measures it only runs on demand.
-                  StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+                description: StorageClass of the bound volume. While spec.storageClass
+                  differs, the server is migrating.
                 type: string
             type: object
         required:

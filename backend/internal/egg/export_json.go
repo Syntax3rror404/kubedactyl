@@ -12,9 +12,6 @@ import (
 // jsonString encodes a node as pretty JSON text (PTDL stores config.* like this).
 func jsonString(n *yaml.Node) (string, error) {
 	var buf bytes.Buffer
-	if len(n.Content) == 0 && n.Kind == yaml.MappingNode {
-		return "{}", nil
-	}
 	err := writeJSON(&buf, n, 0)
 	return buf.String(), err
 }
@@ -36,45 +33,39 @@ func writeJSON(buf *bytes.Buffer, n *yaml.Node, depth int) error {
 func newline(buf *bytes.Buffer, depth int) { buf.WriteString("\n" + strings.Repeat("    ", depth)) }
 
 func writeJSONMapping(buf *bytes.Buffer, n *yaml.Node, depth int) error {
-	if len(n.Content) == 0 {
-		buf.WriteString("{}")
-		return nil
-	}
-	buf.WriteByte('{')
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		if i > 0 {
-			buf.WriteByte(',')
-		}
-		newline(buf, depth+1)
-		key, _ := json.Marshal(n.Content[i].Value)
+	return writeJSONList(buf, "{}", len(n.Content)/2, depth, func(i int) error {
+		key, _ := json.Marshal(n.Content[2*i].Value)
 		buf.Write(key)
 		buf.WriteString(": ")
-		if err := writeJSON(buf, n.Content[i+1], depth+1); err != nil {
-			return err
-		}
-	}
-	newline(buf, depth)
-	buf.WriteByte('}')
-	return nil
+		return writeJSON(buf, n.Content[2*i+1], depth+1)
+	})
 }
 
 func writeJSONSequence(buf *bytes.Buffer, n *yaml.Node, depth int) error {
-	if len(n.Content) == 0 {
-		buf.WriteString("[]")
+	return writeJSONList(buf, "[]", len(n.Content), depth, func(i int) error {
+		return writeJSON(buf, n.Content[i], depth+1)
+	})
+}
+
+// writeJSONList writes count items between the brackets, one per line; an empty list stays on
+// one line ("{}", "[]").
+func writeJSONList(buf *bytes.Buffer, brackets string, count, depth int, item func(i int) error) error {
+	if count == 0 {
+		buf.WriteString(brackets)
 		return nil
 	}
-	buf.WriteByte('[')
-	for i, c := range n.Content {
+	buf.WriteByte(brackets[0])
+	for i := range count {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
 		newline(buf, depth+1)
-		if err := writeJSON(buf, c, depth+1); err != nil {
+		if err := item(i); err != nil {
 			return err
 		}
 	}
 	newline(buf, depth)
-	buf.WriteByte(']')
+	buf.WriteByte(brackets[1])
 	return nil
 }
 

@@ -12,24 +12,26 @@ import { useBranding } from "@/lib/queries"
 export function useBrandingHead(parts: string[]) {
   const { data } = useBranding()
   const name = data?.name ?? "Kubedactyl"
+  const loaded = !!data
   const favicon = data?.favicon
   const title = [...parts, name].join(" · ")
   useEffect(() => {
     document.title = title
   }, [title])
   useEffect(() => {
-    if (!data) return // the default would flash before an uploaded favicon
+    // Not before the branding is there: the built-in icon would flash before an uploaded one.
+    if (!loaded) return
     document.querySelector("link[rel=icon]")?.remove()
     const link = document.createElement("link")
     link.rel = "icon"
     link.href = favicon || builtInFavicon
     document.head.appendChild(link)
-  }, [data, favicon])
+  }, [loaded, favicon])
 }
 
 /**
- * The built-in favicon: the lucide container icon on the brand gradient (like the built-in logo), as an SVG data
- * URL. Rendered once when the module loads: flushSync does not render from inside an effect.
+ * The built-in favicon: the lucide container icon on the brand gradient, as an SVG data URL. Rendered once when the
+ * module loads, because flushSync does not render from inside an effect.
  */
 const builtInFavicon = (() => {
   const div = document.createElement("div")

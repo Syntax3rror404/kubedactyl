@@ -94,8 +94,7 @@ func (a *API) getUpgradeStatus(c *gin.Context) {
 //	@Router			/upgrade [post]
 func (a *API) startUpgrade(c *gin.Context) {
 	var req StartUpgradeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	if a.Upgrader == nil {

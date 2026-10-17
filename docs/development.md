@@ -165,6 +165,77 @@ scripts/imagebuild/       daemonless image build and push (make image / push-ima
 .github/workflows/        GitHub Actions build (make test lint image; run by hand: raise VERSION, push-image push-chart, release)
 ```
 
+## Comment style
+
+English, lines <= 120 columns (gofmt tabs, Prettier in the frontend). A comment must earn its line: fewer, better
+placed comments. Explain the why, the order and the intent; never narrate what the next line does.
+
+### Structure
+
+1. **The doc comment is the manual.** Exported types, functions, components and hooks start with a doc comment
+   (Go: `// Name ...`, TS: `/** ... */`), usually one sentence, at most ~10 lines: what it is, how it behaves
+   (rules, not history), how to use it (who calls it, what it needs), limits.
+2. **Where it runs.** Files are split by responsibility, so most run in one place only. A file that mixes places
+   gets one chapter per place, in the same order as in its test file:
+   ```go
+   // ---------------------------------------------------------------------------------------------------------------
+   // Controller
+   ```
+   Chapters: `Request handler`, `Controller`, `Background` (runner, reaper, updater goroutines), `Pod script`.
+   Data handed between them through the CRD sits in its own block: `// Handler -> controller (spec)`,
+   `// Controller -> UI (status)`. Shared memory says what guards it ("guarded by mu").
+3. **One-line why at the exception.** Inside a function, comment only what is not obvious: the reason, the
+   exception, the ordering constraint, which cache or reader is used and why.
+
+### Complex logic
+
+4. **Overview first, steps numbered.** A function or flow with three or more stages (reconcilers, migration,
+   transfer, upgrade) starts with an overview: one sentence of goal, then the stages `1. ... 2. ... 3. ...`. In
+   the body each stage starts with the matching `// 2. Title` (plus a short why). Reading only these lines gives
+   the flow.
+   ```go
+   // reconcileMigration moves the server files while spec and status name different storage classes.
+   //  1. Stop: the game pod is removed first, a running game would write during the copy.
+   //  2. Copy: a pod copies the old volume into a new claim and compares count and bytes.
+   //  3. Switch: both volumes are retained and the step is saved, then the claims are deleted.
+   //  4. Finish: the old volume is deleted once the new claim is bound.
+   ```
+5. **Fallback chains are numbered in priority order**, the same way as stages.
+6. **Order and timing:** "Before X, because ...", "Last: ...", "Saved before anything is deleted, so ...".
+7. **Cluster intent = what it guarantees + what goes wrong without it.** "Retained first, so a restart here
+   loses no data."
+8. **Quantities: define once.** Give each non-obvious value its meaning, range and unit once ("share of the
+   limit, 0..1", "seconds").
+9. **Edge cases as rules, not stories.** Write what the code guarantees, not the bug that happened. If the story
+   matters, name the test that guards it.
+10. **Labels:** `Workaround:` (Kubernetes, BusyBox, proxy or browser behaviour, the version, when to remove),
+    `Fail-safe:`, `Experimental:`.
+
+### API fields and UI hints
+
+11. **CRD and API field comments are written for the administrator or API user**: they become the CRD
+    description, the Swagger docs and the frontend types. The first sentence says what it does for the server.
+    Bools describe the on state. Skip it only where the name and the unit say everything.
+12. **Shape, at most ~3 lines:** `<What it does>. <Hint: higher = ..., lower = ...>. <Off / default / limit>.`
+    Fixed phrases: "0 = off.", "Empty: uses X.", "Optional.", "Ignored when X.", "Only with X.", "Admins only.".
+13. **Units in the name or in parentheses** at the end of the first sentence ("(seconds)", "(MiB)"); ranges as
+    `+kubebuilder:validation:Minimum` / `Maximum` where they exist.
+14. **UI hints** (descriptions, notices) are one short sentence, two at most; details go to `docs/`.
+
+### What never goes into the code
+
+15. **Pterodactyl and Pelican only where eggs are concerned.** Describe panel behaviour and its reason, never
+    "like X". No internal names (clusters, domains, IPs, people).
+16. **No development log:** no user quotes, measurements or bug stories in comments, API docs or UI texts. They
+    belong in commit messages and tests.
+17. **Plain sentences:** present tense, one idea per sentence, sentence case, at most one colon per sentence, no
+    en or em dashes.
+
+### Budget
+
+Comments should not grow the code. New overviews and field comments are paid for by removing history, narration
+and repeated explanations. Existing code follows this style when it is changed anyway, not in a sweep.
+
 ## API
 
 Swagger UI: **http://localhost:8080/swagger/** (also linked in the sidebar; administrators can turn it off in

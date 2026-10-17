@@ -237,12 +237,11 @@ func (s *Service) saveCache(ctx context.Context) {
 		},
 		Data: data,
 	}
-	if _, err := cms.Update(ctx, cm, metav1.UpdateOptions{}); apierrors.IsNotFound(err) {
+	_, err := cms.Update(ctx, cm, metav1.UpdateOptions{})
+	if apierrors.IsNotFound(err) {
 		_, err = cms.Create(ctx, cm, metav1.CreateOptions{})
-		if err != nil {
-			s.Log.Warn("saving hardware cache", "err", err)
-		}
-	} else if err != nil {
+	}
+	if err != nil {
 		s.Log.Warn("saving hardware cache", "err", err)
 	}
 }
@@ -283,18 +282,12 @@ func (s *Service) ProbeNodes(ctx context.Context, nodes []string) {
 	s.saveCache(context.WithoutCancel(ctx))
 }
 
-// hardwareFor returns the cached result of a node.
-func (s *Service) hardwareFor(node string) (hw *Hardware, probedAt *time.Time, errMsg string, probing, stale bool) {
+// hardwareFor returns a copy of the cached result of a node and whether it needs a new probe.
+func (s *Service) hardwareFor(node string) (e hardwareEntry, stale bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e := s.hardware[node]
-	if e == nil {
-		return nil, nil, "", false, true
+	if cached := s.hardware[node]; cached != nil {
+		e = *cached
 	}
-	if !e.ProbedAt.IsZero() {
-		t := e.ProbedAt
-		probedAt = &t
-	}
-	stale = e.ProbedAt.IsZero() || time.Since(e.ProbedAt) > hardwareCacheTTL
-	return e.Hardware, probedAt, e.Error, e.probing, stale
+	return e, e.ProbedAt.IsZero() || time.Since(e.ProbedAt) > hardwareCacheTTL
 }

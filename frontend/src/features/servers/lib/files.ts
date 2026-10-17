@@ -7,6 +7,7 @@ const binary =
   /\.(jar|zip|gz|tgz|xz|bz2|7z|rar|png|jpe?g|gif|webp|ico|mp3|ogg|wav|so|dll|exe|bin|dat|mca|mcr|nbt|db|sqlite|class|pak|vpk|bsp)$/i
 const archive = /\.(zip|tar|tar\.gz|tgz|tar\.xz|txz|tar\.bz2|tbz2?)$/i
 
+/** Archives the file manager can extract (zip and tar, any compression). */
 export const isArchive = (name: string) => archive.test(name)
 
 /** Text files up to MAX_EDIT open in the editor; everything else is downloaded. */
@@ -27,6 +28,7 @@ export const draggedNames = (ev: React.DragEvent): string[] => {
   }
 }
 
+/** A path inside the server files from a folder and a name. */
 export const joinPath = (dir: string, name: string) => (dir === "/" ? `/${name}` : `${dir}/${name}`)
 
 /** Toast text after an upload: the file name, or how many files. */

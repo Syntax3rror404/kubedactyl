@@ -87,8 +87,7 @@ type LoginResponse struct {
 //	@Router			/auth/login [post]
 func (a *API) login(c *gin.Context) {
 	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	username := strings.ToLower(strings.TrimSpace(req.Username))
@@ -97,7 +96,7 @@ func (a *API) login(c *gin.Context) {
 	now := time.Now()
 	limits := a.loginLimits(c, clientIP, username, now)
 	if wait, ok := takeAttempt(limits, now); !ok {
-		c.Header("Retry-After", strings.TrimSuffix(wait.Round(time.Second).String(), "s"))
+		retryAfter(c, wait)
 		a.fail(c, tooManyRequests(errors.New("too many failed logins, try again later")))
 		return
 	}
@@ -113,12 +112,7 @@ func (a *API) login(c *gin.Context) {
 	if err := a.Users.UpdatePasswordHash(c, user, req.Password); err != nil {
 		a.Log.Warn("updating the password hash", "user", user.Name, "err", err)
 	}
-	res, err := a.startSession(c, user)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, res)
+	a.sendSession(c, http.StatusOK, user)
 }
 
 // checkPassword returns the user when the password matches and the account is enabled. The password is
@@ -160,6 +154,16 @@ func (a *API) startSession(c *gin.Context, user *v1alpha1.User) (LoginResponse, 
 	return LoginResponse{Token: token, ExpiresAt: expires, User: a.userView(c, user)}, nil
 }
 
+// sendSession signs the user in and answers with the session.
+func (a *API) sendSession(c *gin.Context, status int, user *v1alpha1.User) {
+	res, err := a.startSession(c, user)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(status, res)
+}
+
 // logout godoc
 //
 //	@Summary	Log out (ends the session and clears its cookie)
@@ -170,16 +174,8 @@ func (a *API) logout(c *gin.Context) {
 	if token := credentials(c); token != "" {
 		a.Signer.Revoke(token, time.Now())
 	}
-	http.SetCookie(
-		c.Writer,
-		&http.Cookie{
-			Name:     SessionCookie,
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
-		},
-	)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name: SessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode,
+	})
 	c.Status(http.StatusNoContent)
 }

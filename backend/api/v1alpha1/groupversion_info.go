@@ -1,4 +1,4 @@
-// Package v1alpha1 contains the Kubedactyl API types (Egg, GameServer).
+// Package v1alpha1 contains the Kubedactyl API types (Egg, GameServer, User, Invite, PanelSettings).
 //
 // +kubebuilder:object:generate=true
 // +groupName=kubedactyl.io

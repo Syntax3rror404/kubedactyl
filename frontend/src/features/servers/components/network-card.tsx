@@ -3,33 +3,15 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
-import {
-  noLoadBalancer,
-  poolValue,
-  type SettingsChange,
-  type SettingsDraft,
-} from "@/features/servers/lib/settings-draft"
+import { noLoadBalancer, poolValue, type SettingsCardProps } from "@/features/servers/lib/settings-draft"
 import { serverAddress, serverIPs } from "@/lib/format"
 import { usePools, useSettings } from "@/lib/queries"
-import type { GameServer } from "@/lib/types"
 
 /**
  * Settings page: the load balancer pool (or none); administrators also set the ports, fixed IPs,
  * the traffic policy and IPv6. Users only see it when they have a choice.
  */
-export function NetworkCard({
-  server,
-  draft,
-  onChange,
-  errors,
-  isAdmin,
-}: {
-  server: GameServer
-  draft: SettingsDraft
-  onChange: SettingsChange
-  errors: Record<string, string>
-  isAdmin: boolean
-}) {
+export function NetworkCard({ server, draft, onChange, errors, isAdmin }: SettingsCardProps & { isAdmin: boolean }) {
   const settings = useSettings().data
   const pools = usePools(isAdmin)
   const address = serverIPs(server).join(", ") || undefined
@@ -69,7 +51,7 @@ export function NetworkCard({
               <FieldLabel htmlFor="ports">Ports</FieldLabel>
               <PortEditor id="ports" ports={draft.ports} onChange={(ports) => onChange({ ports })} />
               {draft.ports.length === 0 && <FieldError>At least one port is required.</FieldError>}
-              {errors.ports && <FieldError>{errors.ports}</FieldError>}
+              <FieldError>{errors.ports}</FieldError>
             </Field>
             {poolField}
             {!clusterOnly && (
@@ -89,7 +71,7 @@ export function NetworkCard({
                       address &&
                       `, users see ${serverAddress(server, settings.externalDomain)}`}
                   </FieldDescription>
-                  {errors.loadBalancerIP && <FieldError>{errors.loadBalancerIP}</FieldError>}
+                  <FieldError>{errors.loadBalancerIP}</FieldError>
                 </Field>
                 <TrafficPolicyField
                   value={draft.trafficPolicy}

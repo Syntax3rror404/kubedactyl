@@ -106,17 +106,19 @@ rm -f -- "$1"`, backupDirPath()+"/"+name)
 // StartBackup creates a backup in the background; label and now give its name.
 func (s *Service) StartBackup(ref Ref, label string, now time.Time) (Job, error) {
 	name := NewBackupName(label, now)
-	return s.Start(ref, JobBackup, name, func(ctx context.Context, report func(Progress)) error {
-		return s.Manager.CreateBackup(ctx, ref, name, report)
-	})
+	return s.Start(ref, JobBackup, name, s.backupTask(ref, name))
 }
 
 // RunBackup is StartBackup that waits for the backup (used by schedules).
 func (s *Service) RunBackup(ctx context.Context, ref Ref, label string, now time.Time) error {
 	name := NewBackupName(label, now)
-	return s.Run(ctx, ref, JobBackup, name, func(ctx context.Context, report func(Progress)) error {
+	return s.Run(ctx, ref, JobBackup, name, s.backupTask(ref, name))
+}
+
+func (s *Service) backupTask(ref Ref, name string) Task {
+	return func(ctx context.Context, report func(Progress)) error {
 		return s.Manager.CreateBackup(ctx, ref, name, report)
-	})
+	}
 }
 
 // StartRestore restores a backup in the background. The server must be stopped.

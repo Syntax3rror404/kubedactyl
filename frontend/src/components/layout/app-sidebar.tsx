@@ -34,6 +34,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { phaseOf, serverName } from "@/lib/format"
 import { useBranding, useServers, useSettings, useUpgradeStatus } from "@/lib/queries"
 
+const dashboard = { to: "/", label: "Dashboard", icon: LayoutGridIcon }
 // Entries only administrators see; Settings carries the badge of an available update.
 const adminNav = [
   { to: "/eggs", label: "Eggs", icon: EggIcon },
@@ -51,6 +52,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { isAdmin } = useAuth()
   const upgrade = useUpgradeStatus(isAdmin)
   const updateAvailable = isAdmin && !!upgrade.data?.enabled && upgrade.data.newer.length > 0
+  const nav = isAdmin ? [dashboard, ...adminNav] : [dashboard]
 
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>
@@ -74,43 +76,34 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Dashboard" isActive={pathname === "/"}>
-                <NavLink to="/">
-                  <LayoutGridIcon />
-                  <span>Dashboard</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {isAdmin &&
-              adminNav.map((item) => {
-                const badge = item.to === "/settings" && updateAvailable
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={badge ? `${item.label} · version ${upgrade.data?.newer[0]} available` : item.label}
-                      isActive={pathname.startsWith(item.to)}
-                    >
-                      <NavLink to={item.to}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                    {badge && (
-                      <>
-                        <SidebarMenuBadge className="gap-1 rounded-full bg-emerald-500/15 px-1.5 text-emerald-700! ring-1 ring-emerald-500/30 dark:text-emerald-300!">
-                          <ArrowUpCircleIcon className="size-3" />
-                          Update
-                          <span className="sr-only">: version {upgrade.data?.newer[0]} is available</span>
-                        </SidebarMenuBadge>
-                        {/* Collapsed sidebar: the badge is hidden, a dot on the icon remains. */}
-                        <span className="pointer-events-none absolute top-1.5 left-5 hidden size-2 rounded-full bg-emerald-500 ring-2 ring-sidebar group-data-[collapsible=icon]:block" />
-                      </>
-                    )}
-                  </SidebarMenuItem>
-                )
-              })}
+            {nav.map((item) => {
+              const badge = item.to === "/settings" && updateAvailable
+              return (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={badge ? `${item.label} · version ${upgrade.data?.newer[0]} available` : item.label}
+                    isActive={item === dashboard ? pathname === "/" : pathname.startsWith(item.to)}
+                  >
+                    <NavLink to={item.to}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                  {badge && (
+                    <>
+                      <SidebarMenuBadge className="gap-1 rounded-full bg-emerald-500/15 px-1.5 text-emerald-700! ring-1 ring-emerald-500/30 dark:text-emerald-300!">
+                        <ArrowUpCircleIcon className="size-3" />
+                        Update
+                        <span className="sr-only">: version {upgrade.data?.newer[0]} is available</span>
+                      </SidebarMenuBadge>
+                      {/* Collapsed sidebar: the badge is hidden, a dot on the icon remains. */}
+                      <span className="pointer-events-none absolute top-1.5 left-5 hidden size-2 rounded-full bg-emerald-500 ring-2 ring-sidebar group-data-[collapsible=icon]:block" />
+                    </>
+                  )}
+                </SidebarMenuItem>
+              )
+            })}
             {settings.data && !settings.data.disableApiDocs && (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="API documentation">
@@ -145,7 +138,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               const to = `/servers/${gs.metadata.name}`
               return (
                 <SidebarMenuItem key={gs.metadata.uid}>
-                  <SidebarMenuButton asChild tooltip={serverName(gs)} isActive={pathname.startsWith(to)}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={serverName(gs)}
+                    isActive={pathname === to || pathname.startsWith(`${to}/`)}
+                  >
                     <NavLink to={to}>
                       <ServerIcon />
                       <span>{serverName(gs)}</span>

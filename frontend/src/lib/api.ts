@@ -1,7 +1,5 @@
-// Typed client for the Kubedactyl REST API (same origin, session cookie).
-//
-// Only the data hooks in lib/queries call `api` (enforced by oxlint); components use those hooks.
-// Components may use `ApiError` (status, field errors) and `urls` (links for downloads).
+// Typed client for the Kubedactyl REST API (same origin, session cookie). Only lib/queries calls `api` (oxlint);
+// components may use `ApiError` (status, field errors) and `urls` (links the browser opens itself).
 
 import type {
   AcceptInviteRequest,
@@ -26,12 +24,12 @@ import type {
   InviteDetails,
   InviteView,
   JobList,
-  MigrateRequest,
   LegalTexts,
   LibraryEggContent,
   LibraryList,
   LibraryRepositoryCheck,
   LoginResponse,
+  MigrateRequest,
   NodesResponse,
   OIDCSignIn,
   PanelInfo,
@@ -114,7 +112,7 @@ async function request<T>(
       message = data.error ?? message
       fields = data.fields
     } catch {
-      // not a JSON error body
+      // Not a JSON error body: the status text stays the message.
     }
     throw new ApiError(res.status, message, fields)
   }
@@ -132,8 +130,11 @@ async function buildFile(path: string): Promise<string> {
 }
 
 const q = (params: Record<string, string>) => new URLSearchParams(params).toString()
-const srv = (name: string) => `/servers/${encodeURIComponent(name)}`
-const egg = (name: string) => `/eggs/${encodeURIComponent(name)}`
+/** The path of one object below `base`; names are escaped, so they never add path segments. */
+const at = (base: string, name: string) => `${base}/${encodeURIComponent(name)}`
+const srv = (name: string) => at("/servers", name)
+const egg = (name: string) => at("/eggs", name)
+const refreshed = (refresh: boolean) => (refresh ? "?refresh=true" : "")
 
 /** All API calls, grouped by area. Errors become ApiError (status + per-field messages). */
 export const api = {
@@ -167,28 +168,27 @@ export const api = {
     listTokens: () => request<TokenView[]>("GET", "/auth/tokens"),
     createToken: (name: string, expiresInDays: number) =>
       request<CreatedToken>("POST", "/auth/tokens", { name, expiresInDays }),
-    deleteToken: (id: string) => request<void>("DELETE", `/auth/tokens/${encodeURIComponent(id)}`),
+    deleteToken: (id: string) => request<void>("DELETE", at("/auth/tokens", id)),
   },
   users: {
     list: () => request<UserView[]>("GET", "/users"),
     create: (body: CreateUserRequest) => request<UserView>("POST", "/users", body),
-    update: (name: string, body: UpdateUserRequest) =>
-      request<UserView>("PATCH", `/users/${encodeURIComponent(name)}`, body),
-    delete: (name: string) => request<void>("DELETE", `/users/${encodeURIComponent(name)}`),
+    update: (name: string, body: UpdateUserRequest) => request<UserView>("PATCH", at("/users", name), body),
+    delete: (name: string) => request<void>("DELETE", at("/users", name)),
   },
   invites: {
     list: () => request<InviteView[]>("GET", "/invites"),
     create: (body: CreateInviteRequest) => request<CreatedInvite>("POST", "/invites", body),
     /** A new link, valid for the full lifetime again; the old one stops working. */
-    renew: (id: string) => request<CreatedInvite>("POST", `/invites/${encodeURIComponent(id)}/renew`),
-    delete: (id: string) => request<void>("DELETE", `/invites/${encodeURIComponent(id)}`),
+    renew: (id: string) => request<CreatedInvite>("POST", `${at("/invites", id)}/renew`),
+    delete: (id: string) => request<void>("DELETE", at("/invites", id)),
     /** Whether an invite link works (public). */
     get: (token: string) => request<InviteDetails>("GET", `/auth/invite?${q({ token })}`),
     /** Creates the account of an invite link and signs it in (public). */
     accept: (body: AcceptInviteRequest) => request<LoginResponse>("POST", "/auth/invite", body),
   },
   upgrade: {
-    getStatus: (refresh = false) => request<UpgradeStatus>("GET", `/upgrade${refresh ? "?refresh=true" : ""}`),
+    getStatus: (refresh = false) => request<UpgradeStatus>("GET", `/upgrade${refreshed(refresh)}`),
     start: (version: string) => request<UpgradeJob>("POST", "/upgrade", { version }),
   },
   cluster: {
@@ -215,7 +215,7 @@ export const api = {
     importUrl: (url: string, autoUpdate = false) => request<Egg>("POST", "/eggs/import-url", { url, autoUpdate }),
     /** The eggs of the repositories in the settings; refresh downloads them again. */
     listLibrary: (refresh = false) =>
-      request<LibraryList>("GET", `/egg-library${refresh ? "?refresh=true" : ""}`).then((r) => r.repositories),
+      request<LibraryList>("GET", `/egg-library${refreshed(refresh)}`).then((r) => r.repositories),
     /** Whether a repository can be read and how many eggs it holds (also one not saved yet). */
     getLibraryRepository: (url: string) =>
       request<LibraryRepositoryCheck>("GET", `/egg-library/repository?${q({ url })}`),
@@ -246,22 +246,19 @@ export const api = {
     getStats: (server: string) => request<ServerStats>("GET", `${srv(server)}/stats`),
     getDiagnostics: (server: string) => request<ServerDiagnostics>("GET", `${srv(server)}/diagnostics`),
     listJobs: (server: string) => request<JobList>("GET", `${srv(server)}/jobs`).then((r) => r.items),
-    cancelJob: (server: string, job: string) =>
-      request<void>("POST", `${srv(server)}/jobs/${encodeURIComponent(job)}/cancel`),
+    cancelJob: (server: string, job: string) => request<void>("POST", `${at(`${srv(server)}/jobs`, job)}/cancel`),
   },
   backups: {
     list: (server: string) => request<BackupList>("GET", `${srv(server)}/backups`).then((r) => r.items),
     create: (server: string, label: string) => request<ServerJob>("POST", `${srv(server)}/backups`, { label }),
     restore: (server: string, backup: string) =>
-      request<ServerJob>("POST", `${srv(server)}/backups/${encodeURIComponent(backup)}/restore`),
-    delete: (server: string, backup: string) =>
-      request<void>("DELETE", `${srv(server)}/backups/${encodeURIComponent(backup)}`),
+      request<ServerJob>("POST", `${at(`${srv(server)}/backups`, backup)}/restore`),
+    delete: (server: string, backup: string) => request<void>("DELETE", at(`${srv(server)}/backups`, backup)),
   },
   schedules: {
     list: (server: string) => request<ScheduleList>("GET", `${srv(server)}/schedules`),
     update: (server: string, items: Schedule[]) => request<ScheduleList>("PUT", `${srv(server)}/schedules`, { items }),
-    run: (server: string, schedule: string) =>
-      request<void>("POST", `${srv(server)}/schedules/${encodeURIComponent(schedule)}/run`),
+    run: (server: string, schedule: string) => request<void>("POST", `${at(`${srv(server)}/schedules`, schedule)}/run`),
   },
   files: {
     /** State of the file container (does not start it). */

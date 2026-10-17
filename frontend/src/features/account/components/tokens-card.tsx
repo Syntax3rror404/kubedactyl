@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { Callout } from "@/components/common/callout"
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { CopyButton } from "@/components/common/copy-button"
+import { CopyField } from "@/components/common/copy-button"
 import { EmptyState, QueryState } from "@/components/common/query-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -79,10 +79,7 @@ export function TokensCard() {
 
         {created && (
           <Callout tone="success" title="Copy the token now, it will not be shown again.">
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
-              <code className="flex-1 truncate font-mono text-xs">{created.token}</code>
-              <CopyButton value={created.token} label="Copy token" />
-            </div>
+            <CopyField value={created.token} label="Copy token" />
           </Callout>
         )}
 

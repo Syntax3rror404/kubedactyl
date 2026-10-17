@@ -2,9 +2,9 @@ import { useRef, useState } from "react"
 import { ImageIcon, PaletteIcon, Trash2Icon, UploadIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { SettingsCard } from "@/features/settings/components/settings-card"
 
 /** Largest logo or favicon (the server checks the same limit). */
 const MAX_IMAGE = 128 * 1024
@@ -28,57 +28,48 @@ export function BrandingCard({
   errors: Record<string, string>
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <PaletteIcon className="size-4" />
-          Branding
-        </CardTitle>
-        <CardDescription>Adding your own logo and icons</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup className="grid gap-6 md:grid-cols-2">
-          <Field data-invalid={!!errors.brandName}>
-            <FieldLabel htmlFor="brand-name">Name</FieldLabel>
-            <Input
-              id="brand-name"
-              value={values.brandName}
-              maxLength={40}
-              onChange={(e) => onChange({ brandName: e.target.value })}
-              placeholder="Kubedactyl"
-            />
-            {errors.brandName && <FieldError>{errors.brandName}</FieldError>}
-          </Field>
-          <Field data-invalid={!!errors.brandTagline}>
-            <FieldLabel htmlFor="brand-tagline">Tagline</FieldLabel>
-            <Input
-              id="brand-tagline"
-              value={values.brandTagline}
-              maxLength={80}
-              onChange={(e) => onChange({ brandTagline: e.target.value })}
-              placeholder="Game servers on Kubernetes"
-            />
-            {errors.brandTagline && <FieldError>{errors.brandTagline}</FieldError>}
-          </Field>
-          <ImageField
-            id="brand-logo"
-            label="Logo"
-            hint="Square images look best (shown at 32 and 48 pixels). Empty: the built-in logo."
-            value={values.brandLogo}
-            onChange={(brandLogo) => onChange({ brandLogo })}
-            error={errors.brandLogo}
+    <SettingsCard icon={PaletteIcon} title="Branding" description="Adding your own logo and icons">
+      <FieldGroup className="grid gap-6 md:grid-cols-2">
+        <Field data-invalid={!!errors.brandName}>
+          <FieldLabel htmlFor="brand-name">Name</FieldLabel>
+          <Input
+            id="brand-name"
+            value={values.brandName}
+            maxLength={40}
+            onChange={(e) => onChange({ brandName: e.target.value })}
+            placeholder="Kubedactyl"
           />
-          <ImageField
-            id="favicon"
-            label="Favicon"
-            hint="The icon of the browser tab (ICO, PNG or SVG). Empty: the built-in icon."
-            value={values.favicon}
-            onChange={(favicon) => onChange({ favicon })}
-            error={errors.favicon}
+          {errors.brandName && <FieldError>{errors.brandName}</FieldError>}
+        </Field>
+        <Field data-invalid={!!errors.brandTagline}>
+          <FieldLabel htmlFor="brand-tagline">Tagline</FieldLabel>
+          <Input
+            id="brand-tagline"
+            value={values.brandTagline}
+            maxLength={80}
+            onChange={(e) => onChange({ brandTagline: e.target.value })}
+            placeholder="Game servers on Kubernetes"
           />
-        </FieldGroup>
-      </CardContent>
-    </Card>
+          {errors.brandTagline && <FieldError>{errors.brandTagline}</FieldError>}
+        </Field>
+        <ImageField
+          id="brand-logo"
+          label="Logo"
+          hint="Square images look best (shown at 32 and 48 pixels). Empty: the built-in logo."
+          value={values.brandLogo}
+          onChange={(brandLogo) => onChange({ brandLogo })}
+          error={errors.brandLogo}
+        />
+        <ImageField
+          id="favicon"
+          label="Favicon"
+          hint="The icon of the browser tab (ICO, PNG or SVG). Empty: the built-in icon."
+          value={values.favicon}
+          onChange={(favicon) => onChange({ favicon })}
+          error={errors.favicon}
+        />
+      </FieldGroup>
+    </SettingsCard>
   )
 }
 

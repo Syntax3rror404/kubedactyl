@@ -3,6 +3,7 @@ package egg
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -63,19 +64,13 @@ func Export(name string, spec *v1alpha1.EggSpec, format string, now time.Time) (
 // exportDocument builds the egg document in the key order of the respective exporter.
 func exportDocument(name string, spec *v1alpha1.EggSpec, format string, now time.Time) (*mapping, error) {
 	ptdl := format == FormatPTDL
-	doc := &mapping{}
-	if ptdl {
-		doc.add(
-			"meta",
-			(&mapping{}).add("version", str("PTDL_v2")).add("update_url", strOrNull(spec.Source.UpdateURL)).node(),
-		)
-	} else {
+	doc, version := &mapping{}, "PTDL_v2"
+	if !ptdl {
 		doc.add("_comment", str("DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PANEL"))
-		doc.add(
-			"meta",
-			(&mapping{}).add("version", str("PLCN_v3")).add("update_url", strOrNull(spec.Source.UpdateURL)).node(),
-		)
+		version = "PLCN_v3"
 	}
+	meta := (&mapping{}).add("version", str(version)).add("update_url", strOrNull(spec.Source.UpdateURL))
+	doc.add("meta", meta.node())
 	doc.add("exported_at", str(now.Format("2006-01-02T15:04:05-07:00")))
 	doc.add("name", str(spec.DisplayName))
 	doc.add("author", str(spec.Author))
@@ -150,7 +145,7 @@ func exportVariables(vars []v1alpha1.EggVariable, ptdl bool) *yaml.Node {
 			m.add("rules", str(v.Rules)).add("field_type", str("text"))
 		} else {
 			m.add("rules", strList(SplitRules(v.Rules))).
-				add("sort", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(i + 1)})
+				add("sort", scalar("!!int", strconv.Itoa(i+1)))
 		}
 		out.Content = append(out.Content, m.node())
 	}
@@ -176,9 +171,9 @@ func configFilesNode(files []v1alpha1.ConfigFile) *yaml.Node {
 			}
 			m.add(r.IfValue, typed(r.ReplaceWith, r.ValueType))
 		}
-		for i := 0; i < len(find.pairs); i++ {
-			if find.pairs[i].value == nil {
-				find.pairs[i].value = conditional[find.pairs[i].key].node()
+		for i := range find.pairs {
+			if p := &find.pairs[i]; p.value == nil {
+				p.value = conditional[p.key].node()
 			}
 		}
 		out.add(f.File, (&mapping{}).add("parser", str(f.Parser)).add("find", find.node()).node())
@@ -201,16 +196,19 @@ func startupNode(spec *v1alpha1.EggSpec) *yaml.Node {
 	return m.node()
 }
 
+// jsonNumber matches a number literal of the JSON grammar; anything else (NaN, +5, 1., 01) stays a string,
+// so a json export never holds an invalid number.
+var jsonNumber = regexp.MustCompile(`^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$`)
+
 // typed returns the value with its original JSON type (config files keep numbers and booleans).
 func typed(value, valueType string) *yaml.Node {
 	switch valueType {
 	case "number":
-		if _, err := strconv.ParseFloat(value, 64); err == nil {
-			tag := "!!float"
+		if jsonNumber.MatchString(value) {
 			if _, err := strconv.ParseInt(value, 10, 64); err == nil {
-				tag = "!!int"
+				return scalar("!!int", value)
 			}
-			return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
+			return scalar("!!float", value)
 		}
 	case "boolean":
 		if value == "true" || value == "false" {
@@ -221,18 +219,15 @@ func typed(value, valueType string) *yaml.Node {
 }
 
 // mapping is an ordered map that becomes a YAML mapping node.
-type mapping struct {
-	pairs []struct {
-		key   string
-		value *yaml.Node
-	}
+type mapping struct{ pairs []pair }
+
+type pair struct {
+	key   string
+	value *yaml.Node
 }
 
 func (m *mapping) add(key string, value *yaml.Node) *mapping {
-	m.pairs = append(m.pairs, struct {
-		key   string
-		value *yaml.Node
-	}{key, value})
+	m.pairs = append(m.pairs, pair{key, value})
 	return m
 }
 
@@ -244,8 +239,9 @@ func (m *mapping) node() *yaml.Node {
 	return n
 }
 
+// str is a string node; multi-line text is written as a YAML block.
 func str(s string) *yaml.Node {
-	n := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s}
+	n := scalar("!!str", s)
 	if strings.Contains(s, "\n") {
 		n.Style = yaml.LiteralStyle
 	}
@@ -254,13 +250,9 @@ func str(s string) *yaml.Node {
 
 func strOrNull(s string) *yaml.Node {
 	if s == "" {
-		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: "null"}
+		return null()
 	}
 	return str(s)
-}
-
-func boolean(b bool) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(b)}
 }
 
 func strList(list []string) *yaml.Node {

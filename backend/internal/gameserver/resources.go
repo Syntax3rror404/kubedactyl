@@ -240,10 +240,13 @@ func tmpVolume() corev1.Volume {
 // CPU, ports and the egg's config files (written before every start). A running pod with
 // another hash needs a restart to pick up the changes, also after the egg was edited.
 func RuntimeHash(gs *v1alpha1.GameServer, e *v1alpha1.Egg, opts Options) string {
+	return runtimeHash(gs, e, Environment(gs, e, opts))
+}
+
+// runtimeHash is RuntimeHash with the environment already built (GamePod also puts it in the pod).
+func runtimeHash(gs *v1alpha1.GameServer, e *v1alpha1.Egg, env map[string]string) string {
 	s := gs.Spec
-	data, _ := json.Marshal(
-		[]any{s.Image, Environment(gs, e, opts), s.Resources.CPUMillis, s.Ports, e.Spec.ConfigFiles},
-	)
+	data, _ := json.Marshal([]any{s.Image, env, s.Resources.CPUMillis, s.Ports, e.Spec.ConfigFiles})
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:8])
 }

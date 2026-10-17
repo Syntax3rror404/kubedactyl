@@ -7,7 +7,7 @@ import { TokensCard } from "@/features/account/components/tokens-card"
 import { useAuth } from "@/hooks/use-auth"
 import { userName } from "@/lib/format"
 
-/** /account: the signed-in user: password (accounts that have one), sessions and API tokens. */
+/** /account: password (accounts that have one), sessions and API tokens of the signed-in user. */
 export function AccountPage() {
   const { user } = useAuth()
   return (

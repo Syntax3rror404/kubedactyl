@@ -1,18 +1,9 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
 import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
@@ -38,11 +29,10 @@ export function GslTokenPrompt({
   isAdmin: boolean
 }) {
   const { line, dismiss } = useConsoleMatch(subscribe, patterns)
-  const name = server.metadata.name
   const variable = egg.spec.variables?.find((v) => v.envVariable === VARIABLE)
   const editable = !!variable && (isAdmin || !!variable.userEditable)
   const [token, setToken] = useState("")
-  const update = useUpdateAndStartServer(name, {
+  const update = useUpdateAndStartServer(server.metadata.name, {
     onSuccess: () => {
       dismiss()
       setToken("")
@@ -50,58 +40,48 @@ export function GslTokenPrompt({
     },
     onError: failed("update the GSL token"),
   })
+  const save = () =>
+    update.mutate({
+      changes: { environment: { ...server.spec.environment, [VARIABLE]: token.trim() } },
+      signal: active ? "restart" : "start",
+    })
   return (
-    <AlertDialog open={!!line && !running} onOpenChange={(o) => !o && dismiss()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Invalid GSL token</AlertDialogTitle>
-          <AlertDialogDescription>
-            Your GSL token seems invalid or expired.{" "}
-            {editable ? "Enter a new one below, or leave it empty to remove it." : "Ask an administrator to update it."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {editable && (
-          <Field>
-            <FieldLabel htmlFor="gsl-token">GSL token</FieldLabel>
-            <Input
-              id="gsl-token"
-              className="font-mono"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-            />
-            <FieldDescription>
-              Create one at{" "}
-              <a
-                className="underline underline-offset-4"
-                href="https://steamcommunity.com/dev/managegameservers"
-                target="_blank"
-                rel="noreferrer"
-              >
-                steamcommunity.com/dev/managegameservers
-              </a>
-              .
-            </FieldDescription>
-          </Field>
-        )}
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          {editable && (
-            <AlertDialogAction
-              disabled={update.isPending}
-              onClick={(e) => {
-                e.preventDefault()
-                update.mutate({
-                  changes: { environment: { ...server.spec.environment, [VARIABLE]: token.trim() } },
-                  signal: active ? "restart" : "start",
-                })
-              }}
+    <FeaturePrompt
+      open={!!line && !running}
+      onClose={dismiss}
+      title="Invalid GSL token"
+      description={
+        <>
+          Your GSL token seems invalid or expired.{" "}
+          {editable ? "Enter a new one below, or leave it empty to remove it." : "Ask an administrator to update it."}
+        </>
+      }
+      confirm={editable ? { label: "Update GSL token", pending: update.isPending, onConfirm: save } : undefined}
+    >
+      {editable && (
+        <Field>
+          <FieldLabel htmlFor="gsl-token">GSL token</FieldLabel>
+          <Input
+            id="gsl-token"
+            className="font-mono"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            autoComplete="off"
+          />
+          <FieldDescription>
+            Create one at{" "}
+            <a
+              className="underline underline-offset-4"
+              href="https://steamcommunity.com/dev/managegameservers"
+              target="_blank"
+              rel="noreferrer"
             >
-              Update GSL token
-            </AlertDialogAction>
-          )}
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+              steamcommunity.com/dev/managegameservers
+            </a>
+            .
+          </FieldDescription>
+        </Field>
+      )}
+    </FeaturePrompt>
   )
 }

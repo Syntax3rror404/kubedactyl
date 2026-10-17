@@ -11,30 +11,28 @@ import (
 	"app/internal/settings"
 )
 
-// checkCRDs: the panel's own resources must be served.
+// checkCRDs requires the panel's own resources to be served.
 func checkCRDs(in healthInputs) checks.Check {
 	const id, label = "crds", "Kubedactyl CRDs"
-	var missing []string
-	for _, r := range []string{"eggs", "gameservers", "users", "panelsettings", "invites"} {
-		if !slices.Contains(in.crdResources, r) {
-			missing = append(missing, r)
-		}
-	}
+	absent := missing([]string{"eggs", "gameservers", "users", "panelsettings", "invites"}, func(r string) bool {
+		return slices.Contains(in.crdResources, r)
+	})
 	switch {
 	case in.crdErr != nil:
 		return checks.New(
 			id, label, checks.Error, "kubedactyl.io/v1alpha1 is not served, restart the panel to install the CRDs",
 		)
-	case len(missing) > 0:
+	case len(absent) > 0:
 		return checks.New(
-			id, label, checks.Error, "missing: "+strings.Join(missing, ", ")+", restart the panel to install them",
+			id, label, checks.Error, "missing: "+strings.Join(absent, ", ")+", restart the panel to install them",
 		)
 	}
 	return checks.New(id, label, checks.OK, "")
 }
 
-// checkPermissions: every permission check of the service account must pass.
+// checkPermissions requires every permission check of the service account to pass.
 func checkPermissions(in healthInputs) checks.Check {
+	const id, label = "permissions", "Permissions"
 	var denied []string
 	for _, p := range in.permissions {
 		if !p.Allowed {
@@ -42,9 +40,9 @@ func checkPermissions(in healthInputs) checks.Check {
 		}
 	}
 	if len(denied) > 0 {
-		return checks.New("permissions", "Permissions", checks.Error, "not allowed: "+strings.Join(denied, ", "))
+		return checks.New(id, label, checks.Error, "not allowed: "+strings.Join(denied, ", "))
 	}
-	return checks.New("permissions", "Permissions", checks.OK, "")
+	return checks.New(id, label, checks.OK, "")
 }
 
 // checkNodes warns about nodes that are not ready.
@@ -68,6 +66,17 @@ func checkNodes(in healthInputs) checks.Check {
 	return checks.New(id, label, checks.OK, "")
 }
 
+// missing lists the names the cluster does not have.
+func missing(names []string, has func(string) bool) []string {
+	var out []string
+	for _, name := range names {
+		if !has(name) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 func nodeReady(n corev1.Node) bool {
 	for _, c := range n.Status.Conditions {
 		if c.Type == corev1.NodeReady {
@@ -77,17 +86,16 @@ func nodeReady(n corev1.Node) bool {
 	return false
 }
 
-// checkMetrics: without metrics-server there is no CPU and memory usage.
+// checkMetrics warns without metrics-server: there is no CPU and memory usage then.
 func checkMetrics(in healthInputs) checks.Check {
+	const id, label = "metrics", "Metrics server"
 	if !in.metrics {
-		return checks.New(
-			"metrics", "Metrics server", checks.Warning, "metrics.k8s.io is not available, no CPU and memory usage",
-		)
+		return checks.New(id, label, checks.Warning, "metrics.k8s.io is not available, no CPU and memory usage")
 	}
-	return checks.New("metrics", "Metrics server", checks.OK, "")
+	return checks.New(id, label, checks.OK, "")
 }
 
-// checkLoadBalancer: Cilium LB IPAM is installed and every enabled pool exists and has free IPs (in each family).
+// checkLoadBalancer requires Cilium LB IPAM and every enabled pool, with free IPs in each family.
 func checkLoadBalancer(in healthInputs) checks.Check {
 	const id, label = "loadBalancer", "Load balancer pools"
 	switch {
@@ -127,7 +135,7 @@ func checkLoadBalancer(in healthInputs) checks.Check {
 	return checks.New(id, label, checks.OK, "")
 }
 
-// checkStorage: at least one storage class is enabled and all enabled ones exist.
+// checkStorage requires at least one enabled storage class, and every enabled one must exist.
 func checkStorage(in healthInputs) checks.Check {
 	const id, label = "storage", "Storage classes"
 	switch {
@@ -138,33 +146,26 @@ func checkStorage(in healthInputs) checks.Check {
 	case len(in.settings.StorageClasses) == 0:
 		return checks.New(id, label, checks.Error, "no storage class is enabled, servers cannot be created")
 	}
-	var gone []string
-	for _, name := range in.settings.StorageClasses {
-		if !slices.ContainsFunc(in.storageClasses, func(c settings.StorageClass) bool { return c.Name == name }) {
-			gone = append(gone, name)
-		}
-	}
+	gone := missing(in.settings.StorageClasses, func(name string) bool {
+		return slices.ContainsFunc(in.storageClasses, func(c settings.StorageClass) bool { return c.Name == name })
+	})
 	if len(gone) > 0 {
 		return checks.New(id, label, checks.Error, "enabled but missing in the cluster: "+strings.Join(gone, ", "))
 	}
 	return checks.New(id, label, checks.OK, "")
 }
 
-// checkAdmissionPolicy: in the cluster, the admission policy must limit the panel's cluster
-// wide permissions (namespaces, volumes, role bindings) to its own namespaces.
+// checkAdmissionPolicy requires, in the cluster, the admission policy that limits the panel's
+// cluster wide permissions (namespaces, volumes, role bindings) to its own namespaces.
 func checkAdmissionPolicy(in healthInputs) checks.Check {
 	const id, label = "admission-policy", "Permission guard"
 	switch {
 	case !in.guarded:
 		return checks.New(id, label, checks.Skipped, "the panel runs with a kubeconfig, not its service account")
 	case in.policy == "":
-		return checks.New(
-			id,
-			label,
-			checks.Warning,
+		return checks.New(id, label, checks.Warning,
 			"the cluster has no ValidatingAdmissionPolicy (Kubernetes 1.30+), "+
-				"the panel's cluster wide permissions are not limited to its own namespaces",
-		)
+				"the panel's cluster wide permissions are not limited to its own namespaces")
 	case in.policyErr != nil:
 		return checks.New(
 			id, label, checks.Error,
@@ -174,7 +175,7 @@ func checkAdmissionPolicy(in healthInputs) checks.Check {
 	return checks.New(id, label, checks.OK, "")
 }
 
-// checkOIDC: while single sign-on is on, its identity provider must answer.
+// checkOIDC requires the identity provider to answer while single sign-on is on.
 func checkOIDC(in healthInputs) checks.Check {
 	const id, label = "oidc", "OIDC"
 	switch {

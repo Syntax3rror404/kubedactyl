@@ -1,11 +1,12 @@
 import { useState } from "react"
-import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, PlusIcon, Trash2Icon, VariableIcon } from "lucide-react"
+import { ChevronRightIcon, PlusIcon, VariableIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { ReorderButtons } from "@/features/eggs/components/editor/named-list"
 import { VariableEditor } from "@/features/eggs/components/editor/variable-editor"
-import { move, type FieldErrors, type SpecChange } from "@/features/eggs/lib/egg-draft"
+import { move, patchAt, removeAt, type FieldErrors, type SpecChange } from "@/features/eggs/lib/egg-draft"
 import type { EggSpec, EggVariable } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -21,11 +22,11 @@ export function VariablesSection({
 }) {
   const vars = spec.variables ?? []
   const [open, setOpen] = useState<number | null>(null)
-  const set = (i: number, patch: Partial<EggVariable>) =>
-    onChange({ variables: vars.map((v, j) => (j === i ? { ...v, ...patch } : v)) })
+  const set = (i: number, patch: Partial<EggVariable>) => onChange({ variables: patchAt(vars, i, patch) })
   const reorder = (i: number, by: -1 | 1) => {
     onChange({ variables: move(vars, i, by) })
     if (open === i) setOpen(i + by)
+    else if (open === i + by) setOpen(i)
   }
   return (
     <div className="space-y-2">
@@ -68,36 +69,16 @@ export function VariablesSection({
                   {v.userViewable && !v.userEditable && <Badge variant="outline">read-only</Badge>}
                 </span>
               </button>
-              <Button
-                type="button"
+              <ReorderButtons
+                index={i}
+                count={vars.length}
                 size="icon-sm"
-                variant="ghost"
-                title="Move up"
-                disabled={i === 0}
-                onClick={() => reorder(i, -1)}
-              >
-                <ArrowUpIcon />
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                title="Move down"
-                disabled={i === vars.length - 1}
-                onClick={() => reorder(i, 1)}
-              >
-                <ArrowDownIcon />
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                title="Remove"
-                className="text-destructive"
-                onClick={() => (onChange({ variables: vars.filter((_, j) => j !== i) }), setOpen(null))}
-              >
-                <Trash2Icon />
-              </Button>
+                onMove={(by) => reorder(i, by)}
+                onRemove={() => {
+                  onChange({ variables: removeAt(vars, i) })
+                  setOpen(null)
+                }}
+              />
             </div>
             {expanded && <VariableEditor index={i} variable={v} errors={errors} onChange={(patch) => set(i, patch)} />}
           </div>

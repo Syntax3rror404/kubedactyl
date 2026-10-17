@@ -100,7 +100,7 @@ export function VariableField({
       {variable.description && (
         <FieldDescription className="line-clamp-3 whitespace-pre-line">{variable.description}</FieldDescription>
       )}
-      {error && <FieldError>{error}</FieldError>}
+      <FieldError>{error}</FieldError>
     </Field>
   )
 }

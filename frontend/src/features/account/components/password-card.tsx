@@ -3,10 +3,10 @@ import { KeyRoundIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { UnveilPassword } from "@/components/common/unveil-password"
+import { PasswordField } from "@/components/common/unveil-password"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { useDraft } from "@/hooks/use-draft"
@@ -44,43 +44,31 @@ export function PasswordCard() {
       <form onSubmit={submit} className="contents">
         <CardContent>
           <FieldGroup>
-            <Field data-invalid={!!errors.current}>
-              <FieldLabel htmlFor="pw-current">Current password</FieldLabel>
-              <UnveilPassword
-                id="pw-current"
-                autoComplete="current-password"
-                value={draft.current}
-                onChange={(e) => set("current", e.target.value)}
-                aria-invalid={!!errors.current}
-              />
-              {errors.current && <FieldError>{errors.current}</FieldError>}
-            </Field>
-            <Field data-invalid={!!errors.new}>
-              <FieldLabel htmlFor="pw-new">New password</FieldLabel>
-              <UnveilPassword
-                id="pw-new"
-                autoComplete="new-password"
-                value={draft.next}
-                onChange={(e) => set("next", e.target.value)}
-                aria-invalid={!!errors.new}
-              />
-              {errors.new ? (
-                <FieldError>{errors.new}</FieldError>
-              ) : (
-                <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters.</FieldDescription>
-              )}
-            </Field>
-            <Field data-invalid={mismatch}>
-              <FieldLabel htmlFor="pw-repeat">Repeat new password</FieldLabel>
-              <UnveilPassword
-                id="pw-repeat"
-                autoComplete="new-password"
-                value={draft.repeat}
-                onChange={(e) => set("repeat", e.target.value)}
-                aria-invalid={mismatch}
-              />
-              {mismatch && <FieldError>The passwords do not match.</FieldError>}
-            </Field>
+            <PasswordField
+              id="pw-current"
+              label="Current password"
+              autoComplete="current-password"
+              value={draft.current}
+              onChange={(v) => set("current", v)}
+              error={errors.current}
+            />
+            <PasswordField
+              id="pw-new"
+              label="New password"
+              autoComplete="new-password"
+              value={draft.next}
+              onChange={(v) => set("next", v)}
+              error={errors.new}
+              hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+            />
+            <PasswordField
+              id="pw-repeat"
+              label="Repeat new password"
+              autoComplete="new-password"
+              value={draft.repeat}
+              onChange={(v) => set("repeat", v)}
+              error={mismatch ? "The passwords do not match." : undefined}
+            />
             <Field orientation="horizontal">
               <Switch id="pw-revoke-tokens" checked={revokeTokens} onCheckedChange={setRevokeTokens} />
               <FieldLabel htmlFor="pw-revoke-tokens">Also revoke my API tokens</FieldLabel>

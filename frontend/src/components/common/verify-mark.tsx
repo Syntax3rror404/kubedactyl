@@ -28,7 +28,7 @@ export const verifyFailMs = 1100
 
 const radius = 27
 const circumference = 2 * Math.PI * radius
-// Twelve ticks around the center, each one lighter than the one before, like a classic activity indicator.
+// Twelve ticks around the center, each one lighter than the one before (an activity indicator).
 const ticks = Array.from({ length: 12 }, (_, i) => i)
 const labels: Record<VerifyState, string> = { waiting: "Waiting", ok: "Accepted", fail: "Rejected" }
 

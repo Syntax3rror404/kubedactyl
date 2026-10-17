@@ -4,10 +4,10 @@ import { LibraryIcon, XIcon } from "lucide-react"
 import { CheckStatusIcon } from "@/components/common/check-status-icon"
 import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { SettingsCard } from "@/features/settings/components/settings-card"
 import { useLibrary, useLibraryRepository } from "@/lib/queries"
 import type { LibraryRepository } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
@@ -32,38 +32,42 @@ export function EggLibrariesCard({
   const library = useLibrary()
   const full = repositories.length >= maxRepositories || repositories.at(-1) === ""
   const rows = full ? repositories : [...repositories, ""]
+  // Stable row keys: a row keeps its check state when one above it is removed.
+  const [keys, setKeys] = useState(() => rows.map((_, i) => i))
+  if (keys.length < rows.length) {
+    const next = Math.max(-1, ...keys) + 1
+    setKeys([...keys, ...rows.slice(keys.length).map((_, j) => next + j)])
+  }
   // Empty fields at the end are not part of the value (the draft stays clean).
   const change = (next: string[]) => {
     while (next.at(-1) === "") next.pop()
     onChange(next)
   }
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LibraryIcon className="size-4" />
-          Egg library
-        </CardTitle>
-        <CardDescription>Git repositories whose eggs the library offers to install.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Field data-invalid={error ? true : undefined}>
-          <FieldLabel htmlFor="egg-library-0">Repositories</FieldLabel>
-          {rows.map((url, i) => (
-            <RepositoryRow
-              key={i}
-              id={`egg-library-${i}`}
-              url={url}
-              listed={library.isPending ? "loading" : library.data?.find((r) => r.url === url.trim())}
-              removable={url !== "" || i < rows.length - 1}
-              onChange={(v) => change(rows.map((r, j) => (j === i ? v : r)))}
-              onRemove={() => change(rows.filter((_, j) => j !== i))}
-            />
-          ))}
-          {error && <FieldError>{error}</FieldError>}
-        </Field>
-      </CardContent>
-    </Card>
+    <SettingsCard
+      icon={LibraryIcon}
+      title="Egg library"
+      description="Git repositories whose eggs the library offers to install."
+    >
+      <Field data-invalid={error ? true : undefined}>
+        <FieldLabel htmlFor="egg-library-0">Repositories</FieldLabel>
+        {rows.map((url, i) => (
+          <RepositoryRow
+            key={keys[i] ?? -1 - i}
+            id={`egg-library-${i}`}
+            url={url}
+            listed={library.isPending ? "loading" : library.data?.find((r) => r.url === url.trim())}
+            removable={url !== "" || i < rows.length - 1}
+            onChange={(v) => change(rows.map((r, j) => (j === i ? v : r)))}
+            onRemove={() => {
+              setKeys(keys.filter((_, j) => j !== i))
+              change(rows.filter((_, j) => j !== i))
+            }}
+          />
+        ))}
+        {error && <FieldError>{error}</FieldError>}
+      </Field>
+    </SettingsCard>
   )
 }
 

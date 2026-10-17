@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,11 +21,6 @@ type SuspendRequest struct {
 	Suspended bool `json:"suspended"`
 }
 
-// TransferRequest names the user a server moves to.
-type TransferRequest struct {
-	Owner string `json:"owner" binding:"required" example:"alice"`
-}
-
 // sendPower godoc
 //
 //	@Summary		Change the power state
@@ -41,8 +35,7 @@ type TransferRequest struct {
 //	@Router			/servers/{server}/power [post]
 func (a *API) sendPower(c *gin.Context) {
 	var req PowerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -71,8 +64,7 @@ func (a *API) sendPower(c *gin.Context) {
 //	@Router		/servers/{server}/command [post]
 func (a *API) sendCommand(c *gin.Context) {
 	var req CommandRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -125,8 +117,7 @@ func (a *API) reinstallServer(c *gin.Context) {
 //	@Router			/servers/{server}/suspend [post]
 func (a *API) suspendServer(c *gin.Context) {
 	var req SuspendRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -140,44 +131,4 @@ func (a *API) suspendServer(c *gin.Context) {
 	a.audit(c, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, gs)
-}
-
-// transferServer godoc
-//
-//	@Summary		Transfer a server to another user
-//	@Description	Moves a stopped server with its data into the namespace of another user. Name, settings, files and
-//	@Description	backups stay; the address is fixed to the current one.
-//	@Tags			Servers
-//	@Accept			json
-//	@Produce		json
-//	@Param			server	path		string			true	"Server name"
-//	@Param			body	body		TransferRequest	true	"New owner"
-//	@Success		200		{object}	v1alpha1.GameServer
-//	@Failure		409		{object}	ErrorResponse	"the server is running or already belongs to the user"
-//	@Security		BearerAuth
-//	@Router			/servers/{server}/transfer [post]
-func (a *API) transferServer(c *gin.Context) {
-	var req TransferRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
-		return
-	}
-	gs, ok := a.loadServer(c)
-	if !ok {
-		return
-	}
-	namespace, err := a.ownerNamespace(c, req.Owner)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	// The move must finish even when the client (or a proxy) gives up waiting.
-	moved, err := a.Ops.Transfer(context.WithoutCancel(c), gs, req.Owner, namespace)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.audit(c, "server transferred", "server", gs.Name, "from", gs.Namespace, "to", namespace)
-	a.Trigger(moved.Namespace, moved.Name)
-	c.JSON(http.StatusOK, moved)
 }

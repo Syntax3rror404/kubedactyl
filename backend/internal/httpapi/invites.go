@@ -100,8 +100,7 @@ func (a *API) listInvites(c *gin.Context) {
 //	@Router			/invites [post]
 func (a *API) createInvite(c *gin.Context) {
 	var req CreateInviteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	invite, token, err := a.Users.CreateInvite(c, users.InviteInput(req), principal(c).User.Name)
@@ -159,7 +158,7 @@ func (a *API) findInvite(c *gin.Context, token string) (*v1alpha1.Invite, bool) 
 	key := "invite|" + c.ClientIP()
 	now := time.Now()
 	if ok, _ := a.Limiter.Take(key, now); !ok {
-		a.fail(c, tooManyRequests(errors.New("too many attempts, try again later")))
+		a.fail(c, tooManyRequests(errTooManyAttempts))
 		return nil, false
 	}
 	invite, err := a.Users.FindInvite(c, strings.TrimSpace(token))
@@ -205,8 +204,7 @@ func (a *API) getInvite(c *gin.Context) {
 //	@Router			/auth/invite [post]
 func (a *API) acceptInvite(c *gin.Context) {
 	var req AcceptInviteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	invite, ok := a.findInvite(c, req.Token)
@@ -222,10 +220,5 @@ func (a *API) acceptInvite(c *gin.Context) {
 	}
 	a.Log.Info("account created through an invite", "user", u.Name, "invite", invite.Name,
 		"invitedBy", invite.Spec.CreatedBy)
-	res, err := a.startSession(c, u)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, res)
+	a.sendSession(c, http.StatusCreated, u)
 }

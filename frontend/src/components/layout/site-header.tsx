@@ -26,8 +26,9 @@ export type CrumbHandle = { crumbs: (params: Record<string, string | undefined>)
 
 /** The crumbs with display names: labels like "server:<name>" or "egg:<name>" resolve to the object's name. */
 function useCrumbLabels(crumbs: Crumb[]): Crumb[] {
-  const serverRef = crumbs.find((c) => c.label.startsWith("server:"))?.label.slice(7) ?? ""
-  const eggRef = crumbs.find((c) => c.label.startsWith("egg:"))?.label.slice(4) ?? ""
+  const ref = (prefix: string) => crumbs.find((c) => c.label.startsWith(prefix))?.label.slice(prefix.length) ?? ""
+  const serverRef = ref("server:")
+  const eggRef = ref("egg:")
   const server = useServer(serverRef)
   const egg = useEgg(eggRef)
   return crumbs.map((c) => {

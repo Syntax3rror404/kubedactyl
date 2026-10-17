@@ -31,6 +31,8 @@ type staticFiles struct {
 	fs      fs.FS
 	etags   map[string]string
 	gzipped map[string]gzipped
+	// index is index.html, read once (nil when the build has none).
+	index []byte
 }
 
 func newStaticFiles(frontend fs.FS) (*staticFiles, error) {
@@ -42,6 +44,9 @@ func newStaticFiles(frontend fs.FS) (*staticFiles, error) {
 		data, err := fs.ReadFile(frontend, name)
 		if err != nil {
 			return err
+		}
+		if name == "index.html" {
+			s.index = data
 		}
 		sum := sha256.Sum256(data)
 		// Weak: the same file sent compressed or not.
@@ -113,26 +118,22 @@ func (s *staticFiles) serve(c *gin.Context) {
 		c.Status(http.StatusNotModified)
 		return
 	}
-	if compressed {
-		if strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
-			c.Header("Content-Encoding", "gzip")
-			c.Data(http.StatusOK, gz.contentType, gz.data)
-			return
-		}
+	if compressed && strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
+		c.Header("Content-Encoding", "gzip")
+		c.Data(http.StatusOK, gz.contentType, gz.data)
+		return
 	}
 	s.serveFile(c, name)
 }
 
-// serveFile sends a file as it is. index.html is read directly: http.FileServer redirects it to "/".
+// serveFile sends a file as it is. index.html is sent from memory: http.FileServer redirects it to "/".
 func (s *staticFiles) serveFile(c *gin.Context, name string) {
-	if name != "index.html" {
+	switch {
+	case name != "index.html":
 		c.FileFromFS(name, http.FS(s.fs))
-		return
-	}
-	index, err := fs.ReadFile(s.fs, name)
-	if err != nil {
+	case s.index == nil:
 		c.String(http.StatusInternalServerError, "index.html is missing. Was the frontend built?")
-		return
+	default:
+		c.Data(http.StatusOK, "text/html; charset=utf-8", s.index)
 	}
-	c.Data(http.StatusOK, "text/html; charset=utf-8", index)
 }

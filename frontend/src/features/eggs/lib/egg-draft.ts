@@ -10,7 +10,14 @@ export type SpecChange = (patch: Partial<EggSpec>) => void
 export type SectionId = "config" | "images" | "process" | "variables" | "install"
 
 /** The parts of the egg editor: tabs on the edit page, steps in the wizard. */
-export const sections: { id: SectionId; title: string; description: string; fields: string[] }[] = [
+export const sections: {
+  id: SectionId
+  title: string
+  description: string
+  fields: string[]
+  /** The wizard lets users skip it. */
+  optional?: boolean
+}[] = [
   {
     id: "config",
     title: "Configuration",
@@ -25,18 +32,21 @@ export const sections: { id: SectionId; title: string; description: string; fiel
   },
   {
     id: "process",
+    optional: true,
     title: "Process management",
     description: "When the server counts as running and which config files are adjusted before every start.",
     fields: ["startupDone", "stripAnsi", "configFiles"],
   },
   {
     id: "variables",
+    optional: true,
     title: "Variables",
     description: "Settings users see on the Startup page, passed as environment variables.",
     fields: ["variables"],
   },
   {
     id: "install",
+    optional: true,
     title: "Install script",
     description: "Runs once when a server is installed or reinstalled.",
     fields: ["install"],
@@ -55,7 +65,7 @@ export function firstErrorSection(err: Error): SectionId | undefined {
   return sections.find((s) => errorCount(errors, s.id) > 0)?.id
 }
 
-/** Starting point of a new egg (Pelican's default installer image and entrypoint). */
+/** Starting point of a new egg, with Pelican's default installer image and entrypoint. */
 export function emptyEggSpec(): EggSpec {
   return {
     displayName: "",
@@ -81,13 +91,13 @@ export function emptyEggSpec(): EggSpec {
   }
 }
 
-/** Copy of an egg for "Duplicate" (like Pelican: new name, no update URL, new UUID on save). */
+/** Copy of an egg for "Duplicate": a new name and no update URL; the panel gives it a new UUID on save. */
 export function duplicateSpec(spec: EggSpec): EggSpec {
   const copy: EggSpec = structuredClone(spec)
   return { ...copy, displayName: `${spec.displayName} Copy`, source: { updateUrl: "" } }
 }
 
-/** "Server Jar File" → "SERVER_JAR_FILE" (like Pelican fills the environment variable). */
+/** "Server Jar File" → "SERVER_JAR_FILE", the environment variable Pelican derives from a variable name. */
 export function envFromName(name: string): string {
   return name
     .trim()
@@ -105,3 +115,10 @@ export function move<T>(list: T[], index: number, by: -1 | 1): T[] {
   ;[next[index], next[target]] = [next[target], next[index]]
   return next
 }
+
+/** The list with the patch applied to one item. */
+export const patchAt = <T>(list: T[], index: number, patch: Partial<T>): T[] =>
+  list.map((item, i) => (i === index ? { ...item, ...patch } : item))
+
+/** The list without one item. */
+export const removeAt = <T>(list: T[], index: number): T[] => list.filter((_, i) => i !== index)

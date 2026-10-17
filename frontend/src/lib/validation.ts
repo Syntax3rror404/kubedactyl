@@ -1,6 +1,6 @@
 import { ApiError } from "@/lib/api"
 
-/** Same minimum as the panel (auth.HashPassword). */
+/** Same minimum as the panel (auth.MinPasswordLength). */
 export const MIN_PASSWORD_LENGTH = 8
 
 /** Whether a new password is long enough and typed the same twice. */

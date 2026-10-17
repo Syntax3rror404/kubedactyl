@@ -66,11 +66,8 @@ func (m *Manager) Pull(
 	if err != nil {
 		return err
 	}
-	target, err := Resolve(path.Join(dir, name), denylist)
+	target, _, err := m.resolve(ctx, server, path.Join(dir, name), denylist)
 	if err != nil {
-		return err
-	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, target); err != nil {
 		return err
 	}
 	out := &progressWriter{report: report}

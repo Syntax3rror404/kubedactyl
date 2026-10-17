@@ -1,8 +1,10 @@
 package gameserver
 
 import (
+	"cmp"
+	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -48,11 +50,7 @@ func Environment(gs *v1alpha1.GameServer, e *v1alpha1.Egg, opts Options) map[str
 		}
 		env[v.EnvVariable] = val
 	}
-	tz := opts.Timezone
-	if tz == "" {
-		tz = "UTC"
-	}
-	env["TZ"] = tz
+	env["TZ"] = cmp.Or(opts.Timezone, "UTC")
 	env["STARTUP"] = StartupCommand(gs, e)
 	env["SERVER_MEMORY"] = strconv.FormatInt(gs.Spec.Resources.MemoryMiB, 10)
 	// Pods bind to all interfaces; the load balancer forwards to the pod IP.
@@ -66,13 +64,8 @@ func Environment(gs *v1alpha1.GameServer, e *v1alpha1.Egg, opts Options) map[str
 
 // EnvVars converts the environment into a sorted list for pod specs.
 func EnvVars(env map[string]string) []corev1.EnvVar {
-	keys := make([]string, 0, len(env))
-	for k := range env {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	out := make([]corev1.EnvVar, 0, len(keys))
-	for _, k := range keys {
+	out := make([]corev1.EnvVar, 0, len(env))
+	for _, k := range slices.Sorted(maps.Keys(env)) {
 		out = append(out, corev1.EnvVar{Name: k, Value: env[k]})
 	}
 	return out
@@ -85,7 +78,8 @@ var placeholderRe = regexp.MustCompile(`{{\s*([\w.-]+)\s*}}`)
 // the config file parser. Unknown placeholders are kept unchanged.
 func ResolvePlaceholders(value string, gs *v1alpha1.GameServer, env map[string]string) string {
 	return placeholderRe.ReplaceAllStringFunc(value, func(m string) string {
-		key := placeholderRe.FindStringSubmatch(m)[1]
+		// The match is "{{", blanks, the key, blanks, "}}".
+		key := strings.TrimSpace(m[2 : len(m)-2])
 		switch key {
 		case "server.build.default.port", "server.allocations.default.port":
 			return strconv.Itoa(int(PrimaryPort(gs)))
@@ -100,7 +94,7 @@ func ResolvePlaceholders(value string, gs *v1alpha1.GameServer, env map[string]s
 		}
 		for _, prefix := range []string{"server.build.env.", "server.environment.", "env."} {
 			if name, ok := strings.CutPrefix(key, prefix); ok {
-				// Legacy {{env.SERVER_PORT}} etc. map to the system values.
+				// {{env.SERVER_PORT}} and the like map to the system values.
 				if v, ok := env[name]; ok {
 					return v
 				}

@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { StartupPreview } from "@/features/servers/components/startup-preview"
 import { VariableField } from "@/features/servers/components/variable-field"
-import { startupCommandOf } from "@/features/servers/lib/startup"
+import { defaultEnvironment, startupCommandOf } from "@/features/servers/lib/startup"
 import type { ServerContext } from "@/features/servers/server-layout"
 import { useAuth } from "@/hooks/use-auth"
 import { useDraft } from "@/hooks/use-draft"
@@ -135,12 +135,7 @@ export function StartupPage() {
             </FieldGroup>
           </CardContent>
           <CardFooter className="justify-between border-t">
-            <Button
-              variant="ghost"
-              onClick={() =>
-                set("env", Object.fromEntries(egg.spec.variables!.map((v) => [v.envVariable, v.defaultValue ?? ""])))
-              }
-            >
+            <Button variant="ghost" onClick={() => set("env", defaultEnvironment(egg.spec))}>
               <RotateCcwIcon />
               Reset to defaults
             </Button>

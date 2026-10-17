@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"slices"
 
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,13 +45,13 @@ func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, err
 }
 
 // serverNameTaken reports whether a server name exists in any namespace (read uncached: a
-// server created a moment ago must count).
+// server created a moment ago must count). The API server filters by name.
 func (a *API) serverNameTaken(ctx context.Context, name string) (bool, error) {
 	var list v1alpha1.GameServerList
-	if err := a.Reader.List(ctx, &list); err != nil {
+	if err := a.Reader.List(ctx, &list, client.MatchingFields{"metadata.name": name}); err != nil {
 		return false, err
 	}
-	return slices.ContainsFunc(list.Items, func(gs v1alpha1.GameServer) bool { return gs.Name == name }), nil
+	return len(list.Items) > 0, nil
 }
 
 // ownServers drops servers that belong to another installation in the same cluster.
@@ -75,52 +74,47 @@ func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alph
 	return gs, true
 }
 
-// visibleServer strips variables that the egg hides from users. With an external domain,
-// users see the domain as the address instead of the load balancer IPs (a ClusterIP server
-// keeps its DNS name inside the cluster).
-func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
-	if p.Admin() {
-		return gs
-	}
-	out := gs.DeepCopy()
+// hideFromUser strips what a user may not see from their server, in place (handlers pass their own
+// copy): variables the egg hides and, with an external domain, the load balancer IPs (the domain is
+// the address then; a ClusterIP server keeps its DNS name inside the cluster).
+func hideFromUser(gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) {
 	if domain != "" && !gameserver.ClusterOnly(gs) {
-		out.Spec.LoadBalancerIP = ""
-		if out.Status.Address != "" {
-			out.Status.Address = domain
+		gs.Spec.LoadBalancerIP = ""
+		if gs.Status.Address != "" {
+			gs.Status.Address = domain
 		}
-		out.Status.Addresses = nil
+		gs.Status.Addresses = nil
 	}
 	if e == nil {
-		return out
+		return
 	}
 	viewable := map[string]bool{}
 	for _, v := range e.Spec.Variables {
 		viewable[v.EnvVariable] = v.UserViewable
 	}
-	for k := range out.Spec.Environment {
+	for k := range gs.Spec.Environment {
 		if !viewable[k] {
-			delete(out.Spec.Environment, k)
+			delete(gs.Spec.Environment, k)
 		}
 	}
-	return out
 }
 
-// visibleEgg fills in the startup commands of older eggs and strips hidden variables and the install
-// script for users.
+// visibleEgg fills in the startup commands of older eggs and, for users, strips hidden variables
+// and the install script. It changes the egg in place (handlers pass their own copy).
 func visibleEgg(p *Principal, e *v1alpha1.Egg) *v1alpha1.Egg {
-	out := e.DeepCopy()
-	out.Spec.StartupCommands = egg.StartupCommands(&out.Spec)
+	e.Spec.StartupCommands = egg.StartupCommands(&e.Spec)
 	if p.Admin() {
-		return out
+		return e
 	}
-	out.Spec.Install = v1alpha1.InstallScript{}
-	out.Spec.Variables = nil
-	for _, v := range e.Spec.Variables {
+	e.Spec.Install = v1alpha1.InstallScript{}
+	variables := e.Spec.Variables
+	e.Spec.Variables = nil
+	for _, v := range variables {
 		if v.UserViewable {
-			out.Spec.Variables = append(out.Spec.Variables, v)
+			e.Spec.Variables = append(e.Spec.Variables, v)
 		}
 	}
-	return out
+	return e
 }
 
 var errAdminOnly = errors.New("only administrators may change this setting")

@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge"
+import { DefaultBadge } from "@/features/eggs/components/egg-overview"
 import type { EggSpec } from "@/lib/types"
 
 /** Overview of an egg before it is created (wizard review step). */
@@ -18,11 +18,7 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
           {spec.dockerImages.map((img, i) => (
             <span key={i} className="block font-mono text-xs">
               {img.name || img.image} → {img.image}
-              {i === 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  default
-                </Badge>
-              )}
+              {i === 0 && <DefaultBadge />}
             </span>
           ))}
         </span>
@@ -35,11 +31,7 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
           {spec.startupCommands?.map((c, i) => (
             <span key={i} className="block text-xs">
               {c.name}: <code className="break-all">{c.command}</code>
-              {i === 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  default
-                </Badge>
-              )}
+              {i === 0 && <DefaultBadge />}
             </span>
           ))}
         </span>

@@ -17,7 +17,6 @@ const frontendVersions = Object.fromEntries(
   ].map(([name, pkg]) => [name, JSON.parse(readFileSync(`node_modules/${pkg}/package.json`, "utf8")).version]),
 )
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), thirdPartyLicenses()],
   define: { __FRONTEND_VERSIONS__: JSON.stringify(frontendVersions) },
@@ -27,14 +26,14 @@ export default defineConfig({
     },
   },
   server: {
-    // In development, forward API calls, the console websocket and the Swagger UI to the Go backend
+    // In development, forward API calls, the console websocket and the Swagger UI to the Go backend.
     proxy: {
       "/api": { target: "http://localhost:8080", ws: true },
       "/swagger": "http://localhost:8080",
     },
   },
   build: {
-    // The build goes straight into the Go package that embeds it via go:embed
+    // The build goes straight into the Go package that embeds it (go:embed).
     outDir: "../backend/web/dist",
     emptyOutDir: true,
   },

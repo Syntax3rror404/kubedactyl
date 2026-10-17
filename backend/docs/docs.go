@@ -2337,7 +2337,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Stops the server and copies its files, backups included, to a new volume of the storage class\n(status.migration). The server is locked until it uses the checked copy; the old volume is\ndeleted then. A failed copy leaves the server on its volume. With startOnCompletion the server\nstarts when the migration has ended.",
+                "description": "Stops the server and copies its files, backups included, to a new volume of the storage class\n(status.migration). The server is locked until it uses the checked copy; the old volume is\ndeleted then. A failed copy leaves the server on its volume. With startOnCompletion the server\nstarts when the migration has finished; a failed or cancelled one leaves it stopped.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3360,7 +3360,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "method": {
-                    "description": "Method: client-certificate, token, exec, auth-provider, basic, service-account or none.",
+                    "description": "Method is how the panel signs in: client-certificate, token, exec, auth-provider, basic,\nservice-account or none.",
                     "type": "string",
                     "example": "exec"
                 },
@@ -4379,7 +4379,7 @@ const docTemplate = `{
                     }
                 },
                 "externalTrafficPolicy": {
-                    "description": "ExternalTrafficPolicy of the service (default Local: the server sees the players' IPs).",
+                    "description": "ExternalTrafficPolicy of the service. Empty: Local, the server sees the players' IPs.",
                     "enum": [
                         "Local",
                         "Cluster"
@@ -4395,16 +4395,16 @@ const docTemplate = `{
                     "example": "ghcr.io/pelican-eggs/yolks:java_21"
                 },
                 "ipv6": {
-                    "description": "IPv6 also asks for an IPv6 address (dual stack clusters).",
+                    "description": "IPv6 also asks for an IPv6 address. Only with a dual stack cluster.",
                     "type": "boolean"
                 },
                 "loadBalancerIP": {
-                    "description": "LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).",
+                    "description": "LoadBalancerIP fixes the address: one IP of the pool, or one per IP family separated by a comma. Optional.",
                     "type": "string",
                     "example": "192.168.1.70"
                 },
                 "loadBalancerPool": {
-                    "description": "LoadBalancerPool the address comes from (default: the default of the panel settings).",
+                    "description": "LoadBalancerPool the address comes from. Empty: the panel default.",
                     "type": "string",
                     "example": "general-pool"
                 },
@@ -4413,7 +4413,7 @@ const docTemplate = `{
                     "example": 4096
                 },
                 "owner": {
-                    "description": "Owner is the username the server belongs to (default: the calling admin).",
+                    "description": "Owner is the username the server belongs to. Empty: the calling admin.",
                     "type": "string",
                     "example": "alice"
                 },
@@ -4427,7 +4427,7 @@ const docTemplate = `{
                     ]
                 },
                 "serviceType": {
-                    "description": "ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it).",
+                    "description": "ServiceType ClusterIP publishes the server only inside the cluster. Only when the settings allow it.",
                     "enum": [
                         "LoadBalancer",
                         "ClusterIP"
@@ -4439,6 +4439,7 @@ const docTemplate = `{
                     ]
                 },
                 "skipInstall": {
+                    "description": "SkipInstall creates the server without running the install script.",
                     "type": "boolean"
                 },
                 "startOnCompletion": {
@@ -4450,11 +4451,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "startupName": {
-                    "description": "StartupName picks one of the egg's startup commands (\"\" = its default).",
+                    "description": "StartupName picks one of the egg's startup commands. Empty: the egg's default.",
                     "type": "string"
                 },
                 "storageClass": {
-                    "description": "StorageClass of the data volume (default: the default of the panel settings).",
+                    "description": "StorageClass of the data volume. Empty: the panel default.",
                     "type": "string",
                     "example": "longhorn"
                 }
@@ -4468,7 +4469,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "expiresInDays": {
-                    "description": "ExpiresInDays is the lifetime: 1 up to the longest API token lifetime of the panel.",
+                    "description": "ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.",
                     "type": "integer",
                     "example": 90
                 },
@@ -4708,6 +4709,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "idleTimeoutSeconds": {
+                    "description": "IdleTimeoutSeconds is how long the container stays after the last file operation (seconds).",
                     "type": "integer",
                     "example": 60
                 },
@@ -4957,7 +4959,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "startOnCompletion": {
-                    "description": "StartOnCompletion starts the server once the migration has ended.",
+                    "description": "StartOnCompletion starts the server once the migration has finished (not after a failure or cancel).",
                     "type": "boolean",
                     "example": true
                 },
@@ -5252,7 +5254,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
                     "type": "integer"
                 },
                 "brandLogo": {
@@ -5287,7 +5289,7 @@ const docTemplate = `{
                     }
                 },
                 "externalDomain": {
-                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the\nload balancer IP. Empty shows the IP.\n+optional",
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
                     "type": "string"
                 },
                 "favicon": {
@@ -5295,11 +5297,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kubeApiQps": {
-                    "description": "KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most\n(default 50, bursts of twice that). It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
                     "type": "integer"
                 },
                 "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,\nbursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so\none user cannot use up KubeAPIQPS for everybody. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
                     "type": "integer"
                 },
                 "legalNotice": {
@@ -5307,7 +5309,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "loadBalancerPools": {
-                    "description": "LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.\n+optional",
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5334,11 +5336,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (default 12). It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
                     "type": "integer"
                 },
                 "storageClasses": {
-                    "description": "StorageClasses can be selected for server volumes.\n+optional",
+                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5516,7 +5518,7 @@ const docTemplate = `{
                     }
                 },
                 "externalTrafficPolicy": {
-                    "description": "ExternalTrafficPolicy of the service; admins only.",
+                    "description": "ExternalTrafficPolicy of the service. Admins only.",
                     "enum": [
                         "Local",
                         "Cluster"
@@ -5531,7 +5533,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ipv6": {
-                    "description": "IPv6 also asks for an IPv6 address (dual stack clusters); admins only.",
+                    "description": "IPv6 also asks for an IPv6 address. Only with a dual stack cluster. Admins only.",
                     "type": "boolean"
                 },
                 "loadBalancerIP": {
@@ -5567,7 +5569,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "startupName": {
-                    "description": "StartupName picks one of the egg's startup commands (\"\" = its default); owners may change it.",
+                    "description": "StartupName picks one of the egg's startup commands. Empty: the egg's default. Owners may change it.",
                     "type": "string"
                 },
                 "stopTimeoutSeconds": {
@@ -5587,7 +5589,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
                     "type": "integer"
                 },
                 "brandLogo": {
@@ -5622,7 +5624,7 @@ const docTemplate = `{
                     }
                 },
                 "externalDomain": {
-                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the\nload balancer IP. Empty shows the IP.\n+optional",
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
                     "type": "string"
                 },
                 "favicon": {
@@ -5630,11 +5632,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kubeApiQps": {
-                    "description": "KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most\n(default 50, bursts of twice that). It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
                     "type": "integer"
                 },
                 "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,\nbursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so\none user cannot use up KubeAPIQPS for everybody. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
                     "type": "integer"
                 },
                 "legalNotice": {
@@ -5642,7 +5644,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "loadBalancerPools": {
-                    "description": "LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.\n+optional",
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5670,11 +5672,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (default 12). It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
                     "type": "integer"
                 },
                 "storageClasses": {
-                    "description": "StorageClasses can be selected for server volumes.\n+optional",
+                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5803,7 +5805,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "mustChangePassword": {
-                    "description": "MustChangePassword: the user has to replace the password set by an administrator first.",
+                    "description": "MustChangePassword is true while the user has to replace the password set by an administrator.",
                     "type": "boolean"
                 },
                 "namespace": {
@@ -6279,7 +6281,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "parser": {
-                    "description": "+kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml",
+                    "description": "Parser is the format of the file; \"file\" replaces whole lines that start with Match.\n+kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml",
                     "type": "string"
                 },
                 "replace": {
@@ -6576,7 +6578,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "displayName": {
-                    "description": "DisplayName is a human friendly name.",
+                    "description": "DisplayName is the name shown in the panel. Empty: uses the object name.",
                     "type": "string"
                 },
                 "eggRef": {
@@ -6584,14 +6586,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "environment": {
-                    "description": "Environment holds values for the egg variables.\n+optional",
+                    "description": "Environment holds the values of the egg variables. Missing ones use the egg's defaults.\n+optional",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
                 "externalTrafficPolicy": {
-                    "description": "ExternalTrafficPolicy of the service; empty means Local.\n+optional",
+                    "description": "ExternalTrafficPolicy of the server's service. Empty: uses Local. Admins only.\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.TrafficPolicy"
@@ -6603,19 +6605,19 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "installRevision": {
-                    "description": "InstallRevision triggers a (re)install whenever it differs from status.installedRevision.\n+kubebuilder:default=1",
+                    "description": "InstallRevision reinstalls the server whenever it differs from status.installedRevision.\n+kubebuilder:default=1",
                     "type": "integer"
                 },
                 "ipv6": {
-                    "description": "IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the\nserver gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.\n+optional",
+                    "description": "IPv6 gives the server an address of each IP family the cluster has (PreferDualStack). Only with\na dual stack cluster and a pool with an IPv6 block. Admins only.\n+optional",
                     "type": "boolean"
                 },
                 "loadBalancerIP": {
-                    "description": "LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family\nseparated by a comma. The server then gets only these addresses.\n+optional",
+                    "description": "LoadBalancerIP fixes the server's addresses: one IP, or one per IP family separated by a comma,\nfrom the load balancer pool. Empty: the pool picks.\n+optional",
                     "type": "string"
                 },
                 "loadBalancerPool": {
-                    "description": "LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service\ngets the labels of the pool's service selector.\n+optional",
+                    "description": "LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service gets the labels\nof the pool's service selector.\n+optional",
                     "type": "string"
                 },
                 "ports": {
@@ -6629,14 +6631,14 @@ const docTemplate = `{
                     "$ref": "#/definitions/v1alpha1.Resources"
                 },
                 "schedules": {
-                    "description": "Schedules run tasks at fixed times.\n+optional\n+listType=map\n+listMapKey=name\n+kubebuilder:validation:MaxItems=20",
+                    "description": "Schedules run tasks at fixed times or events of the server.\n+optional\n+listType=map\n+listMapKey=name\n+kubebuilder:validation:MaxItems=20",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/v1alpha1.Schedule"
                     }
                 },
                 "serviceType": {
-                    "description": "ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for\nwhen it gets a load balancer again.\n+optional",
+                    "description": "ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).\nEmpty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.ServiceType"
@@ -6644,19 +6646,19 @@ const docTemplate = `{
                     ]
                 },
                 "skipInstall": {
-                    "description": "SkipInstall skips the egg install script.\n+optional",
+                    "description": "SkipInstall creates the server without running the egg's install script.\n+optional",
                     "type": "boolean"
                 },
                 "startup": {
-                    "description": "Startup overrides the egg's startup command.\n+optional",
+                    "description": "Startup replaces the egg's startup command. Empty: uses StartupName.\n+optional",
                     "type": "string"
                 },
                 "startupName": {
-                    "description": "StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has\nmeans its default. Startup wins when set.\n+optional",
+                    "description": "StartupName picks one of the egg's startup commands by name. Empty or unknown: uses the egg's\ndefault. Ignored when Startup is set.\n+optional",
                     "type": "string"
                 },
                 "state": {
-                    "description": "State is the desired power state.\n+kubebuilder:default=Stopped",
+                    "description": "State is the power state the server should be in.\n+kubebuilder:default=Stopped",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.PowerState"
@@ -6664,15 +6666,15 @@ const docTemplate = `{
                     ]
                 },
                 "stopTimeoutSeconds": {
-                    "description": "StopTimeoutSeconds is how long to wait after the stop command before killing the server.\n+kubebuilder:default=600",
+                    "description": "StopTimeoutSeconds is how long the server may take to stop after the stop command before it\nis killed (seconds).\n+kubebuilder:default=600",
                     "type": "integer"
                 },
                 "storageClass": {
-                    "description": "StorageClass of the data volume. Changing it moves the server files to a new volume of that\nclass (status.migration); the server stays stopped meanwhile.\n+optional",
+                    "description": "StorageClass of the server's volume. Changing it moves the files to a new volume of that class\n(status.migration); the server is locked meanwhile. Admins only.\n+optional",
                     "type": "string"
                 },
                 "suspended": {
-                    "description": "Suspended servers are stopped and cannot be started or used by their owner (admins only).\n+optional",
+                    "description": "Suspended stops the server and locks it for its owner. Admins only.\n+optional",
                     "type": "boolean"
                 }
             }
@@ -6695,6 +6697,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "diskUsedBytes": {
+                    "description": "DiskUsedBytes is the last measured size of the server files (bytes). It is measured only\nwhile the files pod runs, which happens on demand.",
                     "type": "integer"
                 },
                 "installExitCode": {
@@ -6758,7 +6761,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "storageClass": {
-                    "description": "DiskUsedBytes is the last measured size of the server files; the files pod that\nmeasures it only runs on demand.\nStorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.\n+optional",
+                    "description": "StorageClass of the bound volume. While spec.storageClass differs, the server is migrating.\n+optional",
                     "type": "string"
                 }
             }
@@ -6808,7 +6811,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "groupsClaim": {
-                    "description": "GroupsClaim holds the groups of the user (default groups).\n+optional",
+                    "description": "GroupsClaim holds the groups of the user. Empty: groups.\n+optional",
                     "type": "string"
                 },
                 "issuerUrl": {
@@ -6836,7 +6839,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "usernameClaim": {
-                    "description": "UsernameClaim holds the panel username (default preferred_username).\n+optional",
+                    "description": "UsernameClaim holds the panel username. Empty: preferred_username.\n+optional",
                     "type": "string"
                 }
             }
@@ -6881,15 +6884,15 @@ const docTemplate = `{
             ],
             "properties": {
                 "cpuMillis": {
-                    "description": "CPUMillis limits CPU usage (1000 = one core); 0 means unlimited.\n+optional",
+                    "description": "CPUMillis limits the CPU of the server (millicores, 1000 = one core). 0 = unlimited.\n+optional",
                     "type": "integer"
                 },
                 "diskMiB": {
-                    "description": "DiskMiB is the size of the persistent volume.\n+kubebuilder:validation:Minimum=256",
+                    "description": "DiskMiB is the size of the server's volume (MiB).\n+kubebuilder:validation:Minimum=256",
                     "type": "integer"
                 },
                 "memoryMiB": {
-                    "description": "MemoryMiB is the memory available to the server (SERVER_MEMORY).\n+kubebuilder:validation:Minimum=64",
+                    "description": "MemoryMiB is the memory of the server (MiB), also passed to it as SERVER_MEMORY.\n+kubebuilder:validation:Minimum=64",
                     "type": "integer"
                 }
             }
@@ -6942,7 +6945,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "lastResult": {
-                    "description": "LastResult is \"ok\", \"skipped: …\" or \"failed: …\".",
+                    "description": "LastResult is \"ok\", \"skipped: \u003creason\u003e\" or \"failed: \u003creason\u003e\".",
                     "type": "string"
                 },
                 "lastRunAt": {
@@ -6972,7 +6975,7 @@ const docTemplate = `{
                     ]
                 },
                 "delaySeconds": {
-                    "description": "DelaySeconds waits before this task (after the previous one).\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=900",
+                    "description": "DelaySeconds waits before this task, counted from the end of the previous one (seconds).\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=900",
                     "type": "integer"
                 },
                 "payload": {
@@ -7017,11 +7020,11 @@ const docTemplate = `{
             ],
             "properties": {
                 "done": {
-                    "description": "Done of Total files copied.\n+optional",
+                    "description": "Done is the number of files copied so far, Total the number of all files.\n+optional",
                     "type": "integer"
                 },
                 "error": {
-                    "description": "Error tells why a failed migration stopped; the server stays on its volume.\n+optional",
+                    "description": "Error tells why the migration failed. The server stays on its old volume.\n+optional",
                     "type": "string"
                 },
                 "from": {

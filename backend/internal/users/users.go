@@ -26,13 +26,13 @@ var (
 	ErrOwnAccount    = errors.New("you cannot delete your own account")
 	ErrWrongPassword = errors.New("current password is wrong")
 	ErrUsernameTaken = errors.New("this username is taken")
-	// ErrManaged: the identity provider sets display name, email and role of an account linked to it.
+	// ErrManaged means the identity provider sets display name, email and role of an account linked to it.
 	ErrManaged = errors.New("the identity provider manages this for accounts linked to it")
-	// ErrNoPassword: the account signs in only through the identity provider.
+	// ErrNoPassword means the account signs in only through the identity provider.
 	ErrNoPassword = errors.New("this account signs in through single sign-on and has no password")
 )
 
-// Store creates and changes users.
+// Store creates and changes accounts and invites.
 type Store struct {
 	Client client.Client
 	// Reader reads uncached: the administrator count must not come from a lagging cache.
@@ -127,21 +127,16 @@ func (s *Store) Update(ctx context.Context, u *v1alpha1.User, ch UpdateInput) er
 func (s *Store) change(
 	ctx context.Context, u *v1alpha1.User, removesAdmin bool, apply func(*v1alpha1.UserSpec) error,
 ) error {
-	if removesAdmin {
-		s.adminChanges.Lock()
-		defer s.adminChanges.Unlock()
-		if err := s.keepOneAdmin(ctx); err != nil {
+	return s.keepOneAdmin(ctx, removesAdmin, func() error {
+		before := u.DeepCopy()
+		if err := apply(&u.Spec); err != nil {
 			return err
 		}
-	}
-	before := u.DeepCopy()
-	if err := apply(&u.Spec); err != nil {
-		return err
-	}
-	if equality.Semantic.DeepEqual(before.Spec, u.Spec) {
-		return nil
-	}
-	return s.Client.Patch(ctx, u, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))
+		if equality.Semantic.DeepEqual(before.Spec, u.Spec) {
+			return nil
+		}
+		return s.Client.Patch(ctx, u, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))
+	})
 }
 
 // UpdatePassword replaces the own password after checking the current one. Every session of
@@ -202,14 +197,7 @@ func (s *Store) Delete(ctx context.Context, u *v1alpha1.User, by string) error {
 	if u.Name == by {
 		return ErrOwnAccount
 	}
-	if isActiveAdmin(u) {
-		s.adminChanges.Lock()
-		defer s.adminChanges.Unlock()
-		if err := s.keepOneAdmin(ctx); err != nil {
-			return err
-		}
-	}
-	return s.Client.Delete(ctx, u)
+	return s.keepOneAdmin(ctx, isActiveAdmin(u), func() error { return s.Client.Delete(ctx, u) })
 }
 
 // ActiveAdmins counts the enabled administrators (uncached).
@@ -238,8 +226,14 @@ func (s *Store) countAdmins(ctx context.Context, r client.Reader) (int, error) {
 	return n, nil
 }
 
-// keepOneAdmin fails unless another active administrator exists.
-func (s *Store) keepOneAdmin(ctx context.Context) error {
+// keepOneAdmin runs a change. One that removes an administrator waits for the others and runs only
+// while another active administrator exists (ErrLastAdmin).
+func (s *Store) keepOneAdmin(ctx context.Context, removesAdmin bool, change func() error) error {
+	if !removesAdmin {
+		return change()
+	}
+	s.adminChanges.Lock()
+	defer s.adminChanges.Unlock()
 	n, err := s.ActiveAdmins(ctx)
 	if err != nil {
 		return err
@@ -247,7 +241,7 @@ func (s *Store) keepOneAdmin(ctx context.Context) error {
 	if n <= 1 {
 		return ErrLastAdmin
 	}
-	return nil
+	return change()
 }
 
 func isActiveAdmin(u *v1alpha1.User) bool {

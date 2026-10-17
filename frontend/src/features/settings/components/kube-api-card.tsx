@@ -1,8 +1,8 @@
 import { GaugeIcon } from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Slider } from "@/components/ui/slider"
+import { SettingsCard } from "@/features/settings/components/settings-card"
 
 type Limits = { kubeApiQps: number; kubeApiUserQps: number }
 
@@ -17,37 +17,28 @@ export function KubeApiCard({
   errors: Record<string, string>
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <GaugeIcon className="size-4" />
-          Kube API limit
-        </CardTitle>
-        <CardDescription>Protects the Kubernetes API from overload.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup className="gap-6">
-          <LimitField
-            id="kube-api-qps"
-            label="Requests per second"
-            value={values.kubeApiQps}
-            range={[5, 1000, 5]}
-            onChange={(kubeApiQps) => onChange({ kubeApiQps })}
-            error={errors.kubeApiQps}
-            hint="Default: 50"
-          />
-          <LimitField
-            id="kube-api-user-qps"
-            label="Per user"
-            value={values.kubeApiUserQps}
-            range={[1, 200, 1]}
-            onChange={(kubeApiUserQps) => onChange({ kubeApiUserQps })}
-            error={errors.kubeApiUserQps}
-            hint="So one user cannot slow down everybody else. Default: 10"
-          />
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <SettingsCard icon={GaugeIcon} title="Kube API limit" description="Protects the Kubernetes API from overload.">
+      <FieldGroup className="gap-6">
+        <LimitField
+          id="kube-api-qps"
+          label="Requests per second"
+          value={values.kubeApiQps}
+          range={[5, 1000, 5]}
+          onChange={(kubeApiQps) => onChange({ kubeApiQps })}
+          error={errors.kubeApiQps}
+          hint="Default: 50"
+        />
+        <LimitField
+          id="kube-api-user-qps"
+          label="Per user"
+          value={values.kubeApiUserQps}
+          range={[1, 200, 1]}
+          onChange={(kubeApiUserQps) => onChange({ kubeApiUserQps })}
+          error={errors.kubeApiUserQps}
+          hint="So one user cannot slow down everybody else. Default: 10"
+        />
+      </FieldGroup>
+    </SettingsCard>
   )
 }
 

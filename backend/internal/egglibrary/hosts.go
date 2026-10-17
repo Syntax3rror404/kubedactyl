@@ -6,7 +6,7 @@ import (
 )
 
 // host is how a git host serves a repository as one archive and its files one by one; every
-// layout reads the default branch (HEAD). The URLs were checked against each public host.
+// layout reads the default branch (HEAD).
 type host struct {
 	archive func(repo *url.URL) string
 	raw     func(repo *url.URL, file string) string

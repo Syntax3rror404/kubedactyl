@@ -85,7 +85,7 @@ func TestParseDelegationIgnoresOtherZones(t *testing.T) {
 }
 
 // DIAG_IT_DOMAIN=example.com go test ./internal/diagnostics -run Integration -v asks the real
-// name servers (needs internet); used to verify the lookup inside a cluster with a local DNS override.
+// name servers (needs internet). Run it where a local DNS server overrides the domain.
 func TestAuthoritativeIntegration(t *testing.T) {
 	domain := os.Getenv("DIAG_IT_DOMAIN")
 	if domain == "" {

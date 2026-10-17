@@ -30,7 +30,9 @@ export function DashboardPage() {
   const list = servers.data ?? []
   const running = list.filter((s) => phaseOf(s) === "Running").length
   const eggByName = new Map((eggs.data ?? []).map((e) => [e.metadata.name, e]))
-  const memory = list.reduce((sum, s) => sum + s.spec.resources.memoryMiB, 0)
+  const total = (key: "memoryMiB" | "diskMiB") => formatMiB(list.reduce((sum, s) => sum + s.spec.resources[key], 0))
+  // The tiles show placeholders until the list is there.
+  const tile = (value: () => string) => (servers.isLoading ? null : value())
   // Search and status filter appear once there are more servers than fit on one screen.
   const [filter, setFilter] = useState<ServerFilterState>({ query: "", status: "all" })
   const showFilter = list.length > 6
@@ -63,18 +65,9 @@ export function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricTile icon={<ServerIcon />} label="Servers" value={servers.isLoading ? null : String(list.length)} />
-        <MetricTile
-          icon={<ZapIcon />}
-          label="Running"
-          value={servers.isLoading ? null : `${running} / ${list.length}`}
-          accent
-        />
-        <MetricTile
-          icon={<MemoryStickIcon />}
-          label="Memory allocated"
-          value={servers.isLoading ? null : formatMiB(memory)}
-        />
+        <MetricTile icon={<ServerIcon />} label="Servers" value={tile(() => String(list.length))} />
+        <MetricTile icon={<ZapIcon />} label="Running" value={tile(() => `${running} / ${list.length}`)} accent />
+        <MetricTile icon={<MemoryStickIcon />} label="Memory allocated" value={tile(() => total("memoryMiB"))} />
         {isAdmin ? (
           <MetricTile
             icon={<EggLucide />}
@@ -83,11 +76,7 @@ export function DashboardPage() {
             hint={cluster.data?.version ? `k8s ${cluster.data.version}` : undefined}
           />
         ) : (
-          <MetricTile
-            icon={<HardDriveIcon />}
-            label="Disk allocated"
-            value={servers.isLoading ? null : formatMiB(list.reduce((sum, s) => sum + s.spec.resources.diskMiB, 0))}
-          />
+          <MetricTile icon={<HardDriveIcon />} label="Disk allocated" value={tile(() => total("diskMiB"))} />
         )}
       </div>
 

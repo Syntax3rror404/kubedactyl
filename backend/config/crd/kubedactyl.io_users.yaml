@@ -62,7 +62,7 @@ spec:
                 type: string
               mustChangePassword:
                 description: MustChangePassword makes the user replace the password
-                  (set by an administrator) after signing in.
+                  set by an administrator after signing in.
                 type: boolean
               oidc:
                 description: |-
@@ -90,8 +90,8 @@ spec:
                 - user
                 type: string
               sessionEpoch:
-                description: SessionEpoch invalidates all sessions of the user when
-                  it is increased.
+                description: SessionEpoch ends all sessions of the user when it is
+                  increased.
                 format: int64
                 type: integer
               tokens:

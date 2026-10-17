@@ -32,7 +32,8 @@ export interface ClusterinfoAuth {
   execCommand?: string;
   impersonating?: string;
   /**
-   * Method: client-certificate, token, exec, auth-provider, basic, service-account or none.
+   * Method is how the panel signs in: client-certificate, token, exec, auth-provider, basic,
+   * service-account or none.
    * @example "exec"
    */
   method: string;
@@ -380,7 +381,7 @@ export interface HttpapiCreateInviteRequest {
 }
 
 export interface HttpapiCreateServerRequest {
-  /** IPv6 also asks for an IPv6 address (dual stack clusters). */
+  /** IPv6 also asks for an IPv6 address. Only with a dual stack cluster. */
   ipv6?: boolean;
   /** @example 2000 */
   cpuMillis?: number;
@@ -391,31 +392,32 @@ export interface HttpapiCreateServerRequest {
   /** @example "paper" */
   egg: string;
   environment?: Record<string, string>;
-  /** ExternalTrafficPolicy of the service (default Local: the server sees the players' IPs). */
+  /** ExternalTrafficPolicy of the service. Empty: Local, the server sees the players' IPs. */
   externalTrafficPolicy?: "Local" | "Cluster";
   /** @example "ghcr.io/pelican-eggs/yolks:java_21" */
   image?: string;
   /**
-   * LoadBalancerIP optionally requests a fixed IP from the pool (one per IP family, separated by a comma).
+   * LoadBalancerIP fixes the address: one IP of the pool, or one per IP family separated by a comma. Optional.
    * @example "192.168.1.70"
    */
   loadBalancerIP?: string;
   /**
-   * LoadBalancerPool the address comes from (default: the default of the panel settings).
+   * LoadBalancerPool the address comes from. Empty: the panel default.
    * @example "general-pool"
    */
   loadBalancerPool?: string;
   /** @example 4096 */
   memoryMiB: number;
   /**
-   * Owner is the username the server belongs to (default: the calling admin).
+   * Owner is the username the server belongs to. Empty: the calling admin.
    * @example "alice"
    */
   owner?: string;
   /** @example [25565] */
   ports: number[];
-  /** ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow it). */
+  /** ServiceType ClusterIP publishes the server only inside the cluster. Only when the settings allow it. */
   serviceType?: "LoadBalancer" | "ClusterIP";
+  /** SkipInstall creates the server without running the install script. */
   skipInstall?: boolean;
   /**
    * StartOnCompletion starts the server once the installation is finished.
@@ -423,10 +425,10 @@ export interface HttpapiCreateServerRequest {
    */
   startOnCompletion?: boolean;
   startup?: string;
-  /** StartupName picks one of the egg's startup commands ("" = its default). */
+  /** StartupName picks one of the egg's startup commands. Empty: the egg's default. */
   startupName?: string;
   /**
-   * StorageClass of the data volume (default: the default of the panel settings).
+   * StorageClass of the data volume. Empty: the panel default.
    * @example "longhorn"
    */
   storageClass?: string;
@@ -434,7 +436,7 @@ export interface HttpapiCreateServerRequest {
 
 export interface HttpapiCreateTokenRequest {
   /**
-   * ExpiresInDays is the lifetime: 1 up to the longest API token lifetime of the panel.
+   * ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
    * @example 90
    */
   expiresInDays: number;
@@ -524,7 +526,10 @@ export interface HttpapiFilesRequest {
 
 export interface HttpapiFilesSession {
   error?: string;
-  /** @example 60 */
+  /**
+   * IdleTimeoutSeconds is how long the container stays after the last file operation (seconds).
+   * @example 60
+   */
   idleTimeoutSeconds: number;
   /** Message explains a Starting state (e.g. "ContainerCreating"). */
   message?: string;
@@ -631,7 +636,7 @@ export interface HttpapiLoginResponse {
 
 export interface HttpapiMigrateRequest {
   /**
-   * StartOnCompletion starts the server once the migration has ended.
+   * StartOnCompletion starts the server once the migration has finished (not after a failure or cancel).
    * @example true
    */
   startOnCompletion?: boolean;
@@ -787,7 +792,7 @@ export interface HttpapiSettingsView {
    */
   allowPrivateNetworks?: boolean;
   /**
-   * APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
    * tokens created before, counted from their creation.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -838,8 +843,8 @@ export interface HttpapiSettingsView {
    */
   eggLibraries?: string[];
   /**
-   * ExternalDomain is shown to users as the server address (domain:port) instead of the
-   * load balancer IP. Empty shows the IP.
+   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
+   * balancer IP. Empty: shows the IP.
    * +optional
    */
   externalDomain?: string;
@@ -849,17 +854,16 @@ export interface HttpapiSettingsView {
    */
   favicon?: string;
   /**
-   * KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-   * (default 50, bursts of twice that). It applies at once.
+   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+   * twice that). Empty: 50. It applies at once.
    * +optional
    * +kubebuilder:validation:Minimum=5
    * +kubebuilder:validation:Maximum=1000
    */
   kubeApiQps?: number;
   /**
-   * KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-   * bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-   * one user cannot use up KubeAPIQPS for everybody. It applies at once.
+   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+   * that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
    * +optional
    * +kubebuilder:validation:Minimum=1
    * +kubebuilder:validation:Maximum=200
@@ -873,7 +877,7 @@ export interface HttpapiSettingsView {
    */
   legalNotice?: string;
   /**
-   * LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
    * +optional
    */
   loadBalancerPools?: string[];
@@ -897,7 +901,7 @@ export interface HttpapiSettingsView {
    */
   serverNotice?: string;
   /**
-   * SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+   * SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
    * shortening it also ends older sessions.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -905,7 +909,7 @@ export interface HttpapiSettingsView {
    */
   sessionHours?: number;
   /**
-   * StorageClasses can be selected for server volumes.
+   * StorageClasses are the storage classes servers may use for their volume.
    * +optional
    */
   storageClasses?: string[];
@@ -967,14 +971,14 @@ export interface HttpapiUpdateSchedulesRequest {
 }
 
 export interface HttpapiUpdateServerRequest {
-  /** IPv6 also asks for an IPv6 address (dual stack clusters); admins only. */
+  /** IPv6 also asks for an IPv6 address. Only with a dual stack cluster. Admins only. */
   ipv6?: boolean;
   cpuMillis?: number;
   crashRestart?: boolean;
   diskMiB?: number;
   displayName?: string;
   environment?: Record<string, string>;
-  /** ExternalTrafficPolicy of the service; admins only. */
+  /** ExternalTrafficPolicy of the service. Admins only. */
   externalTrafficPolicy?: "Local" | "Cluster";
   image?: string;
   /** LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma. */
@@ -992,7 +996,7 @@ export interface HttpapiUpdateServerRequest {
    */
   serviceType?: "LoadBalancer" | "ClusterIP";
   startup?: string;
-  /** StartupName picks one of the egg's startup commands ("" = its default); owners may change it. */
+  /** StartupName picks one of the egg's startup commands. Empty: the egg's default. Owners may change it. */
   startupName?: string;
   stopTimeoutSeconds?: number;
 }
@@ -1012,7 +1016,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   allowPrivateNetworks?: boolean;
   /**
-   * APITokenMaxDays is the longest lifetime of an API token (default 90). It also limits the
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
    * tokens created before, counted from their creation.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -1063,8 +1067,8 @@ export interface HttpapiUpdateSettingsRequest {
    */
   eggLibraries?: string[];
   /**
-   * ExternalDomain is shown to users as the server address (domain:port) instead of the
-   * load balancer IP. Empty shows the IP.
+   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
+   * balancer IP. Empty: shows the IP.
    * +optional
    */
   externalDomain?: string;
@@ -1074,17 +1078,16 @@ export interface HttpapiUpdateSettingsRequest {
    */
   favicon?: string;
   /**
-   * KubeAPIQPS is how many requests per second the panel sends to the Kubernetes API at most
-   * (default 50, bursts of twice that). It applies at once.
+   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+   * twice that). Empty: 50. It applies at once.
    * +optional
    * +kubebuilder:validation:Minimum=5
    * +kubebuilder:validation:Maximum=1000
    */
   kubeApiQps?: number;
   /**
-   * KubeAPIUserQPS is how many requests per second one user may send to the panel (default 10,
-   * bursts of twice that); each may lead to Kubernetes API calls. More are refused with 429, so
-   * one user cannot use up KubeAPIQPS for everybody. It applies at once.
+   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+   * that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
    * +optional
    * +kubebuilder:validation:Minimum=1
    * +kubebuilder:validation:Maximum=200
@@ -1098,7 +1101,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   legalNotice?: string;
   /**
-   * LoadBalancerPools are the Cilium LB IPAM pools that can be selected for servers.
+   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
    * +optional
    */
   loadBalancerPools?: string[];
@@ -1122,7 +1125,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   serverNotice?: string;
   /**
-   * SessionHours is how long a sign-in lasts (default 12). It applies to every session, so
+   * SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
    * shortening it also ends older sessions.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -1130,7 +1133,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   sessionHours?: number;
   /**
-   * StorageClasses can be selected for server volumes.
+   * StorageClasses are the storage classes servers may use for their volume.
    * +optional
    */
   storageClasses?: string[];
@@ -1177,7 +1180,7 @@ export interface HttpapiUserView {
   /** HasPassword is false for accounts that sign in only through the identity provider. */
   hasPassword: boolean;
   lastLoginAt?: string;
-  /** MustChangePassword: the user has to replace the password set by an administrator first. */
+  /** MustChangePassword is true while the user has to replace the password set by an administrator. */
   mustChangePassword: boolean;
   /** @example "kubedactyl-user-alice" */
   namespace: string;
@@ -1292,7 +1295,10 @@ export interface SettingsStorageClass {
 export interface V1Alpha1ConfigFile {
   /** File is the path relative to the server root (/home/container). */
   file: string;
-  /** +kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml */
+  /**
+   * Parser is the format of the file; "file" replaces whole lines that start with Match.
+   * +kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml
+   */
   parser: string;
   replace?: V1Alpha1ConfigReplace[];
 }
@@ -1466,8 +1472,8 @@ export interface V1Alpha1GameServer {
 
 export interface V1Alpha1GameServerSpec {
   /**
-   * IPv6 asks for an address of each IP family the cluster has (PreferDualStack); the
-   * server gets an IPv6 address when the cluster runs dual stack and the pool has an IPv6 block.
+   * IPv6 gives the server an address of each IP family the cluster has (PreferDualStack). Only with
+   * a dual stack cluster and a pool with an IPv6 block. Admins only.
    * +optional
    */
   ipv6?: boolean;
@@ -1476,36 +1482,36 @@ export interface V1Alpha1GameServerSpec {
    * +kubebuilder:default=true
    */
   crashRestart?: boolean;
-  /** DisplayName is a human friendly name. */
+  /** DisplayName is the name shown in the panel. Empty: uses the object name. */
   displayName?: string;
   /** EggRef is the name of the Egg in the same namespace. */
   eggRef: string;
   /**
-   * Environment holds values for the egg variables.
+   * Environment holds the values of the egg variables. Missing ones use the egg's defaults.
    * +optional
    */
   environment?: Record<string, string>;
   /**
-   * ExternalTrafficPolicy of the service; empty means Local.
+   * ExternalTrafficPolicy of the server's service. Empty: uses Local. Admins only.
    * +optional
    */
   externalTrafficPolicy?: V1Alpha1TrafficPolicy;
   /** Image is the runtime image (one of the egg's docker images or a custom one). */
   image: string;
   /**
-   * InstallRevision triggers a (re)install whenever it differs from status.installedRevision.
+   * InstallRevision reinstalls the server whenever it differs from status.installedRevision.
    * +kubebuilder:default=1
    */
   installRevision?: number;
   /**
-   * LoadBalancerIP requests specific IPs from the load balancer pool: one, or one per IP family
-   * separated by a comma. The server then gets only these addresses.
+   * LoadBalancerIP fixes the server's addresses: one IP, or one per IP family separated by a comma,
+   * from the load balancer pool. Empty: the pool picks.
    * +optional
    */
   loadBalancerIP?: string;
   /**
-   * LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service
-   * gets the labels of the pool's service selector.
+   * LoadBalancerPool is the Cilium LB IPAM pool the address comes from. The service gets the labels
+   * of the pool's service selector.
    * +optional
    */
   loadBalancerPool?: string;
@@ -1516,7 +1522,7 @@ export interface V1Alpha1GameServerSpec {
   ports: number[];
   resources: V1Alpha1Resources;
   /**
-   * Schedules run tasks at fixed times.
+   * Schedules run tasks at fixed times or events of the server.
    * +optional
    * +listType=map
    * +listMapKey=name
@@ -1524,45 +1530,46 @@ export interface V1Alpha1GameServerSpec {
    */
   schedules?: V1Alpha1Schedule[];
   /**
-   * ServiceType is LoadBalancer (empty) or ClusterIP; a ClusterIP server keeps its pool for
-   * when it gets a load balancer again.
+   * ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).
+   * Empty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.
    * +optional
    */
   serviceType?: V1Alpha1ServiceType;
   /**
-   * SkipInstall skips the egg install script.
+   * SkipInstall creates the server without running the egg's install script.
    * +optional
    */
   skipInstall?: boolean;
   /**
-   * Startup overrides the egg's startup command.
+   * Startup replaces the egg's startup command. Empty: uses StartupName.
    * +optional
    */
   startup?: string;
   /**
-   * StartupName picks one of the egg's startup commands by name; empty or a name the egg no longer has
-   * means its default. Startup wins when set.
+   * StartupName picks one of the egg's startup commands by name. Empty or unknown: uses the egg's
+   * default. Ignored when Startup is set.
    * +optional
    */
   startupName?: string;
   /**
-   * State is the desired power state.
+   * State is the power state the server should be in.
    * +kubebuilder:default=Stopped
    */
   state?: V1Alpha1PowerState;
   /**
-   * StopTimeoutSeconds is how long to wait after the stop command before killing the server.
+   * StopTimeoutSeconds is how long the server may take to stop after the stop command before it
+   * is killed (seconds).
    * +kubebuilder:default=600
    */
   stopTimeoutSeconds?: number;
   /**
-   * StorageClass of the data volume. Changing it moves the server files to a new volume of that
-   * class (status.migration); the server stays stopped meanwhile.
+   * StorageClass of the server's volume. Changing it moves the files to a new volume of that class
+   * (status.migration); the server is locked meanwhile. Admins only.
    * +optional
    */
   storageClass?: string;
   /**
-   * Suspended servers are stopped and cannot be started or used by their owner (admins only).
+   * Suspended stops the server and locks it for its owner. Admins only.
    * +optional
    */
   suspended?: boolean;
@@ -1580,6 +1587,10 @@ export interface V1Alpha1GameServerStatus {
    */
   addresses?: string[];
   diskMeasuredAt?: string;
+  /**
+   * DiskUsedBytes is the last measured size of the server files (bytes). It is measured only
+   * while the files pod runs, which happens on demand.
+   */
   diskUsedBytes?: number;
   /** InstallExitCode is the exit code of the last install script run. */
   installExitCode?: number;
@@ -1622,9 +1633,7 @@ export interface V1Alpha1GameServerStatus {
    */
   stopTasksStartedAt?: string;
   /**
-   * DiskUsedBytes is the last measured size of the server files; the files pod that
-   * measures it only runs on demand.
-   * StorageClass of the bound data volume; while spec.storageClass differs, the server is migrating.
+   * StorageClass of the bound volume. While spec.storageClass differs, the server is migrating.
    * +optional
    */
   storageClass?: string;
@@ -1653,7 +1662,7 @@ export interface V1Alpha1OIDCSettings {
   /** +optional */
   enabled?: boolean;
   /**
-   * GroupsClaim holds the groups of the user (default groups).
+   * GroupsClaim holds the groups of the user. Empty: groups.
    * +optional
    */
   groupsClaim?: string;
@@ -1692,7 +1701,7 @@ export interface V1Alpha1OIDCSettings {
   /** +optional */
   userGroup?: string;
   /**
-   * UsernameClaim holds the panel username (default preferred_username).
+   * UsernameClaim holds the panel username. Empty: preferred_username.
    * +optional
    */
   usernameClaim?: string;
@@ -1711,17 +1720,17 @@ export type V1Alpha1PowerState = "Running" | "Stopped";
 
 export interface V1Alpha1Resources {
   /**
-   * CPUMillis limits CPU usage (1000 = one core); 0 means unlimited.
+   * CPUMillis limits the CPU of the server (millicores, 1000 = one core). 0 = unlimited.
    * +optional
    */
   cpuMillis?: number;
   /**
-   * DiskMiB is the size of the persistent volume.
+   * DiskMiB is the size of the server's volume (MiB).
    * +kubebuilder:validation:Minimum=256
    */
   diskMiB: number;
   /**
-   * MemoryMiB is the memory available to the server (SERVER_MEMORY).
+   * MemoryMiB is the memory of the server (MiB), also passed to it as SERVER_MEMORY.
    * +kubebuilder:validation:Minimum=64
    */
   memoryMiB: number;
@@ -1762,7 +1771,7 @@ export interface V1Alpha1Schedule {
 }
 
 export interface V1Alpha1ScheduleStatus {
-  /** LastResult is "ok", "skipped: …" or "failed: …". */
+  /** LastResult is "ok", "skipped: <reason>" or "failed: <reason>". */
   lastResult?: string;
   lastRunAt?: string;
   name: string;
@@ -1775,7 +1784,7 @@ export interface V1Alpha1ScheduleTask {
    */
   action: "command" | "start" | "stop" | "restart" | "kill" | "backup";
   /**
-   * DelaySeconds waits before this task (after the previous one).
+   * DelaySeconds waits before this task, counted from the end of the previous one (seconds).
    * +optional
    * +kubebuilder:validation:Minimum=0
    * +kubebuilder:validation:Maximum=900
@@ -1798,12 +1807,12 @@ export interface V1Alpha1StartupCommand {
 
 export interface V1Alpha1StorageMigration {
   /**
-   * Done of Total files copied.
+   * Done is the number of files copied so far, Total the number of all files.
    * +optional
    */
   done?: number;
   /**
-   * Error tells why a failed migration stopped; the server stays on its volume.
+   * Error tells why the migration failed. The server stays on its old volume.
    * +optional
    */
   error?: string;

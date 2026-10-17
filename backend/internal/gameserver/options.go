@@ -45,27 +45,28 @@ const (
 	// AnnotationPoolLabels lists the service label keys set for the load balancer pool,
 	// so they can be removed when the server moves to another pool.
 	AnnotationPoolLabels = "kubedactyl.io/pool-labels"
-	// AnnotationRuntimeHash records the runtime settings a game pod was created with (v2: also
-	// the egg's startup, variable defaults and config files; pods with only the v1 hash from older
-	// versions never ask for a restart).
+	// AnnotationRuntimeHash records the runtime settings a game pod was created with (RuntimeHash).
+	// Its name changes with what goes into the hash, so pods of older versions never ask for a
+	// restart.
 	AnnotationRuntimeHash = "kubedactyl.io/runtime-hash-v2"
 	// AnnotationKeepVolume keeps the data volume when the server object is deleted, because a
 	// transfer to another owner moves it (serverctl.Transfer).
 	AnnotationKeepVolume = "kubedactyl.io/keep-volume"
-	// AnnotationMovedVolume names the persistent volume a transferred server's claim binds to.
+	// AnnotationMovedVolume names the persistent volume the data claim binds to after a transfer
+	// or a storage migration.
 	AnnotationMovedVolume = "kubedactyl.io/moved-volume"
 	// AnnotationInstalledRevision carries the install state of a transferred server, whose
 	// status starts empty: it must not be installed again.
 	AnnotationInstalledRevision = "kubedactyl.io/installed-revision"
 
-	// PathScript defines shell functions for scripts that touch the server files. real prints a
-	// path with every symbolic link resolved (also links to something missing, which a write
-	// would create; BusyBox realpath resolves their relative targets against the working folder,
-	// so real follows them itself) and missing parts appended as given (nothing for link loops
-	// or ".." after a missing part); entry resolves only its folder (deleting or moving a link
-	// touches the link); inside ends the script as not found (exit 3) for a path outside the
-	// server root, so links cannot lead out of the volume. BusyBox realpath takes no "--"; the
-	// paths are always absolute.
+	// PathScript defines shell functions for scripts that touch the server files, so symbolic
+	// links never lead out of the volume. Paths are always absolute.
+	//   - real prints a path with every link resolved, also a link to something missing (a write
+	//     would create it). Missing parts are appended as given; a link loop or ".." after a
+	//     missing part prints nothing. real follows links itself: BusyBox realpath takes no "--"
+	//     and resolves the relative target of a dangling link against the working folder.
+	//   - entry resolves only the folder, because deleting or moving a link touches the link.
+	//   - inside ends the script as not found (exit 3) for a path outside the server root.
 	PathScript = `real() {
   local p="$1" s="" r n=0
   while [ "$n" -lt 64 ]; do

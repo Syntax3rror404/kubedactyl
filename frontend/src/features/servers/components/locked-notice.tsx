@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { suspendFeedback } from "@/features/servers/lib/feedback"
 import { failed } from "@/lib/notify"
+import { formatNumber } from "@/lib/format"
 import { useCancelMigration, useSuspendServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
@@ -76,7 +77,7 @@ export function MigrationNotice({ server, isAdmin }: { server: GameServer; isAdm
   })
   const text = {
     Preparing: `Stopping the server and creating a volume of ${to}.`,
-    Copying: `Copying the files to ${to}: ${(m?.done ?? 0).toLocaleString("en-US")} of ${(m?.total ?? 0).toLocaleString("en-US")} files.`,
+    Copying: `Copying the files to ${to}: ${formatNumber(m?.done ?? 0)} of ${formatNumber(m?.total ?? 0)} files.`,
     Switching: "Files copied and checked, switching to the new volume.",
     Failed: "",
   }[step]

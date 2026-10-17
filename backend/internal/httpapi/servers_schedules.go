@@ -82,8 +82,7 @@ func (a *API) listSchedules(c *gin.Context) {
 //	@Router			/servers/{server}/schedules [put]
 func (a *API) updateSchedules(c *gin.Context) {
 	var req UpdateSchedulesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -126,5 +125,6 @@ func (a *API) runSchedule(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
+	a.audit(c, "schedule started", "server", gs.Name, "schedule", c.Param("schedule"))
 	c.Status(http.StatusAccepted)
 }

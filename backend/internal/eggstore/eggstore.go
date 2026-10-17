@@ -38,6 +38,8 @@ var (
 	ErrInUse = errors.New("egg is used by servers")
 	// ErrNameTaken is returned when no free name is left for a new egg.
 	ErrNameTaken = errors.New("too many eggs with this name")
+	// ErrTooLarge is returned for egg files larger than MaxSize.
+	ErrTooLarge = fmt.Errorf("the egg file is larger than %d MiB", MaxSize>>20)
 )
 
 // Store reads and writes eggs.
@@ -50,6 +52,21 @@ type Store struct {
 
 func (s *Store) key(name string) client.ObjectKey {
 	return client.ObjectKey{Namespace: s.Namespace, Name: name}
+}
+
+// egg is a new Egg object of the panel namespace.
+func (s *Store) egg(name string, spec *v1alpha1.EggSpec) *v1alpha1.Egg {
+	e := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}}
+	if spec != nil {
+		e.Spec = *spec
+	}
+	return e
+}
+
+// current reads an egg uncached, for changes that must start from its stored state.
+func (s *Store) current(ctx context.Context, name string) (*v1alpha1.Egg, error) {
+	e := &v1alpha1.Egg{}
+	return e, s.Reader.Get(ctx, s.key(name), e)
 }
 
 // Get reads an egg from the cache and, when it is not there (yet), from the API server:
@@ -79,9 +96,8 @@ func (s *Store) Create(ctx context.Context, spec *v1alpha1.EggSpec) (*v1alpha1.E
 		if i > 1 {
 			name = fmt.Sprintf("%s-%d", base, i)
 		}
-		e := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}, Spec: *spec}
-		err := s.Client.Create(ctx, e)
-		if !apierrors.IsAlreadyExists(err) {
+		e := s.egg(name, spec)
+		if err := s.Client.Create(ctx, e); !apierrors.IsAlreadyExists(err) {
 			return e, err
 		}
 	}
@@ -95,8 +111,8 @@ func (s *Store) Update(ctx context.Context, name string, spec *v1alpha1.EggSpec)
 	if err := normalize(spec); err != nil {
 		return nil, err
 	}
-	cur := &v1alpha1.Egg{}
-	if err := s.Reader.Get(ctx, s.key(name), cur); err != nil {
+	cur, err := s.current(ctx, name)
+	if err != nil {
 		return nil, err
 	}
 	now := metav1.Now()
@@ -137,15 +153,14 @@ func (s *Store) Import(
 		spec.Source.UpdateURL = source
 	}
 	name := egg.Slug(spec.DisplayName)
-	cur := &v1alpha1.Egg{}
-	err = s.Reader.Get(ctx, s.key(name), cur)
+	cur, err := s.current(ctx, name)
 	switch {
 	case apierrors.IsNotFound(err):
 		if spec.Source.UUID == "" {
 			spec.Source.UUID = egg.NewUUID()
 		}
 		spec.Source.AutoUpdate = autoUpdate && spec.Source.UpdateURL != ""
-		e := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}, Spec: *spec}
+		e := s.egg(name, spec)
 		return e, true, s.Client.Create(ctx, e)
 	case err != nil:
 		return nil, false, err
@@ -162,8 +177,8 @@ func (s *Store) Import(
 // UpdateFromURL downloads the egg from its update URL and replaces all fields, including
 // changes made in the panel; name and UUID are kept.
 func (s *Store) UpdateFromURL(ctx context.Context, name string) (*v1alpha1.Egg, error) {
-	cur := &v1alpha1.Egg{}
-	if err := s.Reader.Get(ctx, s.key(name), cur); err != nil {
+	cur, err := s.current(ctx, name)
+	if err != nil {
 		return nil, err
 	}
 	spec, err := fetchUpdate(ctx, cur)
@@ -212,7 +227,7 @@ func (s *Store) Delete(ctx context.Context, name string) error {
 			return fmt.Errorf("%w: %q", ErrInUse, gs.Spec.DisplayName)
 		}
 	}
-	return s.Client.Delete(ctx, &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}})
+	return s.Client.Delete(ctx, s.egg(name, nil))
 }
 
 // Download fetches an egg file from an http(s) URL.
@@ -235,7 +250,16 @@ func Download(ctx context.Context, raw string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: %s", ErrDownload, resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, MaxSize))
+	return ReadFile(resp.Body)
+}
+
+// ReadFile reads an egg file of at most MaxSize bytes; a larger one is ErrTooLarge instead of cut off.
+func ReadFile(r io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(r, MaxSize+1))
+	if err == nil && len(data) > MaxSize {
+		return nil, ErrTooLarge
+	}
+	return data, err
 }
 
 // invalid marks a parse error as ErrInvalid and keeps its message.

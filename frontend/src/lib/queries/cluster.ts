@@ -5,17 +5,20 @@ import { keys } from "@/lib/queries/keys"
 import { useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { NodesResponse } from "@/lib/types"
 
+/** Connection summary of the sidebar cluster card. */
 export const useClusterInfo = (enabled = true) =>
   useQuery({ queryKey: keys.cluster, queryFn: api.cluster.getInfo, staleTime: 60_000, enabled })
 
+/** The nodes with capacity, usage and hardware, polled for the cluster page. */
 export const useClusterNodes = () =>
   useQuery({
     queryKey: keys.clusterNodes,
     queryFn: api.cluster.listNodes,
-    // poll faster while hardware probes are running
+    // Faster while hardware probes run, so their results show soon after they finish.
     refetchInterval: (q) => (q.state.data?.nodes.some((n) => n.hardwareProbing) ? 3000 : 10000),
   })
 
+/** Who the panel is in the cluster: endpoint, credentials and permissions. */
 export const useClusterIdentity = () =>
   useQuery({ queryKey: keys.clusterIdentity, queryFn: api.cluster.getIdentity, staleTime: 60_000 })
 

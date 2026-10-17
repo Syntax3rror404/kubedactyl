@@ -14,6 +14,7 @@ export const useSetupStatus = (enabled = true) =>
 export const useOIDCSignIn = () =>
   useQuery({ queryKey: keys.oidcSignIn, queryFn: api.auth.getOIDCSignIn, staleTime: Infinity })
 
+/** The signed-in user; a failed request is not retried (no session: sign in). */
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: api.auth.getMe, retry: false, staleTime: 30_000 })
 
 /** Creates the first administrator and signs them in. */
@@ -27,6 +28,7 @@ export const useRunSetup = (cb?: MutationCallbacks<LoginResponse, Parameters<typ
     cb,
   )
 
+/** Signs in; the answer is the signed-in user. */
 export const useLogin = (cb?: MutationCallbacks<LoginResponse, { username: string; password: string }>) =>
   useApiMutation(
     ({ username, password }) => api.auth.login(username, password),
@@ -46,8 +48,7 @@ export const useLogout = (cb?: MutationCallbacks<void, void>) =>
 export const useLogoutAll = (cb?: MutationCallbacks<void, void>) =>
   useApiMutation(api.auth.logoutAll, (qc) => qc.clear(), cb)
 
-/** Changing the password ends all sessions (revokeTokens: also the API tokens); the caller sends the user to the
- * sign-in page. */
+/** Changing the password ends all sessions (revokeTokens: also the API tokens); the caller opens the sign-in page. */
 export const useUpdatePassword = (
   cb?: MutationCallbacks<void, { current: string; next: string; revokeTokens: boolean }>,
 ) =>
@@ -69,16 +70,17 @@ export function useSessionEnd(onEnd: () => void) {
   }, [qc, onEnd])
 }
 
+/** The API tokens of the signed-in user. */
 export const useTokens = () => useQuery({ queryKey: keys.tokens, queryFn: api.auth.listTokens, staleTime: 60_000 })
 
-// The token list comes from the signed-in user, which the panel reads from its (lagging) cache,
-// so the list is updated from the response instead of being loaded again. A request that is
-// still running is cancelled first, otherwise its older answer would overwrite the update.
+// Updated from the answer: the panel reads the list from its lagging cache. A request still running is cancelled
+// first, its older answer would overwrite the update.
 const updateTokens = (qc: QueryClient, update: (list: TokenView[]) => TokenView[]) => {
   void qc.cancelQueries({ queryKey: keys.tokens })
   qc.setQueryData<TokenView[]>(keys.tokens, (list = []) => update(list))
 }
 
+/** Creates an API token and adds it to the list from the answer. */
 export const useCreateToken = (cb?: MutationCallbacks<CreatedToken, { name: string; expiresInDays: number }>) =>
   useApiMutation(
     ({ name, expiresInDays }) => api.auth.createToken(name, expiresInDays),
@@ -87,5 +89,6 @@ export const useCreateToken = (cb?: MutationCallbacks<CreatedToken, { name: stri
     cb,
   )
 
+/** Revokes an API token and removes it from the list. */
 export const useDeleteToken = (cb?: MutationCallbacks<void, string>) =>
   useApiMutation(api.auth.deleteToken, (qc, _, id) => updateTokens(qc, (list) => list.filter((t) => t.id !== id)), cb)

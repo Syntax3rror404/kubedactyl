@@ -31,8 +31,8 @@ const components: Record<EggFeature, (p: FeatureProps) => React.ReactNode> = {
 }
 
 /**
- * Dialogs for the egg features. Like Pterodactyl they react to console output while the server
- * is not running (a crashed start, a failed update); the history of an earlier run can show them again.
+ * Dialogs for the egg features. They react to console output while the server is not running (a crashed start, a
+ * failed update); the history of an earlier run can show them again.
  */
 export function EggFeatures({ server, egg, subscribe }: { server: GameServer; egg: Egg; subscribe: Subscribe }) {
   const { isAdmin } = useAuth()

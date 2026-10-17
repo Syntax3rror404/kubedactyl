@@ -35,13 +35,16 @@ const (
 	KindInstall
 )
 
+// historySize is how many output lines a server keeps for viewers that connect later.
 const historySize = 1000
 
+// session is the followed pod of a server; cancel ends its log stream.
 type session struct {
 	uid    types.UID
 	cancel context.CancelFunc
 }
 
+// stream is the output of one server: its history, its viewers and the followed pod.
 type stream struct {
 	mu      sync.Mutex
 	history []Event
@@ -106,7 +109,7 @@ func (h *Hub) Publish(server string, ev Event) {
 	for ch := range s.subs {
 		select {
 		case ch <- ev:
-		default: // slow client: drop the event rather than blocking the stream
+		default: // a slow client loses the event, the stream does not wait for it
 		}
 	}
 }
@@ -146,23 +149,20 @@ func (h *Hub) Follow(server string, pod *corev1.Pod, kind Kind, m *Matcher) {
 	go h.follow(ctx, pod.Namespace, server, pod.Name, pod.UID, kind, m)
 }
 
-// StopFollow ends the current output stream of a server.
-func (h *Hub) StopFollow(server string) {
-	s := h.stream(server)
+// Remove ends the output stream of a deleted server and forgets it.
+func (h *Hub) Remove(server string) {
+	h.mu.Lock()
+	s := h.streams[server]
+	delete(h.streams, server)
+	h.mu.Unlock()
+	if s == nil {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.session != nil {
 		s.session.cancel()
-		s.session = nil
 	}
-}
-
-// Remove forgets a deleted server.
-func (h *Hub) Remove(server string) {
-	h.StopFollow(server)
-	h.mu.Lock()
-	delete(h.streams, server)
-	h.mu.Unlock()
 }
 
 // ForgetPod releases the done state of a pod that no longer exists.

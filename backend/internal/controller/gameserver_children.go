@@ -27,17 +27,14 @@ func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) err
 	// Uncached: the cache may not show a claim that was created a moment ago.
 	err := r.Reader.Get(ctx, client.ObjectKeyFromObject(want), cur)
 	if apierrors.IsNotFound(err) {
-		if err := controllerutil.SetControllerReference(gs, want, r.Scheme()); err != nil {
-			return err
-		}
 		gs.Status.StorageClass = ptr.Deref(want.Spec.StorageClassName, "")
-		return client.IgnoreAlreadyExists(r.Create(ctx, want))
+		return r.createOwned(ctx, gs, want)
 	}
 	if err != nil {
 		return err
 	}
 	gs.Status.StorageClass = ptr.Deref(cur.Spec.StorageClassName, "")
-	// Longhorn volumes can be expanded online, never shrunk.
+	// A volume can grow while it is in use, it never shrinks.
 	wantSize := want.Spec.Resources.Requests[corev1.ResourceStorage]
 	curSize := cur.Spec.Resources.Requests[corev1.ResourceStorage]
 	if wantSize.Cmp(curSize) > 0 {
@@ -48,6 +45,7 @@ func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) err
 	return nil
 }
 
+// ensureService publishes the ports and records the addresses the load balancer assigned.
 func (r *Reconciler) ensureService(ctx context.Context, gs *v1alpha1.GameServer) error {
 	var poolLabels map[string]string
 	if gs.Spec.LoadBalancerPool != "" && !gameserver.ClusterOnly(gs) {
@@ -127,16 +125,13 @@ func mergePorts(cur, want []corev1.ServicePort, typ corev1.ServiceType) []corev1
 	return out
 }
 
-func (r *Reconciler) ensureFilesPod(ctx context.Context, gs *v1alpha1.GameServer) (bool, error) {
+// ensureFilesPod creates the files pod or replaces one that ended; ready tells whether it can run
+// commands.
+func (r *Reconciler) ensureFilesPod(ctx context.Context, gs *v1alpha1.GameServer) (ready bool, err error) {
 	pod := &corev1.Pod{}
-	// Uncached like the game pod: the files pod comes and goes and its state must be exact.
-	err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.FilesPodName(gs.Name)}, pod)
+	err = r.getChild(ctx, gs, gameserver.FilesPodName(gs.Name), pod)
 	if apierrors.IsNotFound(err) {
-		want := gameserver.FilesPod(gs, r.Opts)
-		if err := controllerutil.SetControllerReference(gs, want, r.Scheme()); err != nil {
-			return false, err
-		}
-		return false, client.IgnoreAlreadyExists(r.Create(ctx, want))
+		return false, r.createOwned(ctx, gs, gameserver.FilesPod(gs, r.Opts))
 	}
 	if err != nil {
 		return false, err
@@ -151,6 +146,25 @@ func (r *Reconciler) ensureFilesPod(ctx context.Context, gs *v1alpha1.GameServer
 		return false, r.Delete(ctx, pod)
 	}
 	return gameserver.PodReady(pod), nil
+}
+
+// getChild reads an object of the server uncached: children come and go, and what happens next
+// depends on their current state.
+func (r *Reconciler) getChild(ctx context.Context, gs *v1alpha1.GameServer, name string, obj client.Object) error {
+	return r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: name}, obj)
+}
+
+// createOwned creates an object of the server unless it exists.
+func (r *Reconciler) createOwned(ctx context.Context, gs *v1alpha1.GameServer, obj client.Object) error {
+	if err := controllerutil.SetControllerReference(gs, obj, r.Scheme()); err != nil {
+		return err
+	}
+	return client.IgnoreAlreadyExists(r.Create(ctx, obj))
+}
+
+// deleteNow deletes a pod without grace period; a pod that is gone already is no error.
+func (r *Reconciler) deleteNow(ctx context.Context, pod *corev1.Pod) error {
+	return client.IgnoreNotFound(r.Delete(ctx, pod, client.GracePeriodSeconds(0)))
 }
 
 // containerState returns the state of the main container.

@@ -1,17 +1,8 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
 import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
@@ -27,7 +18,7 @@ const patterns = [
   "minecraft 1.19 requires running the server with java 17 or above",
 ]
 
-/** Egg feature "java_version": the server needs another Java: pick one of the egg's images. */
+/** Egg feature "java_version": the server needs another Java, so the user picks one of the egg's images. */
 export function JavaVersionPrompt({
   server,
   egg,
@@ -42,63 +33,54 @@ export function JavaVersionPrompt({
   isAdmin: boolean
 }) {
   const { line, dismiss } = useConsoleMatch(subscribe, patterns)
-  const name = server.metadata.name
   const images = egg.spec.dockerImages.filter((i) => i.image !== server.spec.image)
-  // Like Pelican: a custom image set by an administrator is not replaced by users.
+  // Users never replace a custom image an administrator has set.
   const custom = !egg.spec.dockerImages.some((i) => i.image === server.spec.image)
   const canChange = images.length > 0 && (isAdmin || !custom)
   const [image, setImage] = useState("")
   const picked = image || images[0]?.image || ""
-  const update = useUpdateAndStartServer(name, {
+  const update = useUpdateAndStartServer(server.metadata.name, {
     onSuccess: () => {
       dismiss()
       toast.success("Docker image updated", { description: "Starting the server…" })
     },
     onError: failed("update the docker image"),
   })
+  const hint = canChange
+    ? " Pick a supported version to continue."
+    : custom
+      ? " Ask an administrator to change the custom image."
+      : ""
   return (
-    <AlertDialog open={!!line && !running} onOpenChange={(o) => !o && dismiss()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Unsupported Java version</AlertDialogTitle>
-          <AlertDialogDescription>
-            This Java version is not supported, so the server cannot start.
-            {canChange
-              ? " Pick a supported version to continue."
-              : custom
-                ? " Ask an administrator to change the custom image."
-                : ""}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {canChange && (
-          <Select value={picked} onValueChange={setImage}>
-            <SelectTrigger className="w-full" aria-label="Docker image">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {images.map((i) => (
-                <SelectItem key={i.image} value={i.image}>
-                  {i.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          {canChange && (
-            <AlertDialogAction
-              disabled={update.isPending}
-              onClick={(e) => {
-                e.preventDefault()
-                update.mutate({ changes: { image: picked }, signal: "start" })
-              }}
-            >
-              Update docker image
-            </AlertDialogAction>
-          )}
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <FeaturePrompt
+      open={!!line && !running}
+      onClose={dismiss}
+      title="Unsupported Java version"
+      description={`This Java version is not supported, so the server cannot start.${hint}`}
+      confirm={
+        canChange
+          ? {
+              label: "Update docker image",
+              pending: update.isPending,
+              onConfirm: () => update.mutate({ changes: { image: picked }, signal: "start" }),
+            }
+          : undefined
+      }
+    >
+      {canChange && (
+        <Select value={picked} onValueChange={setImage}>
+          <SelectTrigger className="w-full" aria-label="Docker image">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {images.map((i) => (
+              <SelectItem key={i.image} value={i.image}>
+                {i.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </FeaturePrompt>
   )
 }

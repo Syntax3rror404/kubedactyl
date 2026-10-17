@@ -10,6 +10,15 @@ function describeStop(stop?: string) {
   return `Console command “${stop}”`
 }
 
+/** Marks the first entry of a list users pick from: new servers get it. */
+export function DefaultBadge() {
+  return (
+    <Badge variant="secondary" className="ml-2">
+      default
+    </Badge>
+  )
+}
+
 /** Startup behavior and docker images of an egg. */
 export function EggOverview({ spec: s }: { spec: EggSpec }) {
   const commands = s.startupCommands?.length ?? 0
@@ -26,11 +35,7 @@ export function EggOverview({ spec: s }: { spec: EggSpec }) {
               {commands > 1 && (
                 <div className="mb-1 text-sm font-medium">
                   {c.name}
-                  {i === 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      default
-                    </Badge>
-                  )}
+                  {i === 0 && <DefaultBadge />}
                 </div>
               )}
               <div className="flex items-start gap-2 font-mono text-xs break-all">
@@ -68,15 +73,14 @@ export function EggOverview({ spec: s }: { spec: EggSpec }) {
         </CardHeader>
         <CardContent className="space-y-2">
           {s.dockerImages.map((img, i) => (
-            <div key={img.image} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+            <div
+              key={`${i}-${img.image}`}
+              className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+            >
               <div className="min-w-0">
                 <div className="text-sm font-medium">
                   {img.name}
-                  {i === 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      default
-                    </Badge>
-                  )}
+                  {i === 0 && <DefaultBadge />}
                 </div>
                 <div className="truncate font-mono text-xs text-muted-foreground">{img.image}</div>
               </div>

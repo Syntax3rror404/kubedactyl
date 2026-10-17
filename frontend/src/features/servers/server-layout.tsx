@@ -52,8 +52,10 @@ const tabs = [
   { to: "settings", label: "Settings", icon: SettingsIcon },
 ]
 
-/** Frame of all server pages: header with status and power buttons, tabs, notices; locked view for suspended servers
- * (owners) and servers being removed or migrated (everyone). */
+/**
+ * Frame of all server pages: header with status and power buttons, tabs and notices. Suspended servers are locked for
+ * their owners, servers being removed or migrated for everyone.
+ */
 export function ServerLayout() {
   const { server: name = "" } = useParams()
   const server = useServer(name)

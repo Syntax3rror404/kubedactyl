@@ -34,13 +34,14 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
   const suspended = !!server.spec.suspended
   const { isAdmin } = useAuth()
   const eggName = serverEggName(server, egg)
+  const open = () => navigate(`/servers/${server.metadata.name}`)
 
   return (
     <div
       role="link"
       tabIndex={0}
-      onClick={() => navigate(`/servers/${server.metadata.name}`)}
-      onKeyDown={(e) => e.key === "Enter" && navigate(`/servers/${server.metadata.name}`)}
+      onClick={open}
+      onKeyDown={(e) => e.key === "Enter" && open()}
       className="h-full cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <GlowCard>

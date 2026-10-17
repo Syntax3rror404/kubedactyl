@@ -41,7 +41,10 @@ func principal(c *gin.Context) *Principal {
 	return pr
 }
 
-var errUnauthorized = errors.New("authentication required")
+var (
+	errUnauthorized    = errors.New("authentication required")
+	errTooManyAttempts = errors.New("too many attempts, try again later")
+)
 
 // crossSiteCookieRequest detects state changing requests that another site triggered
 // with the session cookie (CSRF). The SameSite=Strict cookie already prevents this in
@@ -107,9 +110,14 @@ func (a *API) authenticate(c *gin.Context) {
 // instead of being refused as busy: they must be able to raise the limit during an overload.
 func (a *API) limitRequests(c *gin.Context) {
 	if wait, err := a.admit(principal(c)); err != nil {
-		c.Header("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
+		retryAfter(c, wait)
 		a.fail(c, err)
 	}
+}
+
+// retryAfter tells the client when to try again, in whole seconds (at least 1) as the header requires.
+func retryAfter(c *gin.Context, wait time.Duration) {
+	c.Header("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
 }
 
 // admit counts one request of the user (also every message of an open console) and refuses it over the

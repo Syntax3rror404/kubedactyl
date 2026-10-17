@@ -2,7 +2,6 @@ import { KeyRoundIcon } from "lucide-react"
 
 import { CopyButton } from "@/components/common/copy-button"
 import { UnveilPassword } from "@/components/common/unveil-password"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
@@ -13,7 +12,7 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
+import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
 import type { OIDCSettings } from "@/lib/types"
 
 type TextField = {
@@ -65,93 +64,73 @@ export function SsoCard({
 }) {
   const thisPanel = `${location.origin}/api/auth/oidc/callback`
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <KeyRoundIcon className="size-4" />
-          OpenID Connect
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup className="gap-6">
-          <Field orientation="horizontal">
-            <Switch
-              id="oidc-enabled"
-              checked={!!values.enabled}
-              onCheckedChange={(enabled) => onChange({ enabled, redirectUrl: values.redirectUrl || thisPanel })}
+    <SettingsCard icon={KeyRoundIcon} title="OpenID Connect">
+      <FieldGroup className="gap-6">
+        <SwitchField
+          id="oidc-enabled"
+          label="Enable OIDC on login page"
+          checked={!!values.enabled}
+          onChange={(enabled) => onChange({ enabled, redirectUrl: values.redirectUrl || thisPanel })}
+        />
+        <FieldGroup className="grid gap-6 md:grid-cols-2">
+          {textFields.map((f) => (
+            <TextInput
+              key={f.key}
+              field={f}
+              value={values[f.key] ?? ""}
+              onChange={(v) => onChange({ [f.key]: v })}
+              error={errors[`oidc.${f.key}`]}
             />
-            <FieldLabel htmlFor="oidc-enabled">Enable OIDC on login page</FieldLabel>
-          </Field>
-          <FieldGroup className="grid gap-6 md:grid-cols-2">
-            {textFields.map((f) => (
-              <TextInput
-                key={f.key}
-                field={f}
-                value={values[f.key] ?? ""}
-                onChange={(v) => onChange({ [f.key]: v })}
-                error={errors[`oidc.${f.key}`]}
-              />
-            ))}
-            <Field data-invalid={errors.oidcClientSecret ? true : undefined}>
-              <FieldLabel htmlFor="oidc-secret">Client secret</FieldLabel>
-              <UnveilPassword
-                id="oidc-secret"
-                autoComplete="off"
-                value={secret}
-                onChange={(e) => onSecret(e.target.value)}
-                placeholder={secretSet ? "Stored, type to replace" : "Empty for a public client"}
-              />
-              {errors.oidcClientSecret && <FieldError>{errors.oidcClientSecret}</FieldError>}
-            </Field>
-          </FieldGroup>
-          <FieldSeparator />
-          <FieldSet>
-            <Field orientation="horizontal">
-              <Switch
-                id="oidc-link"
-                checked={!!values.linkByUsername}
-                onCheckedChange={(linkByUsername) => onChange({ linkByUsername })}
-              />
-              <div>
-                <FieldLabel htmlFor="oidc-link">Link existing accounts by username</FieldLabel>
-                <FieldDescription>
-                  To take over existing accounts. Turn it off afterwards: whoever picks a name at the identity provider
-                  gets that account.
-                </FieldDescription>
-              </div>
-            </Field>
-            <Field orientation="horizontal">
-              <Switch
-                id="oidc-keep-passwords"
-                checked={!!values.keepPasswords}
-                onCheckedChange={(keepPasswords) => onChange({ keepPasswords })}
-              />
-              <div>
-                <FieldLabel htmlFor="oidc-keep-passwords">Keep passwords of linked accounts</FieldLabel>
-                <FieldDescription>
-                  They can still sign in with their password; their role then changes only at single sign-on.
-                </FieldDescription>
-              </div>
-            </Field>
-          </FieldSet>
-          <Field data-invalid={errors["oidc.redirectUrl"] ? true : undefined}>
-            <FieldLabel htmlFor="oidc-redirect">Redirect URL</FieldLabel>
-            <div className="flex items-center gap-2">
-              <Input
-                id="oidc-redirect"
-                value={values.redirectUrl ?? ""}
-                onChange={(e) => onChange({ redirectUrl: e.target.value })}
-                placeholder="https://panel.example.com/api/auth/oidc/callback"
-                className="font-mono"
-                aria-invalid={errors["oidc.redirectUrl"] ? true : undefined}
-              />
-              <CopyButton value={values.redirectUrl || thisPanel} />
-            </div>
-            {errors["oidc.redirectUrl"] && <FieldError>{errors["oidc.redirectUrl"]}</FieldError>}
+          ))}
+          <Field data-invalid={errors.oidcClientSecret ? true : undefined}>
+            <FieldLabel htmlFor="oidc-secret">Client secret</FieldLabel>
+            <UnveilPassword
+              id="oidc-secret"
+              autoComplete="off"
+              value={secret}
+              onChange={(e) => onSecret(e.target.value)}
+              placeholder={secretSet ? "Stored, type to replace" : "Empty for a public client"}
+            />
+            {errors.oidcClientSecret && <FieldError>{errors.oidcClientSecret}</FieldError>}
           </Field>
         </FieldGroup>
-      </CardContent>
-    </Card>
+        <FieldSeparator />
+        <FieldSet>
+          <SwitchField
+            id="oidc-link"
+            label="Link existing accounts by username"
+            checked={!!values.linkByUsername}
+            onChange={(linkByUsername) => onChange({ linkByUsername })}
+          >
+            To take over existing accounts. Turn it off afterwards: whoever picks a name at the identity provider gets
+            that account.
+          </SwitchField>
+          <SwitchField
+            id="oidc-keep-passwords"
+            label="Keep passwords of linked accounts"
+            checked={!!values.keepPasswords}
+            onChange={(keepPasswords) => onChange({ keepPasswords })}
+          >
+            They can still sign in with their password; their role then changes only at single sign-on.
+          </SwitchField>
+        </FieldSet>
+        <Field data-invalid={errors["oidc.redirectUrl"] ? true : undefined}>
+          <FieldLabel htmlFor="oidc-redirect">Redirect URL</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              id="oidc-redirect"
+              value={values.redirectUrl ?? ""}
+              onChange={(e) => onChange({ redirectUrl: e.target.value })}
+              placeholder="https://panel.example.com/api/auth/oidc/callback"
+              className="font-mono"
+              aria-invalid={errors["oidc.redirectUrl"] ? true : undefined}
+            />
+            <CopyButton value={values.redirectUrl || thisPanel} />
+          </div>
+          {errors["oidc.redirectUrl"] && <FieldError>{errors["oidc.redirectUrl"]}</FieldError>}
+        </Field>
+      </FieldGroup>
+    </SettingsCard>
   )
 }
 

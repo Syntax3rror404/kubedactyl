@@ -45,10 +45,7 @@ type Dialog =
   | { kind: "edit"; file: string; isNew?: boolean }
   | null
 
-/**
- * /servers/:server/files: file manager (all in the monospace font); the file container is started on
- * demand (see useFileContainer).
- */
+/** /servers/:server/files: the file manager; the file container starts on demand (useFileContainer). */
 export function FilesPage() {
   const { server } = useOutletContext<ServerContext>()
   const name = server.metadata.name
@@ -74,7 +71,6 @@ export function FilesPage() {
   const compressFiles = useCompressFiles(name, { onError })
   const decompressFile = useDecompressFile(name, { onError })
   const deleteFiles = useDeleteFiles(name, { onError, onSuccess: () => setSelected(new Set()) })
-  // Files dragged from the desktop are uploaded into the current folder.
   const drop = useDesktopDrop(ready, (dropped) =>
     uploadFiles.mutate({ dir, files: dropped }, { onSuccess: () => toast.success(uploadedText(dropped)) }),
   )
@@ -91,15 +87,16 @@ export function FilesPage() {
     })
   }
   const compress = (names: string[]) => compressFiles.mutate({ dir, names })
+  const path = (e: FileEntry) => joinPath(dir, e.name)
 
   const actions: FileActions = {
     open: (e) => {
-      if (e.isDirectory) return go(joinPath(dir, e.name))
-      if (!isEditable(e)) return window.location.assign(urls.fileDownload(name, joinPath(dir, e.name)))
-      setDialog({ kind: "edit", file: joinPath(dir, e.name) })
+      if (e.isDirectory) return go(path(e))
+      if (!isEditable(e)) return window.location.assign(actions.downloadUrl(e))
+      actions.edit(e)
     },
-    edit: (e) => setDialog({ kind: "edit", file: joinPath(dir, e.name) }),
-    downloadUrl: (e) => urls.fileDownload(name, joinPath(dir, e.name)),
+    edit: (e) => setDialog({ kind: "edit", file: path(e) }),
+    downloadUrl: (e) => urls.fileDownload(name, path(e)),
     rename: (e) => setDialog({ kind: "rename", entry: e }),
     decompress: (e) => decompressFile.mutate({ dir, name: e.name }),
     compress: (e) => compress([e.name]),

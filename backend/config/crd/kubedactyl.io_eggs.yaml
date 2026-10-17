@@ -62,6 +62,8 @@ spec:
                       description: File is the path relative to the server root (/home/container).
                       type: string
                     parser:
+                      description: Parser is the format of the file; "file" replaces
+                        whole lines that start with Match.
                       enum:
                       - file
                       - yaml

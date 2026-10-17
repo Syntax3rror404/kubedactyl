@@ -44,8 +44,8 @@ func TestProperties(t *testing.T) {
 	}
 }
 
-// TestNestedReferences: references to other keys stay as written: a few hundred bytes of nested
-// references must not expand to gigabytes in the panel's memory.
+// TestNestedReferences: references to other keys stay as written, so a few hundred bytes of nested
+// references cannot expand to gigabytes in the panel's memory.
 func TestNestedReferences(t *testing.T) {
 	for parser, ref := range map[string]string{"properties": "${k%d}", "ini": "%%(k%d)s"} {
 		var in strings.Builder

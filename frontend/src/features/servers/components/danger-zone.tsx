@@ -70,72 +70,72 @@ export function DangerZone({
           />
         </DangerRow>
         {isAdmin && (
-          <DangerRow
-            title={suspended ? "Unsuspend server" : "Suspend server"}
-            description={
-              suspended
-                ? "The owner can start and use the server again."
-                : "Stops the server and locks it for its owner. Files are kept; admins keep access."
-            }
-          >
-            {suspended ? (
-              <Button variant="outline" disabled={suspend.isPending} onClick={() => suspend.mutate(false)}>
-                <LockOpenIcon />
-                Unsuspend
-              </Button>
-            ) : (
+          <>
+            <DangerRow
+              title={suspended ? "Unsuspend server" : "Suspend server"}
+              description={
+                suspended
+                  ? "The owner can start and use the server again."
+                  : "Stops the server and locks it for its owner. Files are kept; admins keep access."
+              }
+            >
+              {suspended ? (
+                <Button variant="outline" disabled={suspend.isPending} onClick={() => suspend.mutate(false)}>
+                  <LockOpenIcon />
+                  Unsuspend
+                </Button>
+              ) : (
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="outline">
+                      <LockIcon />
+                      Suspend
+                    </Button>
+                  }
+                  title={`Suspend ${serverName(server)}?`}
+                  description="The server stops. Its owner can still see it but no longer use it."
+                  confirmLabel="Suspend"
+                  destructive
+                  onConfirm={() => suspend.mutate(true)}
+                />
+              )}
+            </DangerRow>
+            <TransferServer server={server} />
+            <MigrateServer server={server} />
+            <DangerRow
+              title="Delete server"
+              description="Removes the server, its files and the data volume permanently."
+              destructive
+            >
               <ConfirmDialog
+                onOpenChange={() => setConfirm("")}
                 trigger={
-                  <Button variant="outline">
-                    <LockIcon />
-                    Suspend
+                  <Button variant="destructive">
+                    <Trash2Icon />
+                    Delete
                   </Button>
                 }
-                title={`Suspend ${serverName(server)}?`}
-                description="The server stops. Its owner can still see it but no longer use it."
-                confirmLabel="Suspend"
+                title={`Delete ${serverName(server)}?`}
+                description={
+                  <>
+                    All files including the volume are deleted. Type <strong className="font-mono">{name}</strong> to
+                    confirm.
+                  </>
+                }
+                confirmLabel="Delete permanently"
                 destructive
-                onConfirm={() => suspend.mutate(true)}
-              />
-            )}
-          </DangerRow>
-        )}
-        {isAdmin && <TransferServer server={server} />}
-        {isAdmin && <MigrateServer server={server} />}
-        {isAdmin && (
-          <DangerRow
-            title="Delete server"
-            description="Removes the server, its files and the data volume permanently."
-            destructive
-          >
-            <ConfirmDialog
-              onOpenChange={() => setConfirm("")}
-              trigger={
-                <Button variant="destructive">
-                  <Trash2Icon />
-                  Delete
-                </Button>
-              }
-              title={`Delete ${serverName(server)}?`}
-              description={
-                <>
-                  All files including the volume are deleted. Type <strong className="font-mono">{name}</strong> to
-                  confirm.
-                </>
-              }
-              confirmLabel="Delete permanently"
-              destructive
-              disabled={confirm !== name || remove.isPending}
-              onConfirm={() => remove.mutate()}
-            >
-              <Input
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="font-mono"
-                placeholder={name}
-              />
-            </ConfirmDialog>
-          </DangerRow>
+                disabled={confirm !== name || remove.isPending}
+                onConfirm={() => remove.mutate()}
+              >
+                <Input
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className="font-mono"
+                  placeholder={name}
+                />
+              </ConfirmDialog>
+            </DangerRow>
+          </>
         )}
       </CardContent>
     </Card>

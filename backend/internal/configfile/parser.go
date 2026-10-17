@@ -23,7 +23,7 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-// MaxFileSize caps how large a configuration file we attempt to parse. The panel parses the whole file in
+// MaxFileSize caps how large a configuration file may be to be parsed. The panel parses the whole file in
 // its own memory (a JSON or YAML tree takes about 20 times the file size), and configuration files of games
 // are a few kilobytes.
 const MaxFileSize = 1 << 20

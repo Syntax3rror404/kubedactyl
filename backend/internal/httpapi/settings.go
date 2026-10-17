@@ -75,13 +75,19 @@ type UpdateSettingsRequest struct {
 	OIDCClientSecret *string `json:"oidcClientSecret,omitempty" extensions:"x-nullable"`
 }
 
-// settingsView adds whether a client secret is stored, for administrators (only they edit the settings).
-func (a *API) settingsView(c *gin.Context, spec v1alpha1.PanelSettingsSpec) (SettingsView, error) {
-	if !principal(c).Admin() {
-		return SettingsView{PanelSettingsSpec: spec}, nil
+// sendSettings answers with the settings and, for administrators (only they edit them), whether a client
+// secret is stored.
+func (a *API) sendSettings(c *gin.Context, spec v1alpha1.PanelSettingsSpec) {
+	view := SettingsView{PanelSettingsSpec: spec}
+	if principal(c).Admin() {
+		secret, err := a.Settings.OIDCClientSecret(c)
+		if err != nil {
+			a.fail(c, err)
+			return
+		}
+		view.OIDCClientSecretSet = secret != ""
 	}
-	secret, err := a.Settings.OIDCClientSecret(c)
-	return SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""}, err
+	c.JSON(http.StatusOK, view)
 }
 
 // getSettings godoc
@@ -99,12 +105,7 @@ func (a *API) getSettings(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	view, err := a.settingsView(c, spec)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, view)
+	a.sendSettings(c, spec)
 }
 
 // updateSettings godoc
@@ -122,8 +123,7 @@ func (a *API) getSettings(c *gin.Context) {
 //	@Router			/settings [put]
 func (a *API) updateSettings(c *gin.Context) {
 	var req UpdateSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	spec, err := a.Settings.Update(c, req.PanelSettingsSpec)
@@ -135,12 +135,7 @@ func (a *API) updateSettings(c *gin.Context) {
 		return
 	}
 	a.audit(c, "panel settings updated", "oidcClientSecret", req.OIDCClientSecret != nil)
-	view, err := a.settingsView(c, spec)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, view)
+	a.sendSettings(c, spec)
 }
 
 // listStorageClasses godoc
@@ -207,8 +202,8 @@ func (a *API) getLegalTexts(c *gin.Context) {
 	a.revalidatedJSON(c, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
 }
 
-// Branding is how the panel presents itself: name and tagline (defaults: Kubedactyl, "Game
-// servers on Kubernetes") and the images as data URLs (empty: the built-in logo and icon).
+// Branding is how the panel presents itself: name and tagline (by default Kubedactyl and "Game
+// servers on Kubernetes") and the images as data URLs (empty for the built-in logo and icon).
 type Branding struct {
 	Name    string `json:"name"              example:"Kubedactyl"`
 	Tagline string `json:"tagline"           example:"Game servers on Kubernetes"`

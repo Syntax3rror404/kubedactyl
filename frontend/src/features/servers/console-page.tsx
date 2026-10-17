@@ -18,7 +18,6 @@ export function ConsolePage() {
     <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
       <ConsoleWindow title={`${name} console`} console={console_} canSend={active} />
       <StatsPanel server={server} />
-      {/* Egg features (Pterodactyl "features" field) */}
       {egg && <EggFeatures server={server} egg={egg} subscribe={console_.subscribe} />}
     </div>
   )

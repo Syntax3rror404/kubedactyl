@@ -1,22 +1,20 @@
 import { useState } from "react"
-import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import { refreshJobs } from "@/lib/queries/servers"
 import type { FilesSession, ServerJob } from "@/lib/types"
 
 type FilesView = "ready" | "starting" | "stopped"
 
 /**
- * Starts the file container of a server when the file manager opens and follows its
- * state. The container is removed after a minute without file operations; the view then
- * turns "stopped" until the user starts it again.
+ * Starts the file container of a server when the file manager opens and follows its state. The container is removed
+ * after a minute without file operations; the view then turns "stopped" until the user starts it again.
  */
 export function useFilesSession(server: string) {
-  // Whether the container was ready during this visit (distinguishes "not started yet"
-  // from "stopped after inactivity").
+  // Ready once during this visit: tells "not started yet" from "stopped after inactivity".
   const [wasReady, setWasReady] = useState(false)
   const qc = useQueryClient()
   const track = (s: FilesSession) => {
@@ -32,9 +30,8 @@ export function useFilesSession(server: string) {
     gcTime: 0,
     refetchOnWindowFocus: false,
   })
-  // Polling the state does not count as activity, so an open tab does not keep it alive.
-  // Until the container was ready once, the poll keeps asking for it: the start can take
-  // over a minute and a pod that vanished meanwhile is created again.
+  // Polling the state is no activity, so an open tab does not keep the container alive. Until it was ready once,
+  // the poll keeps asking for it: the start can take over a minute and a pod that vanished meanwhile comes back.
   const state = useQuery({
     queryKey: keys.filesSession(server),
     queryFn: () => (wasReady ? api.files.getSession(server) : api.files.openSession(server)).then(track),
@@ -59,8 +56,8 @@ export function useFilesSession(server: string) {
 }
 
 /**
- * State of the file container for the light on the Files tab. Only reads it (GET): watching
- * neither starts the container nor keeps it running; useFilesSession writes its answers here.
+ * State of the file container for the light on the Files tab. Only reads it (GET), so watching neither starts the
+ * container nor keeps it running; useFilesSession writes its answers here.
  */
 export const useFilesPodState = (server: string) =>
   useQuery({
@@ -71,11 +68,7 @@ export const useFilesPodState = (server: string) =>
 
 /** Entries of a directory; needs the file container. */
 export const useFileList = (server: string, dir: string, enabled: boolean) =>
-  useQuery({
-    queryKey: keys.files(server, dir),
-    queryFn: () => api.files.list(server, dir),
-    enabled,
-  })
+  useQuery({ queryKey: keys.files(server, dir), queryFn: () => api.files.list(server, dir), enabled })
 
 /** Contents of a file for the editor; not kept after the editor closes. */
 export const useFileContent = (server: string, file: string, enabled: boolean) =>
@@ -93,14 +86,17 @@ export function useRefreshFiles(server: string) {
 }
 
 // Every file operation changes listings.
-const refreshListings = (server: string) => (qc: QueryClient) => refresh(qc, keys.allFiles(server))
+const refreshListings = (server: string) => refreshes(keys.allFiles(server))
 
+/** Saves a file from the editor. */
 export const useWriteFile = (server: string, cb?: MutationCallbacks<void, { file: string; content: string }>) =>
   useApiMutation(({ file, content }) => api.files.write(server, file, content), refreshListings(server), cb)
 
+/** Uploads files into dir. */
 export const useUploadFiles = (server: string, cb?: MutationCallbacks<void, { dir: string; files: File[] }>) =>
   useApiMutation(({ dir, files }) => api.files.upload(server, dir, files), refreshListings(server), cb)
 
+/** Creates a folder in dir. */
 export const useCreateFolder = (server: string, cb?: MutationCallbacks<void, { dir: string; name: string }>) =>
   useApiMutation(({ dir, name }) => api.files.createFolder(server, dir, name), refreshListings(server), cb)
 
@@ -128,6 +124,7 @@ export const useCompressFiles = (server: string, cb?: MutationCallbacks<ServerJo
 export const useDecompressFile = (server: string, cb?: MutationCallbacks<ServerJob, { dir: string; name: string }>) =>
   useApiMutation(({ dir, name }) => api.files.decompress(server, dir, name), refreshJobs(server), cb)
 
+/** Deletes entries of dir. */
 export const useDeleteFiles = (server: string, cb?: MutationCallbacks<void, { dir: string; names: string[] }>) =>
   useApiMutation(({ dir, names }) => api.files.delete(server, dir, names), refreshListings(server), cb)
 

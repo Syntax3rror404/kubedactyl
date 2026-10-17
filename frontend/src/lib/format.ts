@@ -2,6 +2,7 @@
 
 import type { Egg, GameServer, Phase, Pool, Role, UserView } from "@/lib/types"
 
+/** A size in binary units ("1.5 GiB"); "-" while unknown. */
 export function formatBytes(bytes: number | null | undefined, digits = 1): string {
   if (bytes == null) return "-"
   const units = ["B", "KiB", "MiB", "GiB", "TiB"]
@@ -14,15 +15,18 @@ export function formatBytes(bytes: number | null | undefined, digits = 1): strin
   return `${v.toFixed(i === 0 ? 0 : digits)} ${units[i]}`
 }
 
+/** A size given in MiB, from 1024 on in GiB ("2 GiB"). */
 export function formatMiB(mib: number): string {
   return mib >= 1024 ? `${+(mib / 1024).toFixed(1)} GiB` : `${mib} MiB`
 }
 
+/** CPU use in millicores as percent of one core ("150%"); "-" while unknown. */
 export function formatCpuPercent(millis: number | null | undefined): string {
   if (millis == null) return "-"
   return `${(millis / 10).toFixed(millis < 100 ? 1 : 0)}%`
 }
 
+/** A duration in its two largest units ("2h 5m"); "-" for none. */
 export function formatDuration(seconds: number): string {
   if (seconds <= 0) return "-"
   const d = Math.floor(seconds / 86400)
@@ -45,6 +49,7 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
+/** How long ago ("5 min ago"), the date after a day; "-" for none. */
 export function formatRelativeTime(iso?: string): string {
   if (!iso) return "-"
   const diff = (Date.now() - new Date(iso).getTime()) / 1000
@@ -54,6 +59,7 @@ export function formatRelativeTime(iso?: string): string {
   return formatDate(iso)
 }
 
+/** The name users gave the server, else its object name. */
 export function serverName(gs: GameServer): string {
   return gs.spec.displayName || gs.metadata.name
 }
@@ -95,6 +101,7 @@ export function serverAddress(gs: GameServer, externalDomain?: string): string |
   return serverAddresses(gs, externalDomain)[0] ?? null
 }
 
+/** The phase of a server; "Pending" until the controller has seen it. */
 export function phaseOf(gs?: GameServer): Phase {
   return gs?.status?.phase ?? "Pending"
 }
@@ -116,6 +123,9 @@ export const activePhases: Phase[] = ["Starting", "Running", "Stopping"]
 
 /** Phases in which the server can be started (no game process, files can be restored). */
 export const stoppedPhases: Phase[] = ["Offline", "InstallFailed"]
+
+/** A whole number with thousands separators, as progress texts show file counts ("1,204"). */
+export const formatNumber = (n: number) => Math.round(n).toLocaleString("en-US")
 
 /** Large counts in short form (IPv6 pools hold 2^64 addresses: "1.8e19"). */
 export function formatCount(n: number): string {
@@ -143,16 +153,19 @@ export function formatPoolUsage(u: ReturnType<typeof poolUsage>[number]): string
   return u.family ? `${u.family} ${text}` : text
 }
 
+/** A count with its word, plural unless 1 ("2 files", "1 file"). */
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`
 }
 
 type Named = Pick<UserView, "username" | "displayName">
 
+/** The display name of a user, else the username. */
 export function userName(u: Named): string {
   return u.displayName || u.username
 }
 
+/** The role as the UI names it. */
 export function roleLabel(role: Role): string {
   return role === "admin" ? "Administrator" : "User"
 }
@@ -169,6 +182,7 @@ export function serverOwner(gs: GameServer): string | undefined {
   return gs.metadata.labels?.["kubedactyl.io/owner"]
 }
 
+/** CPU in millicores as cores ("1.5 cores"); "-" while unknown. */
 export function formatCores(millis: number | null | undefined): string {
   if (millis == null) return "-"
   const cores = millis / 1000
@@ -180,6 +194,7 @@ export function formatCpuLimit(millis: number | undefined): string {
   return millis ? plural(millis / 1000, "core") : "Unlimited"
 }
 
+/** value as percent of max; "-" while either is unknown. */
 export function formatPercent(value: number | null | undefined, max: number | null | undefined): string {
   if (value == null || !max) return "-"
   return `${Math.round((value / max) * 100)}%`

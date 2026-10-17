@@ -71,8 +71,8 @@ type jobStore struct {
 func (s *Service) Jobs(ref Ref) []Job {
 	s.jobs.mu.Lock()
 	defer s.jobs.mu.Unlock()
-	out := []Job{}
 	list := s.jobs.jobs[ref]
+	out := make([]Job, 0, len(list))
 	for i := len(list) - 1; i >= 0; i-- {
 		out = append(out, *list[i])
 	}

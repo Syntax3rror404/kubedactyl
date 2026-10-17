@@ -16,11 +16,11 @@ import (
 // Errors of a sign-in through the identity provider.
 var (
 	ErrDisabled = errors.New("this account is disabled")
-	// ErrOtherIdentity: the account with the username is linked to another user of the identity provider.
+	// ErrOtherIdentity means the account with the username is linked to another user of the identity provider.
 	ErrOtherIdentity = errors.New("the account is linked to another user of the identity provider")
-	// ErrNotLinked: an account with the username exists but is not linked, and linking by username is off.
+	// ErrNotLinked means an account with the username exists but is not linked, and linking by username is off.
 	ErrNotLinked = errors.New("an account with this username exists and is not linked to the identity provider")
-	// ErrInvalidUsername: the username claim is no valid panel username.
+	// ErrInvalidUsername means the username claim is no valid panel username.
 	ErrInvalidUsername = errors.New("the username from the identity provider is not a valid panel username")
 )
 

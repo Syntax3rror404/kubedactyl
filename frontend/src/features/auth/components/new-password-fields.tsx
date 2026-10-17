@@ -1,5 +1,4 @@
-import { UnveilPassword } from "@/components/common/unveil-password"
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import { PasswordField } from "@/components/common/unveil-password"
 import { MIN_PASSWORD_LENGTH } from "@/lib/validation"
 
 /** A new password and its confirmation; error is the server's message for the password. */
@@ -24,33 +23,25 @@ export function NewPasswordFields({
   const mismatch = confirm !== "" && confirm !== password
   return (
     <>
-      <Field data-invalid={tooShort || !!error}>
-        <FieldLabel htmlFor="password">{label}</FieldLabel>
-        <UnveilPassword
-          id="password"
-          autoComplete="new-password"
-          autoFocus={autoFocus}
-          value={password}
-          onChange={(e) => onPassword(e.target.value)}
-          aria-invalid={tooShort || !!error}
-        />
-        {error ? (
-          <FieldError>{error}</FieldError>
-        ) : (
-          <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash only.</FieldDescription>
-        )}
-      </Field>
-      <Field data-invalid={mismatch}>
-        <FieldLabel htmlFor="confirm">Confirm password</FieldLabel>
-        <UnveilPassword
-          id="confirm"
-          autoComplete="new-password"
-          value={confirm}
-          onChange={(e) => onConfirm(e.target.value)}
-          aria-invalid={mismatch}
-        />
-        {mismatch && <FieldError>The passwords do not match.</FieldError>}
-      </Field>
+      <PasswordField
+        id="password"
+        label={label}
+        autoComplete="new-password"
+        autoFocus={autoFocus}
+        value={password}
+        onChange={onPassword}
+        invalid={tooShort}
+        error={error}
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash only.`}
+      />
+      <PasswordField
+        id="confirm"
+        label="Confirm password"
+        autoComplete="new-password"
+        value={confirm}
+        onChange={onConfirm}
+        error={mismatch ? "The passwords do not match." : undefined}
+      />
     </>
   )
 }

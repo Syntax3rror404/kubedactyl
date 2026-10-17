@@ -35,7 +35,8 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Reconcile implements reconcile.Reconciler.
+// Reconcile gives a user a namespace with the panel's role binding and the network policy, and
+// removes the user's servers and namespace when the user is deleted.
 func (r *UserReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	if req.Namespace != tenancy.SystemNamespace {
 		return reconcile.Result{}, nil // user of another installation

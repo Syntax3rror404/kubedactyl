@@ -111,7 +111,8 @@ func countAddresses(ctx context.Context, r client.Reader, pools []Pool) error {
 func (p Pool) families(used map[netip.Addr]bool) []PoolFamily {
 	var out []PoolFamily
 	for _, family := range []string{"IPv4", "IPv6"} {
-		total, taken := new(big.Int), new(big.Int)
+		total := new(big.Int)
+		var taken int64
 		found := false
 		for _, r := range p.ranges {
 			if r.from.Is4() != (family == "IPv4") {
@@ -122,18 +123,18 @@ func (p Pool) families(used map[netip.Addr]bool) []PoolFamily {
 			total.Add(total, n)
 			// Cilium keeps back the first and last IP only for CIDRs with more than two addresses.
 			if p.reserveFirstLast && r.cidr && n.Cmp(big.NewInt(2)) > 0 {
-				taken.Add(taken, big.NewInt(2))
+				taken += 2
 			}
 			for addr := range used {
 				if r.contains(addr) {
-					taken.Add(taken, big.NewInt(1))
+					taken++
 				}
 			}
 		}
 		if found {
+			free := new(big.Int).Sub(total, big.NewInt(taken))
 			out = append(out, PoolFamily{
-				Family: family, Total: toFloat(total), Available: toFloat(new(big.Int).Sub(total, taken)),
-				Used: toFloat(taken),
+				Family: family, Total: toFloat(total), Available: toFloat(free), Used: float64(taken),
 			})
 		}
 	}

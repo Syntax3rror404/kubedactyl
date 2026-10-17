@@ -30,34 +30,35 @@ func SplitRules(rules string) []string {
 
 var regexFlagsRe = regexp.MustCompile(`^[a-zA-Z]*$`)
 
-// isCompleteRegex reports whether a PHP style pattern /.../flags is closed.
-func isCompleteRegex(p string) bool {
+// splitRegex splits a PHP style pattern /body/flags at its closing delimiter (any character
+// stands as delimiter). ok is false when the pattern is not closed.
+func splitRegex(p string) (body, flags string, ok bool) {
 	if len(p) < 2 {
-		return false
+		return "", "", false
 	}
-	delim := p[0]
-	end := strings.LastIndexByte(p[1:], delim)
+	end := strings.LastIndexByte(p[1:], p[0])
 	if end < 0 {
-		return false
+		return "", "", false
 	}
-	return regexFlagsRe.MatchString(p[end+2:])
+	return p[1 : end+1], p[end+2:], true
 }
 
-// phpRegex converts a PHP pattern like /^abc$/i into a Go regexp.
+// isCompleteRegex reports whether a PHP style pattern /.../flags is closed.
+func isCompleteRegex(p string) bool {
+	_, flags, ok := splitRegex(p)
+	return ok && regexFlagsRe.MatchString(flags)
+}
+
+// phpRegex converts a PHP pattern like /^abc$/i into a Go regexp. Flags other than i, m and s are
+// ignored.
 func phpRegex(p string) (*regexp.Regexp, error) {
-	if len(p) < 2 {
+	body, flags, ok := splitRegex(p)
+	if !ok {
 		return nil, fmt.Errorf("invalid regex %q", p)
 	}
-	delim := p[0]
-	end := strings.LastIndexByte(p[1:], delim)
-	if end < 0 {
-		return nil, fmt.Errorf("invalid regex %q", p)
-	}
-	body, flags := p[1:end+1], p[end+2:]
 	prefix := ""
 	for _, f := range flags {
-		switch f {
-		case 'i', 'm', 's':
+		if strings.ContainsRune("ims", f) {
 			prefix += string(f)
 		}
 	}

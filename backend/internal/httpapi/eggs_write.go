@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"io"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,12 +41,15 @@ func (a *API) importEgg(c *gin.Context) {
 			return
 		}
 		defer f.Close()
-		data, err = io.ReadAll(io.LimitReader(f, eggstore.MaxSize))
+		data, err = eggstore.ReadFile(f)
 	} else {
-		data, err = io.ReadAll(io.LimitReader(c.Request.Body, eggstore.MaxSize))
+		data, err = eggstore.ReadFile(c.Request.Body)
+	}
+	if err != nil && !errors.Is(err, eggstore.ErrTooLarge) {
+		err = badRequest(err)
 	}
 	if err != nil {
-		a.fail(c, badRequest(err))
+		a.fail(c, err)
 		return
 	}
 	a.saveImport(c, data, "", false)
@@ -65,8 +68,7 @@ func (a *API) importEgg(c *gin.Context) {
 //	@Router		/eggs/import-url [post]
 func (a *API) importEggURL(c *gin.Context) {
 	var req ImportURLRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	data, err := eggstore.Download(c, req.URL)
@@ -125,8 +127,7 @@ func (a *API) deleteEgg(c *gin.Context) {
 //	@Router			/eggs [post]
 func (a *API) createEgg(c *gin.Context) {
 	spec := &v1alpha1.EggSpec{}
-	if err := c.ShouldBindJSON(spec); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, spec) {
 		return
 	}
 	e, err := a.Eggs.Create(c, spec)
@@ -154,8 +155,7 @@ func (a *API) createEgg(c *gin.Context) {
 //	@Router			/eggs/{egg} [put]
 func (a *API) updateEgg(c *gin.Context) {
 	spec := &v1alpha1.EggSpec{}
-	if err := c.ShouldBindJSON(spec); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, spec) {
 		return
 	}
 	e, err := a.Eggs.Update(c, c.Param("egg"), spec)

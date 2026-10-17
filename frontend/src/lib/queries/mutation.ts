@@ -26,7 +26,15 @@ export function useApiMutation<TData, TVars = void>(
   })
 }
 
+type QueryKey = readonly unknown[]
+
 /** Marks cached data as stale; mounted queries load it again. */
-export function refresh(qc: QueryClient, ...queryKeys: readonly (readonly unknown[])[]) {
+export function refresh(qc: QueryClient, ...queryKeys: QueryKey[]) {
   for (const queryKey of queryKeys) void qc.invalidateQueries({ queryKey })
 }
+
+/** The cache update of a mutation that only makes the given data stale: `useApiMutation(fn, refreshes(keys.users))`. */
+export const refreshes =
+  (...queryKeys: QueryKey[]) =>
+  (qc: QueryClient) =>
+    refresh(qc, ...queryKeys)

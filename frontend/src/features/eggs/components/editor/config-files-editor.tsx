@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { FieldErrors } from "@/features/eggs/lib/egg-draft"
+import { patchAt, removeAt, type FieldErrors } from "@/features/eggs/lib/egg-draft"
 import type { ConfigFile, ConfigReplace } from "@/lib/types"
 
 const parsers = ["properties", "yaml", "json", "ini", "xml", "file"]
@@ -24,14 +24,12 @@ export function ConfigFilesEditor({
   onChange: (files: ConfigFile[]) => void
   errors: FieldErrors
 }) {
-  const setFile = (i: number, patch: Partial<ConfigFile>) =>
-    onChange(files.map((f, j) => (j === i ? { ...f, ...patch } : f)))
+  const setFile = (i: number, patch: Partial<ConfigFile>) => onChange(patchAt(files, i, patch))
   return (
     <div className="space-y-3">
       {files.map((f, i) => {
         const rows = f.replace ?? []
-        const setRow = (r: number, patch: Partial<ConfigReplace>) =>
-          setFile(i, { replace: rows.map((x, k) => (k === r ? { ...x, ...patch } : x)) })
+        const setRow = (r: number, patch: Partial<ConfigReplace>) => setFile(i, { replace: patchAt(rows, r, patch) })
         const p = `configFiles.${i}.`
         return (
           <div key={i} className="space-y-3 rounded-xl border p-3">
@@ -63,7 +61,7 @@ export function ConfigFilesEditor({
                 variant="ghost"
                 className="text-destructive"
                 title="Remove file"
-                onClick={() => onChange(files.filter((_, j) => j !== i))}
+                onClick={() => onChange(removeAt(files, i))}
               >
                 <Trash2Icon />
               </Button>
@@ -127,7 +125,7 @@ export function ConfigFilesEditor({
                       size="icon-sm"
                       variant="ghost"
                       title="Remove"
-                      onClick={() => setFile(i, { replace: rows.filter((_, x) => x !== k) })}
+                      onClick={() => setFile(i, { replace: removeAt(rows, k) })}
                     >
                       <XIcon />
                     </Button>

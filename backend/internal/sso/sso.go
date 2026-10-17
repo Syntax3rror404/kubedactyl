@@ -30,9 +30,9 @@ const (
 
 // Errors of a sign-in.
 var (
-	// ErrNoAccess: the user is in neither the admin nor the user group.
+	// ErrNoAccess means the user is in neither the admin nor the user group.
 	ErrNoAccess = errors.New("the user is in neither the admin nor the user group")
-	// ErrFlow: the callback does not belong to the sign-in this browser started (state or nonce).
+	// ErrFlow means the callback does not belong to the sign-in this browser started (state or nonce).
 	ErrFlow = errors.New("the sign-in does not match the one this browser started")
 )
 

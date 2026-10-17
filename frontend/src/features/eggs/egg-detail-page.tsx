@@ -26,7 +26,7 @@ import { failed } from "@/lib/notify"
 import { useDeleteEgg, useEgg, useUpdateEggFromUrl } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
 
-/** /eggs/:egg (admins): egg overview, variables, config files and install script; edit, export, duplicate, update, delete. */
+/** /eggs/:egg (admins): the egg tabs plus edit, export, duplicate, update and delete. */
 export function EggDetailPage() {
   const { egg: name = "" } = useParams()
   const egg = useEgg(name)

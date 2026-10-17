@@ -10,4 +10,5 @@ export const legalTitles: Record<LegalDoc, string> = {
   privacyPolicy: "Privacy policy",
 }
 
+/** The legal texts in the order of the footer links. */
 export const legalDocs = Object.keys(legalTitles) as LegalDoc[]

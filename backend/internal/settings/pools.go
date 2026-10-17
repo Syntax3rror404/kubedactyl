@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 	"net/netip"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +66,7 @@ func ListPools(ctx context.Context, r client.Reader) ([]Pool, error) {
 		for i := range list.Items {
 			out = append(out, parsePool(&list.Items[i]))
 		}
-		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+		slices.SortFunc(out, func(a, b Pool) int { return strings.Compare(a.Name, b.Name) })
 		return out, nil
 	}
 	return nil, ErrNoCilium
@@ -78,13 +78,14 @@ func GetPool(ctx context.Context, r client.Reader, name string) (Pool, error) {
 	if err != nil {
 		return Pool{}, err
 	}
-	for _, p := range pools {
-		if p.Name == name {
-			return p, nil
-		}
+	i := slices.IndexFunc(pools, func(p Pool) bool { return p.Name == name })
+	if i < 0 {
+		return Pool{}, errNoPool(name)
 	}
-	return Pool{}, fmt.Errorf("load balancer pool %q does not exist", name)
+	return pools[i], nil
 }
+
+func errNoPool(name string) error { return fmt.Errorf("load balancer pool %q does not exist", name) }
 
 func parsePool(u *unstructured.Unstructured) Pool {
 	p := Pool{
@@ -190,14 +191,20 @@ type PoolResolver struct {
 	fetched time.Time
 }
 
-const poolCacheTTL = time.Minute
+// How long the pool list is kept, and how soon a name that is not in it may load it again (a pool
+// created just now shows up quickly, a deleted one does not cause a list per reconcile).
+const (
+	poolCacheTTL = time.Minute
+	poolMissTTL  = 10 * time.Second
+)
 
-// ServiceLabels returns the labels a service needs to get an address from the pool.
+// ServiceLabels returns the labels a service needs to get an address from the pool (a copy).
 func (r *PoolResolver) ServiceLabels(ctx context.Context, name string) (map[string]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	age := time.Since(r.fetched)
 	p, ok := r.pools[name]
-	if !ok || time.Since(r.fetched) > poolCacheTTL {
+	if age > poolCacheTTL || !ok && age > poolMissTTL {
 		list, err := ListPools(ctx, r.Reader)
 		if err != nil {
 			return nil, err
@@ -207,9 +214,10 @@ func (r *PoolResolver) ServiceLabels(ctx context.Context, name string) (map[stri
 			r.pools[pool.Name] = pool
 		}
 		r.fetched = time.Now()
-		if p, ok = r.pools[name]; !ok {
-			return nil, fmt.Errorf("load balancer pool %q does not exist", name)
-		}
+		p, ok = r.pools[name]
 	}
-	return p.ServiceLabels, nil
+	if !ok {
+		return nil, errNoPool(name)
+	}
+	return maps.Clone(p.ServiceLabels), nil
 }

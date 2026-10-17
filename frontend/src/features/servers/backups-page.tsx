@@ -28,7 +28,6 @@ export function BackupsPage() {
   const { files, ready, jobs } = useFileContainer(name)
   const backups = useBackups(name, ready)
   const [label, setLabel] = useState("")
-  // One state for the dialogs of the page.
   const [dialog, setDialog] = useState<{ kind: "restore" | "delete"; backup: Backup } | null>(null)
 
   const busy = jobs.data?.some((j) => j.state === "running" && (j.kind === "backup" || j.kind === "restore"))

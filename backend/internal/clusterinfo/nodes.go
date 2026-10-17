@@ -1,9 +1,10 @@
 package clusterinfo
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,15 +111,18 @@ func (s *Service) Nodes(ctx context.Context) (*NodesResponse, error) {
 			node.CPURequestedMillis, node.MemoryRequestedBytes, node.PodsRunning = a.cpu, a.mem, a.pods
 		}
 		node.Usage = data.usage[n.Name]
-		hw, probedAt, errMsg, probing, stale := s.hardwareFor(n.Name)
-		node.Hardware, node.HardwareProbedAt, node.HardwareError, node.HardwareProbing = hw, probedAt, errMsg, probing
-		if stale && !probing && node.Ready && !n.Spec.Unschedulable {
+		hw, stale := s.hardwareFor(n.Name)
+		node.Hardware, node.HardwareError, node.HardwareProbing = hw.Hardware, hw.Error, hw.probing
+		if !hw.ProbedAt.IsZero() {
+			node.HardwareProbedAt = &hw.ProbedAt
+		}
+		if stale && !hw.probing && node.Ready && !n.Spec.Unschedulable {
 			toProbe = append(toProbe, n.Name)
 			node.HardwareProbing = true
 		}
 		resp.Nodes = append(resp.Nodes, node)
 	}
-	sort.Slice(resp.Nodes, func(i, j int) bool { return resp.Nodes[i].Name < resp.Nodes[j].Name })
+	slices.SortFunc(resp.Nodes, func(a, b Node) int { return strings.Compare(a.Name, b.Name) })
 	resp.Totals = totals(resp.Nodes, data.metricsOK)
 	if len(toProbe) > 0 {
 		go s.ProbeNodes(context.WithoutCancel(ctx), toProbe)
@@ -213,7 +217,7 @@ func buildNode(n *corev1.Node) Node {
 			node.Roles = append(node.Roles, role)
 		}
 	}
-	sort.Strings(node.Roles)
+	slices.Sort(node.Roles)
 	if len(node.Roles) == 0 {
 		node.Roles = append(node.Roles, "worker")
 	}
@@ -222,12 +226,9 @@ func buildNode(n *corev1.Node) Node {
 		case c.Type == corev1.NodeReady:
 			node.Ready = c.Status == corev1.ConditionTrue
 			node.Status = map[corev1.ConditionStatus]string{
-				corev1.ConditionTrue:  "Ready",
-				corev1.ConditionFalse: "NotReady",
+				corev1.ConditionTrue: "Ready", corev1.ConditionFalse: "NotReady",
 			}[c.Status]
-			if node.Status == "" {
-				node.Status = "Unknown"
-			}
+			node.Status = cmp.Or(node.Status, "Unknown")
 		case c.Status == corev1.ConditionTrue && strings.HasSuffix(string(c.Type), "Pressure"):
 			node.Pressure = append(node.Pressure, string(c.Type))
 		}
@@ -274,6 +275,6 @@ func totals(nodes []Node, metricsOK bool) Totals {
 	for m, c := range models {
 		t.CPUModels = append(t.CPUModels, CPUModelCount{Model: m, Count: c})
 	}
-	sort.Slice(t.CPUModels, func(i, j int) bool { return t.CPUModels[i].Count > t.CPUModels[j].Count })
+	slices.SortFunc(t.CPUModels, func(a, b CPUModelCount) int { return b.Count - a.Count })
 	return t
 }

@@ -38,12 +38,12 @@ func checkOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSetti
 	if !o.Enabled {
 		return o, nil
 	}
-	for field, v := range map[string]string{
-		"oidc.issuerUrl": o.IssuerURL, "oidc.clientId": o.ClientID, "oidc.redirectUrl": o.RedirectURL,
-		"oidc.adminGroup": o.AdminGroup, "oidc.userGroup": o.UserGroup,
+	for _, f := range []textField{
+		{"oidc.issuerUrl", o.IssuerURL}, {"oidc.clientId", o.ClientID}, {"oidc.redirectUrl", o.RedirectURL},
+		{"oidc.adminGroup", o.AdminGroup}, {"oidc.userGroup", o.UserGroup},
 	} {
-		if v == "" {
-			return o, invalid(field, "required for single sign-on")
+		if f.value == "" {
+			return o, invalid(f.name, "required for single sign-on")
 		}
 	}
 	if o.AdminGroup == o.UserGroup {

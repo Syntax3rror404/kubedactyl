@@ -26,7 +26,7 @@ type UpdatePasswordRequest struct {
 // CreateTokenRequest creates a personal API token.
 type CreateTokenRequest struct {
 	Name string `json:"name" binding:"required" example:"ci"`
-	// ExpiresInDays is the lifetime: 1 up to the longest API token lifetime of the panel.
+	// ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
 	ExpiresInDays int `json:"expiresInDays" example:"90"`
 }
 
@@ -50,8 +50,7 @@ type CreatedToken struct {
 //	@Router			/auth/password [put]
 func (a *API) updatePassword(c *gin.Context) {
 	var req UpdatePasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	user := principal(c).User.DeepCopy()
@@ -111,8 +110,7 @@ func (a *API) createToken(c *gin.Context) {
 		return
 	}
 	var req CreateTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	lifetimes := a.Settings.Lifetimes(c)

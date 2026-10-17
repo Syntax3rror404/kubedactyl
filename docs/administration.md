@@ -160,8 +160,8 @@ volume), so a restart of the panel continues where it stopped. A failed copy del
 the server on its old one (`spec.storageClass` is set back, the error shows in the danger zone). *Cancel* on
 the server page (`POST /api/servers/{server}/migrate/cancel`) works until the switch in step 3. The server
 stays stopped afterwards unless *Start the server after the migration* was switched on (`startOnCompletion`,
-off by default): then it starts as soon as the migration has ended, also after a failure or a cancel (on its
-old volume). Changing `spec.storageClass` with kubectl starts a migration too.
+off by default): then it starts as soon as the migration has finished. A failed or cancelled migration always
+leaves it stopped. Changing `spec.storageClass` with kubectl starts a migration too.
 
 ## Cluster page
 

@@ -1,4 +1,4 @@
-/** Keys of the egg "features" field the console implements (like Pterodactyl, matched in the browser). */
+/** Keys of the egg "features" field the console page implements (matched in the browser). */
 export const supportedFeatures = [
   "eula",
   "java_version",

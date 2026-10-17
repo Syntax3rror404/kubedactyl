@@ -34,7 +34,7 @@ export function EggImportDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
-        {/* mounted fresh on every open */}
+        {/* Mounted on every open, so the form starts empty. */}
         <ImportForm onClose={() => setOpen(false)} />
       </DialogContent>
     </Dialog>

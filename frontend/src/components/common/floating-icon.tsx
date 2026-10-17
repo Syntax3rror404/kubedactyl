@@ -22,7 +22,6 @@ const speedUp = [
  * Usage:
  *   <FloatingIcon><RocketIcon /></FloatingIcon>
  *   <FloatingIcon distance={14} angle={10} duration={1.2}>🚀</FloatingIcon>
- *   <FloatingIcon delay={-0.5}><StarIcon className="size-6" /></FloatingIcon>
  *   <a href="/"><FloatingIcon hoverSpeedUp><HomeIcon /></FloatingIcon> Start</a>
  */
 export function FloatingIcon({

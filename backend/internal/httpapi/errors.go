@@ -65,6 +65,15 @@ func (a *API) fail(c *gin.Context, err error) {
 	c.AbortWithStatusJSON(se.status, ErrorResponse{Error: msg, Fields: se.fields})
 }
 
+// bindJSON reads the request body into req; a body that does not fit is answered with 400.
+func (a *API) bindJSON(c *gin.Context, req any) bool {
+	if err := c.ShouldBindJSON(req); err != nil {
+		a.fail(c, badRequest(err))
+		return false
+	}
+	return true
+}
+
 // statusOf finds the HTTP status of an error.
 func statusOf(err error) *statusError {
 	var se *statusError
@@ -99,6 +108,7 @@ var domainErrors = []struct {
 }{
 	{egglibrary.ErrNotFound, http.StatusNotFound},
 	{eggstore.ErrInvalid, http.StatusUnprocessableEntity},
+	{eggstore.ErrTooLarge, http.StatusUnprocessableEntity},
 	{eggstore.ErrInvalidURL, http.StatusUnprocessableEntity},
 	{eggstore.ErrNoUpdateURL, http.StatusConflict},
 	{eggstore.ErrDownload, http.StatusBadGateway},

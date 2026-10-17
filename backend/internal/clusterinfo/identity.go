@@ -1,14 +1,16 @@
 package clusterinfo
 
 import (
+	"cmp"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"maps"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -47,7 +49,8 @@ type ServiceAccount struct {
 
 // Auth describes how the panel authenticates (never contains secrets).
 type Auth struct {
-	// Method: client-certificate, token, exec, auth-provider, basic, service-account or none.
+	// Method is how the panel signs in: client-certificate, token, exec, auth-provider, basic,
+	// service-account or none.
 	Method            string    `json:"method"                      example:"exec"`
 	ExecCommand       string    `json:"execCommand,omitempty"       example:"kubectl"`
 	ExecArgs          []string  `json:"execArgs,omitempty"          example:"oidc-login,get-token"`
@@ -109,8 +112,13 @@ func (s *Service) inCluster() bool {
 	return s.KubeContext == "" && os.Getenv("KUBECONFIG") == "" && os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
-// Identity builds the connection summary.
+// Identity builds the connection summary of the cluster page.
+//  1. Endpoint: address, protocol, Kubernetes version and where the CA comes from.
+//  2. Credentials: in the cluster the service account, else the kubeconfig context.
+//  3. Subject: who the API server sees (SelfSubjectReview), without credential ids.
+//  4. Permissions: the checks of the health card.
 func (s *Service) Identity(ctx context.Context) *Identity {
+	// 1. Endpoint
 	id := &Identity{Server: s.Config.Host, Protocol: "HTTP/2"}
 	if s.HTTP1 {
 		id.Protocol = "HTTP/1.1"
@@ -129,6 +137,7 @@ func (s *Service) Identity(ctx context.Context) *Identity {
 		}
 	}
 
+	// 2. Credentials
 	if s.inCluster() {
 		id.Mode = "in-cluster"
 		id.Auth = Auth{Method: "service-account"}
@@ -139,10 +148,9 @@ func (s *Service) Identity(ctx context.Context) *Identity {
 		kc, auth := s.kubeconfigInfo()
 		id.Kubeconfig, id.Auth = kc, auth
 	}
-	if s.Config.Impersonate.UserName != "" {
-		id.Auth.Impersonating = s.Config.Impersonate.UserName
-	}
+	id.Auth.Impersonating = cmp.Or(s.Config.Impersonate.UserName, id.Auth.Impersonating)
 
+	// 3. Subject
 	reviews := s.Kube.Clientset.AuthenticationV1().SelfSubjectReviews()
 	review, err := reviews.Create(ctx, &authnv1.SelfSubjectReview{}, metav1.CreateOptions{})
 	if err != nil {
@@ -156,6 +164,7 @@ func (s *Service) Identity(ctx context.Context) *Identity {
 			}
 		}
 	}
+	// 4. Permissions
 	id.Permissions = s.permissions(ctx)
 	return id
 }
@@ -188,23 +197,19 @@ func (s *Service) kubeconfigInfo() (*Kubeconfig, Auth) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: s.KubeContext}
 	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).RawConfig()
-	kc := &Kubeconfig{Files: rules.GetLoadingPrecedence(), Contexts: []string{}}
 	if err != nil {
-		return kc, Auth{Method: "none"}
+		return &Kubeconfig{Files: rules.GetLoadingPrecedence(), Contexts: []string{}}, Auth{Method: "none"}
 	}
-	return summarizeKubeconfig(raw, s.KubeContext, kc.Files)
+	return summarizeKubeconfig(raw, s.KubeContext, rules.GetLoadingPrecedence())
 }
 
 // summarizeKubeconfig extracts the active context and its authentication without secrets.
 func summarizeKubeconfig(raw clientcmdapi.Config, override string, files []string) (*Kubeconfig, Auth) {
-	kc := &Kubeconfig{Files: files, Contexts: []string{}, Context: raw.CurrentContext}
-	if override != "" {
-		kc.Context = override
+	kc := &Kubeconfig{
+		Files: files, Context: cmp.Or(override, raw.CurrentContext),
+		Contexts: slices.AppendSeq([]string{}, maps.Keys(raw.Contexts)),
 	}
-	for name := range raw.Contexts {
-		kc.Contexts = append(kc.Contexts, name)
-	}
-	sort.Strings(kc.Contexts)
+	slices.Sort(kc.Contexts)
 	auth := Auth{Method: "none"}
 	ctx := raw.Contexts[kc.Context]
 	if ctx == nil {
@@ -217,9 +222,8 @@ func summarizeKubeconfig(raw clientcmdapi.Config, override string, files []strin
 	}
 	switch {
 	case ai.Exec != nil:
-		auth.Method, auth.ExecCommand, auth.ExecArgs, auth.ExecAPIVersion = "exec", ai.Exec.Command, redactArgs(
-			ai.Exec.Args,
-		), ai.Exec.APIVersion
+		auth.Method, auth.ExecCommand, auth.ExecAPIVersion = "exec", ai.Exec.Command, ai.Exec.APIVersion
+		auth.ExecArgs = redactArgs(ai.Exec.Args)
 	case ai.AuthProvider != nil:
 		auth.Method, auth.AuthProvider = "auth-provider", ai.AuthProvider.Name
 	case len(ai.ClientCertificateData) > 0 || ai.ClientCertificate != "":
@@ -237,9 +241,7 @@ func summarizeKubeconfig(raw clientcmdapi.Config, override string, files []strin
 	case ai.Username != "":
 		auth.Method = "basic"
 	}
-	if ai.Impersonate != "" {
-		auth.Impersonating = ai.Impersonate
-	}
+	auth.Impersonating = ai.Impersonate
 	return kc, auth
 }
 

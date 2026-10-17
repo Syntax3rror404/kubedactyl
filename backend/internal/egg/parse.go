@@ -1,4 +1,4 @@
-// Package egg parses Pterodactyl (PTDL_v1/v2) and Pelican (PLCN_v1-v3) egg files.
+// Package egg parses, validates and exports Pterodactyl (PTDL_v1/v2) and Pelican (PLCN_v1-v3) egg files.
 package egg
 
 import (
@@ -144,8 +144,8 @@ func decodeEgg(data []byte) (*rawEgg, error) {
 // the image/images fields of PTDL_v1.
 func parseDockerImages(raw *rawEgg) []v1alpha1.DockerImage {
 	var images []v1alpha1.DockerImage
-	for _, kv := range mappingPairs(&raw.DockerImages) {
-		images = append(images, v1alpha1.DockerImage{Name: kv[0], Image: kv[1]})
+	for name, image := range entries(&raw.DockerImages) {
+		images = append(images, v1alpha1.DockerImage{Name: name, Image: image.Value})
 	}
 	for _, img := range stringList(&raw.DockerImages) {
 		images = append(images, v1alpha1.DockerImage{Name: img, Image: img})
@@ -172,8 +172,8 @@ func parseStartup(raw *rawEgg) []v1alpha1.StartupCommand {
 		return []v1alpha1.StartupCommand{{Name: DefaultStartupName, Command: raw.Startup}}
 	}
 	var cmds []v1alpha1.StartupCommand
-	for _, kv := range mappingPairs(&raw.StartupCommands) {
-		cmds = append(cmds, v1alpha1.StartupCommand{Name: kv[0], Command: kv[1]})
+	for name, cmd := range entries(&raw.StartupCommands) {
+		cmds = append(cmds, v1alpha1.StartupCommand{Name: name, Command: cmd.Value})
 	}
 	return cmds
 }

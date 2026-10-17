@@ -18,8 +18,9 @@ type FilesSession struct {
 	// State is Stopped, Starting, Ready or Stopping.
 	State string `json:"state" enums:"Stopped,Starting,Ready,Stopping" example:"Starting"`
 	// Message explains a Starting state (e.g. "ContainerCreating").
-	Message            string `json:"message,omitempty"`
-	IdleTimeoutSeconds int    `json:"idleTimeoutSeconds" example:"60"`
+	Message string `json:"message,omitempty"`
+	// IdleTimeoutSeconds is how long the container stays after the last file operation (seconds).
+	IdleTimeoutSeconds int `json:"idleTimeoutSeconds" example:"60"`
 	// StopsInSeconds is how long a ready container stays without further file operations
 	// (reading the session does not count as one).
 	StopsInSeconds int    `json:"stopsInSeconds,omitempty" example:"42"`

@@ -17,10 +17,7 @@ import { failed } from "@/lib/notify"
 import { useSettings, useUpdateServer } from "@/lib/queries"
 import { fieldErrors } from "@/lib/validation"
 
-/**
- * /servers/:server/settings: name, resources, ports, pool, fixed IP and traffic policy; danger zone
- * (reinstall, suspend, transfer, delete).
- */
+/** /servers/:server/settings: the settings cards, one save button for all of them, and the danger zone. */
 export function ServerSettingsPage() {
   const { server } = useOutletContext<ServerContext>()
   const { isAdmin } = useAuth()

@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,8 +29,7 @@ func (r *Reconciler) reconcileInstall(
 		return res, err
 	}
 	pod := &corev1.Pod{}
-	key := types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.InstallPodName(gs.Name)}
-	err := r.Reader.Get(ctx, key, pod)
+	err := r.getChild(ctx, gs, gameserver.InstallPodName(gs.Name), pod)
 	revision := strconv.FormatInt(gs.Spec.InstallRevision, 10)
 	switch {
 	case err == nil && pod.Annotations[gameserver.AnnotationInstallRevision] == revision:
@@ -47,11 +45,10 @@ func (r *Reconciler) reconcileInstall(
 // stopGameForInstall stops a running game pod first (killed after a 10 second timeout);
 // done is true while a game pod still exists.
 func (r *Reconciler) stopGameForInstall(
-	ctx context.Context,
-	gs *v1alpha1.GameServer,
+	ctx context.Context, gs *v1alpha1.GameServer,
 ) (res reconcile.Result, done bool, err error) {
 	game := &corev1.Pod{}
-	err = r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.GamePodName(gs.Name)}, game)
+	err = r.getChild(ctx, gs, gameserver.GamePodName(gs.Name), game)
 	if apierrors.IsNotFound(err) {
 		return reconcile.Result{}, false, nil
 	}
@@ -80,8 +77,7 @@ func (r *Reconciler) followInstall(gs *v1alpha1.GameServer, pod *corev1.Pod) (re
 	}
 	r.Hub.Follow(gs.Name, pod, console.KindInstall, nil)
 	if done, code, _ := terminated(pod); done {
-		// The exit code of install scripts is ignored (many egg scripts end with an error);
-		// it is recorded for the UI.
+		// The exit code only shows in the UI: many egg scripts end with an error after a good install.
 		gs.Status.InstalledRevision = gs.Spec.InstallRevision
 		gs.Status.InstallExitCode = ptr.To(code)
 		r.setPhase(gs, v1alpha1.PhaseOffline, "")
@@ -106,7 +102,7 @@ func (r *Reconciler) removeOldInstall(
 	ctx context.Context, gs *v1alpha1.GameServer, pod *corev1.Pod,
 ) (reconcile.Result, error) {
 	if pod.DeletionTimestamp == nil {
-		if err := r.Delete(ctx, pod, client.GracePeriodSeconds(0)); client.IgnoreNotFound(err) != nil {
+		if err := r.deleteNow(ctx, pod); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -120,10 +116,8 @@ func (r *Reconciler) startInstall(
 ) (reconcile.Result, error) {
 	// A fresh claim takes a few seconds to be provisioned.
 	pvc := &corev1.PersistentVolumeClaim{}
-	if err := r.Reader.Get(
-		ctx, types.NamespacedName{Namespace: gs.Namespace, Name: gameserver.PVCName(gs.Name)}, pvc,
-	); err != nil ||
-		pvc.Status.Phase != corev1.ClaimBound {
+	err := r.getChild(ctx, gs, gameserver.PVCName(gs.Name), pvc)
+	if err != nil || pvc.Status.Phase != corev1.ClaimBound {
 		r.setPhase(gs, v1alpha1.PhaseInstalling, "waiting for the volume to be provisioned")
 		return reconcile.Result{RequeueAfter: 2 * time.Second}, client.IgnoreNotFound(err)
 	}
@@ -136,11 +130,7 @@ func (r *Reconciler) startInstall(
 	}); err != nil {
 		return reconcile.Result{}, err
 	}
-	want := gameserver.InstallPod(gs, egg, r.Opts)
-	if err := controllerutil.SetControllerReference(gs, want, r.Scheme()); err != nil {
-		return reconcile.Result{}, err
-	}
-	if err := r.Create(ctx, want); client.IgnoreAlreadyExists(err) != nil {
+	if err := r.createOwned(ctx, gs, gameserver.InstallPod(gs, egg, r.Opts)); err != nil {
 		return reconcile.Result{}, err
 	}
 	r.Hub.Daemon(gs.Name, "Starting installation process, this could take a few minutes...")

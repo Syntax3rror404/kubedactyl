@@ -78,8 +78,7 @@ func (a *API) getSetupStatus(c *gin.Context) {
 //	@Router			/setup [post]
 func (a *API) runSetup(c *gin.Context) {
 	var req SetupRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	setupMu.Lock()
@@ -96,16 +95,12 @@ func (a *API) runSetup(c *gin.Context) {
 	key := "setup|" + c.ClientIP()
 	now := time.Now()
 	if ok, _ := a.Limiter.Take(key, now); !ok {
-		a.fail(c, tooManyRequests(errors.New("too many attempts, try again later")))
+		a.fail(c, tooManyRequests(errTooManyAttempts))
 		return
 	}
 	if a.SetupToken == "" || !auth.EqualTokens(strings.TrimSpace(req.Token), a.SetupToken) {
-		a.fail(
-			c,
-			fieldError(
-				http.StatusForbidden, "token", errors.New("invalid setup token, use the link from the panel log"),
-			),
-		)
+		err := errors.New("invalid setup token, use the link from the panel log")
+		a.fail(c, fieldError(http.StatusForbidden, "token", err))
 		return
 	}
 	u, err := a.Users.Create(c, users.CreateInput{
@@ -118,10 +113,5 @@ func (a *API) runSetup(c *gin.Context) {
 	}
 	a.Log.Info("first administrator created via the setup page", "user", u.Name)
 	a.SetupToken = ""
-	res, err := a.startSession(c, u)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, res)
+	a.sendSession(c, http.StatusCreated, u)
 }

@@ -65,7 +65,7 @@ type Checker struct {
 	tags func(ref string) ([]string, error)
 }
 
-// Start implements manager.Runnable.
+// Start asks the registry at once and then every CheckInterval until the panel stops.
 func (c *Checker) Start(ctx context.Context) error {
 	c.Refresh()
 	t := time.NewTicker(CheckInterval)

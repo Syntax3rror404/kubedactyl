@@ -99,7 +99,7 @@ export function Terminal({
       try {
         fit.fit()
       } catch {
-        // element not visible yet
+        // The element is not visible yet.
       }
     })
     resize.observe(el.current!)

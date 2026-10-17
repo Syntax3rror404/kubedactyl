@@ -1,11 +1,13 @@
 package egg
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"app/api/v1alpha1"
 	"app/internal/validation"
@@ -56,7 +58,7 @@ func humanize(path string) string {
 	return strings.Join(parts, ", ")
 }
 
-// Same rule as Pterodactyl (Pelican also allows dashes, which shells do not accept in names).
+// envNameRe is Pterodactyl's rule for variable names (Pelican also allows dashes, which shells do not accept).
 var envNameRe = regexp.MustCompile(`^\w{1,191}$`)
 
 // reservedForEdit extends ReservedVariables with the names Pelican reserves, so edited eggs stay
@@ -75,8 +77,8 @@ func Normalize(s *v1alpha1.EggSpec) {
 	s.Startup = strings.TrimSpace(s.Startup)
 	s.StartupCommands = StartupCommands(s)
 	for i := range s.StartupCommands {
-		s.StartupCommands[i].Name = strings.TrimSpace(s.StartupCommands[i].Name)
-		s.StartupCommands[i].Command = strings.TrimSpace(s.StartupCommands[i].Command)
+		c := &s.StartupCommands[i]
+		c.Name, c.Command = strings.TrimSpace(c.Name), strings.TrimSpace(c.Command)
 	}
 	if len(s.StartupCommands) > 0 {
 		s.Startup = s.StartupCommands[0].Command
@@ -88,24 +90,16 @@ func Normalize(s *v1alpha1.EggSpec) {
 	s.Install.Container = strings.TrimSpace(s.Install.Container)
 	s.Install.Entrypoint = strings.TrimSpace(s.Install.Entrypoint)
 	for i := range s.DockerImages {
-		s.DockerImages[i].Name = strings.TrimSpace(s.DockerImages[i].Name)
-		s.DockerImages[i].Image = strings.TrimSpace(s.DockerImages[i].Image)
-		if s.DockerImages[i].Name == "" {
-			s.DockerImages[i].Name = s.DockerImages[i].Image
-		}
+		img := &s.DockerImages[i]
+		img.Image = strings.TrimSpace(img.Image)
+		img.Name = cmp.Or(strings.TrimSpace(img.Name), img.Image)
 	}
 	for i := range s.Variables {
 		v := &s.Variables[i]
-		v.Name, v.EnvVariable, v.Rules = strings.TrimSpace(
-			v.Name,
-		), strings.TrimSpace(
-			v.EnvVariable,
-		), strings.TrimSpace(
-			v.Rules,
-		)
-		if v.FieldType == "" {
-			v.FieldType = "text"
-		}
+		v.Name = strings.TrimSpace(v.Name)
+		v.EnvVariable = strings.TrimSpace(v.EnvVariable)
+		v.Rules = strings.TrimSpace(v.Rules)
+		v.FieldType = cmp.Or(v.FieldType, "text")
 	}
 	for i := range s.ConfigFiles {
 		s.ConfigFiles[i].File = strings.TrimSpace(s.ConfigFiles[i].File)
@@ -132,7 +126,7 @@ func validateGeneral(s *v1alpha1.EggSpec, errs FieldErrors) {
 	switch {
 	case s.DisplayName == "":
 		errs["displayName"] = "is required"
-	case len(s.DisplayName) > 191:
+	case utf8.RuneCountInString(s.DisplayName) > 191:
 		errs["displayName"] = "must be at most 191 characters"
 	}
 	// Pterodactyl and Pelican require an e-mail address as author when importing.

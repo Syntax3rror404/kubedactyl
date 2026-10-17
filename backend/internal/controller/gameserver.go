@@ -42,7 +42,8 @@ type ServerEvents interface {
 	Stopping(gs *v1alpha1.GameServer) bool
 }
 
-// Reconciler reconciles GameServer objects.
+// Reconciler runs the game servers: it keeps the volume, service, files, install and game pods of
+// every server in line with its spec.
 type Reconciler struct {
 	client.Client
 	// Reader reads directly from the API server (no cache): for the server itself, its pods,
@@ -109,14 +110,19 @@ func (r *Reconciler) serversOfEgg(ctx context.Context, obj client.Object) []reco
 	return out
 }
 
-// Reconcile implements reconcile.Reconciler.
+// Reconcile brings one game server in line with its spec.
+//  1. Read: the server uncached; a deleted one is finalized (its volume released first).
+//  2. Finalizer: added before anything is created, so a deletion always passes finalize.
+//  3. Reconcile: children, migration and game (reconcile); an error shows as status.message.
+//  4. Save: the status only when it changed. Active servers are checked again every 20 s.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) {
 	defer r.logReconcile(ctx, req.Name, time.Now(), &result, &err)
 	if !tenancy.Owns(req.Namespace) {
 		return reconcile.Result{}, nil // belongs to another installation
 	}
-	// Read the server straight from the API: a power change and the pod event it causes
-	// can arrive before the cache has the new spec (e.g. kill looked like a crash).
+	// 1. Read
+	// Uncached: a power change and the pod event it causes can arrive before the cache has the new
+	// spec (a kill would look like a crash).
 	gs := &v1alpha1.GameServer{}
 	if err := r.Reader.Get(ctx, req.NamespacedName, gs); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -127,19 +133,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if !gs.DeletionTimestamp.IsZero() {
 		return r.finalize(ctx, gs)
 	}
+	// 2. Finalizer
 	if controllerutil.AddFinalizer(gs, gameserver.Finalizer) {
 		if err := r.Update(ctx, gs); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
+	// 3. Reconcile
 	before := gs.Status.DeepCopy()
 	result, err = r.reconcile(ctx, gs)
 	if err != nil {
 		gs.Status.Message = err.Error()
 	}
+	// 4. Save
 	gs.Status.ObservedGeneration = gs.Generation
-	// Safety net against missed watch events: re-check active servers regularly.
+	// Safety net against missed watch events.
 	if err == nil && result.RequeueAfter == 0 && isActive(gs.Status.Phase) {
 		result.RequeueAfter = 20 * time.Second
 	}
@@ -186,7 +195,26 @@ func (r *Reconciler) setPhase(gs *v1alpha1.GameServer, phase v1alpha1.Phase, msg
 	gs.Status.Message = msg
 }
 
+// patchServer patches what change does to the spec or metadata of the server. The status the
+// reconcile has built so far is kept (a patch answers with the stored one).
+func (r *Reconciler) patchServer(ctx context.Context, gs *v1alpha1.GameServer, change func()) error {
+	patch := client.MergeFrom(gs.DeepCopy())
+	change()
+	status := gs.Status
+	err := r.Patch(ctx, gs, patch)
+	gs.Status = status
+	return err
+}
+
+// reconcile brings the children of a server in line with its spec:
+//  1. Egg: without it nothing can run, the server waits as pending.
+//  2. Volume and service: they exist whatever the server does.
+//  3. Storage migration: while the files move, nothing else may touch the volume.
+//  4. Files pod: kept while the file manager uses it.
+//  5. Install: a new install revision runs the egg's install script first.
+//  6. Game: the game pod follows the power state; finished install pods go.
 func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (reconcile.Result, error) {
+	// 1. Egg
 	egg := &v1alpha1.Egg{}
 	// Eggs are shared by all users and live in the panel namespace.
 	if err := r.Get(ctx, types.NamespacedName{Namespace: r.Opts.Namespace, Name: gs.Spec.EggRef}, egg); err != nil {
@@ -196,22 +224,25 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 		}
 		return reconcile.Result{}, err
 	}
+	// 2. Volume and service
 	if err := r.ensurePVC(ctx, gs); err != nil {
 		return reconcile.Result{}, fmt.Errorf("volume: %w", err)
 	}
 	if err := r.ensureService(ctx, gs); err != nil {
 		return reconcile.Result{}, fmt.Errorf("service: %w", err)
 	}
+	// 3. Storage migration
 	if res, busy, err := r.reconcileMigration(ctx, gs); busy {
 		return res, err
 	}
-	// The files pod is created on demand: for the file manager and the pre-start steps.
+	// 4. Files pod (also started on demand by startGame for the pre-start steps)
 	if r.Files.Active(files.RefOf(gs)) {
 		if _, err := r.ensureFilesPod(ctx, gs); err != nil {
 			return reconcile.Result{}, fmt.Errorf("files pod: %w", err)
 		}
 	}
 
+	// 5. Install
 	// A server transferred from another owner starts with an empty status but is installed.
 	if rev, _ := strconv.ParseInt(
 		gs.Annotations[gameserver.AnnotationInstalledRevision], 10, 64,
@@ -225,6 +256,7 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 			return r.reconcileInstall(ctx, gs, egg)
 		}
 	}
+	// 6. Game
 	cleanup, err := r.cleanupInstall(ctx, gs)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -236,10 +268,10 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 	return result, err
 }
 
-// finalize releases the volumes of the server: the "longhorn" storage class retains volumes,
-// so the reclaim policy is switched to Delete before the claims go away, unless the server was
-// transferred to another owner, which keeps using the volume. A storage migration can hold a
-// second claim and, while it switches, two released volumes.
+// finalize releases the volumes of the server: storage classes may retain volumes, so the reclaim
+// policy is switched to Delete before the claims go away, unless the server was transferred to
+// another owner, which keeps using the volume. A storage migration can hold a second claim and,
+// while it switches, two released volumes.
 func (r *Reconciler) finalize(ctx context.Context, gs *v1alpha1.GameServer) (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(gs, gameserver.Finalizer) {
 		return reconcile.Result{}, nil
@@ -252,8 +284,7 @@ func (r *Reconciler) finalize(ctx context.Context, gs *v1alpha1.GameServer) (rec
 		}
 		for _, name := range []string{gameserver.PVCName(gs.Name), gameserver.MigrateName(gs.Name)} {
 			pvc := &corev1.PersistentVolumeClaim{}
-			err := r.Reader.Get(ctx, types.NamespacedName{Namespace: gs.Namespace, Name: name}, pvc)
-			if client.IgnoreNotFound(err) != nil {
+			if err := r.getChild(ctx, gs, name, pvc); client.IgnoreNotFound(err) != nil {
 				return reconcile.Result{}, err
 			}
 			volumes = append(volumes, pvc.Spec.VolumeName)

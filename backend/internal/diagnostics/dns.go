@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
 
 	"app/internal/checks"
 )
@@ -22,12 +23,12 @@ type records struct {
 func (d *Diagnoser) lookupPublic(ctx context.Context, domain string) records {
 	ctx, cancel := context.WithTimeout(ctx, 2*d.timeout())
 	defer cancel()
-	publicResolver := d.PublicResolver
-	if publicResolver == nil {
-		publicResolver = authoritative(ctx, domain)
+	public := d.PublicResolver
+	if public == nil {
+		public = authoritative(ctx, domain)
 	}
-	if publicResolver != nil {
-		pub := resolve(ctx, publicResolver, domain)
+	if public != nil {
+		pub := resolve(ctx, public, domain)
 		pub.public = true
 		return pub
 	}
@@ -38,10 +39,13 @@ func (d *Diagnoser) lookupPublic(ctx context.Context, domain string) records {
 	return resolve(ctx, local, domain)
 }
 
+// resolve asks for both address families at once.
 func resolve(ctx context.Context, r Resolver, domain string) records {
 	var out records
-	out.v4, _ = r.LookupNetIP(ctx, "ip4", domain)
+	var wg sync.WaitGroup
+	wg.Go(func() { out.v4, _ = r.LookupNetIP(ctx, "ip4", domain) })
 	out.v6, _ = r.LookupNetIP(ctx, "ip6", domain)
+	wg.Wait()
 	return out
 }
 
@@ -49,41 +53,23 @@ func aRecord(in Input, pub records) checks.Check {
 	const id, label = "dns-a", "DNS A record (IPv4)"
 	v4 := pub.v4
 	if len(v4) == 0 {
-		return checks.New(
-			id,
-			label,
-			checks.Error,
-			fmt.Sprintf(
-				"%s has no A record, so players cannot find the server. An administrator must create one "+
-					"that points to the public IP of the server's network.",
-				in.Domain,
-			),
-		)
+		return checks.New(id, label, checks.Error, fmt.Sprintf("%s has no A record, so players cannot find the "+
+			"server. An administrator must create one that points to the public IP of the server's network.",
+			in.Domain))
 	}
 	lb, _ := netip.ParseAddr(in.Server.Status.Address)
+	const repoint = "an administrator must point the record to the public IP"
 	var parts []string
 	status := checks.OK
 	for _, ip := range v4 {
 		switch {
 		case ip == lb:
-			parts = append(
-				parts,
-				describe(
-					in,
-					ip,
-				)+": the server's internal address, which players on the internet cannot reach; "+
-					"an administrator must point the record to the public IP",
-			)
+			parts = append(parts, shown(in, ip.String(), "the load balancer")+
+				": the server's internal address, which players on the internet cannot reach; "+repoint)
 			status = checks.Error
 		case internal(ip):
-			parts = append(
-				parts,
-				private(
-					in,
-					ip,
-				)+": an internal address players on the internet cannot reach; "+
-					"an administrator must point the record to the public IP",
-			)
+			parts = append(parts, shown(in, ip.String(), "an internal address")+
+				": an internal address players on the internet cannot reach; "+repoint)
 			status = checks.Error
 		default:
 			parts = append(parts, ip.String()+": a public address, players find the server")
@@ -96,12 +82,12 @@ func aRecord(in Input, pub records) checks.Check {
 	return checks.New(id, label, status, msg)
 }
 
-// private shows an internal address only to administrators.
-func private(in Input, ip netip.Addr) string {
+// shown is the address for administrators and the hidden text for users, who never see internal addresses.
+func shown(in Input, ip, hidden string) string {
 	if in.ShowAddresses {
-		return ip.String()
+		return ip
 	}
-	return "an internal address"
+	return hidden
 }
 
 func aaaaRecord(domain string, v6 []netip.Addr) checks.Check {
@@ -113,17 +99,9 @@ func aaaaRecord(domain string, v6 []netip.Addr) checks.Check {
 	for i, ip := range v6 {
 		ips[i] = ip.String()
 	}
-	return checks.New(
-		id,
-		label,
-		checks.Warning,
-		fmt.Sprintf(
-			"%s also points to %s. Players with IPv6 try this address first. If they cannot connect, "+
-				"an administrator must allow the ports for IPv6 too or remove the AAAA record.",
-			domain,
-			strings.Join(ips, ", "),
-		),
-	)
+	return checks.New(id, label, checks.Warning, fmt.Sprintf("%s also points to %s. Players with IPv6 try this "+
+		"address first. If they cannot connect, an administrator must allow the ports for IPv6 too or remove the "+
+		"AAAA record.", domain, strings.Join(ips, ", ")))
 }
 
 func firstPublic(ips []netip.Addr) netip.Addr {
@@ -138,11 +116,4 @@ func firstPublic(ips []netip.Addr) netip.Addr {
 // internal reports addresses players on the internet cannot reach.
 func internal(ip netip.Addr) bool {
 	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()
-}
-
-func describe(in Input, ip netip.Addr) string {
-	if in.ShowAddresses {
-		return ip.String()
-	}
-	return "the load balancer"
 }

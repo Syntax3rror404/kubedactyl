@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
 
-// Same patterns as Pterodactyl and Pelican (case-insensitive substrings).
+// The patterns of the egg features in Pterodactyl and Pelican (case-insensitive substrings).
 const pidPatterns = [
   "pthread_create failed",
   "failed to create thread",
@@ -20,6 +20,7 @@ const pidPatterns = [
 ]
 const diskPatterns = ["steamcmd needs 250mb of free disk space to update", "0x202 after update job"]
 
+/** Dialog of an egg feature that only explains: closing it dismisses the matched console line. */
 function Notice({
   open,
   onClose,

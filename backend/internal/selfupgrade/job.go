@@ -86,13 +86,10 @@ func (u *Upgrader) Start(ctx context.Context, version string) (*Job, error) {
 // Prune deletes finished upgrade jobs beyond the newest KeepJobs, together with their pods.
 // Running jobs are never deleted.
 func (u *Upgrader) Prune(ctx context.Context) error {
-	var list batchv1.JobList
-	if err := u.Reader.List(
-		ctx, &list, client.InNamespace(u.Config.Namespace), client.MatchingLabels{labelComponent: componentValue},
-	); err != nil {
+	jobs, err := u.listJobs(ctx)
+	if err != nil {
 		return err
 	}
-	jobs := list.Items
 	sort.Slice(jobs, func(a, b int) bool { return jobs[a].CreationTimestamp.After(jobs[b].CreationTimestamp.Time) })
 	for i := KeepJobs; i < len(jobs); i++ {
 		if jobOf(&jobs[i]).State == JobRunning {
@@ -126,17 +123,15 @@ func (u *Upgrader) PruneEvery(interval time.Duration, log *slog.Logger) manager.
 
 // Jobs lists the upgrade jobs, newest first; withLog adds the output of failed jobs.
 func (u *Upgrader) Jobs(ctx context.Context, withLog bool) ([]Job, error) {
-	var list batchv1.JobList
-	if err := u.Reader.List(
-		ctx, &list, client.InNamespace(u.Config.Namespace), client.MatchingLabels{labelComponent: componentValue},
-	); err != nil {
+	jobs, err := u.listJobs(ctx)
+	if err != nil {
 		return nil, err
 	}
-	out := make([]Job, 0, len(list.Items))
-	for i := range list.Items {
-		j := jobOf(&list.Items[i])
+	out := make([]Job, 0, len(jobs))
+	for i := range jobs {
+		j := jobOf(&jobs[i])
 		if withLog && j.State == JobFailed {
-			j.Log = u.jobLog(ctx, list.Items[i].Name)
+			j.Log = u.jobLog(ctx, jobs[i].Name)
 		}
 		out = append(out, j)
 	}
@@ -144,13 +139,20 @@ func (u *Upgrader) Jobs(ctx context.Context, withLog bool) ([]Job, error) {
 	return out, nil
 }
 
+// listJobs reads the upgrade jobs uncached.
+func (u *Upgrader) listJobs(ctx context.Context) ([]batchv1.Job, error) {
+	var list batchv1.JobList
+	err := u.Reader.List(
+		ctx, &list, client.InNamespace(u.Config.Namespace), client.MatchingLabels{labelComponent: componentValue},
+	)
+	return list.Items, err
+}
+
 // jobLog returns the last lines of the job's pod output.
 func (u *Upgrader) jobLog(ctx context.Context, job string) string {
 	var pods corev1.PodList
-	if err := u.Reader.List(
-		ctx, &pods, client.InNamespace(u.Config.Namespace), client.MatchingLabels{"job-name": job},
-	); err != nil ||
-		len(pods.Items) == 0 {
+	err := u.Reader.List(ctx, &pods, client.InNamespace(u.Config.Namespace), client.MatchingLabels{"job-name": job})
+	if err != nil || len(pods.Items) == 0 {
 		return ""
 	}
 	pod := &pods.Items[0]

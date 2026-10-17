@@ -1,8 +1,9 @@
+import { memo } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
-// react-markdown renders no raw HTML and drops unsafe link protocols (javascript:), so admin
-// supplied text cannot inject scripts. Styles are mapped per element (no typography plugin).
+// react-markdown renders no raw HTML and drops unsafe link protocols (javascript:), so text an administrator writes
+// cannot inject scripts. Styles are mapped per element (no typography plugin).
 const components: Components = {
   h1: (p) => <h1 className="mt-6 mb-3 text-xl font-semibold tracking-tight first:mt-0" {...p} />,
   h2: (p) => <h2 className="mt-5 mb-2 text-lg font-semibold tracking-tight first:mt-0" {...p} />,
@@ -30,13 +31,18 @@ const components: Components = {
   td: (p) => <td className="border-b px-2 py-1" {...p} />,
 }
 
-/** Renders Markdown: texts written by an administrator (legal texts) and the licenses page. */
-export function Markdown({ children }: { children: string }) {
+const plugins = [remarkGfm]
+
+/**
+ * Renders Markdown: texts written by an administrator (legal texts) and the licenses page. Memoized: the licenses
+ * are over a megabyte, parsed again only when the text changes.
+ */
+export const Markdown = memo(function Markdown({ children }: { children: string }) {
   return (
     <div className="text-sm wrap-break-word text-foreground">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={plugins} components={components}>
         {children}
       </ReactMarkdown>
     </div>
   )
-}
+})

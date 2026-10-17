@@ -5,10 +5,9 @@ import type { useConsole } from "@/features/servers/hooks/use-console"
 export type Subscribe = ReturnType<typeof useConsole>["subscribe"]
 
 /**
- * Watches the console output for any of the patterns (case-insensitive substrings like
- * Pterodactyl, or regular expressions) and returns the last matching line until dismissed.
- * Every start ("Server marked as starting...", also in the replayed history) clears the match,
- * so only the output of the latest run counts.
+ * Watches the console output for any of the patterns (case-insensitive substrings or regular expressions) and
+ * returns the last matching line until dismissed. Every start ("Server marked as starting...", also in the
+ * replayed history) clears the match, so only the output of the latest run counts.
  */
 export function useConsoleMatch(subscribe: Subscribe, patterns: (string | RegExp)[]) {
   const [line, setLine] = useState<string | null>(null)

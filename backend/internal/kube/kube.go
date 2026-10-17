@@ -1,5 +1,6 @@
-// Package kube wraps the Kubernetes streaming APIs (exec, attach, logs) used by the panel and
-// CreateOrPatch, which decides create or update with an uncached read.
+// Package kube holds what the panel shares around the Kubernetes API: the streaming calls (exec,
+// attach), the request limit, a TTL cache for polled values, CreateOrPatch with an uncached read
+// and the volume helpers of transfers and storage migrations.
 package kube
 
 import (
@@ -140,26 +141,29 @@ func (k *Client) AttachWrite(ctx context.Context, ns, pod, container string, dat
 	if err != nil {
 		return err
 	}
-	// The attach stream only ends when the container exits, so we close it ourselves
-	// shortly after stdin has been delivered.
+	// The attach stream only ends when the container exits: it is closed shortly after stdin
+	// was delivered.
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	in := &onceReader{data: data, sent: make(chan struct{}), ctx: ctx}
-	done := make(chan error, 1)
+	var streamErr error
+	done := make(chan struct{})
 	go func() {
-		done <- exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdin: in, Stdout: io.Discard, Tty: true})
+		defer close(done)
+		streamErr = exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdin: in, Stdout: io.Discard, Tty: true})
 	}()
 	select {
-	case err := <-done:
-		if err == nil {
-			err = errors.New("attach stream closed before the input was sent")
+	case <-done:
+		if streamErr == nil {
+			return errors.New("attach stream closed before the input was sent")
 		}
-		return err
+		return streamErr
 	case <-in.sent:
-		// Give the stream a moment to flush the frame before closing it.
+		// Give the stream a moment to flush the frame before closing it. Its own error does not
+		// matter any more: the input was delivered.
 		select {
 		case <-done:
-			// The container exited (e.g. after ^C); the input was delivered.
+			// The container exited (e.g. after ^C).
 		case <-time.After(300 * time.Millisecond):
 			cancel()
 			<-done

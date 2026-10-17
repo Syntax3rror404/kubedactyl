@@ -35,11 +35,12 @@ var (
 	transferWait = 2 * time.Minute
 )
 
-// Transfer moves a stopped server to the namespace of another user. The data volume moves
-// with it: it is retained, the old server object is deleted (its finalizer keeps the volume),
-// the volume is bound to a claim of the same name in the new namespace and the server is
-// created there with the same spec. The address stays: it is fixed to the current one.
-// Returns the new server object.
+// Transfer moves a stopped server to the namespace of another user and returns the new server
+// object. The data volume and the address move with it:
+//  1. Retain: the volume survives its claim.
+//  2. Remove: the old server object goes (its finalizer keeps the volume) with its claim and service.
+//  3. Reserve: the volume is bound to the claim of the same name in the new namespace.
+//  4. Create: the server is created there with the same spec, its address fixed to the current one.
 func (o *Ops) Transfer(
 	ctx context.Context, gs *v1alpha1.GameServer, owner, namespace string,
 ) (*v1alpha1.GameServer, error) {
@@ -49,25 +50,25 @@ func (o *Ops) Transfer(
 	if err := Stopped(gs); err != nil {
 		return nil, err
 	}
-	if o.Files != nil &&
-		o.Files.Busy(
-			files.RefOf(gs), files.JobPull, files.JobBackup, files.JobRestore,
-		) {
+	if o.Files != nil && o.Files.Busy(files.RefOf(gs), files.JobPull, files.JobBackup, files.JobRestore) {
 		return nil, ErrFilesBusy
 	}
+	// 1. Retain
 	pv, err := o.retainVolume(ctx, gs)
 	if err != nil {
 		return nil, err
 	}
 	moved := transferred(gs, owner, namespace, pv)
+	// 2. Remove
 	if err := o.removeKeepingVolume(ctx, gs); err != nil {
 		return nil, err
 	}
-	// The volume is reserved for the claim of the moved server, which the controller creates.
+	// 3. Reserve: the controller creates the claim of the moved server.
 	err = kube.ReserveVolume(ctx, o.Reader, o.Client, pv, moved.Namespace, gameserver.PVCName(moved.Name))
 	if err != nil {
 		return nil, fmt.Errorf("volume %s is kept, binding it failed: %w", pv, err)
 	}
+	// 4. Create
 	if err := o.Client.Create(ctx, moved); err != nil {
 		return nil, fmt.Errorf("volume %s is kept, creating the server failed: %w", pv, err)
 	}
@@ -93,7 +94,8 @@ func (o *Ops) retainVolume(ctx context.Context, gs *v1alpha1.GameServer) (string
 }
 
 // transferred is the server object for the new owner: same name and spec, the load balancer
-// address fixed to the current one, and annotations that bind the moved volume and skip the installation.
+// address fixed to the current one, and annotations that bind the moved volume and skip the
+// installation.
 func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1alpha1.GameServer {
 	moved := &v1alpha1.GameServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,10 +108,7 @@ func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1al
 		},
 		Spec: *gs.Spec.DeepCopy(),
 	}
-	if moved.Labels == nil {
-		moved.Labels = map[string]string{}
-	}
-	moved.Labels[tenancy.LabelOwner] = owner
+	metav1.SetMetaDataLabel(&moved.ObjectMeta, tenancy.LabelOwner, owner)
 	if moved.Spec.LoadBalancerIP == "" && !gameserver.ClusterOnly(gs) {
 		// All addresses: fixing only one would cost the server its IPv6 address.
 		moved.Spec.LoadBalancerIP = cmp.Or(strings.Join(gs.Status.Addresses, ","), gs.Status.Address)
@@ -121,10 +120,7 @@ func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1al
 // server, its claim and its service are gone (the name is reused in the new namespace).
 func (o *Ops) removeKeepingVolume(ctx context.Context, gs *v1alpha1.GameServer) error {
 	patch := client.MergeFrom(gs.DeepCopy())
-	if gs.Annotations == nil {
-		gs.Annotations = map[string]string{}
-	}
-	gs.Annotations[gameserver.AnnotationKeepVolume] = "true"
+	metav1.SetMetaDataAnnotation(&gs.ObjectMeta, gameserver.AnnotationKeepVolume, "true")
 	if err := o.Client.Patch(ctx, gs, patch); err != nil {
 		return err
 	}

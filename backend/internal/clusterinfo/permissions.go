@@ -21,7 +21,7 @@ type permissionCheck struct {
 	label, verb, group, resource, sub, name, scope string
 }
 
-// errUnsure: a permission check failed or could not run yet; the result is shown but not cached.
+// errUnsure marks permission checks that failed or could not run yet: shown, but not cached.
 var errUnsure = errors.New("permission checks incomplete")
 
 // permissions verifies the access the panel needs (cached for permissionTTL).
@@ -33,7 +33,7 @@ func (s *Service) permissions(ctx context.Context) []Permission {
 // checkPermissions asks the API server for every access the panel needs (SelfSubjectAccessReview).
 func (s *Service) checkPermissions(ctx context.Context) ([]Permission, error) {
 	checks := s.permissionChecks()
-	// The tenant role is bound per user namespace: check it in one of them (none yet: skipped).
+	// The tenant role is bound per user namespace, so it is checked in one of them (skipped while there is none).
 	tenantNS := s.userNamespace(ctx)
 	var unsure atomic.Bool
 	if tenantNS == "" {

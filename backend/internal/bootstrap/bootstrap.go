@@ -101,8 +101,8 @@ func EnsureNamespace(ctx context.Context, c client.Client, name string) error {
 	return nil
 }
 
-// Only objects created by the panel are cached; everything else is read directly, so the
-// panel never keeps all pods or secrets of the cluster in memory.
+// CacheOptions caches only the objects the panel created, so it never keeps all pods or services
+// of the cluster in memory.
 func CacheOptions() cache.Options {
 	managed := labels.SelectorFromSet(labels.Set{tenancy.LabelManagedBy: tenancy.ManagedBy})
 	return cache.Options{ByObject: map[client.Object]cache.ByObject{
@@ -114,6 +114,8 @@ func CacheOptions() cache.Options {
 	}}
 }
 
+// UncachedTypes are always read from the API server: secrets and the cluster wide objects would
+// otherwise be cached for the whole cluster.
 func UncachedTypes() []client.Object {
 	return []client.Object{
 		&corev1.Secret{},

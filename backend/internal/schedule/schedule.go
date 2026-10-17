@@ -1,6 +1,6 @@
-// Package schedule runs the tasks of game server schedules:
-// console commands and power actions at times given by cron expressions, or at events of the
-// server's life: after it started and before it stops ("Tasks" in the web interface).
+// Package schedule runs the tasks of game server schedules (console commands, power actions,
+// backups) at times given by cron expressions, or at events of the server's life after it started
+// and before it stops ("Tasks" in the web interface).
 package schedule
 
 import (
@@ -28,9 +28,9 @@ const (
 
 // Events a schedule can run at instead of a cron expression.
 const (
-	// EventStarted: the server was marked as running (its "done" line appeared).
+	// EventStarted runs when the server was marked as running (its "done" line appeared).
 	EventStarted = "started"
-	// EventStopping: the server is about to be stopped or restarted; the stop waits for the tasks.
+	// EventStopping runs before the server is stopped or restarted; the stop waits for the tasks.
 	EventStopping = "stopping"
 )
 
@@ -40,7 +40,7 @@ var parser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cr
 // Time zone prefixes are rejected: all schedules use the panel's time zone.
 func Parse(expr string) (cron.Schedule, error) {
 	expr = strings.TrimSpace(expr)
-	if strings.HasPrefix(strings.ToUpper(expr), "CRON_TZ=") || strings.HasPrefix(strings.ToUpper(expr), "TZ=") {
+	if upper := strings.ToUpper(expr); strings.HasPrefix(upper, "CRON_TZ=") || strings.HasPrefix(upper, "TZ=") {
 		return nil, errors.New("time zones are not supported in the expression; the panel time zone is used")
 	}
 	if strings.HasPrefix(expr, "@every") {

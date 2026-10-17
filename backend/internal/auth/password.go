@@ -1,4 +1,5 @@
-// Package auth implements password hashing, session tokens, API tokens and login throttling.
+// Package auth holds the credentials of the panel: password hashes, signed session and device
+// tokens, API, invite and setup tokens, and the limiter of failed sign-ins.
 package auth
 
 import (

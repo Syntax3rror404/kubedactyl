@@ -5,6 +5,8 @@ import type { CrumbHandle } from "@/components/layout/site-header"
 import { RequireAdmin, RequireAuth } from "@/features/auth/components/require-auth"
 
 const crumbs = (fn: CrumbHandle["crumbs"]): CrumbHandle => ({ crumbs: fn })
+/** The handle of a page whose breadcrumb is only its own label. */
+const titled = (label: string) => crumbs(() => [{ label }])
 
 // Pages are loaded on demand, so heavy editors (CodeMirror, xterm) are not in the first bundle.
 const page =
@@ -30,7 +32,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: page(() => import("@/features/dashboard/dashboard-page"), "DashboardPage"),
-            handle: crumbs(() => [{ label: "Dashboard" }]),
+            handle: titled("Dashboard"),
           },
           {
             path: "servers/:server",
@@ -43,52 +45,51 @@ export const router = createBrowserRouter([
               {
                 index: true,
                 lazy: page(() => import("@/features/servers/console-page"), "ConsolePage"),
-                handle: crumbs(() => [{ label: "Console" }]),
+                handle: titled("Console"),
               },
               {
                 path: "files",
                 lazy: page(() => import("@/features/servers/files-page"), "FilesPage"),
-                handle: crumbs(() => [{ label: "Files" }]),
+                handle: titled("Files"),
               },
               {
                 path: "startup",
                 lazy: page(() => import("@/features/servers/startup-page"), "StartupPage"),
-                handle: crumbs(() => [{ label: "Startup" }]),
+                handle: titled("Startup"),
               },
               {
                 path: "schedules",
                 lazy: page(() => import("@/features/servers/schedules-page"), "SchedulesPage"),
-                handle: crumbs(() => [{ label: "Schedules" }]),
+                handle: titled("Schedules"),
               },
               {
                 path: "tasks",
                 lazy: page(() => import("@/features/servers/tasks-page"), "TasksPage"),
-                handle: crumbs(() => [{ label: "Tasks" }]),
+                handle: titled("Tasks"),
               },
               {
                 path: "backups",
                 lazy: page(() => import("@/features/servers/backups-page"), "BackupsPage"),
-                handle: crumbs(() => [{ label: "Backups" }]),
+                handle: titled("Backups"),
               },
               {
                 path: "diagnostics",
                 lazy: page(() => import("@/features/servers/diagnostics-page"), "DiagnosticsPage"),
-                handle: crumbs(() => [{ label: "Diagnostics" }]),
+                handle: titled("Diagnostics"),
               },
               {
                 path: "settings",
                 lazy: page(() => import("@/features/servers/settings-page"), "ServerSettingsPage"),
-                handle: crumbs(() => [{ label: "Settings" }]),
+                handle: titled("Settings"),
               },
             ],
           },
           {
             path: "account",
             lazy: page(() => import("@/features/account/account-page"), "AccountPage"),
-            handle: crumbs(() => [{ label: "Account" }]),
+            handle: titled("Account"),
           },
           {
-            // Administration
             element: <RequireAdmin />,
             children: [
               {
@@ -99,7 +100,7 @@ export const router = createBrowserRouter([
               {
                 path: "eggs",
                 lazy: page(() => import("@/features/eggs/eggs-page"), "EggsPage"),
-                handle: crumbs(() => [{ label: "Eggs" }]),
+                handle: titled("Eggs"),
               },
               {
                 path: "eggs/new",
@@ -132,25 +133,21 @@ export const router = createBrowserRouter([
               {
                 path: "users",
                 lazy: page(() => import("@/features/users/users-page"), "UsersPage"),
-                handle: crumbs(() => [{ label: "Users" }]),
+                handle: titled("Users"),
               },
               {
                 path: "cluster",
                 lazy: page(() => import("@/features/cluster/cluster-page"), "ClusterPage"),
-                handle: crumbs(() => [{ label: "Cluster" }]),
+                handle: titled("Cluster"),
               },
               {
                 path: "settings",
                 lazy: page(() => import("@/features/settings/settings-page"), "PanelSettingsPage"),
-                handle: crumbs(() => [{ label: "Settings" }]),
+                handle: titled("Settings"),
               },
             ],
           },
-          {
-            path: "*",
-            lazy: page(() => import("@/app/not-found-page"), "NotFoundPage"),
-            handle: crumbs(() => [{ label: "Not found" }]),
-          },
+          { path: "*", lazy: page(() => import("@/app/not-found-page"), "NotFoundPage"), handle: titled("Not found") },
         ],
       },
     ],

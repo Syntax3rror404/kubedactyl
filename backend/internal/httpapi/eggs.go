@@ -36,8 +36,9 @@ func (a *API) listEggs(c *gin.Context) {
 		list.Items,
 		func(i, j int) bool { return list.Items[i].Spec.DisplayName < list.Items[j].Spec.DisplayName },
 	)
+	p := principal(c)
 	for i := range list.Items {
-		list.Items[i] = *visibleEgg(principal(c), &list.Items[i])
+		visibleEgg(p, &list.Items[i])
 	}
 	c.JSON(http.StatusOK, EggList{Items: list.Items})
 }

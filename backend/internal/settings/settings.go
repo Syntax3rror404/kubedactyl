@@ -247,29 +247,35 @@ func normalizeTexts(spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsSpec
 	}
 	spec.LegalNotice = strings.TrimSpace(spec.LegalNotice)
 	spec.PrivacyPolicy = strings.TrimSpace(spec.PrivacyPolicy)
-	for field, text := range map[string]string{"legalNotice": spec.LegalNotice, "privacyPolicy": spec.PrivacyPolicy} {
-		if n := len([]rune(text)); n > maxLegalLength {
-			return spec, invalid(field, "the text is too long (%d of %d characters)", n, maxLegalLength)
+	for _, f := range []textField{{"legalNotice", spec.LegalNotice}, {"privacyPolicy", spec.PrivacyPolicy}} {
+		if n := len([]rune(f.value)); n > maxLegalLength {
+			return spec, invalid(f.name, "the text is too long (%d of %d characters)", n, maxLegalLength)
 		}
 	}
 	return normalizeBranding(spec)
 }
 
+// textField is a settings field checked in a fixed order, so the first invalid one is always the same.
+type textField struct{ name, value string }
+
 // normalizeBranding trims the brand texts and checks the logo and favicon images.
 func normalizeBranding(spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsSpec, error) {
 	spec.BrandName = strings.TrimSpace(spec.BrandName)
 	spec.BrandTagline = strings.TrimSpace(spec.BrandTagline)
-	for field, c := range map[string]struct {
-		text string
-		max  int
-	}{"brandName": {spec.BrandName, maxBrandName}, "brandTagline": {spec.BrandTagline, maxBrandTagline}} {
-		if n := len([]rune(c.text)); n > c.max {
-			return spec, invalid(field, "too long (%d of %d characters)", n, c.max)
+	for _, f := range []struct {
+		textField
+		max int
+	}{
+		{textField{"brandName", spec.BrandName}, maxBrandName},
+		{textField{"brandTagline", spec.BrandTagline}, maxBrandTagline},
+	} {
+		if n := len([]rune(f.value)); n > f.max {
+			return spec, invalid(f.name, "too long (%d of %d characters)", n, f.max)
 		}
 	}
-	for field, url := range map[string]string{"brandLogo": spec.BrandLogo, "favicon": spec.Favicon} {
-		if err := checkBrandImage(url); err != nil {
-			return spec, invalid(field, "%s", err)
+	for _, f := range []textField{{"brandLogo", spec.BrandLogo}, {"favicon", spec.Favicon}} {
+		if err := checkBrandImage(f.value); err != nil {
+			return spec, invalid(f.name, "%s", err)
 		}
 	}
 	return spec, nil
@@ -321,16 +327,20 @@ func checkBrandImage(url string) error {
 	if url == "" {
 		return nil
 	}
-	errImage := errors.New("use a PNG, JPEG, GIF, WebP, SVG or ICO image of at most 128 KiB")
+	if len(url) > maxBrandImageURL {
+		return errBrandImage
+	}
 	m := brandImage.FindStringSubmatch(url)
-	if m == nil || len(url) > maxBrandImageURL {
-		return errImage
+	if m == nil {
+		return errBrandImage
 	}
 	if data, err := base64.StdEncoding.DecodeString(m[2]); err != nil || len(data) == 0 || len(data) > maxBrandImage {
-		return errImage
+		return errBrandImage
 	}
 	return nil
 }
+
+var errBrandImage = errors.New("use a PNG, JPEG, GIF, WebP, SVG or ICO image of at most 128 KiB")
 
 // checkStorageClasses requires at least one enabled class, and every one must exist.
 func (s *Store) checkStorageClasses(ctx context.Context, names []string) error {
@@ -384,9 +394,9 @@ func Choose(requested, def string, allowed []string, what string) (string, error
 
 // Errors when a server asks for a storage class or pool.
 var (
-	// ErrNotConfigured: a server needs a setting that the admin has not made.
+	// ErrNotConfigured means a server needs a setting that the admin has not made.
 	ErrNotConfigured = errors.New("no storage class is enabled, configure the panel settings first")
-	// ErrNotEnabled: the requested value is not among the enabled ones.
+	// ErrNotEnabled means the requested value is not among the enabled ones.
 	ErrNotEnabled = errors.New("is not enabled in the panel settings")
 )
 

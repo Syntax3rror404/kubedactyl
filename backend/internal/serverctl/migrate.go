@@ -20,10 +20,10 @@ var (
 	ErrSwitching        = errors.New("the files are copied already, the migration finishes in a moment")
 )
 
-// Migrate moves the server files to a volume of another storage class: it names the class in the
-// spec; the controller stops the server (it is locked while migrating), copies the files and
-// switches the volume. With start the server stays wanted running, so it starts when the
-// migration has ended.
+// Migrate moves the server files to a volume of another storage class. It only names the class in
+// the spec. The controller stops and locks the server, copies the files and switches the volume.
+// With start the server starts once the migration has finished; a failed or cancelled one leaves
+// it stopped.
 func (o *Ops) Migrate(ctx context.Context, gs *v1alpha1.GameServer, storageClass string, start bool) error {
 	switch {
 	case gameserver.Migrating(gs):
@@ -49,7 +49,7 @@ func (o *Ops) Migrate(ctx context.Context, gs *v1alpha1.GameServer, storageClass
 }
 
 // CancelMigration names the storage class of the current volume again, which ends a migration
-// before the switch; the copy is deleted.
+// before the switch; the copy is deleted and the server stays stopped.
 func (o *Ops) CancelMigration(ctx context.Context, gs *v1alpha1.GameServer) error {
 	if !gameserver.Migrating(gs) {
 		return ErrNotMigrating
@@ -58,6 +58,6 @@ func (o *Ops) CancelMigration(ctx context.Context, gs *v1alpha1.GameServer) erro
 		return ErrSwitching
 	}
 	patch := client.MergeFrom(gs.DeepCopy())
-	gs.Spec.StorageClass = gs.Status.StorageClass
+	gs.Spec.StorageClass, gs.Spec.State = gs.Status.StorageClass, v1alpha1.PowerStopped
 	return o.Client.Patch(ctx, gs, patch)
 }

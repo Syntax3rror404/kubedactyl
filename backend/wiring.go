@@ -73,9 +73,12 @@ type bootResult struct {
 	setupToken string // "" once an administrator exists
 }
 
-// prepareCluster runs the start-up steps with a direct (uncached) client: install the CRDs,
-// create the panel namespace, load the session key, create the first admin (or a setup token)
-// and the panel settings.
+// prepareCluster runs the start-up steps with a direct client (the cache does not run yet):
+//  1. CRDs: installed or updated, so the types below exist.
+//  2. Namespace: the panel namespace, which also scopes this installation to its user namespaces.
+//  3. Session key: loaded or created, so sessions survive restarts.
+//  4. First admin: created from the environment, or a setup token when there is none.
+//  5. Settings: created with the storage class and pool of the flags on the first start.
 func prepareCluster(
 	ctx context.Context, restCfg *rest.Config, scheme *runtime.Scheme, cfg config, log *slog.Logger,
 ) (*bootResult, error) {
@@ -84,25 +87,29 @@ func prepareCluster(
 	if err != nil {
 		return nil, fmt.Errorf("creating client: %w", err)
 	}
+	// 1. CRDs
 	if err := bootstrap.InstallCRDs(ctx, direct); err != nil {
 		return nil, fmt.Errorf("installing CRDs: %w", err)
 	}
+	// 2. Namespace
 	if err := bootstrap.EnsureNamespace(ctx, direct, ns); err != nil {
 		return nil, fmt.Errorf("creating namespace: %w", err)
 	}
-	// Installation scoping: this panel only handles its own user namespaces.
 	tenancy.SystemNamespace = ns
 	tenancy.NamespacePrefix = ns + "-user-"
 	// In the cluster the panel may only write in user namespaces through its tenant role.
 	tenancy.TenantRole, tenancy.PanelServiceAccount = cfg.tenantRole, cfg.serviceAccount
+	// 3. Session key
 	signer, err := bootstrap.LoadSessionSigner(ctx, direct, ns)
 	if err != nil {
 		return nil, fmt.Errorf("loading session key: %w", err)
 	}
+	// 4. First admin
 	setupToken, err := bootstrap.Admin(ctx, direct, ns, "http://localhost"+cfg.addr, log.With("component", "bootstrap"))
 	if err != nil {
 		return nil, fmt.Errorf("creating initial admin: %w", err)
 	}
+	// 5. Settings
 	if err := settings.Bootstrap(
 		ctx, direct, ns, cfg.opts.StorageClass, cfg.opts.LoadBalancerPool, log.With("component", "settings"),
 	); err != nil {

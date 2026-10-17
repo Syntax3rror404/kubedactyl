@@ -2,20 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import type { SettingsChange, SettingsDraft } from "@/features/servers/lib/settings-draft"
+import type { SettingsCardProps } from "@/features/servers/lib/settings-draft"
 
 /** Settings page: display name, crash restarts and (admins) the stop timeout. */
-export function GeneralCard({
-  draft,
-  onChange,
-  errors,
-  isAdmin,
-}: {
-  draft: SettingsDraft
-  onChange: SettingsChange
-  errors: Record<string, string>
-  isAdmin: boolean
-}) {
+export function GeneralCard({ draft, onChange, errors, isAdmin }: SettingsCardProps & { isAdmin: boolean }) {
   return (
     <Card>
       <CardHeader>
@@ -26,7 +16,7 @@ export function GeneralCard({
           <Field data-invalid={!!errors.displayName}>
             <FieldLabel htmlFor="display">Display name</FieldLabel>
             <Input id="display" value={draft.displayName} onChange={(e) => onChange({ displayName: e.target.value })} />
-            {errors.displayName && <FieldError>{errors.displayName}</FieldError>}
+            <FieldError>{errors.displayName}</FieldError>
           </Field>
           <Field orientation="horizontal">
             <Switch
@@ -53,7 +43,7 @@ export function GeneralCard({
               <FieldDescription>
                 After the stop command the process is killed when it is still running.
               </FieldDescription>
-              {errors.stopTimeoutSeconds && <FieldError>{errors.stopTimeoutSeconds}</FieldError>}
+              <FieldError>{errors.stopTimeoutSeconds}</FieldError>
             </Field>
           )}
         </FieldGroup>

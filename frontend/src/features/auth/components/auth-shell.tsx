@@ -3,13 +3,14 @@ import type { ReactNode } from "react"
 import { BrandMark } from "@/components/common/brand-mark"
 import { SiteFooter } from "@/components/layout/site-footer"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Card } from "@/components/ui/card"
 import { LightRays } from "@/components/ui/light-rays"
 import { Particles } from "@/components/ui/particles"
 import { useBrandingHead } from "@/hooks/use-branding-head"
 import { useResolvedTheme } from "@/hooks/use-resolved-theme"
 import { useBranding } from "@/lib/queries"
 
-/** Centered frame of the login and setup pages (logo, Magic UI light rays and particles, theme toggle). */
+/** Centered frame of the sign-in pages: logo, Magic UI light rays and particles, theme toggle and a card for `children`. */
 export function AuthShell({ children, wide, title }: { children: ReactNode; wide?: boolean; title: string }) {
   const theme = useResolvedTheme()
   const branding = useBranding().data
@@ -39,7 +40,7 @@ export function AuthShell({ children, wide, title }: { children: ReactNode; wide
             <p className="text-sm text-muted-foreground">{branding?.tagline}</p>
           </div>
         </div>
-        {children}
+        <Card className="bg-card/80 backdrop-blur">{children}</Card>
       </div>
       <SiteFooter className="absolute inset-x-0 bottom-4 z-10" />
     </div>

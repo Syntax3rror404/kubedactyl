@@ -34,8 +34,7 @@ type PullFileRequest struct {
 //	@Router			/servers/{server}/files/pull [post]
 func (a *API) pullFile(c *gin.Context) {
 	var req PullFileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -49,7 +48,8 @@ func (a *API) pullFile(c *gin.Context) {
 	}
 	deny := a.denylist(c, gs)
 	dir := cleanDir(req.Directory)
-	if _, err := files.Resolve(path.Join(dir, name), deny); err != nil {
+	file := path.Join(dir, name)
+	if _, err := files.Resolve(file, deny); err != nil {
 		a.fail(c, err)
 		return
 	}
@@ -57,11 +57,11 @@ func (a *API) pullFile(c *gin.Context) {
 	pull := func(ctx context.Context, report func(files.Progress)) error {
 		return a.Files.Manager.Pull(ctx, ref, req.URL, dir, name, deny, report)
 	}
-	job, err := a.Files.Start(ref, files.JobPull, path.Join(dir, name), pull)
+	job, err := a.Files.Start(ref, files.JobPull, file, pull)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "download started", "server", gs.Name, "url", req.URL, "file", path.Join(dir, name))
+	a.audit(c, "download started", "server", gs.Name, "url", req.URL, "file", file)
 	c.JSON(http.StatusAccepted, job)
 }

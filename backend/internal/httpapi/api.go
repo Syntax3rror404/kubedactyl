@@ -42,11 +42,11 @@ type API struct {
 	ClusterService *clusterinfo.Service
 	// Schedules runs server schedules.
 	Schedules *schedule.Runner
-	// Ops performs power actions and console commands.
+	// Ops performs the actions on servers (power, commands, reinstall, transfer, migration).
 	Ops *serverctl.Ops
 	// Trigger requests an immediate reconcile of a server.
 	Trigger func(namespace, server string)
-	// Settings holds the external domain and the enabled storage classes and pools.
+	// Settings reads and saves the panel settings.
 	Settings *settings.Store
 	// Users creates and changes accounts; Eggs stores eggs (create, import, update, delete).
 	Users *users.Store

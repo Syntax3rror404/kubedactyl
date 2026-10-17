@@ -1,21 +1,15 @@
 package files
 
 // jobFuncs start the scripts of jobs. SIGTERM (Cancel) and a lost stream (HUP, or PIPE on the next
-// output) exit, so EXIT traps remove what is left half done; pipefail keeps the exit code of tar.
-// The functions print what progressWriter reads:
-//   - pack OUT EXCLUDE ENTRY… packs the entries ("./name") of the current folder into the tar.gz
-//     OUT, without the folder EXCLUDE when it is set. It prints "total N" (files to pack) and every
-//     entry tar packs: the archive goes to stdout, which makes tar write the names unbuffered. OUT
-//     is written under a temporary name, so a failed or cancelled archive never exists.
-//   - unpack ARCHIVE DEST extracts a tar (any compression) or zip archive into DEST. A tar reports
-//     the bytes of the archive read (report_reads, fd 3), a zip the files it unpacks of those
-//     unzip lists (the names a tar prints come buffered, in blocks).
-//   - report_reads PID SIZE prints "pos N SIZE" every second while PID runs, N being the read
-//     position of fd 3 of this shell (shared with the process that reads from it), and returns
-//     the exit code of PID.
-//   - lines passes whole lines on, so they never mix with the "pos" lines; tar_names passes the
-//     entries tar prints ("./…") to stdout and its errors to stderr (tar writes both to stderr
-//     while the archive goes to stdout).
+// output) end a script, so its EXIT traps remove what is left half done. The functions print what
+// progressWriter reads:
+//   - pack OUT EXCLUDE ENTRY… packs entries ("./name") of the current folder, without the folder
+//     EXCLUDE, into the tar.gz OUT under a temporary name. It prints "total N" and every entry
+//     (tar writes the names unbuffered only while the archive goes to stdout).
+//   - unpack ARCHIVE DEST extracts a tar or zip archive. A tar reports the bytes read, a zip the
+//     files it unpacks.
+//   - report_reads PID SIZE prints "pos N SIZE" every second while PID runs (N: read position of fd 3).
+//   - lines and tar_names keep the "pos" lines, tar's entries and its errors apart.
 const jobFuncs = `trap 'exit 143' TERM INT HUP PIPE
 set -o pipefail
 lines() { while IFS= read -r l; do echo "$l"; done; }

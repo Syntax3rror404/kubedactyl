@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { type ServerFilterState, type StatusFilter } from "@/features/dashboard/lib/server-filter"
 
+const options: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "running", label: "Running" },
+  { key: "stopped", label: "Stopped" },
+]
+
 /** Search field and status buttons above the server grid. */
 export function ServerFilter({
   value,
@@ -14,11 +20,6 @@ export function ServerFilter({
   onChange: (v: ServerFilterState) => void
   counts: Record<StatusFilter, number>
 }) {
-  const options: { key: StatusFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "running", label: "Running" },
-    { key: "stopped", label: "Stopped" },
-  ]
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <InputGroup className="sm:max-w-xs">

@@ -11,7 +11,7 @@ import (
 // MigrateRequest names the storage class the server files move to.
 type MigrateRequest struct {
 	StorageClass string `json:"storageClass" binding:"required" example:"longhorn"`
-	// StartOnCompletion starts the server once the migration has ended.
+	// StartOnCompletion starts the server once the migration has finished (not after a failure or cancel).
 	StartOnCompletion bool `json:"startOnCompletion,omitempty" example:"true"`
 }
 
@@ -21,7 +21,7 @@ type MigrateRequest struct {
 //	@Description	Stops the server and copies its files, backups included, to a new volume of the storage class
 //	@Description	(status.migration). The server is locked until it uses the checked copy; the old volume is
 //	@Description	deleted then. A failed copy leaves the server on its volume. With startOnCompletion the server
-//	@Description	starts when the migration has ended.
+//	@Description	starts when the migration has finished; a failed or cancelled one leaves it stopped.
 //	@Tags			Servers
 //	@Accept			json
 //	@Produce		json
@@ -34,8 +34,7 @@ type MigrateRequest struct {
 //	@Router			/servers/{server}/migrate [post]
 func (a *API) migrateServer(c *gin.Context) {
 	var req MigrateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)

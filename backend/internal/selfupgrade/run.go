@@ -58,6 +58,9 @@ func ParseArgs(args []string) (RunOptions, error) {
 // Run upgrades the release to the chart version like
 // `helm upgrade <release> <chart> --version <v> --reset-then-reuse-values`: the new chart's
 // defaults with the values the release was installed or last upgraded with.
+//  1. Release: read the installed release (its chart name and values).
+//  2. Chart: pull the version, or load --chart-file; it must be that version of the same chart.
+//  3. Upgrade: wait only for hooks; the panel restarts with the new deployment anyway.
 func Run(ctx context.Context, o RunOptions, log *slog.Logger) error {
 	// Same field manager as the helm CLI (the default is the binary name): server-side apply
 	// would otherwise report conflicts with the fields a manual helm install/upgrade owns.
@@ -67,6 +70,7 @@ func Run(ctx context.Context, o RunOptions, log *slog.Logger) error {
 	if o.KubeContext != "" {
 		flags.Context = &o.KubeContext
 	}
+	// 1. Release
 	cfg := action.NewConfiguration()
 	cfg.SetLogger(log.Handler())
 	if err := cfg.Init(flags, o.Namespace, "secret"); err != nil {
@@ -85,6 +89,7 @@ func Run(ctx context.Context, o RunOptions, log *slog.Logger) error {
 		rel.Info.Status,
 	)
 
+	// 2. Chart
 	rc, err := newRegistryClient()
 	if err != nil {
 		return err
@@ -102,6 +107,7 @@ func Run(ctx context.Context, o RunOptions, log *slog.Logger) error {
 		)
 	}
 
+	// 3. Upgrade
 	up := action.NewUpgrade(cfg)
 	up.Namespace = o.Namespace
 	up.SetRegistryClient(rc)

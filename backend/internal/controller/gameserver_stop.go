@@ -52,7 +52,7 @@ func (r *Reconciler) runStopTasks(gs *v1alpha1.GameServer, pod *corev1.Pod) time
 func (r *Reconciler) stopGamePod(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg, pod *corev1.Pod,
 ) (reconcile.Result, error) {
-	timeout := time.Duration(max(gs.Spec.StopTimeoutSeconds, 1)) * time.Second
+	timeout := time.Duration(stopTimeout(gs)) * time.Second
 	if gs.Status.StopRequestedAt == nil {
 		if wait := r.runStopTasks(gs, pod); wait > 0 {
 			return reconcile.Result{RequeueAfter: wait}, nil
@@ -73,21 +73,26 @@ func (r *Reconciler) stopGamePod(
 		return reconcile.Result{RequeueAfter: timeout - elapsed}, nil
 	}
 	r.Hub.Daemon(gs.Name, "Server did not stop in time, terminating process...")
-	if err := r.Delete(ctx, pod, client.GracePeriodSeconds(0)); client.IgnoreNotFound(err) != nil {
+	if err := r.deleteNow(ctx, pod); err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{RequeueAfter: 2 * time.Second}, nil
 }
 
+// stopTimeout is how long a stop may take before the pod is killed (seconds, at least 1).
+func stopTimeout(gs *v1alpha1.GameServer) int64 { return max(gs.Spec.StopTimeoutSeconds, 1) }
+
 // sendStop stops the process the way the egg defines it:
-// "^C" / "^SIGINT" -> SIGINT through the TTY, "^SIGTERM"/"^SIGABRT" -> graceful pod
-// deletion, any other signal (e.g. "^^C") -> SIGKILL, otherwise a console command.
+//  1. "^C" or "^SIGINT": SIGINT through the TTY.
+//  2. "^SIGTERM", "^SIGABRT" or none: the pod is deleted with the stop timeout as grace period.
+//  3. Any other signal (e.g. "^^C"): the pod is killed.
+//  4. Anything else: a console command.
 func (r *Reconciler) sendStop(ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg, pod *corev1.Pod) error {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	stop := egg.Spec.Stop
 	graceful := func() error {
-		return client.IgnoreNotFound(r.Delete(ctx, pod, client.GracePeriodSeconds(max(gs.Spec.StopTimeoutSeconds, 1))))
+		return client.IgnoreNotFound(r.Delete(ctx, pod, client.GracePeriodSeconds(stopTimeout(gs))))
 	}
 	switch {
 	case stop == "":
@@ -99,7 +104,7 @@ func (r *Reconciler) sendStop(ctx context.Context, gs *v1alpha1.GameServer, egg 
 		case "SIGTERM", "SIGABRT":
 			return graceful()
 		default:
-			return client.IgnoreNotFound(r.Delete(ctx, pod, client.GracePeriodSeconds(0)))
+			return r.deleteNow(ctx, pod)
 		}
 	default:
 		return r.Kube.AttachWrite(ctx, gs.Namespace, pod.Name, gameserver.ContainerName, []byte(stop+"\n"))

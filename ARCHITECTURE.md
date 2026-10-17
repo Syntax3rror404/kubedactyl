@@ -191,7 +191,7 @@ tests enforce the ones marked (enforced).
   return sentinel errors (`users.ErrLastAdmin`, `eggstore.ErrInUse`, …); `domainErrors` in `httpapi/errors.go`
   maps them to HTTP status codes in one table (add new ones there instead of wrapping them in a handler).
   Handlers wrap only what has no domain error, that is checks of the request itself: `badRequest(err)` for unreadable
-  requests, `forbidden`, `notFound`, `conflict`, `fieldError(status, field, err)`; a wrong field value is `validation.Field(field, err)` (422).
+  requests (a JSON body is read with `a.bindJSON`, which answers 400 itself), `forbidden`, `notFound`, `conflict`, `fieldError(status, field, err)`; a wrong field value is `validation.Field(field, err)` (422).
 - **Validation errors** are `validation.Errors` (a map field → message; `egg.FieldErrors` for egg paths). The API
   answers them with 422 and `"fields"`, which the frontend shows next to the inputs.
 - **Logs**: slog with a `component`; the acting user is `by`, affected objects are named by kind (`user`,
@@ -206,8 +206,7 @@ tests enforce the ones marked (enforced).
   // servers_power.go
   func (a *API) sendPower(c *gin.Context) {
   	var req PowerRequest
-  	if err := c.ShouldBindJSON(&req); err != nil {
-  		a.fail(c, badRequest(err))
+  	if !a.bindJSON(c, &req) { // answers 400 itself
   		return
   	}
   	gs, ok := a.loadServer(c)
@@ -218,6 +217,7 @@ tests enforce the ones marked (enforced).
   		a.fail(c, err) // serverctl.ErrSuspended → 403, ErrOffline → 409 (domainErrors)
   		return
   	}
+  	a.audit(c, "power action sent", "server", gs.Name, "signal", req.Signal)
   	a.Trigger(gs.Namespace, gs.Name)
   	c.Status(http.StatusNoContent)
   }

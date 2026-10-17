@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router"
 
 import { Spinner } from "@/components/ui/spinner"
@@ -15,6 +15,8 @@ export function RequireAuth() {
   const navigate = useNavigate()
   const location = useLocation()
   const next = location.pathname + location.search
+  // The same object while the user is unchanged, so useAuth() readers update only when the user does.
+  const auth = useMemo(() => me.data && { user: me.data, isAdmin: me.data.role === "admin" }, [me.data])
 
   useSessionEnd(
     useCallback(
@@ -33,13 +35,13 @@ export function RequireAuth() {
       </div>
     )
   }
-  if (!me.data && setup.data?.required) return <Navigate to="/setup" replace />
-  if (!me.data) return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
-  if (me.data.mustChangePassword && location.pathname !== "/change-password")
+  if (!auth && setup.data?.required) return <Navigate to="/setup" replace />
+  if (!auth) return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
+  if (auth.user.mustChangePassword && location.pathname !== "/change-password")
     return <Navigate to="/change-password" replace />
 
   return (
-    <AuthContext.Provider value={{ user: me.data, isAdmin: me.data.role === "admin" }}>
+    <AuthContext.Provider value={auth}>
       <Outlet />
     </AuthContext.Provider>
   )

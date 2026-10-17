@@ -2,9 +2,12 @@ package settings
 
 import (
 	"context"
-	"sort"
+	"slices"
+	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,22 +32,15 @@ func ListStorageClasses(ctx context.Context, r client.Reader) ([]StorageClass, e
 	}
 	out := make([]StorageClass, 0, len(list.Items))
 	for _, sc := range list.Items {
-		c := StorageClass{
+		out = append(out, StorageClass{
 			Name:                 sc.Name,
 			Provisioner:          sc.Provisioner,
-			ReclaimPolicy:        "Delete",
-			VolumeBindingMode:    "Immediate",
-			AllowVolumeExpansion: sc.AllowVolumeExpansion != nil && *sc.AllowVolumeExpansion,
+			ReclaimPolicy:        string(ptr.Deref(sc.ReclaimPolicy, corev1.PersistentVolumeReclaimDelete)),
+			VolumeBindingMode:    string(ptr.Deref(sc.VolumeBindingMode, storagev1.VolumeBindingImmediate)),
+			AllowVolumeExpansion: ptr.Deref(sc.AllowVolumeExpansion, false),
 			IsDefault:            sc.Annotations[defaultClassAnnotation] == "true",
-		}
-		if sc.ReclaimPolicy != nil {
-			c.ReclaimPolicy = string(*sc.ReclaimPolicy)
-		}
-		if sc.VolumeBindingMode != nil {
-			c.VolumeBindingMode = string(*sc.VolumeBindingMode)
-		}
-		out = append(out, c)
+		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	slices.SortFunc(out, func(a, b StorageClass) int { return strings.Compare(a.Name, b.Name) })
 	return out, nil
 }

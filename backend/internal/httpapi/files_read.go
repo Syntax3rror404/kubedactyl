@@ -111,6 +111,9 @@ func (a *API) downloadFile(c *gin.Context) {
 	case err == nil:
 		a.audit(c, "file downloaded", "server", gs.Name, "file", file)
 	case !c.Writer.Written():
+		// The error is JSON, not the file the browser would otherwise save.
+		c.Writer.Header().Del("Content-Disposition")
+		c.Writer.Header().Del("Content-Type")
 		a.fail(c, err)
 	}
 }

@@ -21,7 +21,7 @@ type UserView struct {
 	Email       string            `json:"email,omitempty"       example:"alice@example.com"`
 	Role        v1alpha1.UserRole `json:"role"                  example:"user"                  enums:"admin,user"`
 	Disabled    bool              `json:"disabled"`
-	// MustChangePassword: the user has to replace the password set by an administrator first.
+	// MustChangePassword is true while the user has to replace the password set by an administrator.
 	MustChangePassword bool `json:"mustChangePassword"`
 	// OIDC is the user of the identity provider the account is linked to (which sets display name, email and
 	// role); null for accounts that are not linked.
@@ -112,20 +112,24 @@ func tokenViews(u *v1alpha1.User, maxAge time.Duration) []TokenView {
 	return out
 }
 
+// userView describes a user for the API, with the number of their servers.
 func (a *API) userView(c *gin.Context, u *v1alpha1.User) UserView {
+	var servers v1alpha1.GameServerList
+	_ = a.Client.List(c, &servers, client.InNamespace(tenancy.Namespace(u.Name)))
+	return newUserView(u, a.Settings.Lifetimes(c).APIToken, len(servers.Items))
+}
+
+// newUserView describes a user who owns the given number of servers.
+func newUserView(u *v1alpha1.User, tokenMaxAge time.Duration, servers int) UserView {
 	v := UserView{
 		Username: u.Name, DisplayName: u.Spec.DisplayName, Email: u.Spec.Email, Role: u.Spec.Role,
 		Disabled: u.Spec.Disabled, MustChangePassword: u.Spec.MustChangePassword,
 		OIDC: u.Spec.OIDC, HasPassword: u.Spec.PasswordHash != "",
 		Namespace: tenancy.Namespace(u.Name), CreatedAt: u.CreationTimestamp.Time,
-		Tokens: tokenViews(u, a.Settings.Lifetimes(c).APIToken),
+		Servers: servers, Tokens: tokenViews(u, tokenMaxAge),
 	}
 	if u.Status.LastLoginAt != nil {
 		v.LastLoginAt = &u.Status.LastLoginAt.Time
-	}
-	var servers v1alpha1.GameServerList
-	if err := a.Client.List(c, &servers, client.InNamespace(v.Namespace)); err == nil {
-		v.Servers = len(servers.Items)
 	}
 	return v
 }
@@ -155,10 +159,18 @@ func (a *API) listUsers(c *gin.Context) {
 		return
 	}
 	sort.Slice(users.Items, func(i, j int) bool { return users.Items[i].Name < users.Items[j].Name })
+	// All servers in one list, counted per namespace; a failed list counts none, like userView.
+	var servers v1alpha1.GameServerList
+	_ = a.Client.List(c, &servers)
+	perNamespace := map[string]int{}
+	for _, gs := range servers.Items {
+		perNamespace[gs.Namespace]++
+	}
+	maxAge := a.Settings.Lifetimes(c).APIToken
 	out := []UserView{}
 	for i := range users.Items {
-		if users.Items[i].DeletionTimestamp == nil {
-			out = append(out, a.userView(c, &users.Items[i]))
+		if u := &users.Items[i]; u.DeletionTimestamp == nil {
+			out = append(out, newUserView(u, maxAge, perNamespace[tenancy.Namespace(u.Name)]))
 		}
 	}
 	c.JSON(http.StatusOK, out)
@@ -195,8 +207,7 @@ func (a *API) getUser(c *gin.Context) {
 //	@Router			/users [post]
 func (a *API) createUser(c *gin.Context) {
 	var req CreateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	u, err := a.Users.Create(c, users.CreateInput(req))
@@ -222,8 +233,7 @@ func (a *API) createUser(c *gin.Context) {
 //	@Router		/users/{user} [patch]
 func (a *API) updateUser(c *gin.Context) {
 	var req UpdateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	u, ok := a.loadUser(c)

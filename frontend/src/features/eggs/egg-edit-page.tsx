@@ -89,16 +89,19 @@ function EggEditor({ egg }: { egg: Egg }) {
       )}
       <Tabs value={tab} onValueChange={(v) => setTab(v as SectionId)}>
         <ScrollableTabsList>
-          {sections.map((s) => (
-            <TabsTrigger key={s.id} value={s.id}>
-              {s.title}
-              {errorCount(errors, s.id) > 0 && (
-                <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
-                  {errorCount(errors, s.id)}
-                </Badge>
-              )}
-            </TabsTrigger>
-          ))}
+          {sections.map((s) => {
+            const count = errorCount(errors, s.id)
+            return (
+              <TabsTrigger key={s.id} value={s.id}>
+                {s.title}
+                {count > 0 && (
+                  <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
+                    {count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )
+          })}
         </ScrollableTabsList>
         {sections.map((s) => (
           <TabsContent key={s.id} value={s.id} className="pt-2">

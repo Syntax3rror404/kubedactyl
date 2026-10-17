@@ -65,7 +65,7 @@ test: check-generated embed-placeholder
 
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
 # unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.
-GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 lint: embed-placeholder
 	cd backend && $(GOLANGCI) run ./...
 	@cd backend && dead="$$(go run golang.org/x/tools/cmd/deadcode@latest ./... | grep -v internal/testutil/)"; \

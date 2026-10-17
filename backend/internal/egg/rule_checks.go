@@ -96,7 +96,7 @@ func checkBoolean(in ruleInput) error {
 }
 
 // sizeRule builds min/max/gt/size: ok compares the size of the value with the rule's limit.
-// A limit that is no number makes the rule a no-op (like before).
+// A limit that is no number makes the rule a no-op.
 func sizeRule(ok func(size, limit float64) bool, message string) ruleCheck {
 	return func(in ruleInput) error {
 		limit, err := strconv.ParseFloat(in.arg, 64)

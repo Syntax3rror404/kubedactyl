@@ -37,6 +37,7 @@ type ConfigReplace struct {
 type ConfigFile struct {
 	// File is the path relative to the server root (/home/container).
 	File string `json:"file"`
+	// Parser is the format of the file; "file" replaces whole lines that start with Match.
 	// +kubebuilder:validation:Enum=file;yaml;yml;properties;ini;json;xml
 	Parser  string          `json:"parser"`
 	Replace []ConfigReplace `json:"replace,omitempty"`

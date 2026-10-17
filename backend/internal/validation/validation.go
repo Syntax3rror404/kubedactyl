@@ -5,6 +5,7 @@ package validation
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 )
 
@@ -37,11 +38,7 @@ func (e Errors) OrNil() error {
 // Summary is the one-line form of field messages, e.g. "Author: must be an e-mail address (and 3 more)";
 // label turns a field name into what the user sees.
 func Summary(fields map[string]string, label func(string) string) string {
-	keys := make([]string, 0, len(fields))
-	for k := range fields {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 	if len(keys) == 0 {
 		return "invalid input"
 	}

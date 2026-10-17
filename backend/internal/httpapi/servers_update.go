@@ -23,7 +23,7 @@ type UpdateServerRequest struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	Image       *string `json:"image,omitempty"`
 	Startup     *string `json:"startup,omitempty"`
-	// StartupName picks one of the egg's startup commands ("" = its default); owners may change it.
+	// StartupName picks one of the egg's startup commands. Empty: the egg's default. Owners may change it.
 	StartupName *string           `json:"startupName,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 	MemoryMiB   *int64            `json:"memoryMiB,omitempty"`
@@ -38,9 +38,9 @@ type UpdateServerRequest struct {
 	LoadBalancerPool *string `json:"loadBalancerPool,omitempty"`
 	// LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma.
 	LoadBalancerIP *string `json:"loadBalancerIP,omitempty"`
-	// ExternalTrafficPolicy of the service; admins only.
+	// ExternalTrafficPolicy of the service. Admins only.
 	ExternalTrafficPolicy *v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
-	// IPv6 also asks for an IPv6 address (dual stack clusters); admins only.
+	// IPv6 also asks for an IPv6 address. Only with a dual stack cluster. Admins only.
 	IPv6               *bool  `json:"ipv6,omitempty"`
 	CrashRestart       *bool  `json:"crashRestart,omitempty"`
 	StopTimeoutSeconds *int64 `json:"stopTimeoutSeconds,omitempty"`
@@ -61,8 +61,7 @@ type UpdateServerRequest struct {
 //	@Router			/servers/{server} [patch]
 func (a *API) updateServer(c *gin.Context) {
 	var req UpdateServerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -91,7 +90,10 @@ func (a *API) updateServer(c *gin.Context) {
 	}
 	a.audit(c, "server updated", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.JSON(http.StatusOK, visibleServer(p, gs, e, a.externalDomain(c)))
+	if !p.Admin() {
+		hideFromUser(gs, e, a.externalDomain(c))
+	}
+	c.JSON(http.StatusOK, gs)
 }
 
 // applyServerUpdate applies the fields of the request to the server spec and validates them.

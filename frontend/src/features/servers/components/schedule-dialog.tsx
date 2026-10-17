@@ -168,7 +168,7 @@ export function ScheduleDialog({
                 The delays add up to {stopDelay} seconds, at most {MAX_STOP_DELAY} before a stop.
               </FieldError>
             )}
-            {errors.form && <FieldError>{errors.form}</FieldError>}
+            <FieldError>{errors.form}</FieldError>
           </div>
 
           <DialogFooter>

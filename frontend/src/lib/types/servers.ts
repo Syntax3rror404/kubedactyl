@@ -25,5 +25,5 @@ export type GameServerList = { items: GameServer[] }
 export type ScheduleAction = V1Alpha1ScheduleTask["action"]
 export type ScheduleEvent = NonNullable<V1Alpha1Schedule["event"]>
 
-/** Background job of a server: backup, restore or pull (download from a URL). */
+/** Background job of a server: backup, restore, download from a URL, compression or extraction. */
 export type ServerJob = FilesJob

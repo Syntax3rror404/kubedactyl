@@ -1,5 +1,6 @@
-// Package serverctl performs power actions and console commands on game servers. It is
-// shared by the REST API, the console websocket and the schedule runner.
+// Package serverctl performs the actions on game servers: power, console commands, reinstall,
+// suspend, transfer and storage migration. The REST API, the console websocket and the schedule
+// runner share it.
 package serverctl
 
 import (
@@ -31,7 +32,7 @@ var (
 // Signals are the power actions.
 var Signals = []string{"start", "stop", "restart", "kill"}
 
-// Ops runs power actions and commands.
+// Ops performs the actions on game servers.
 type Ops struct {
 	Client client.Client
 	// Reader reads uncached (transfers wait for objects to be gone).
@@ -66,10 +67,9 @@ func (o *Ops) Power(ctx context.Context, gs *v1alpha1.GameServer, signal string)
 		gs.Spec.State = v1alpha1.PowerStopped
 	case "restart":
 		if gs.Status.PodUID != "" {
-			if gs.Annotations == nil {
-				gs.Annotations = map[string]string{}
-			}
-			gs.Annotations[gameserver.AnnotationRestart] = time.Now().UTC().Format(time.RFC3339)
+			metav1.SetMetaDataAnnotation(
+				&gs.ObjectMeta, gameserver.AnnotationRestart, time.Now().UTC().Format(time.RFC3339),
+			)
 		}
 		gs.Spec.State = v1alpha1.PowerRunning
 	case "kill":
@@ -110,10 +110,7 @@ func (o *Ops) Command(ctx context.Context, gs *v1alpha1.GameServer, command stri
 		e.Spec.Stop != "" && !strings.HasPrefix(e.Spec.Stop, "^") && command == e.Spec.Stop {
 		patch := client.MergeFrom(gs.DeepCopy())
 		gs.Spec.State = v1alpha1.PowerStopped
-		if gs.Annotations == nil {
-			gs.Annotations = map[string]string{}
-		}
-		gs.Annotations[gameserver.AnnotationStopSent] = gs.Status.PodUID
+		metav1.SetMetaDataAnnotation(&gs.ObjectMeta, gameserver.AnnotationStopSent, gs.Status.PodUID)
 		if err := o.Client.Patch(ctx, gs, patch); err != nil {
 			return err
 		}

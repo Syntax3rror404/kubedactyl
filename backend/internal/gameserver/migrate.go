@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"app/api/v1alpha1"
 )
@@ -39,44 +37,27 @@ echo "verified $from"`
 // MigratePod copies the server files from the data volume to the new claim of a storage migration.
 // It runs as root to read every file and keep its owner, with only the capabilities that needs.
 func MigratePod(gs *v1alpha1.GameServer, opts Options) *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MigrateName(gs.Name), Namespace: gs.Namespace, Labels: volumeLabels(gs.Name, RoleMigrate),
-		},
-		Spec: corev1.PodSpec{
-			RestartPolicy:                corev1.RestartPolicyNever,
-			Affinity:                     sameNodeAsVolume(gs.Name),
-			EnableServiceLinks:           ptr.To(false),
-			AutomountServiceAccountToken: ptr.To(false),
-			Containers: []corev1.Container{{
-				Name:    ContainerName,
-				Image:   opts.HelperImage,
-				Command: []string{"sh", "-c", migrateScript},
-				VolumeMounts: []corev1.VolumeMount{
-					{Name: "data", MountPath: "/from", ReadOnly: true},
-					{Name: "target", MountPath: "/to"},
-				},
-				Resources: resources(1000, 256),
-				SecurityContext: &corev1.SecurityContext{
-					RunAsUser:                ptr.To[int64](0),
-					AllowPrivilegeEscalation: ptr.To(false),
-					ReadOnlyRootFilesystem:   ptr.To(true),
-					SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-					Capabilities: &corev1.Capabilities{
-						Drop: []corev1.Capability{"ALL"},
-						// Read every file, keep owners, modes and times (also setgid bits).
-						Add: []corev1.Capability{"CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID"},
-					},
-				},
-			}},
-			Volumes: []corev1.Volume{
-				dataVolume(gs.Name),
-				{Name: "target", VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: MigrateName(gs.Name)},
-				}},
+	return volumePod(gs, MigrateName(gs.Name), RoleMigrate, corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyNever,
+		Containers: []corev1.Container{{
+			Name:    ContainerName,
+			Image:   opts.HelperImage,
+			Command: []string{"sh", "-c", migrateScript},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/from", ReadOnly: true},
+				{Name: "target", MountPath: "/to"},
 			},
+			Resources: resources(1000, 256),
+			// Read every file, keep owners, modes and times (also setgid bits).
+			SecurityContext: rootContext("CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID"),
+		}},
+		Volumes: []corev1.Volume{
+			dataVolume(gs.Name),
+			{Name: "target", VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: MigrateName(gs.Name)},
+			}},
 		},
-	}
+	})
 }
 
 // MigrateClaim is the new data volume of a storage migration, of the class the server moves to.

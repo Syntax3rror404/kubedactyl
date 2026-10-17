@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"app/internal/files"
-
 	"github.com/gin-gonic/gin"
+
+	"app/internal/files"
 )
 
 // CreateFolderRequest creates a directory.
@@ -75,8 +75,7 @@ func (a *API) writeFile(c *gin.Context) {
 //	@Router		/servers/{server}/files/create-folder [post]
 func (a *API) createFolder(c *gin.Context) {
 	var req CreateFolderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -104,8 +103,7 @@ func (a *API) createFolder(c *gin.Context) {
 //	@Router		/servers/{server}/files/delete [post]
 func (a *API) deleteFiles(c *gin.Context) {
 	var req FilesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -141,8 +139,7 @@ func (a *API) deleteFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/rename [put]
 func (a *API) renameFile(c *gin.Context) {
 	var req RenameFileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -196,14 +193,15 @@ func (a *API) uploadFiles(c *gin.Context) {
 			part.Close()
 			continue
 		}
-		// Streamed straight into the helper pod, nothing is buffered on disk.
-		err = a.Files.Manager.Write(c, files.RefOf(gs), path.Join(dir, name), part, deny)
+		// Streamed straight into the file container, nothing is buffered on disk.
+		file := path.Join(dir, name)
+		err = a.Files.Manager.Write(c, files.RefOf(gs), file, part, deny)
 		part.Close()
 		if err != nil {
 			a.fail(c, err)
 			return
 		}
-		a.audit(c, "file uploaded", "server", gs.Name, "file", path.Join(dir, name))
+		a.audit(c, "file uploaded", "server", gs.Name, "file", file)
 	}
 	c.Status(http.StatusNoContent)
 }
@@ -222,8 +220,7 @@ func (a *API) uploadFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/compress [post]
 func (a *API) compressFiles(c *gin.Context) {
 	var req FilesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -264,8 +261,7 @@ func (a *API) compressFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/decompress [post]
 func (a *API) decompressFile(c *gin.Context) {
 	var req DecompressFileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		a.fail(c, badRequest(err))
+	if !a.bindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)

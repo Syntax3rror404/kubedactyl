@@ -4,10 +4,12 @@ import (
 	"cmp"
 	"context"
 	"log/slog"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -30,10 +32,8 @@ func Bootstrap(ctx context.Context, c client.Client, ns, storageClass, pool stri
 		if err := c.Create(ctx, obj); err != nil {
 			return err
 		}
-		log.Info(
-			"created panel settings", "storageClass", obj.Spec.DefaultStorageClass, "loadBalancerPool",
-			obj.Spec.DefaultLoadBalancerPool,
-		)
+		log.Info("created panel settings",
+			"storageClass", obj.Spec.DefaultStorageClass, "loadBalancerPool", obj.Spec.DefaultLoadBalancerPool)
 	} else if err != nil {
 		return err
 	}
@@ -44,12 +44,9 @@ func initialSpec(
 	ctx context.Context, c client.Client, storageClass, pool string, log *slog.Logger,
 ) v1alpha1.PanelSettingsSpec {
 	var spec v1alpha1.PanelSettingsSpec
-	if classes, err := ListStorageClasses(ctx, c); err == nil {
-		for _, sc := range classes {
-			if sc.Name == storageClass {
-				spec.StorageClasses, spec.DefaultStorageClass = []string{sc.Name}, sc.Name
-			}
-		}
+	classes, _ := ListStorageClasses(ctx, c)
+	if slices.ContainsFunc(classes, func(sc StorageClass) bool { return sc.Name == storageClass }) {
+		spec.StorageClasses, spec.DefaultStorageClass = []string{storageClass}, storageClass
 	}
 	if spec.DefaultStorageClass == "" {
 		log.Warn("initial storage class not found, enable one in the panel settings", "storageClass", storageClass)
@@ -94,10 +91,8 @@ func migrateServers(ctx context.Context, c client.Client, spec v1alpha1.PanelSet
 		if err := c.Patch(ctx, gs, patch); err != nil {
 			return err
 		}
-		log.Info(
-			"migrated server settings", "server", gs.Name, "storageClass", gs.Spec.StorageClass, "loadBalancerPool",
-			gs.Spec.LoadBalancerPool,
-		)
+		log.Info("migrated server settings",
+			"server", gs.Name, "storageClass", gs.Spec.StorageClass, "loadBalancerPool", gs.Spec.LoadBalancerPool)
 	}
 	return nil
 }
@@ -105,21 +100,16 @@ func migrateServers(ctx context.Context, c client.Client, spec v1alpha1.PanelSet
 // existingStorageClass is the storage class of the server's volume ("" when unknown).
 func existingStorageClass(ctx context.Context, c client.Client, gs *v1alpha1.GameServer) string {
 	pvc := &corev1.PersistentVolumeClaim{}
-	if err := c.Get(
-		ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.PVCName(gs.Name)}, pvc,
-	); err == nil &&
-		pvc.Spec.StorageClassName != nil {
-		return *pvc.Spec.StorageClassName
+	if c.Get(ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.PVCName(gs.Name)}, pvc) != nil {
+		return ""
 	}
-	return ""
+	return ptr.Deref(pvc.Spec.StorageClassName, "")
 }
 
 // existingPool is the pool whose selector matches the server's service ("" when none).
 func existingPool(ctx context.Context, c client.Client, gs *v1alpha1.GameServer, pools []Pool) string {
 	svc := &corev1.Service{}
-	if err := c.Get(
-		ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.ServiceName(gs.Name)}, svc,
-	); err != nil {
+	if c.Get(ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.ServiceName(gs.Name)}, svc) != nil {
 		return ""
 	}
 	return poolForLabels(pools, svc.Labels)
