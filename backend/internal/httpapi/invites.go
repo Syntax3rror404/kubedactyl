@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
+	"app/internal/settings"
 	"app/internal/users"
 )
 
@@ -20,8 +21,14 @@ type InviteView struct {
 	Role      v1alpha1.UserRole `json:"role"                example:"user"         enums:"admin,user"`
 	Note      string            `json:"note,omitempty"      example:"Alice from the Discord server"`
 	CreatedBy string            `json:"createdBy,omitempty" example:"admin"`
-	CreatedAt time.Time         `json:"createdAt"`
-	ExpiresAt time.Time         `json:"expiresAt"`
+	// Owner is set for an invite of a subuser: the account will see the servers this user shares.
+	Owner     string    `json:"owner,omitempty"     example:"bob"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	// Reset links set a new password for the existing account Username.
+	Reset bool `json:"reset"`
+	// Shares are the servers the subuser sees once the account exists.
+	Shares []v1alpha1.InviteShare `json:"shares"`
 	// Expired invites stay listed until they are revoked; their link no longer works.
 	Expired bool `json:"expired"`
 }
@@ -37,13 +44,21 @@ type CreateInviteRequest struct {
 	Username string            `json:"username,omitempty" example:"alice"`
 	Role     v1alpha1.UserRole `json:"role,omitempty"     example:"user"                          enums:"admin,user"`
 	Note     string            `json:"note,omitempty"     example:"Alice from the Discord server"`
+	// Subuser invites a subuser of the caller (role user). Users always invite subusers.
+	Subuser bool `json:"subuser,omitempty"`
+	// Shares are servers of the caller the subuser sees once the account exists.
+	Shares []v1alpha1.InviteShare `json:"shares,omitempty"`
+	// Reset creates a link that sets a new password for the existing account Username (users: their subusers).
+	Reset bool `json:"reset,omitempty"`
 }
 
 // InviteDetails is what the invite page needs before the account is created.
 type InviteDetails struct {
-	// Username is set when the administrator chose the name; the invited person cannot change it.
+	// Username is set when the name was chosen for the invited person; they cannot change it.
 	Username  string    `json:"username,omitempty" example:"alice"`
 	ExpiresAt time.Time `json:"expiresAt"`
+	// Reset links set a new password for the account Username instead of creating one.
+	Reset bool `json:"reset"`
 }
 
 // AcceptInviteRequest creates the account of an invite link.
@@ -58,6 +73,7 @@ type AcceptInviteRequest struct {
 func inviteView(i *v1alpha1.Invite) InviteView {
 	return InviteView{
 		ID: i.Name, Username: i.Spec.Username, Role: i.Spec.Role, Note: i.Spec.Note, CreatedBy: i.Spec.CreatedBy,
+		Owner: i.Spec.Owner, Reset: i.Spec.Reset, Shares: append([]v1alpha1.InviteShare{}, i.Spec.Shares...),
 		CreatedAt: i.CreationTimestamp.Time, ExpiresAt: i.Spec.ExpiresAt.Time,
 		Expired: !time.Now().Before(i.Spec.ExpiresAt.Time),
 	}
@@ -66,14 +82,15 @@ func inviteView(i *v1alpha1.Invite) InviteView {
 // listInvites godoc
 //
 //	@Summary		List invites
-//	@Description	Open and expired invites, newest first. The links themselves are not stored.
+//	@Description	Open and expired invites, newest first: administrators get all, users those of their subusers.
+//	@Description	The links themselves are not stored.
 //	@Tags			Users
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{array}	InviteView
 //	@Router			/invites [get]
 func (a *API) listInvites(c *gin.Context) {
-	list, err := a.Users.ListInvites(c)
+	list, err := a.Users.ListInvites(c, inviteScope(principal(c)))
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -88,8 +105,9 @@ func (a *API) listInvites(c *gin.Context) {
 // createInvite godoc
 //
 //	@Summary		Create an invite link
-//	@Description	The link (/invite?token=<token>) lets someone create an account once within 7 days. The token
-//	@Description	is returned only once.
+//	@Description	The link (/invite?token=<token>) lets someone create an account once within 7 days, or with
+//	@Description	reset set a new password for an existing one. The token is returned only once. Invites of
+//	@Description	subusers count against the subuser limit of the settings.
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
@@ -103,12 +121,29 @@ func (a *API) createInvite(c *gin.Context) {
 	if !a.bindJSON(c, &req) {
 		return
 	}
-	invite, token, err := a.Users.CreateInvite(c, users.InviteInput(req), principal(c).User.Name)
+	p := principal(c)
+	in := users.InviteInput{Username: req.Username, Role: req.Role, Note: req.Note, Reset: req.Reset}
+	switch {
+	case req.Reset:
+		// Users reset only their subusers.
+		if !p.Admin() {
+			in.Owner = p.User.Name
+		}
+	case req.Subuser || !p.Admin():
+		set, err := a.Settings.Current(c)
+		if err != nil {
+			a.fail(c, err)
+			return
+		}
+		in.Owner, in.Limit, in.Shares = p.User.Name, settings.SubusersPerUser(set), req.Shares
+	}
+	invite, token, err := a.Users.CreateInvite(c, in, p.User.Name)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "invite created", "invite", invite.Name, "username", invite.Spec.Username, "role", invite.Spec.Role)
+	a.audit(c, "invite created", "invite", invite.Name, "username", invite.Spec.Username, "role", invite.Spec.Role,
+		"owner", invite.Spec.Owner, "reset", invite.Spec.Reset)
 	c.JSON(http.StatusCreated, CreatedInvite{InviteView: inviteView(invite), Token: token})
 }
 
@@ -125,7 +160,7 @@ func (a *API) createInvite(c *gin.Context) {
 //	@Failure		404		{object}	ErrorResponse
 //	@Router			/invites/{invite}/renew [post]
 func (a *API) renewInvite(c *gin.Context) {
-	invite, token, err := a.Users.RenewInvite(c, c.Param("invite"))
+	invite, token, err := a.Users.RenewInvite(c, c.Param("invite"), inviteScope(principal(c)))
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -144,12 +179,20 @@ func (a *API) renewInvite(c *gin.Context) {
 //	@Failure	404	{object}	ErrorResponse
 //	@Router		/invites/{invite} [delete]
 func (a *API) deleteInvite(c *gin.Context) {
-	if err := a.Users.DeleteInvite(c, c.Param("invite")); err != nil {
+	if err := a.Users.DeleteInvite(c, c.Param("invite"), inviteScope(principal(c))); err != nil {
 		a.fail(c, err)
 		return
 	}
 	a.audit(c, "invite revoked", "invite", c.Param("invite"))
 	c.Status(http.StatusNoContent)
+}
+
+// inviteScope is the owner whose invites the caller manages; "" (all) for administrators.
+func inviteScope(p *Principal) string {
+	if p.Admin() {
+		return ""
+	}
+	return p.User.Name
 }
 
 // findInvite returns the invite of a link. Failures count against the client like failed sign-ins, so nobody
@@ -185,14 +228,17 @@ func (a *API) findInvite(c *gin.Context, token string) (*v1alpha1.Invite, bool) 
 //	@Router			/auth/invite [get]
 func (a *API) getInvite(c *gin.Context) {
 	if invite, ok := a.findInvite(c, c.Query("token")); ok {
-		c.JSON(http.StatusOK, InviteDetails{Username: invite.Spec.Username, ExpiresAt: invite.Spec.ExpiresAt.Time})
+		c.JSON(http.StatusOK, InviteDetails{
+			Username: invite.Spec.Username, ExpiresAt: invite.Spec.ExpiresAt.Time, Reset: invite.Spec.Reset,
+		})
 	}
 }
 
 // acceptInvite godoc
 //
 //	@Summary		Accept an invite
-//	@Description	Public: creates the account of an invite link (the link works once) and signs it in.
+//	@Description	Public: creates the account of an invite link, or sets the new password of a reset link (the
+//	@Description	link works once), and signs it in.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -218,7 +264,10 @@ func (a *API) acceptInvite(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	a.Log.Info("account created through an invite", "user", u.Name, "invite", invite.Name,
-		"invitedBy", invite.Spec.CreatedBy)
+	msg := "account created through an invite"
+	if invite.Spec.Reset {
+		msg = "password set through a reset link"
+	}
+	a.Log.Info(msg, "user", u.Name, "invite", invite.Name, "invitedBy", invite.Spec.CreatedBy)
 	a.sendSession(c, http.StatusCreated, u)
 }

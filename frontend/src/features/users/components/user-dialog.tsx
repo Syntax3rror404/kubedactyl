@@ -119,8 +119,8 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
             <FieldLabel htmlFor="u-role" className="items-center">
               Role {oidc && <OidcBadge />}
             </FieldLabel>
-            {oidc ? (
-              <Input id="u-role" readOnly value={roleLabel(role)} />
+            {oidc || user?.owner ? (
+              <Input id="u-role" readOnly value={user?.owner ? `Subuser of ${user.owner}` : roleLabel(role)} />
             ) : (
               <RoleSelect id="u-role" value={role} onChange={(v) => set("role", v)} />
             )}

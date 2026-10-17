@@ -326,17 +326,16 @@ func TestAdminOnlyEndpoints(t *testing.T) {
 	alice := h.login("alice")
 	for _, r := range []struct{ method, path string }{
 		{"GET", "/api/cluster"}, {"GET", "/api/cluster/nodes"}, {"POST", "/api/cluster/nodes/probe"},
-		{"GET", "/api/cluster/identity"}, {"GET", "/api/cluster/health"}, {"GET", "/api/users"}, {"POST", "/api/users"},
-		{"DELETE", "/api/users/bob"}, {"POST", "/api/servers"}, {"DELETE", "/api/servers/alice-srv"},
+		{"GET", "/api/cluster/identity"}, {"GET", "/api/cluster/health"}, {"POST", "/api/users"},
+		{"POST", "/api/servers"}, {"DELETE", "/api/servers/alice-srv"},
 		{"POST", "/api/servers/alice-srv/transfer"}, {"PUT", "/api/settings"}, {"GET", "/api/upgrade"},
 		{"POST", "/api/upgrade"}, {"GET", "/api/versions"}, {"GET", "/api/settings/storage-classes"},
 		{"GET", "/api/settings/load-balancer-pools"}, {"POST", "/api/eggs/import-url"}, {"DELETE", "/api/eggs/paper"},
 		{"POST", "/api/eggs"}, {"PUT", "/api/eggs/paper"}, {"GET", "/api/eggs/paper/export"},
 		{"POST", "/api/eggs/paper/update-from-url"}, {"POST", "/api/eggs/import"}, {"GET", "/api/users/bob"},
 		{"PATCH", "/api/users/bob"}, {"GET", "/api/egg-library"}, {"GET", "/api/egg-library/egg"},
-		{"GET", "/api/egg-library/repository"}, {"GET", "/api/invites"}, {"POST", "/api/invites"},
-		{"DELETE", "/api/invites/1a2b3c4d5e6f"}, {"POST", "/api/invites/1a2b3c4d5e6f/renew"},
-		{"POST", "/api/servers/alice-srv/migrate"}, {"POST", "/api/servers/alice-srv/migrate/cancel"},
+		{"GET", "/api/egg-library/repository"}, {"POST", "/api/servers/alice-srv/migrate"},
+		{"POST", "/api/servers/alice-srv/migrate/cancel"},
 	} {
 		code, body := h.do(r.method, r.path, alice, map[string]string{})
 		expect(t, "user "+r.method+" "+r.path, code, 403, body)
@@ -568,7 +567,7 @@ func TestAPITokens(t *testing.T) {
 	if code != 200 || !strings.Contains(body, "alice-srv") || strings.Contains(body, "bob-srv") {
 		t.Errorf("token access: %d %s", code, body)
 	}
-	code, body = h.do("GET", "/api/users", created.Token, nil)
+	code, body = h.do("GET", "/api/cluster", created.Token, nil)
 	expect(t, "user token on admin endpoint", code, 403, body)
 	code, body = h.do("DELETE", "/api/auth/tokens/"+created.ID, alice, nil)
 	expect(t, "revoke", code, 204, body)
@@ -1208,17 +1207,19 @@ func TestConsoleChecksCredentialsAgain(t *testing.T) {
 	h := newHarness(t)
 	ctx := t.Context()
 	alice := h.login("alice")
-	s := &consoleSession{api: h.api, token: alice, namespace: tenancy.Namespace("alice"), server: "alice-srv"}
-	if !s.authorized(ctx) {
+	allowed := func(token, owner, server string) bool {
+		s := &consoleSession{api: h.api, token: token, namespace: tenancy.Namespace(owner), server: server}
+		_, level := s.authorize(ctx)
+		return level != accessNone
+	}
+	if !allowed(alice, "alice", "alice-srv") {
 		t.Fatal("the owner may use the console")
 	}
-	if foreign := (&consoleSession{api: h.api, token: alice, namespace: tenancy.Namespace("bob")}); foreign.authorized(
-		ctx,
-	) {
+	if allowed(alice, "bob", "bob-srv") {
 		t.Error("a console of another user's server")
 	}
 	h.do("POST", "/api/auth/logout", alice, nil)
-	if s.authorized(ctx) {
+	if allowed(alice, "alice", "alice-srv") {
 		t.Error("an open console must end after the logout")
 	}
 	bob := h.login("bob")
@@ -1226,7 +1227,7 @@ func TestConsoleChecksCredentialsAgain(t *testing.T) {
 	_ = h.client.Get(ctx, client.ObjectKey{Namespace: sysNS, Name: "bob"}, u)
 	u.Spec.Disabled = true
 	_ = h.client.Update(ctx, u)
-	if (&consoleSession{api: h.api, token: bob, namespace: tenancy.Namespace("bob")}).authorized(ctx) {
+	if allowed(bob, "bob", "bob-srv") {
 		t.Error("an open console must end when the account is disabled")
 	}
 }

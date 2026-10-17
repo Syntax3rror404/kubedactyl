@@ -16,6 +16,7 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/auth"
 	"app/internal/tenancy"
+	"app/internal/users"
 )
 
 // SessionCookie holds the signed session token of the web UI.
@@ -26,7 +27,7 @@ const principalKey = "kubedactyl.principal"
 // Principal is the authenticated caller.
 type Principal struct {
 	User *v1alpha1.User
-	// Namespace owns the game servers of the user.
+	// Namespace owns the game servers of the user; empty for a subuser.
 	Namespace string
 	// TokenID is set when the request used an API token.
 	TokenID string
@@ -34,6 +35,9 @@ type Principal struct {
 
 // Admin reports whether the caller may do everything.
 func (p *Principal) Admin() bool { return p.User.Spec.Role == v1alpha1.RoleAdmin }
+
+// Subuser reports whether the caller only sees the servers its owner shares with it.
+func (p *Principal) Subuser() bool { return users.Subuser(p.User) }
 
 func principal(c *gin.Context) *Principal {
 	p, _ := c.Get(principalKey)
@@ -143,7 +147,11 @@ func (a *API) principalFor(ctx context.Context, token string) (*Principal, error
 	if user.Spec.Disabled {
 		return nil, auth.ErrInvalidToken
 	}
-	return &Principal{User: user, Namespace: tenancy.Namespace(user.Name), TokenID: tokenID}, nil
+	p := &Principal{User: user, TokenID: tokenID}
+	if !users.Subuser(user) {
+		p.Namespace = tenancy.Namespace(user.Name)
+	}
+	return p, nil
 }
 
 func (a *API) resolveToken(ctx context.Context, token string) (*v1alpha1.User, string, error) {
@@ -205,6 +213,15 @@ func (a *API) resolveAPIToken(
 func (a *API) requireAdmin(c *gin.Context) {
 	if p := principal(c); p == nil || !p.Admin() {
 		a.fail(c, forbidden(errors.New("administrator permission required")))
+		return
+	}
+	c.Next()
+}
+
+// requireNoSubuser rejects subusers: they cannot have subusers of their own.
+func (a *API) requireNoSubuser(c *gin.Context) {
+	if principal(c).Subuser() {
+		a.fail(c, forbidden(users.ErrSubuser))
 		return
 	}
 	c.Next()

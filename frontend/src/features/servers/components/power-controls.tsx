@@ -3,12 +3,17 @@ import { PlayIcon, RotateCwIcon, SkullIcon, SquareIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { powerFeedback } from "@/features/servers/lib/feedback"
-import { activePhases, isRemoving, phaseOf, stoppedPhases } from "@/lib/format"
+import { useAuth } from "@/hooks/use-auth"
+import { activePhases, isRemoving, phaseOf, serverAccess, stoppedPhases } from "@/lib/format"
 import { useSendPower } from "@/lib/queries"
 import type { GameServer, PowerSignal } from "@/lib/types"
 
-/** Start, restart, stop and kill buttons (enabled according to the phase and the suspension, all off during removal). */
+/**
+ * Start, restart, stop and kill buttons (enabled according to the phase and the suspension, all off during removal);
+ * none for a subuser who may only view the server.
+ */
 export function PowerControls({ server, size = "default" }: { server: GameServer; size?: "default" | "sm" }) {
+  const { user } = useAuth()
   const power = useSendPower(server.metadata.name, powerFeedback)
   const phase = phaseOf(server)
   const blocked = power.isPending || isRemoving(server)
@@ -17,6 +22,7 @@ export function PowerControls({ server, size = "default" }: { server: GameServer
   const canStart = !suspended && stoppedPhases.includes(phase)
   const canStop = running
   const canKill = activePhases.includes(phase)
+  if (serverAccess(server, user) === "view") return null
 
   const btn = (
     signal: PowerSignal,

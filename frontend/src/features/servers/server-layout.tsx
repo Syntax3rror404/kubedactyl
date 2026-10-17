@@ -8,9 +8,10 @@ import {
   SlidersHorizontalIcon,
   StethoscopeIcon,
   TerminalIcon,
+  TicketIcon,
   ZapIcon,
 } from "lucide-react"
-import { Link, Outlet, useLocation, useParams } from "react-router"
+import { Link, Navigate, Outlet, useLocation, useParams } from "react-router"
 
 import { Callout } from "@/components/common/callout"
 import { CopyButton } from "@/components/common/copy-button"
@@ -19,6 +20,7 @@ import { QueryState } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
 import { PageHeader } from "@/components/layout/page-header"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsTrigger } from "@/components/ui/tabs"
 import { FilesPodLight } from "@/features/servers/components/files-pod-light"
@@ -32,7 +34,16 @@ import {
   SuspendedNotice,
 } from "@/features/servers/components/locked-notice"
 import { useAuth } from "@/hooks/use-auth"
-import { isMigrating, isRemoving, phaseOf, serverAddresses, serverEggName, serverName } from "@/lib/format"
+import {
+  isMigrating,
+  isRemoving,
+  phaseOf,
+  serverAccess,
+  serverAddresses,
+  serverEggName,
+  serverName,
+  serverOwner,
+} from "@/lib/format"
 import { useEgg, useServer, useSettings } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
@@ -80,7 +91,9 @@ function ServerFrame({ gs }: { gs: GameServer }) {
   const egg = useEgg(gs.spec.eggRef)
   const settings = useSettings()
   const domain = settings.data?.externalDomain
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
+  // A subuser sees only the console of a server shared with it.
+  const full = serverAccess(gs, user) === "full"
   const phase = phaseOf(gs)
   const addresses = serverAddresses(gs, domain)
   const base = `/servers/${name}`
@@ -93,6 +106,10 @@ function ServerFrame({ gs }: { gs: GameServer }) {
   const locked = removing || migrating || (suspended && !isAdmin)
   const eggName = serverEggName(gs, egg.data)
   const installer = egg.data?.spec.install?.container
+  // The owner invites subusers for the server from here (account page, server picked).
+  const invite = !removing && serverOwner(gs) === user.username && (settings.data?.subusersPerUser ?? 0) > 0
+  // The other tabs of a shared server would only get 403 answers (opened by URL).
+  if (!full && current !== "") return <Navigate to={base} replace />
 
   return (
     <div className="space-y-6">
@@ -123,12 +140,26 @@ function ServerFrame({ gs }: { gs: GameServer }) {
             )}
           </span>
         }
-        actions={(removing || !locked) && <PowerControls server={gs} />}
+        actions={
+          (removing || !locked) && (
+            <div className="flex items-center gap-1.5">
+              {invite && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={`/account?invite=${name}`}>
+                    <TicketIcon />
+                    Invite
+                  </Link>
+                </Button>
+              )}
+              <PowerControls server={gs} />
+            </div>
+          )
+        }
       />
 
       {/* Users see the administrator's notice every time they open a server. */}
       <ServerNoticeDialog server={name} notice={isAdmin ? undefined : settings.data?.serverNotice} />
-      {!locked && <RestartBanner server={gs} />}
+      {!locked && full && <RestartBanner server={gs} />}
       {suspended && !locked && <SuspendedBanner server={gs} />}
 
       {phase === "Installing" && !locked && (
@@ -157,7 +188,7 @@ function ServerFrame({ gs }: { gs: GameServer }) {
         <>
           <Tabs value={current}>
             <ScrollableTabsList>
-              {tabs.map((t) => (
+              {(full ? tabs : tabs.slice(0, 1)).map((t) => (
                 <TabsTrigger key={t.to} value={t.to} asChild>
                   <Link to={t.to ? `${base}/${t.to}` : base}>
                     <t.icon />

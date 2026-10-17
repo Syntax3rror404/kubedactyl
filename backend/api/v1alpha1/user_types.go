@@ -42,6 +42,10 @@ type UserSpec struct {
 	// through single sign-on. Display name, email and role then come from the identity provider.
 	// +optional
 	OIDC *OIDCIdentity `json:"oidc,omitempty"`
+	// Owner makes the account a subuser of that user: no servers of its own, only the ones the owner
+	// shares (GameServer sharedWith). It is deleted with the owner. Empty: a normal account.
+	// +optional
+	Owner string `json:"owner,omitempty"`
 }
 
 // OIDCIdentity names a user of an OpenID Connect identity provider.
@@ -61,6 +65,7 @@ type UserStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=kuser
 // +kubebuilder:printcolumn:name="Role",type=string,JSONPath=`.spec.role`
+// +kubebuilder:printcolumn:name="Owner",type=string,JSONPath=`.spec.owner`
 // +kubebuilder:printcolumn:name="Namespace",type=string,JSONPath=`.status.namespace`
 // +kubebuilder:printcolumn:name="Disabled",type=boolean,JSONPath=`.spec.disabled`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`

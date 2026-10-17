@@ -1,4 +1,4 @@
-import { TicketIcon, UserPlusIcon } from "lucide-react"
+import { KeyRoundIcon, TicketIcon, UserPlusIcon } from "lucide-react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
@@ -15,7 +15,7 @@ import { useAcceptInvite, useInvite } from "@/lib/queries"
 import type { InviteDetails } from "@/lib/types"
 import { fieldErrors, newPasswordReady } from "@/lib/validation"
 
-/** /invite?token=…: creates an account with an invite link from an administrator. */
+/** /invite?token=…: creates an account with an invite link, or sets a new password with a reset link. */
 export function InvitePage() {
   const [params] = useSearchParams()
   const token = params.get("token") ?? ""
@@ -33,8 +33,7 @@ export function InvitePage() {
         <CardHeader>
           <CardTitle>Invite link not valid</CardTitle>
           <CardDescription>
-            The link was used already, has expired or was revoked. Ask your administrator for a new one. If you already
-            have an account,{" "}
+            The link was used already, has expired or was revoked. Ask for a new one. If you already have an account,{" "}
             <Link to="/login" className="underline underline-offset-4">
               sign in
             </Link>
@@ -51,7 +50,7 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
   const { draft, set } = useDraft({ username: invite.username ?? "", displayName: "", password: "", confirm: "" })
   const accept = useAcceptInvite({
     onSuccess: (res) => {
-      toast.success(`Welcome, ${res.user.displayName || res.user.username}`)
+      toast.success(invite.reset ? "Password set" : `Welcome, ${res.user.displayName || res.user.username}`)
       navigate("/", { replace: true })
     },
   })
@@ -70,23 +69,28 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
     <>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <TicketIcon className="size-4" />
-          Create your account
+          {invite.reset ? <KeyRoundIcon className="size-4" /> : <TicketIcon className="size-4" />}
+          {invite.reset ? `New password for ${invite.username}` : "Create your account"}
         </CardTitle>
-        <CardDescription>You were invited. The link works once, until {formatDate(invite.expiresAt)}.</CardDescription>
+        <CardDescription>
+          {invite.reset ? "Every other sign-in of the account ends." : "You were invited."} The link works once, until{" "}
+          {formatDate(invite.expiresAt)}.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit}>
           <FieldGroup>
-            <NewAccountFields
-              username={draft.username}
-              displayName={draft.displayName}
-              onUsername={(v) => set("username", v)}
-              onDisplayName={(v) => set("displayName", v)}
-              error={errors.username}
-              fixedUsername={!!invite.username}
-              autoFocus
-            />
+            {!invite.reset && (
+              <NewAccountFields
+                username={draft.username}
+                displayName={draft.displayName}
+                onUsername={(v) => set("username", v)}
+                onDisplayName={(v) => set("displayName", v)}
+                error={errors.username}
+                fixedUsername={!!invite.username}
+                autoFocus
+              />
+            )}
             <NewPasswordFields
               password={draft.password}
               confirm={draft.confirm}
@@ -100,8 +104,8 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
               className="w-full"
               disabled={accept.isPending || !draft.username || !newPasswordReady(draft.password, draft.confirm)}
             >
-              {accept.isPending ? <Spinner /> : <UserPlusIcon />}
-              Create account
+              {accept.isPending ? <Spinner /> : invite.reset ? <KeyRoundIcon /> : <UserPlusIcon />}
+              {invite.reset ? "Set password" : "Create account"}
             </Button>
           </FieldGroup>
         </form>

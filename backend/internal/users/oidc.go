@@ -88,7 +88,8 @@ func (s *Store) findAccount(
 	switch {
 	case u.Spec.OIDC != nil && *u.Spec.OIDC != acc.Identity:
 		return nil, false, ErrOtherIdentity
-	case u.Spec.OIDC == nil && !linkByUsername:
+	case u.Spec.OIDC == nil && (!linkByUsername || Subuser(u)):
+		// A subuser stays local: the identity provider would set its role.
 		return nil, false, ErrNotLinked
 	}
 	return u, false, nil

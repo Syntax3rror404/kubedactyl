@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,6 +15,7 @@ import (
 	"app/internal/gameserver"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
+	"app/internal/users"
 )
 
 // IndexServerName indexes game servers by name; names are unique across namespaces.
@@ -23,6 +25,61 @@ const IndexServerName = "metadata.name"
 func ServerNameIndex(o client.Object) []string { return []string{o.GetName()} }
 
 var gameServerResource = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "gameservers"}
+
+// access is what the caller may do on a server.
+type access int
+
+const (
+	accessNone access = iota
+	// accessView: a subuser sees status, address and console output.
+	accessView
+	// accessControl: a subuser also starts and stops the server and sends console commands.
+	accessControl
+	// accessFull: the owner or an administrator.
+	accessFull
+)
+
+// accessTo returns what the caller may do on a server. A subuser needs a share on a server of its owner: the
+// owner check keeps a share from working after a transfer or for a later account with the same name.
+func (p *Principal) accessTo(gs *v1alpha1.GameServer) access {
+	switch {
+	case p.Admin() || (p.Namespace != "" && gs.Namespace == p.Namespace):
+		return accessFull
+	case !p.Subuser() || gs.Namespace != p.home():
+		return accessNone
+	}
+	for _, s := range gs.Spec.SharedWith {
+		if s.User != p.User.Name {
+			continue
+		}
+		if s.Access == v1alpha1.ShareControl {
+			return accessControl
+		}
+		return accessView
+	}
+	return accessNone
+}
+
+// home is the namespace of the servers the caller can see: its own, for a subuser its owner's.
+func (p *Principal) home() string { return users.Home(p.User) }
+
+var errNoAccess = errors.New("the owner has not shared this with you")
+
+// requireAccess refuses callers with less access to the server (subusers).
+func (a *API) requireAccess(least access) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		gs, ok := a.loadServer(c)
+		if !ok {
+			return
+		}
+		if principal(c).accessTo(gs) < least {
+			a.fail(c, forbidden(errNoAccess))
+			return
+		}
+		c.Set(serverKey, gs)
+		c.Next()
+	}
+}
 
 // findServer looks a server up by name in all namespaces the caller may access.
 // Servers of other users are reported as not found, so their existence is not revealed.
@@ -37,7 +94,7 @@ func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, err
 		if !tenancy.Owns(gs.Namespace) {
 			continue
 		}
-		if p.Admin() || gs.Namespace == p.Namespace {
+		if p.accessTo(gs) != accessNone {
 			return gs, nil
 		}
 	}
@@ -97,6 +154,15 @@ func hideFromUser(gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) {
 			delete(gs.Spec.Environment, k)
 		}
 	}
+}
+
+// hideFromSubuser strips what only the owner sees from a server shared with a subuser, in place: variables,
+// startup command, schedules and the other shares.
+func hideFromSubuser(gs *v1alpha1.GameServer, name string) {
+	gs.Spec.Environment, gs.Spec.Startup, gs.Spec.Schedules = nil, "", nil
+	gs.Spec.SharedWith = slices.DeleteFunc(gs.Spec.SharedWith, func(s v1alpha1.ServerShare) bool {
+		return s.User != name
+	})
 }
 
 // visibleEgg fills in the startup commands of older eggs and, for users, strips hidden variables

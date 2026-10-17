@@ -9,6 +9,7 @@ import { GeneralCard } from "@/features/servers/components/general-card"
 import { KubernetesCard } from "@/features/servers/components/kubernetes-card"
 import { NetworkCard } from "@/features/servers/components/network-card"
 import { ResourcesCard, ResourceSummary } from "@/features/servers/components/resources-card"
+import { SharingCard } from "@/features/servers/components/sharing-card"
 import { settingsChanges, settingsDraft } from "@/features/servers/lib/settings-draft"
 import type { ServerContext } from "@/features/servers/server-layout"
 import { useAuth } from "@/hooks/use-auth"
@@ -17,7 +18,10 @@ import { failed } from "@/lib/notify"
 import { useSettings, useUpdateServer } from "@/lib/queries"
 import { fieldErrors } from "@/lib/validation"
 
-/** /servers/:server/settings: the settings cards, one save button for all of them, and the danger zone. */
+/**
+ * /servers/:server/settings: the settings cards (also the subusers who see the server), one save button for all of
+ * them, and the danger zone.
+ */
 export function ServerSettingsPage() {
   const { server } = useOutletContext<ServerContext>()
   const { isAdmin } = useAuth()
@@ -44,6 +48,7 @@ export function ServerSettingsPage() {
         <ResourceSummary server={server} domain={settings.data?.externalDomain} />
       )}
       <NetworkCard {...cards} isAdmin={isAdmin} />
+      <SharingCard {...cards} />
       {isAdmin && <KubernetesCard server={server} />}
 
       <div className="flex justify-end lg:col-span-2">

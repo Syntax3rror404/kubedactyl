@@ -26,6 +26,25 @@ const (
 	TrafficCluster TrafficPolicy = "Cluster"
 )
 
+// ShareAccess is what a subuser may do on a server shared with them.
+// +kubebuilder:validation:Enum=view;control
+type ShareAccess string
+
+const (
+	// ShareView shows status, address and console output.
+	ShareView ShareAccess = "view"
+	// ShareControl also allows start, stop and console commands.
+	ShareControl ShareAccess = "control"
+)
+
+// ServerShare gives one subuser of the owner access to the server.
+type ServerShare struct {
+	// User is the username of a subuser of the server's owner.
+	User string `json:"user"`
+	// +kubebuilder:default=view
+	Access ShareAccess `json:"access"`
+}
+
 // ServiceType is how a game server is published.
 // +kubebuilder:validation:Enum=LoadBalancer;ClusterIP
 type ServiceType string
@@ -128,6 +147,13 @@ type GameServerSpec struct {
 	// Suspended stops the server and locks it for its owner. Admins only.
 	// +optional
 	Suspended bool `json:"suspended,omitempty"`
+	// SharedWith are the subusers of the owner who may see the server. Files, backups and settings stay
+	// with the owner.
+	// +optional
+	// +listType=map
+	// +listMapKey=user
+	// +kubebuilder:validation:MaxItems=100
+	SharedWith []ServerShare `json:"sharedWith,omitempty"`
 	// Schedules run tasks at fixed times or events of the server.
 	// +optional
 	// +listType=map

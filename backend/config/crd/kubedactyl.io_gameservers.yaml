@@ -225,6 +225,35 @@ spec:
                 - LoadBalancer
                 - ClusterIP
                 type: string
+              sharedWith:
+                description: |-
+                  SharedWith are the subusers of the owner who may see the server. Files, backups and settings stay
+                  with the owner.
+                items:
+                  description: ServerShare gives one subuser of the owner access to
+                    the server.
+                  properties:
+                    access:
+                      default: view
+                      description: ShareAccess is what a subuser may do on a server
+                        shared with them.
+                      enum:
+                      - view
+                      - control
+                      type: string
+                    user:
+                      description: User is the username of a subuser of the server's
+                        owner.
+                      type: string
+                  required:
+                  - access
+                  - user
+                  type: object
+                maxItems: 100
+                type: array
+                x-kubernetes-list-map-keys:
+                - user
+                x-kubernetes-list-type: map
               skipInstall:
                 description: SkipInstall creates the server without running the egg's
                   install script.

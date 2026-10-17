@@ -56,7 +56,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Public: creates the account of an invite link (the link works once) and signs it in.",
+                "description": "Public: creates the account of an invite link, or sets the new password of a reset link (the\nlink works once), and signs it in.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1108,7 +1108,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Open and expired invites, newest first. The links themselves are not stored.",
+                "description": "Open and expired invites, newest first: administrators get all, users those of their subusers.\nThe links themselves are not stored.",
                 "produces": [
                     "application/json"
                 ],
@@ -1134,7 +1134,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "The link (/invite?token=\u003ctoken\u003e) lets someone create an account once within 7 days. The token\nis returned only once.",
+                "description": "The link (/invite?token=\u003ctoken\u003e) lets someone create an account once within 7 days, or with\nreset set a new password for an existing one. The token is returned only once. Invites of\nsubusers count against the subuser limit of the settings.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3062,6 +3062,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Administrators get every account, users their subusers.",
                 "produces": [
                     "application/json"
                 ],
@@ -3175,7 +3176,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deletes the user, all its game servers, their data and the user namespace.",
+                "description": "Deletes the user, all its game servers, their data, the user namespace and its subusers. Users\nmay delete their subusers.",
                 "tags": [
                     "Users"
                 ],
@@ -4328,6 +4329,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Alice from the Discord server"
                 },
+                "reset": {
+                    "description": "Reset creates a link that sets a new password for the existing account Username (users: their subusers).",
+                    "type": "boolean"
+                },
                 "role": {
                     "enum": [
                         "admin",
@@ -4339,6 +4344,17 @@ const docTemplate = `{
                         }
                     ],
                     "example": "user"
+                },
+                "shares": {
+                    "description": "Shares are servers of the caller the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
+                },
+                "subuser": {
+                    "description": "Subuser invites a subuser of the caller (role user). Users always invite subusers.",
+                    "type": "boolean"
                 },
                 "username": {
                     "type": "string",
@@ -4527,7 +4543,9 @@ const docTemplate = `{
                 "expired",
                 "expiresAt",
                 "id",
+                "reset",
                 "role",
+                "shares",
                 "token"
             ],
             "properties": {
@@ -4553,6 +4571,15 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Alice from the Discord server"
                 },
+                "owner": {
+                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
+                    "type": "string",
+                    "example": "bob"
+                },
+                "reset": {
+                    "description": "Reset links set a new password for the existing account Username.",
+                    "type": "boolean"
+                },
                 "role": {
                     "enum": [
                         "admin",
@@ -4564,6 +4591,13 @@ const docTemplate = `{
                         }
                     ],
                     "example": "user"
+                },
+                "shares": {
+                    "description": "Shares are the servers the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
                 },
                 "token": {
                     "type": "string",
@@ -4771,14 +4805,19 @@ const docTemplate = `{
         "httpapi.InviteDetails": {
             "type": "object",
             "required": [
-                "expiresAt"
+                "expiresAt",
+                "reset"
             ],
             "properties": {
                 "expiresAt": {
                     "type": "string"
                 },
+                "reset": {
+                    "description": "Reset links set a new password for the account Username instead of creating one.",
+                    "type": "boolean"
+                },
                 "username": {
-                    "description": "Username is set when the administrator chose the name; the invited person cannot change it.",
+                    "description": "Username is set when the name was chosen for the invited person; they cannot change it.",
                     "type": "string",
                     "example": "alice"
                 }
@@ -4791,7 +4830,9 @@ const docTemplate = `{
                 "expired",
                 "expiresAt",
                 "id",
-                "role"
+                "reset",
+                "role",
+                "shares"
             ],
             "properties": {
                 "createdAt": {
@@ -4816,6 +4857,15 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Alice from the Discord server"
                 },
+                "owner": {
+                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
+                    "type": "string",
+                    "example": "bob"
+                },
+                "reset": {
+                    "description": "Reset links set a new password for the existing account Username.",
+                    "type": "boolean"
+                },
                 "role": {
                     "enum": [
                         "admin",
@@ -4827,6 +4877,13 @@ const docTemplate = `{
                         }
                     ],
                     "example": "user"
+                },
+                "shares": {
+                    "description": "Shares are the servers the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
                 },
                 "username": {
                     "description": "Username is the name the account gets; empty lets the invited person choose it.",
@@ -5345,6 +5402,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "subusersPerUser": {
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "type": "integer"
                 }
             }
         },
@@ -5565,6 +5626,13 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "sharedWith": {
+                    "description": "SharedWith replaces the subusers of the owner who see the server. Owners may change it.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.ServerShare"
+                    }
+                },
                 "startup": {
                     "type": "string"
                 },
@@ -5681,6 +5749,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "subusersPerUser": {
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "type": "integer"
                 }
             }
         },
@@ -5775,7 +5847,6 @@ const docTemplate = `{
                 "disabled",
                 "hasPassword",
                 "mustChangePassword",
-                "namespace",
                 "oidc",
                 "role",
                 "servers",
@@ -5821,6 +5892,11 @@ const docTemplate = `{
                     ],
                     "x-nullable": true
                 },
+                "owner": {
+                    "description": "Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.",
+                    "type": "string",
+                    "example": "bob"
+                },
                 "role": {
                     "enum": [
                         "admin",
@@ -5834,6 +5910,7 @@ const docTemplate = `{
                     "example": "user"
                 },
                 "servers": {
+                    "description": "Servers counts the servers of the user, for a subuser the servers shared with it.",
                     "type": "integer",
                     "example": 2
                 },
@@ -6645,6 +6722,13 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "sharedWith": {
+                    "description": "SharedWith are the subusers of the owner who may see the server. Files, backups and settings stay\nwith the owner.\n+optional\n+listType=map\n+listMapKey=user\n+kubebuilder:validation:MaxItems=100",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.ServerShare"
+                    }
+                },
                 "skipInstall": {
                     "description": "SkipInstall creates the server without running the egg's install script.\n+optional",
                     "type": "boolean"
@@ -6776,6 +6860,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "script": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1alpha1.InviteShare": {
+            "type": "object",
+            "required": [
+                "access",
+                "server"
+            ],
+            "properties": {
+                "access": {
+                    "description": "+kubebuilder:default=view",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ShareAccess"
+                        }
+                    ]
+                },
+                "server": {
+                    "description": "Server is the name of the server.",
                     "type": "string"
                 }
             }
@@ -6984,6 +7089,27 @@ const docTemplate = `{
                 }
             }
         },
+        "v1alpha1.ServerShare": {
+            "type": "object",
+            "required": [
+                "access",
+                "user"
+            ],
+            "properties": {
+                "access": {
+                    "description": "+kubebuilder:default=view",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ShareAccess"
+                        }
+                    ]
+                },
+                "user": {
+                    "description": "User is the username of a subuser of the server's owner.",
+                    "type": "string"
+                }
+            }
+        },
         "v1alpha1.ServiceType": {
             "type": "string",
             "enum": [
@@ -6993,6 +7119,17 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ServiceLoadBalancer",
                 "ServiceClusterIP"
+            ]
+        },
+        "v1alpha1.ShareAccess": {
+            "type": "string",
+            "enum": [
+                "view",
+                "control"
+            ],
+            "x-enum-varnames": [
+                "ShareView",
+                "ShareControl"
             ]
         },
         "v1alpha1.StartupCommand": {

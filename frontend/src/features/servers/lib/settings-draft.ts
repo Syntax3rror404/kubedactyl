@@ -31,6 +31,7 @@ export function settingsDraft(server: GameServer) {
     pool: poolValue(server),
     crashRestart: s.crashRestart ?? true,
     stopTimeout: s.stopTimeoutSeconds ?? 600,
+    sharedWith: s.sharedWith ?? [],
   }
 }
 
@@ -47,10 +48,13 @@ export interface SettingsCardProps {
   errors: Record<string, string>
 }
 
-/** The update request; users may only change the name, crash restarts and the pool. */
+/** The update request; users may only change the name, crash restarts, the pool and the subusers who see it. */
 export function settingsChanges(server: GameServer, d: SettingsDraft, isAdmin: boolean): UpdateServerRequest {
   const pool = d.pool !== poolValue(server) && poolRequest(d.pool)
-  if (!isAdmin) return { displayName: d.displayName, crashRestart: d.crashRestart, ...pool }
+  const shares = JSON.stringify(d.sharedWith) !== JSON.stringify(server.spec.sharedWith ?? []) && {
+    sharedWith: d.sharedWith,
+  }
+  if (!isAdmin) return { displayName: d.displayName, crashRestart: d.crashRestart, ...pool, ...shares }
   return {
     displayName: d.displayName,
     memoryMiB: d.memory,
@@ -63,5 +67,6 @@ export function settingsChanges(server: GameServer, d: SettingsDraft, isAdmin: b
     crashRestart: d.crashRestart,
     stopTimeoutSeconds: d.stopTimeout,
     ...pool,
+    ...shares,
   }
 }

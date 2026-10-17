@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -54,18 +55,23 @@ func (a *API) listServers(c *gin.Context) {
 	p := principal(c)
 	var opts []client.ListOption
 	if !p.Admin() {
-		opts = append(opts, client.InNamespace(p.Namespace))
+		opts = append(opts, client.InNamespace(p.home()))
 	}
 	if err := a.Client.List(c, &list, opts...); err != nil {
 		a.fail(c, err)
 		return
 	}
-	list.Items = ownServers(list.Items)
+	list.Items = slices.DeleteFunc(ownServers(list.Items), func(gs v1alpha1.GameServer) bool {
+		return p.accessTo(&gs) == accessNone
+	})
 	if !p.Admin() {
 		eggs := a.eggsByName(c)
 		domain := a.externalDomain(c)
 		for i := range list.Items {
 			hideFromUser(&list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
+			if p.Subuser() {
+				hideFromSubuser(&list.Items[i], p.User.Name)
+			}
 		}
 	}
 	sort.Slice(list.Items, func(i, j int) bool {
@@ -89,12 +95,15 @@ func (a *API) getServer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !principal(c).Admin() {
+	if p := principal(c); !p.Admin() {
 		var e *v1alpha1.Egg // stays nil when the egg is gone (like in listServers)
 		if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
 			e = found
 		}
 		hideFromUser(gs, e, a.externalDomain(c))
+		if p.Subuser() {
+			hideFromSubuser(gs, p.User.Name)
+		}
 	}
 	c.JSON(http.StatusOK, gs)
 }

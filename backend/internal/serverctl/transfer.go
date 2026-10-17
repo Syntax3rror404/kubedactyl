@@ -108,6 +108,8 @@ func transferred(gs *v1alpha1.GameServer, owner, namespace, volume string) *v1al
 		},
 		Spec: *gs.Spec.DeepCopy(),
 	}
+	// Shares name subusers of the old owner.
+	moved.Spec.SharedWith = nil
 	metav1.SetMetaDataLabel(&moved.ObjectMeta, tenancy.LabelOwner, owner)
 	if moved.Spec.LoadBalancerIP == "" && !gameserver.ClusterOnly(gs) {
 		// All addresses: fixing only one would cost the server its IPv6 address.

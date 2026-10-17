@@ -14,6 +14,7 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/gameserver"
 	"app/internal/settings"
+	"app/internal/users"
 	"app/internal/validation"
 )
 
@@ -44,6 +45,8 @@ type UpdateServerRequest struct {
 	IPv6               *bool  `json:"ipv6,omitempty"`
 	CrashRestart       *bool  `json:"crashRestart,omitempty"`
 	StopTimeoutSeconds *int64 `json:"stopTimeoutSeconds,omitempty"`
+	// SharedWith replaces the subusers of the owner who see the server. Owners may change it.
+	SharedWith *[]v1alpha1.ServerShare `json:"sharedWith,omitempty"`
 }
 
 // updateServer godoc
@@ -111,7 +114,40 @@ func (a *API) applyServerUpdate(
 	if err := applyResources(req, s); err != nil {
 		return err
 	}
+	if err := a.applySharing(ctx, req, gs); err != nil {
+		return err
+	}
 	return a.applyNetwork(ctx, req, s)
+}
+
+// applySharing sets the subusers who see the server; each must be a subuser of the server's owner, once.
+func (a *API) applySharing(ctx context.Context, req *UpdateServerRequest, gs *v1alpha1.GameServer) error {
+	if req.SharedWith == nil {
+		return nil
+	}
+	shares := []v1alpha1.ServerShare{}
+	seen := map[string]bool{}
+	for _, s := range *req.SharedWith {
+		var err error
+		if s.Access, err = users.CheckAccess(s.Access); err != nil {
+			return validation.Field("sharedWith", fmt.Errorf("%s: %w", s.User, err))
+		}
+		if seen[s.User] {
+			return validation.Field("sharedWith", fmt.Errorf("%s is listed twice", s.User))
+		}
+		u := &v1alpha1.User{}
+		err = a.Reader.Get(ctx, client.ObjectKey{Namespace: a.Opts.Namespace, Name: s.User}, u)
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		if err != nil || !users.Subuser(u) || users.Home(u) != gs.Namespace {
+			return validation.Field("sharedWith", fmt.Errorf("%s is no subuser of the server's owner", s.User))
+		}
+		seen[s.User] = true
+		shares = append(shares, s)
+	}
+	gs.Spec.SharedWith = shares
+	return nil
 }
 
 // applyGeneral sets name, image, crash restart and stop timeout.

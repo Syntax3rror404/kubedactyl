@@ -155,6 +155,7 @@ function SettingsForm({ stored }: { stored: PanelSettings }) {
           allowPrivateNetworks: value.allowPrivateNetworks ?? false,
           sessionHours: value.sessionHours ?? 0,
           apiTokenMaxDays: value.apiTokenMaxDays ?? 0,
+          subusersPerUser: value.subusersPerUser ?? 10,
           disableApiDocs: value.disableApiDocs ?? false,
         }}
         onChange={change}

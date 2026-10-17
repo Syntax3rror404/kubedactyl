@@ -374,8 +374,14 @@ export interface HttpapiCreateFolderRequest {
 export interface HttpapiCreateInviteRequest {
   /** @example "Alice from the Discord server" */
   note?: string;
+  /** Reset creates a link that sets a new password for the existing account Username (users: their subusers). */
+  reset?: boolean;
   /** @example "user" */
   role?: "admin" | "user";
+  /** Shares are servers of the caller the subuser sees once the account exists. */
+  shares?: V1Alpha1InviteShare[];
+  /** Subuser invites a subuser of the caller (role user). Users always invite subusers. */
+  subuser?: boolean;
   /** @example "alice" */
   username?: string;
 }
@@ -470,8 +476,17 @@ export interface HttpapiCreatedInvite {
   id: string;
   /** @example "Alice from the Discord server" */
   note?: string;
+  /**
+   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
+   * @example "bob"
+   */
+  owner?: string;
+  /** Reset links set a new password for the existing account Username. */
+  reset: boolean;
   /** @example "user" */
   role: "admin" | "user";
+  /** Shares are the servers the subuser sees once the account exists. */
+  shares: V1Alpha1InviteShare[];
   /** @example "1a2b3c4d5e6f.…" */
   token: string;
   /**
@@ -560,8 +575,10 @@ export interface HttpapiImportURLRequest {
 
 export interface HttpapiInviteDetails {
   expiresAt: string;
+  /** Reset links set a new password for the account Username instead of creating one. */
+  reset: boolean;
   /**
-   * Username is set when the administrator chose the name; the invited person cannot change it.
+   * Username is set when the name was chosen for the invited person; they cannot change it.
    * @example "alice"
    */
   username?: string;
@@ -578,8 +595,17 @@ export interface HttpapiInviteView {
   id: string;
   /** @example "Alice from the Discord server" */
   note?: string;
+  /**
+   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
+   * @example "bob"
+   */
+  owner?: string;
+  /** Reset links set a new password for the existing account Username. */
+  reset: boolean;
   /** @example "user" */
   role: "admin" | "user";
+  /** Shares are the servers the subuser sees once the account exists. */
+  shares: V1Alpha1InviteShare[];
   /**
    * Username is the name the account gets; empty lets the invited person choose it.
    * @example "alice"
@@ -913,6 +939,14 @@ export interface HttpapiSettingsView {
    * +optional
    */
   storageClasses?: string[];
+  /**
+   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
+   * their servers. Empty: 10. 0 = off.
+   * +optional
+   * +kubebuilder:validation:Minimum=0
+   * +kubebuilder:validation:Maximum=100
+   */
+  subusersPerUser?: number;
 }
 
 export interface HttpapiSetupRequest {
@@ -995,6 +1029,8 @@ export interface HttpapiUpdateServerRequest {
    * it; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.
    */
   serviceType?: "LoadBalancer" | "ClusterIP";
+  /** SharedWith replaces the subusers of the owner who see the server. Owners may change it. */
+  sharedWith?: V1Alpha1ServerShare[];
   startup?: string;
   /** StartupName picks one of the egg's startup commands. Empty: the egg's default. Owners may change it. */
   startupName?: string;
@@ -1137,6 +1173,14 @@ export interface HttpapiUpdateSettingsRequest {
    * +optional
    */
   storageClasses?: string[];
+  /**
+   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
+   * their servers. Empty: 10. 0 = off.
+   * +optional
+   * +kubebuilder:validation:Minimum=0
+   * +kubebuilder:validation:Maximum=100
+   */
+  subusersPerUser?: number;
 }
 
 export interface HttpapiUpdateUserRequest {
@@ -1183,15 +1227,23 @@ export interface HttpapiUserView {
   /** MustChangePassword is true while the user has to replace the password set by an administrator. */
   mustChangePassword: boolean;
   /** @example "kubedactyl-user-alice" */
-  namespace: string;
+  namespace?: string;
   /**
    * OIDC is the user of the identity provider the account is linked to (which sets display name, email and
    * role); null for accounts that are not linked.
    */
   oidc?: V1Alpha1OIDCIdentity | null;
+  /**
+   * Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.
+   * @example "bob"
+   */
+  owner?: string;
   /** @example "user" */
   role: "admin" | "user";
-  /** @example 2 */
+  /**
+   * Servers counts the servers of the user, for a subuser the servers shared with it.
+   * @example 2
+   */
   servers: number;
   tokens: HttpapiTokenView[];
   /** @example "alice" */
@@ -1536,6 +1588,15 @@ export interface V1Alpha1GameServerSpec {
    */
   serviceType?: V1Alpha1ServiceType;
   /**
+   * SharedWith are the subusers of the owner who may see the server. Files, backups and settings stay
+   * with the owner.
+   * +optional
+   * +listType=map
+   * +listMapKey=user
+   * +kubebuilder:validation:MaxItems=100
+   */
+  sharedWith?: V1Alpha1ServerShare[];
+  /**
    * SkipInstall creates the server without running the egg's install script.
    * +optional
    */
@@ -1643,6 +1704,13 @@ export interface V1Alpha1InstallScript {
   container?: string;
   entrypoint?: string;
   script?: string;
+}
+
+export interface V1Alpha1InviteShare {
+  /** +kubebuilder:default=view */
+  access: V1Alpha1ShareAccess;
+  /** Server is the name of the server. */
+  server: string;
 }
 
 export interface V1Alpha1OIDCIdentity {
@@ -1798,7 +1866,16 @@ export interface V1Alpha1ScheduleTask {
   payload?: string;
 }
 
+export interface V1Alpha1ServerShare {
+  /** +kubebuilder:default=view */
+  access: V1Alpha1ShareAccess;
+  /** User is the username of a subuser of the server's owner. */
+  user: string;
+}
+
 export type V1Alpha1ServiceType = "LoadBalancer" | "ClusterIP";
+
+export type V1Alpha1ShareAccess = "view" | "control";
 
 export interface V1Alpha1StartupCommand {
   command: string;

@@ -9,6 +9,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/gin-gonic/gin"
 
+	"app/api/v1alpha1"
 	"app/internal/console"
 	"app/internal/serverctl"
 )
@@ -69,11 +70,19 @@ type consoleSession struct {
 	server    string
 }
 
-// authorized checks the credentials of the connection again: a logout, "log out everywhere",
-// a password change, a disabled account or a lost admin role ends an open console.
-func (s *consoleSession) authorized(ctx context.Context) bool {
+// authorize checks the credentials of the connection again and reloads the server: a logout, "log out
+// everywhere", a password change, a disabled account, a lost admin role or a removed share ends an open
+// console (accessNone).
+func (s *consoleSession) authorize(ctx context.Context) (*v1alpha1.GameServer, access) {
 	p, err := s.api.principalFor(ctx, s.token)
-	return err == nil && (p.Admin() || p.Namespace == s.namespace)
+	if err != nil {
+		return nil, accessNone
+	}
+	gs, ok := s.api.reloadServer(ctx, s.namespace, s.server)
+	if !ok {
+		return nil, accessNone
+	}
+	return gs, p.accessTo(gs)
 }
 
 // end closes a connection whose credentials are no longer valid.
@@ -116,25 +125,25 @@ func (s *consoleSession) readCommands(ctx context.Context) {
 		if len(msg.Args) == 0 {
 			continue
 		}
-		if !s.authorized(ctx) {
+		gs, level := s.authorize(ctx)
+		if level == accessNone {
 			s.end()
 			return
+		}
+		if level < accessControl {
+			s.daemonMessage(ctx, "You may only watch this server.")
+			continue
 		}
 		if _, err := s.api.admit(s.caller); err != nil {
 			s.daemonMessage(ctx, err.Error())
 			continue
 		}
-		s.handle(ctx, msg)
+		s.handle(ctx, gs, msg)
 	}
 }
 
-// handle runs one client message on the server.
-func (s *consoleSession) handle(ctx context.Context, msg console.Event) {
-	// Reload for every message: permissions and state (suspended, running) may have changed.
-	gs, ok := s.api.reloadServer(ctx, s.namespace, s.server)
-	if !ok {
-		return
-	}
+// handle runs one client message on the server, reloaded for it: state (suspended, running) may have changed.
+func (s *consoleSession) handle(ctx context.Context, gs *v1alpha1.GameServer, msg console.Event) {
 	switch msg.Event {
 	case "send command":
 		if err := s.api.Ops.Command(ctx, gs, msg.Args[0]); err != nil {
@@ -170,7 +179,7 @@ func (s *consoleSession) stream(ctx context.Context, events <-chan console.Event
 				return
 			}
 		case <-ping.C:
-			if !s.authorized(ctx) {
+			if _, level := s.authorize(ctx); level == accessNone {
 				s.end()
 				return
 			}

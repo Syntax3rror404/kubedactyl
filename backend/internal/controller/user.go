@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +17,10 @@ import (
 
 	"app/api/v1alpha1"
 	"app/internal/tenancy"
+	"app/internal/users"
 )
 
-// UserFinalizer makes sure servers, volumes and the namespace are removed with a user.
+// UserFinalizer makes sure servers, volumes and the namespace are removed with a user, and the shares of a subuser.
 const UserFinalizer = "kubedactyl.io/user-cleanup"
 
 // UserReconciler provisions the namespace of every user and cleans it up on deletion.
@@ -44,6 +46,9 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 	user := &v1alpha1.User{}
 	if err := r.Reader.Get(ctx, req.NamespacedName, user); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
+	if users.Subuser(user) {
+		return reconcile.Result{}, r.reconcileSubuser(ctx, user)
 	}
 	ns := tenancy.Namespace(user.Name)
 
@@ -107,4 +112,38 @@ func (r *UserReconciler) cleanup(ctx context.Context, user *v1alpha1.User, ns st
 	}
 	controllerutil.RemoveFinalizer(user, UserFinalizer)
 	return reconcile.Result{}, r.Update(ctx, user)
+}
+
+// reconcileSubuser gives a subuser no namespace. When it is deleted, its shares on the owner's servers go with
+// it, so a later account with the same name gets none of them.
+func (r *UserReconciler) reconcileSubuser(ctx context.Context, user *v1alpha1.User) error {
+	if user.DeletionTimestamp.IsZero() {
+		if controllerutil.AddFinalizer(user, UserFinalizer) {
+			return r.Update(ctx, user)
+		}
+		return nil
+	}
+	if !controllerutil.ContainsFinalizer(user, UserFinalizer) {
+		return nil
+	}
+	var servers v1alpha1.GameServerList
+	if err := r.Reader.List(ctx, &servers, client.InNamespace(users.Home(user))); err != nil {
+		return err
+	}
+	for i := range servers.Items {
+		gs := &servers.Items[i]
+		shares := slices.DeleteFunc(slices.Clone(gs.Spec.SharedWith), func(s v1alpha1.ServerShare) bool {
+			return s.User == user.Name
+		})
+		if len(shares) == len(gs.Spec.SharedWith) {
+			continue
+		}
+		patch := client.MergeFrom(gs.DeepCopy())
+		gs.Spec.SharedWith = shares
+		if err := r.Patch(ctx, gs, patch); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	controllerutil.RemoveFinalizer(user, UserFinalizer)
+	return r.Update(ctx, user)
 }

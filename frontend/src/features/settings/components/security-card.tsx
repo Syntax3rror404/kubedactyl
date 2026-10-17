@@ -17,12 +17,14 @@ type Security = {
   allowPrivateNetworks: boolean
   sessionHours: number
   apiTokenMaxDays: number
+  subusersPerUser: number
   disableApiDocs: boolean
 }
 
 /**
  * Network isolation of user namespaces (NetworkPolicy kubedactyl-isolation), how long sign-ins and API tokens stay
- * valid, and whether the API documentation (Swagger UI at /swagger/) is served.
+ * valid, how many subusers every user may invite, and whether the API documentation (Swagger UI at /swagger/) is
+ * served.
  */
 export function SecurityCard({
   values,
@@ -37,7 +39,7 @@ export function SecurityCard({
     <SettingsCard
       icon={ShieldIcon}
       title="Security"
-      description="Network isolation, lifetimes of sign-ins and API tokens, and the API docs."
+      description="Network isolation, lifetimes of sign-ins and API tokens, subusers and the API docs."
     >
       <FieldGroup className="gap-6">
         <FieldSet>
@@ -53,6 +55,20 @@ export function SecurityCard({
         </FieldSet>
         <FieldSeparator />
         <LifetimeFields values={values} onChange={onChange} errors={errors} />
+        <FieldSeparator />
+        <FieldSet>
+          <FieldLegend variant="label">Subusers</FieldLegend>
+          <NumberField
+            id="subusers"
+            label="Subusers per user"
+            hint="Accounts a user may invite to watch their servers (0-100, 0 = off)."
+            min={0}
+            max={100}
+            value={values.subusersPerUser}
+            onChange={(subusersPerUser) => onChange({ subusersPerUser })}
+            error={errors.subusersPerUser}
+          />
+        </FieldSet>
         <FieldSeparator />
         <FieldSet>
           <FieldLegend variant="label">API documentation</FieldLegend>
@@ -82,7 +98,7 @@ function LifetimeFields({
     <FieldSet>
       <FieldLegend variant="label">Sessions and API tokens</FieldLegend>
       <FieldGroup className="grid gap-6 sm:grid-cols-2">
-        <LifetimeField
+        <NumberField
           id="session-hours"
           label="Sign-in lasts (hours)"
           hint="After that, users sign in again (1-720 hours)."
@@ -91,7 +107,7 @@ function LifetimeFields({
           onChange={(sessionHours) => onChange({ sessionHours })}
           error={errors.sessionHours}
         />
-        <LifetimeField
+        <NumberField
           id="token-days"
           label="API tokens last at most (days)"
           hint="Counted from creation, also for existing tokens (1-3650 days)."
@@ -105,11 +121,12 @@ function LifetimeFields({
   )
 }
 
-/** A lifetime from 1 to max; an empty field counts as 0, which the panel refuses. */
-function LifetimeField({
+/** A number from min (default 1) to max; an empty field counts as 0. */
+function NumberField({
   id,
   label,
   hint,
+  min = 1,
   max,
   value,
   onChange,
@@ -118,6 +135,7 @@ function LifetimeField({
   id: string
   label: string
   hint: string
+  min?: number
   max: number
   value: number
   onChange: (value: number) => void
@@ -129,7 +147,7 @@ function LifetimeField({
       <Input
         id={id}
         type="number"
-        min={1}
+        min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(e.target.valueAsNumber || 0)}

@@ -8,19 +8,22 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { InviteDialog } from "@/features/users/components/invite-dialog"
-import { InviteList } from "@/features/users/components/invite-list"
 import { UserDialog } from "@/features/users/components/user-dialog"
 import { UserTable } from "@/features/users/components/user-table"
 import { failed } from "@/lib/notify"
-import { useDeleteUser, useUsers } from "@/lib/queries"
+import { useDeleteUser, useInvites, useUsers } from "@/lib/queries"
 import type { UserView } from "@/lib/types"
 
 // One state for all dialogs of the page.
 type Dialog = { kind: "edit"; user: UserView | null } | { kind: "delete"; user: UserView } | { kind: "invite" } | null
 
-/** /users (admins): create, invite, edit, disable and delete users. */
+/**
+ * /users (admins): create, invite, edit, disable and delete users; the subusers of all users in their own table.
+ * Invites that were not used yet are rows of the table of the accounts they create.
+ */
 export function UsersPage() {
   const users = useUsers()
+  const invites = useInvites()
   const [dialog, setDialog] = useState<Dialog>(null)
   const remove = useDeleteUser({
     onSuccess: (_, username) =>
@@ -47,17 +50,36 @@ export function UsersPage() {
         }
       />
       <QueryState query={users}>
-        {(list) => (
-          <Card className="py-0">
-            <UserTable
-              users={list}
-              onEdit={(user) => setDialog({ kind: "edit", user })}
-              onDelete={(user) => setDialog({ kind: "delete", user })}
-            />
-          </Card>
-        )}
+        {(list) => {
+          // Reset links belong to an account of either table; the rows find them by username.
+          const pending = invites.data ?? []
+          const subuserInvites = pending.filter((i) => i.reset || i.owner)
+          const subusers = list.filter((u) => u.owner)
+          const actions = {
+            onEdit: (user: UserView) => setDialog({ kind: "edit", user }),
+            onDelete: (user: UserView) => setDialog({ kind: "delete", user }),
+          }
+          return (
+            <>
+              <Card className="py-0">
+                <UserTable
+                  users={list.filter((u) => !u.owner)}
+                  invites={pending.filter((i) => i.reset || !i.owner)}
+                  {...actions}
+                />
+              </Card>
+              {(subusers.length > 0 || subuserInvites.some((i) => !i.reset)) && (
+                <section className="space-y-4">
+                  <h2 className="text-lg font-semibold tracking-tight">Subusers</h2>
+                  <Card className="py-0">
+                    <UserTable users={subusers} invites={subuserInvites} subusers {...actions} />
+                  </Card>
+                </section>
+              )}
+            </>
+          )
+        }}
       </QueryState>
-      <InviteList />
       <InviteDialog open={dialog?.kind === "invite"} onClose={() => setDialog(null)} />
       <UserDialog
         open={dialog?.kind === "edit"}
@@ -69,10 +91,14 @@ export function UsersPage() {
         onOpenChange={(o) => !o && setDialog(null)}
         title={`Delete ${deleting?.username}?`}
         description={
-          <>
-            All {deleting?.servers ?? 0} game server(s) of this user, their data and the namespace{" "}
-            <code className="font-mono">{deleting?.namespace}</code> are deleted permanently.
-          </>
+          deleting?.owner ? (
+            "The account is deleted permanently and loses access to the servers shared with it."
+          ) : (
+            <>
+              All {deleting?.servers ?? 0} game server(s) of this user, their data, the namespace{" "}
+              <code className="font-mono">{deleting?.namespace}</code> and their subusers are deleted permanently.
+            </>
+          )
         }
         confirmLabel="Delete user"
         destructive

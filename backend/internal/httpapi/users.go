@@ -3,10 +3,13 @@ package httpapi
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -27,12 +30,15 @@ type UserView struct {
 	// role); null for accounts that are not linked.
 	OIDC *v1alpha1.OIDCIdentity `json:"oidc" extensions:"x-nullable"`
 	// HasPassword is false for accounts that sign in only through the identity provider.
-	HasPassword bool        `json:"hasPassword"`
-	Namespace   string      `json:"namespace"             example:"kubedactyl-user-alice"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	LastLoginAt *time.Time  `json:"lastLoginAt,omitempty"`
-	Servers     int         `json:"servers"               example:"2"`
-	Tokens      []TokenView `json:"tokens"`
+	HasPassword bool `json:"hasPassword"`
+	// Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.
+	Owner       string     `json:"owner,omitempty"       example:"bob"`
+	Namespace   string     `json:"namespace,omitempty"   example:"kubedactyl-user-alice"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	// Servers counts the servers of the user, for a subuser the servers shared with it.
+	Servers int         `json:"servers"               example:"2"`
+	Tokens  []TokenView `json:"tokens"`
 }
 
 // TokenView describes an API token without its value.
@@ -115,8 +121,20 @@ func tokenViews(u *v1alpha1.User, maxAge time.Duration) []TokenView {
 // userView describes a user for the API, with the number of their servers.
 func (a *API) userView(c *gin.Context, u *v1alpha1.User) UserView {
 	var servers v1alpha1.GameServerList
-	_ = a.Client.List(c, &servers, client.InNamespace(tenancy.Namespace(u.Name)))
-	return newUserView(u, a.Settings.Lifetimes(c).APIToken, len(servers.Items))
+	_ = a.Client.List(c, &servers, client.InNamespace(users.Home(u)))
+	return newUserView(u, a.Settings.Lifetimes(c).APIToken, serverCount(u, servers.Items))
+}
+
+// serverCount counts the servers of a user, for a subuser the servers of its owner shared with it.
+func serverCount(u *v1alpha1.User, servers []v1alpha1.GameServer) int {
+	shared := func(s v1alpha1.ServerShare) bool { return s.User == u.Name }
+	n := 0
+	for _, gs := range servers {
+		if gs.Namespace == users.Home(u) && (!users.Subuser(u) || slices.ContainsFunc(gs.Spec.SharedWith, shared)) {
+			n++
+		}
+	}
+	return n
 }
 
 // newUserView describes a user who owns the given number of servers.
@@ -124,9 +142,11 @@ func newUserView(u *v1alpha1.User, tokenMaxAge time.Duration, servers int) UserV
 	v := UserView{
 		Username: u.Name, DisplayName: u.Spec.DisplayName, Email: u.Spec.Email, Role: u.Spec.Role,
 		Disabled: u.Spec.Disabled, MustChangePassword: u.Spec.MustChangePassword,
-		OIDC: u.Spec.OIDC, HasPassword: u.Spec.PasswordHash != "",
-		Namespace: tenancy.Namespace(u.Name), CreatedAt: u.CreationTimestamp.Time,
-		Servers: servers, Tokens: tokenViews(u, tokenMaxAge),
+		OIDC: u.Spec.OIDC, HasPassword: u.Spec.PasswordHash != "", Owner: u.Spec.Owner,
+		CreatedAt: u.CreationTimestamp.Time, Servers: servers, Tokens: tokenViews(u, tokenMaxAge),
+	}
+	if !users.Subuser(u) {
+		v.Namespace = tenancy.Namespace(u.Name)
 	}
 	if u.Status.LastLoginAt != nil {
 		v.LastLoginAt = &u.Status.LastLoginAt.Time
@@ -134,43 +154,50 @@ func newUserView(u *v1alpha1.User, tokenMaxAge time.Duration, servers int) UserV
 	return v
 }
 
+// loadUser reads the account of the path; users find only their subusers.
 func (a *API) loadUser(c *gin.Context) (*v1alpha1.User, bool) {
 	u := &v1alpha1.User{}
-	if err := a.Reader.Get(c, client.ObjectKey{Namespace: a.Opts.Namespace, Name: c.Param("user")}, u); err != nil {
+	err := a.Reader.Get(c, client.ObjectKey{Namespace: a.Opts.Namespace, Name: c.Param("user")}, u)
+	if p := principal(c); err == nil && !p.Admin() && u.Spec.Owner != p.User.Name {
+		err = apierrors.NewNotFound(userResource, u.Name)
+	}
+	if err != nil {
 		a.fail(c, err)
 		return nil, false
 	}
 	return u, true
 }
 
+var userResource = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "users"}
+
 // listUsers godoc
 //
-//	@Summary	List users
-//	@Tags		Users
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{array}		UserView
-//	@Failure	403	{object}	ErrorResponse
-//	@Router		/users [get]
+//	@Summary		List users
+//	@Description	Administrators get every account, users their subusers.
+//	@Tags			Users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}		UserView
+//	@Failure		403	{object}	ErrorResponse
+//	@Router			/users [get]
 func (a *API) listUsers(c *gin.Context) {
 	var users v1alpha1.UserList
 	if err := a.Client.List(c, &users, client.InNamespace(a.Opts.Namespace)); err != nil {
 		a.fail(c, err)
 		return
 	}
+	if p := principal(c); !p.Admin() {
+		users.Items = slices.DeleteFunc(users.Items, func(u v1alpha1.User) bool { return u.Spec.Owner != p.User.Name })
+	}
 	sort.Slice(users.Items, func(i, j int) bool { return users.Items[i].Name < users.Items[j].Name })
-	// All servers in one list, counted per namespace; a failed list counts none, like userView.
+	// All servers in one list; a failed list counts none, like userView.
 	var servers v1alpha1.GameServerList
 	_ = a.Client.List(c, &servers)
-	perNamespace := map[string]int{}
-	for _, gs := range servers.Items {
-		perNamespace[gs.Namespace]++
-	}
 	maxAge := a.Settings.Lifetimes(c).APIToken
 	out := []UserView{}
 	for i := range users.Items {
 		if u := &users.Items[i]; u.DeletionTimestamp == nil {
-			out = append(out, newUserView(u, maxAge, perNamespace[tenancy.Namespace(u.Name)]))
+			out = append(out, newUserView(u, maxAge, serverCount(u, servers.Items)))
 		}
 	}
 	c.JSON(http.StatusOK, out)
@@ -251,7 +278,8 @@ func (a *API) updateUser(c *gin.Context) {
 // deleteUser godoc
 //
 //	@Summary		Delete a user
-//	@Description	Deletes the user, all its game servers, their data and the user namespace.
+//	@Description	Deletes the user, all its game servers, their data, the user namespace and its subusers. Users
+//	@Description	may delete their subusers.
 //	@Tags			Users
 //	@Security		BearerAuth
 //	@Param			user	path	string	true	"Username"

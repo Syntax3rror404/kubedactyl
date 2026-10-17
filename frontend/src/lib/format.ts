@@ -1,6 +1,6 @@
 // Formatting helpers for the UI (sizes, CPU, durations, relative times, names, roles and phases).
 
-import type { Egg, GameServer, Phase, Pool, Role, UserView } from "@/lib/types"
+import type { Egg, GameServer, Phase, Pool, Role, ShareAccess, UserView } from "@/lib/types"
 
 /** A size in binary units ("1.5 GiB"); "-" while unknown. */
 export function formatBytes(bytes: number | null | undefined, digits = 1): string {
@@ -114,6 +114,12 @@ export function isMigrating(gs: GameServer): boolean {
 }
 
 /** A deleted server stays until its finalizer has released the volume; nothing can be done with it anymore. */
+/** What the user may do on a server: everything (owner, admin), or what the owner shared with a subuser. */
+export function serverAccess(gs: GameServer, user: UserView): "full" | ShareAccess {
+  if (!user.owner) return "full"
+  return gs.spec.sharedWith?.find((s) => s.user === user.username)?.access ?? "view"
+}
+
 export function isRemoving(gs: GameServer): boolean {
   return !!gs.metadata.deletionTimestamp
 }

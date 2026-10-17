@@ -43,7 +43,8 @@ type Store struct {
 	// changing must not interleave, or two requests could each see "another admin exists" and
 	// remove the last two. The panel runs as a single replica (Deployment strategy Recreate).
 	adminChanges sync.Mutex
-	// inviteUses serializes accepting invites, so a link creates one account only.
+	// inviteUses serializes accepting invites, so a link creates one account only, and creating invites for
+	// subusers, so parallel requests cannot pass the limit together.
 	inviteUses sync.Mutex
 }
 
@@ -69,6 +70,11 @@ type UpdateInput struct {
 // Create validates the user, stores it and creates its namespace, so servers can be assigned
 // right away. Invalid input is reported as validation.Errors.
 func (s *Store) Create(ctx context.Context, in CreateInput) (*v1alpha1.User, error) {
+	return s.createFor(ctx, in, nil)
+}
+
+// createFor is Create for a subuser of owner (nil: a normal account); a subuser gets no namespace.
+func (s *Store) createFor(ctx context.Context, in CreateInput, owner *v1alpha1.User) (*v1alpha1.User, error) {
 	name := strings.ToLower(strings.TrimSpace(in.Username))
 	if in.Role == "" {
 		in.Role = v1alpha1.RoleUser
@@ -91,6 +97,10 @@ func (s *Store) Create(ctx context.Context, in CreateInput) (*v1alpha1.User, err
 		DisplayName: strings.TrimSpace(in.DisplayName), Email: strings.TrimSpace(in.Email),
 		Role: in.Role, PasswordHash: hash, MustChangePassword: in.MustChangePassword,
 	})
+	if owner != nil {
+		u.Spec.Owner = owner.Name
+		ownedBy(&u.ObjectMeta, owner)
+	}
 	return u, s.create(ctx, u)
 }
 
@@ -98,13 +108,16 @@ func (s *Store) newUser(name string, spec v1alpha1.UserSpec) *v1alpha1.User {
 	return &v1alpha1.User{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.Namespace}, Spec: spec}
 }
 
-// create stores a new user and creates its namespace.
+// create stores a new user and creates its namespace (not for subusers).
 func (s *Store) create(ctx context.Context, u *v1alpha1.User) error {
 	if err := s.Client.Create(ctx, u); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return validation.Field("username", ErrUsernameTaken)
 		}
 		return err
+	}
+	if Subuser(u) {
+		return nil
 	}
 	_, err := tenancy.EnsureNamespace(ctx, s.Client, u.Name)
 	return err
@@ -279,6 +292,9 @@ func (ch UpdateInput) apply(s *v1alpha1.UserSpec) error {
 	if ch.Role != nil {
 		if err := validRole(*ch.Role); err != nil {
 			return validation.Field("role", err)
+		}
+		if *ch.Role == v1alpha1.RoleAdmin && s.Owner != "" {
+			return validation.Field("role", ErrSubuser)
 		}
 		s.Role = *ch.Role
 	}

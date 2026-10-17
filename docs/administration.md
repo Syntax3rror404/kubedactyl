@@ -22,10 +22,24 @@ instead. After the setup the page answers 409.
   tokens alike. Administrators can set the switch again for any user.
 - **Invite**: a one-time link (`/invite?token=…`), shown once as QR code and as text to send in a messenger. The
   invited person chooses username (unless the administrator fixed one), display name and password and is signed in.
-  A link works once, for 7 days; open invites are listed below the users, where *Renew* replaces the link with a
-  new one valid for 7 days again (also after it expired; the old link stops working) and the trash can revokes it. Invites are `Invite`
-  resources in the panel namespace; only a SHA-256 hash of the link is stored. Failed link checks count against
-  the client like failed sign-ins.
+  A link works once, for 7 days; open invites are rows of the users table, where *Renew* replaces the link with a
+  new one valid for 7 days again (also after it expired; the old link stops working) and the trash can revokes it.
+  Invites are `Invite` resources in the panel namespace; only a SHA-256 hash of the link is stored. Failed link
+  checks count against the client like failed sign-ins.
+- **Password reset link** (key icon of a local account): the same kind of link, for an existing account. Whoever
+  opens it sets a new password; every session and API token of the account ends. Accounts linked to the identity
+  provider have none.
+
+**Subusers:** every user may invite friends who see only the servers the user shares with them, for example for a
+LAN party. The *Invite* button of a server (next to the power buttons) opens the invite on the *Account* page with
+that server picked; more servers can be added. Per server a subuser gets **View** (status, address, console output)
+or **Control** (also start, stop and console commands); files, backups, schedules, settings and diagnostics stay
+with the owner. The owner changes the access later in the server's *Settings* (card *Subusers*), and manages
+subusers and their pending invites on the *Account* page (delete, password reset link). A subuser is a `User` with
+`spec.owner`: it has no namespace, cannot own servers or become an administrator, signs in only with a password
+and is deleted together with its owner. Shares are `spec.sharedWith` of the server; a transfer clears them.
+Administrators see all subusers in their own table on the *Users* page. *Settings → Security → Subusers per user*
+limits accounts and open invites per user (default 10, 0 turns subusers off).
 
 **Single sign-on:** users can also sign in through an OpenID Connect identity provider (Keycloak), whose groups
 grant access and the role; see [Single sign-on](oidc.md).
@@ -51,6 +65,7 @@ grant access and the role; see [Single sign-on](oidc.md).
 | Area | User | Admin |
 |------|------|-------|
 | Own servers: view, power, console, commands, files, backups, stats, reinstall | ✓ (not while suspended) | ✓ (all servers) |
+| Subusers: invite, share own servers (view or control), password reset link, delete | ✓ | ✓ |
 | Suspend / unsuspend servers | - | ✓ |
 | Transfer servers to another user | - | ✓ |
 | Migrate servers to another storage class | - | ✓ |
@@ -59,7 +74,7 @@ grant access and the role; see [Single sign-on](oidc.md).
 | Create / delete servers (with owner) | - | ✓ |
 | Eggs: list / view (hidden variables and install script stripped) | ✓ | ✓ full |
 | Eggs: import / delete, egg library | - | ✓ |
-| Users: create, invite, edit, disable, reset password, delete (with servers, data, namespace) | - | ✓ |
+| Users: create, invite, edit, disable, reset password, delete (with servers, data, namespace, subusers) | - | ✓ |
 | Cluster page: nodes, hardware, capacity, connection and permissions | - | ✓ |
 | Panel settings: external domain, enabled storage classes and pools (read: everyone) | - | ✓ |
 | Own account: password, API tokens | ✓ | ✓ |

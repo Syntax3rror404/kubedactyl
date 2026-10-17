@@ -761,6 +761,10 @@ definitions:
       note:
         example: Alice from the Discord server
         type: string
+      reset:
+        description: 'Reset creates a link that sets a new password for the existing
+          account Username (users: their subusers).'
+        type: boolean
       role:
         allOf:
         - $ref: '#/definitions/v1alpha1.UserRole'
@@ -768,6 +772,16 @@ definitions:
         - admin
         - user
         example: user
+      shares:
+        description: Shares are servers of the caller the subuser sees once the account
+          exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
+      subuser:
+        description: Subuser invites a subuser of the caller (role user). Users always
+          invite subusers.
+        type: boolean
       username:
         example: alice
         type: string
@@ -922,6 +936,14 @@ definitions:
       note:
         example: Alice from the Discord server
         type: string
+      owner:
+        description: 'Owner is set for an invite of a subuser: the account will see
+          the servers this user shares.'
+        example: bob
+        type: string
+      reset:
+        description: Reset links set a new password for the existing account Username.
+        type: boolean
       role:
         allOf:
         - $ref: '#/definitions/v1alpha1.UserRole'
@@ -929,6 +951,11 @@ definitions:
         - admin
         - user
         example: user
+      shares:
+        description: Shares are the servers the subuser sees once the account exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
       token:
         example: 1a2b3c4d5e6f.…
         type: string
@@ -942,7 +969,9 @@ definitions:
     - expired
     - expiresAt
     - id
+    - reset
     - role
+    - shares
     - token
     type: object
   httpapi.CreatedToken:
@@ -1089,13 +1118,18 @@ definitions:
     properties:
       expiresAt:
         type: string
+      reset:
+        description: Reset links set a new password for the account Username instead
+          of creating one.
+        type: boolean
       username:
-        description: Username is set when the administrator chose the name; the invited
-          person cannot change it.
+        description: Username is set when the name was chosen for the invited person;
+          they cannot change it.
         example: alice
         type: string
     required:
     - expiresAt
+    - reset
     type: object
   httpapi.InviteView:
     properties:
@@ -1116,6 +1150,14 @@ definitions:
       note:
         example: Alice from the Discord server
         type: string
+      owner:
+        description: 'Owner is set for an invite of a subuser: the account will see
+          the servers this user shares.'
+        example: bob
+        type: string
+      reset:
+        description: Reset links set a new password for the existing account Username.
+        type: boolean
       role:
         allOf:
         - $ref: '#/definitions/v1alpha1.UserRole'
@@ -1123,6 +1165,11 @@ definitions:
         - admin
         - user
         example: user
+      shares:
+        description: Shares are the servers the subuser sees once the account exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
       username:
         description: Username is the name the account gets; empty lets the invited
           person choose it.
@@ -1133,7 +1180,9 @@ definitions:
     - expired
     - expiresAt
     - id
+    - reset
     - role
+    - shares
     type: object
   httpapi.JobList:
     properties:
@@ -1585,6 +1634,14 @@ definitions:
         items:
           type: string
         type: array
+      subusersPerUser:
+        description: |-
+          SubusersPerUser is how many subusers (accounts and invites) every user may create for
+          their servers. Empty: 10. 0 = off.
+          +optional
+          +kubebuilder:validation:Minimum=0
+          +kubebuilder:validation:Maximum=100
+        type: integer
     required:
     - oidcClientSecretSet
     type: object
@@ -1742,6 +1799,12 @@ definitions:
         enum:
         - LoadBalancer
         - ClusterIP
+      sharedWith:
+        description: SharedWith replaces the subusers of the owner who see the server.
+          Owners may change it.
+        items:
+          $ref: '#/definitions/v1alpha1.ServerShare'
+        type: array
       startup:
         type: string
       startupName:
@@ -1898,6 +1961,14 @@ definitions:
         items:
           type: string
         type: array
+      subusersPerUser:
+        description: |-
+          SubusersPerUser is how many subusers (accounts and invites) every user may create for
+          their servers. Empty: 10. 0 = off.
+          +optional
+          +kubebuilder:validation:Minimum=0
+          +kubebuilder:validation:Maximum=100
+        type: integer
     type: object
   httpapi.UpdateUserRequest:
     properties:
@@ -1990,6 +2061,11 @@ definitions:
           OIDC is the user of the identity provider the account is linked to (which sets display name, email and
           role); null for accounts that are not linked.
         x-nullable: true
+      owner:
+        description: 'Owner is set for a subuser: the user whose shared servers it
+          sees. A subuser has no namespace.'
+        example: bob
+        type: string
       role:
         allOf:
         - $ref: '#/definitions/v1alpha1.UserRole'
@@ -1998,6 +2074,8 @@ definitions:
         - user
         example: user
       servers:
+        description: Servers counts the servers of the user, for a subuser the servers
+          shared with it.
         example: 2
         type: integer
       tokens:
@@ -2012,7 +2090,6 @@ definitions:
     - disabled
     - hasPassword
     - mustChangePassword
-    - namespace
     - oidc
     - role
     - servers
@@ -2853,6 +2930,17 @@ definitions:
           ServiceType publishes the server through a load balancer or only inside the cluster (ClusterIP).
           Empty: LoadBalancer. A ClusterIP server keeps its pool for when it gets a load balancer again.
           +optional
+      sharedWith:
+        description: |-
+          SharedWith are the subusers of the owner who may see the server. Files, backups and settings stay
+          with the owner.
+          +optional
+          +listType=map
+          +listMapKey=user
+          +kubebuilder:validation:MaxItems=100
+        items:
+          $ref: '#/definitions/v1alpha1.ServerShare'
+        type: array
       skipInstall:
         description: |-
           SkipInstall creates the server without running the egg's install script.
@@ -2987,6 +3075,19 @@ definitions:
         type: string
       script:
         type: string
+    type: object
+  v1alpha1.InviteShare:
+    properties:
+      access:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ShareAccess'
+        description: +kubebuilder:default=view
+      server:
+        description: Server is the name of the server.
+        type: string
+    required:
+    - access
+    - server
     type: object
   v1alpha1.OIDCIdentity:
     properties:
@@ -3192,6 +3293,19 @@ definitions:
     required:
     - action
     type: object
+  v1alpha1.ServerShare:
+    properties:
+      access:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ShareAccess'
+        description: +kubebuilder:default=view
+      user:
+        description: User is the username of a subuser of the server's owner.
+        type: string
+    required:
+    - access
+    - user
+    type: object
   v1alpha1.ServiceType:
     enum:
     - LoadBalancer
@@ -3200,6 +3314,14 @@ definitions:
     x-enum-varnames:
     - ServiceLoadBalancer
     - ServiceClusterIP
+  v1alpha1.ShareAccess:
+    enum:
+    - view
+    - control
+    type: string
+    x-enum-varnames:
+    - ShareView
+    - ShareControl
   v1alpha1.StartupCommand:
     properties:
       command:
@@ -3312,8 +3434,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Public: creates the account of an invite link (the link works
-        once) and signs it in.'
+      description: |-
+        Public: creates the account of an invite link, or sets the new password of a reset link (the
+        link works once), and signs it in.
       parameters:
       - description: Account
         in: body
@@ -4002,8 +4125,9 @@ paths:
       - System
   /invites:
     get:
-      description: Open and expired invites, newest first. The links themselves are
-        not stored.
+      description: |-
+        Open and expired invites, newest first: administrators get all, users those of their subusers.
+        The links themselves are not stored.
       produces:
       - application/json
       responses:
@@ -4022,8 +4146,9 @@ paths:
       consumes:
       - application/json
       description: |-
-        The link (/invite?token=<token>) lets someone create an account once within 7 days. The token
-        is returned only once.
+        The link (/invite?token=<token>) lets someone create an account once within 7 days, or with
+        reset set a new password for an existing one. The token is returned only once. Invites of
+        subusers count against the subuser limit of the settings.
       parameters:
       - description: Invite
         in: body
@@ -5279,6 +5404,7 @@ paths:
       - Panel
   /users:
     get:
+      description: Administrators get every account, users their subusers.
       produces:
       - application/json
       responses:
@@ -5332,8 +5458,9 @@ paths:
       - Users
   /users/{user}:
     delete:
-      description: Deletes the user, all its game servers, their data and the user
-        namespace.
+      description: |-
+        Deletes the user, all its game servers, their data, the user namespace and its subusers. Users
+        may delete their subusers.
       parameters:
       - description: Username
         in: path

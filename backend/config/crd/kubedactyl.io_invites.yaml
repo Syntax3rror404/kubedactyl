@@ -50,11 +50,11 @@ spec:
             type: object
           spec:
             description: |-
-              InviteSpec is a one-time link with which someone creates their own account. The object name is the public
-              id in the link's token.
+              InviteSpec is a one-time link with which someone creates their own account, or sets a new password for it
+              (Reset). The object name is the public id in the link's token.
             properties:
               createdBy:
-                description: CreatedBy is the administrator who created the invite.
+                description: CreatedBy is the user who created the invite.
                 type: string
               expiresAt:
                 format: date-time
@@ -67,6 +67,14 @@ spec:
                 description: Note says whom the invite is for (shown to administrators
                   only).
                 type: string
+              owner:
+                description: 'Owner invites a subuser of that user (role user). Empty:
+                  a normal account.'
+                type: string
+              reset:
+                description: Reset sets a new password for the existing account Username
+                  instead of creating one.
+                type: boolean
               role:
                 default: user
                 description: UserRole is the permission level of a panel user.
@@ -74,6 +82,30 @@ spec:
                 - admin
                 - user
                 type: string
+              shares:
+                description: Shares are the servers of the owner the subuser sees
+                  once the account exists.
+                items:
+                  description: InviteShare is a server of the owner shared with the
+                    invited subuser.
+                  properties:
+                    access:
+                      default: view
+                      description: ShareAccess is what a subuser may do on a server
+                        shared with them.
+                      enum:
+                      - view
+                      - control
+                      type: string
+                    server:
+                      description: Server is the name of the server.
+                      type: string
+                  required:
+                  - access
+                  - server
+                  type: object
+                maxItems: 100
+                type: array
               username:
                 description: Username is the name the account gets; empty lets the
                   invited person choose it.

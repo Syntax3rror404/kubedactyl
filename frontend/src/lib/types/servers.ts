@@ -15,6 +15,7 @@ export type {
   HttpapiServerStats as ServerStats,
   HttpapiUpdateServerRequest as UpdateServerRequest,
   V1Alpha1Schedule as Schedule,
+  V1Alpha1ShareAccess as ShareAccess,
   V1Alpha1ScheduleTask as ScheduleTask,
   V1Alpha1TrafficPolicy as TrafficPolicy,
 } from "@/lib/types/api.gen"

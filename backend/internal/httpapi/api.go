@@ -142,24 +142,38 @@ func (a *API) Register(r *gin.RouterGroup) {
 	o.GET("/eggs/:egg", a.getEgg)
 
 	a.registerServers(o)
+	a.registerAccounts(o.Group("", a.requireNoSubuser))
 	a.registerAdmin(o.Group("", a.requireAdmin))
+}
+
+// registerAccounts adds the routes of accounts and invites: administrators manage all, users their subusers.
+func (a *API) registerAccounts(m *gin.RouterGroup) {
+	m.GET("/users", a.listUsers)
+	m.DELETE("/users/:user", a.deleteUser)
+	m.GET("/invites", a.listInvites)
+	m.POST("/invites", a.createInvite)
+	m.POST("/invites/:invite/renew", a.renewInvite)
+	m.DELETE("/invites/:invite", a.deleteInvite)
 }
 
 // registerServers adds the routes of the servers.
 func (a *API) registerServers(u *gin.RouterGroup) {
-	// Users only see the servers in their own namespace (see loadServer).
+	// Users only see the servers in their own namespace, subusers the ones shared with them (see loadServer).
 	u.GET("/servers", a.listServers)
 	u.GET("/servers/:server", a.getServer)
 	u.GET("/servers/:server/stats", a.getServerStats)
-	u.GET("/servers/:server/diagnostics", a.getServerDiagnostics)
+	u.GET("/servers/:server/diagnostics", a.requireAccess(accessFull), a.getServerDiagnostics)
 
 	// Everything else on a server is blocked while it is being removed, and for its owner while it is suspended.
-	s := u.Group("/servers/:server", a.notLocked)
+	l := u.Group("/servers/:server", a.notLocked)
+	l.GET("/ws", a.openConsole)
+	l.POST("/power", a.requireAccess(accessControl), a.sendPower)
+	l.POST("/command", a.requireAccess(accessControl), a.sendCommand)
+
+	// The rest is for the owner (and administrators), never for subusers.
+	s := l.Group("", a.requireAccess(accessFull))
 	s.PATCH("", a.updateServer)
-	s.POST("/power", a.sendPower)
-	s.POST("/command", a.sendCommand)
 	s.POST("/reinstall", a.reinstallServer)
-	s.GET("/ws", a.openConsole)
 	s.GET("/schedules", a.listSchedules)
 	s.PUT("/schedules", a.updateSchedules)
 	s.POST("/schedules/:schedule/run", a.runSchedule)
@@ -216,15 +230,9 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.POST("/servers/:server/transfer", a.notLocked, a.transferServer)
 	adm.POST("/servers/:server/migrate", a.notLocked, a.migrateServer)
 	adm.POST("/servers/:server/migrate/cancel", a.cancelMigration)
-	adm.GET("/users", a.listUsers)
 	adm.POST("/users", a.createUser)
 	adm.GET("/users/:user", a.getUser)
 	adm.PATCH("/users/:user", a.updateUser)
-	adm.DELETE("/users/:user", a.deleteUser)
-	adm.GET("/invites", a.listInvites)
-	adm.POST("/invites", a.createInvite)
-	adm.POST("/invites/:invite/renew", a.renewInvite)
-	adm.DELETE("/invites/:invite", a.deleteInvite)
 }
 
 // audit logs what a user did through the API together with the user ("by") and, for requests

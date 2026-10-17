@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { userName } from "@/lib/format"
 import { useUsers } from "@/lib/queries"
 
-/** Dropdown of the enabled users who can own a server, with the namespace of the chosen one. */
+/** Dropdown of the enabled users who can own a server (no subusers), with the namespace of the chosen one. */
 export function OwnerSelect({
   id,
   value,
@@ -28,7 +28,7 @@ export function OwnerSelect({
         </SelectTrigger>
         <SelectContent>
           {users.data
-            ?.filter((u) => !u.disabled && u.username !== exclude)
+            ?.filter((u) => !u.disabled && !u.owner && u.username !== exclude)
             .map((u) => (
               <SelectItem key={u.username} value={u.username}>
                 {userName(u)} <span className="font-mono text-xs text-muted-foreground">{u.username}</span>

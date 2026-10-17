@@ -90,6 +90,12 @@ type PanelSettingsSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=200
 	KubeAPIUserQPS int32 `json:"kubeApiUserQps,omitempty"`
+	// SubusersPerUser is how many subusers (accounts and invites) every user may create for
+	// their servers. Empty: 10. 0 = off.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	SubusersPerUser *int32 `json:"subusersPerUser,omitempty"`
 	// EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
 	// library on the eggs page lists. The panel reads them when the library is opened and keeps
 	// nothing of them in the cluster.

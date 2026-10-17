@@ -4,8 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InviteSpec is a one-time link with which someone creates their own account. The object name is the public
-// id in the link's token.
+// InviteSpec is a one-time link with which someone creates their own account, or sets a new password for it
+// (Reset). The object name is the public id in the link's token.
 type InviteSpec struct {
 	// Username is the name the account gets; empty lets the invited person choose it.
 	Username string `json:"username,omitempty"`
@@ -16,8 +16,26 @@ type InviteSpec struct {
 	// Hash is a SHA-256 hash of the link's token; the token itself is never stored.
 	Hash      string      `json:"hash"`
 	ExpiresAt metav1.Time `json:"expiresAt"`
-	// CreatedBy is the administrator who created the invite.
+	// CreatedBy is the user who created the invite.
 	CreatedBy string `json:"createdBy,omitempty"`
+	// Owner invites a subuser of that user (role user). Empty: a normal account.
+	// +optional
+	Owner string `json:"owner,omitempty"`
+	// Reset sets a new password for the existing account Username instead of creating one.
+	// +optional
+	Reset bool `json:"reset,omitempty"`
+	// Shares are the servers of the owner the subuser sees once the account exists.
+	// +optional
+	// +kubebuilder:validation:MaxItems=100
+	Shares []InviteShare `json:"shares,omitempty"`
+}
+
+// InviteShare is a server of the owner shared with the invited subuser.
+type InviteShare struct {
+	// Server is the name of the server.
+	Server string `json:"server"`
+	// +kubebuilder:default=view
+	Access ShareAccess `json:"access"`
 }
 
 // +kubebuilder:object:root=true

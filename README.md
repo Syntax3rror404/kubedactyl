@@ -58,7 +58,7 @@ out of the box.
 ### For administrators
 
 - **Invites instead of passwords by mail.** Send a one-time link or show a QR code; the new user picks a name and
-  a password. Or create users with a start password they must change.
+  a password. Or create users with a start password they must change. Forgotten passwords get a reset link.
 - **Move servers between users.** A transfer keeps the files, the backups and the address.
 - **Move servers to another storage class.** The files are copied and checked before the old volume goes.
 - **Suspend** a server: it stops and is locked for its owner, nothing is deleted.

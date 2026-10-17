@@ -13,7 +13,7 @@ import type {
   UserView,
 } from "@/lib/types"
 
-/** All accounts (admins). */
+/** All accounts (admins) or the own subusers (users). */
 export const useUsers = () => useQuery({ queryKey: keys.users, queryFn: api.users.list })
 
 /** Creates an account. */
@@ -28,7 +28,7 @@ export const useUpdateUser = (cb?: MutationCallbacks<UserView, { name: string; c
 export const useDeleteUser = (cb?: MutationCallbacks<void, string>) =>
   useApiMutation(api.users.delete, refreshes(keys.users, keys.servers), cb)
 
-/** All invites, also expired ones (admins). */
+/** All invites (admins) or those of the own subusers (users), also expired ones. */
 export const useInvites = () => useQuery({ queryKey: keys.invites, queryFn: api.invites.list })
 
 /** Creates an invite; the answer holds the link, shown only once. */

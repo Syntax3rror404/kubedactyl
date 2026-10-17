@@ -18,6 +18,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 	toolscache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -56,6 +57,7 @@ func (s *Store) Get(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 	obj.Spec.APITokenMaxDays = cmp.Or(obj.Spec.APITokenMaxDays, DefaultAPITokenMaxDays)
 	obj.Spec.KubeAPIQPS = cmp.Or(obj.Spec.KubeAPIQPS, DefaultKubeAPIQPS)
 	obj.Spec.KubeAPIUserQPS = cmp.Or(obj.Spec.KubeAPIUserQPS, DefaultKubeAPIUserQPS)
+	obj.Spec.SubusersPerUser = cmp.Or(obj.Spec.SubusersPerUser, ptr.To[int32](DefaultSubusersPerUser))
 	obj.Spec.OIDC.UsernameClaim = cmp.Or(obj.Spec.OIDC.UsernameClaim, sso.DefaultUsernameClaim)
 	obj.Spec.OIDC.GroupsClaim = cmp.Or(obj.Spec.OIDC.GroupsClaim, sso.DefaultGroupsClaim)
 	return obj.Spec, nil
@@ -151,6 +153,17 @@ const (
 	maxKubeAPIUserQPS     = 200
 )
 
+// Subusers every user may create when the settings name none, and the limit (the CRD validation has the same).
+const (
+	DefaultSubusersPerUser = 10
+	maxSubusersPerUser     = 100
+)
+
+// SubusersPerUser fills in the default.
+func SubusersPerUser(spec v1alpha1.PanelSettingsSpec) int {
+	return int(ptr.Deref(spec.SubusersPerUser, DefaultSubusersPerUser))
+}
+
 // Lifetimes are the session and API token lifetimes with the defaults filled in.
 type Lifetimes struct {
 	Session  time.Duration
@@ -213,6 +226,9 @@ func (s *Store) Validate(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (
 	if q := spec.KubeAPIUserQPS; q < 0 || q > maxKubeAPIUserQPS {
 		return spec, invalid("kubeApiUserQps", "must be between %d and %d per second",
 			minKubeAPIUserQPS, maxKubeAPIUserQPS)
+	}
+	if n := spec.SubusersPerUser; n != nil && (*n < 0 || *n > maxSubusersPerUser) {
+		return spec, invalid("subusersPerUser", "must be between 0 and %d", maxSubusersPerUser)
 	}
 	if spec.EggLibraries, err = normalizeEggLibraries(spec.EggLibraries); err != nil {
 		return spec, err

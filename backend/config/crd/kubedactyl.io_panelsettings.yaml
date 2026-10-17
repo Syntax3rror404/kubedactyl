@@ -218,6 +218,14 @@ spec:
                 items:
                   type: string
                 type: array
+              subusersPerUser:
+                description: |-
+                  SubusersPerUser is how many subusers (accounts and invites) every user may create for
+                  their servers. Empty: 10. 0 = off.
+                format: int32
+                maximum: 100
+                minimum: 0
+                type: integer
             type: object
         required:
         - spec

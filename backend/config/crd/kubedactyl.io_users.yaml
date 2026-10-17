@@ -20,6 +20,9 @@ spec:
     - jsonPath: .spec.role
       name: Role
       type: string
+    - jsonPath: .spec.owner
+      name: Owner
+      type: string
     - jsonPath: .status.namespace
       name: Namespace
       type: string
@@ -77,6 +80,11 @@ spec:
                 - issuer
                 - subject
                 type: object
+              owner:
+                description: |-
+                  Owner makes the account a subuser of that user: no servers of its own, only the ones the owner
+                  shares (GameServer sharedWith). It is deleted with the owner. Empty: a normal account.
+                type: string
               passwordHash:
                 description: |-
                   PasswordHash is an Argon2id hash in PHC format; the password itself is never stored. Empty:

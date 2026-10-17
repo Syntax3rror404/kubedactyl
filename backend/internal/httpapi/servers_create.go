@@ -16,6 +16,7 @@ import (
 	"app/internal/gameserver"
 	"app/internal/settings"
 	"app/internal/tenancy"
+	"app/internal/users"
 	"app/internal/validation"
 )
 
@@ -211,7 +212,7 @@ func serverEnvironment(e *v1alpha1.Egg, requested map[string]string) map[string]
 	return env
 }
 
-// ownerNamespace checks that the owner exists and returns (creates) its namespace.
+// ownerNamespace checks that the owner exists and is no subuser and returns (creates) its namespace.
 func (a *API) ownerNamespace(ctx context.Context, owner string) (string, error) {
 	u := &v1alpha1.User{}
 	err := a.Reader.Get(ctx, client.ObjectKey{Namespace: a.Opts.Namespace, Name: owner}, u)
@@ -220,6 +221,9 @@ func (a *API) ownerNamespace(ctx context.Context, owner string) (string, error) 
 	}
 	if err != nil {
 		return "", err
+	}
+	if users.Subuser(u) {
+		return "", validation.Field("owner", users.ErrSubuser)
 	}
 	return tenancy.EnsureNamespace(ctx, a.Client, owner)
 }
