@@ -20,7 +20,7 @@ kubectl -n kubedactyl logs deploy/kubedactyl | grep setup   # one-time link for 
 | `admin.existingSecret` | - | secret with `admin-password` and/or `setup-token` |
 | `panel.storageClass` | `longhorn` | storage class enabled in the panel settings on the first start |
 | `panel.loadBalancerPool` | `general` | Cilium pool enabled on the first start (name or `lb.cilium.io/pool` value) |
-| `panel.helperImage` | `alpine:3.24.2` | image of the file manager pod |
+| `panel.helperImage` | `alpine:3.24.3` | image of the file manager pod |
 | `panel.timezone` / `panel.dockerInterface` | `UTC` / `127.0.0.1` | passed to game servers / egg config files |
 | `panel.trustedProxies` | - | reverse proxy IPs/CIDRs whose `X-Forwarded-For` is trusted |
 | `serviceAccount.create` / `rbac.create` | `true` | service account and ClusterRole/Binding (+ Role for secrets) |

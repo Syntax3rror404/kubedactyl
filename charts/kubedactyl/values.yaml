@@ -24,7 +24,7 @@ panel:
   # Cilium LB IPAM pool (name or value of its lb.cilium.io/pool selector label).
   loadBalancerPool: general
   # Image of the file manager pod (must be reachable by the nodes).
-  helperImage: alpine:3.24.2
+  helperImage: alpine:3.24.3
   timezone: UTC
   dockerInterface: 127.0.0.1
   # IPs/CIDRs of reverse proxies whose X-Forwarded-For is trusted, so login throttling sees the

@@ -29,7 +29,7 @@ func main() {
 		log.Fatal("usage: imagebuild build|push …")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
-	base := fs.String("base", "alpine:3.24.2", "base image")
+	base := fs.String("base", "alpine:3.24.3", "base image")
 	bin := fs.String("bin", "", "linux/amd64 binary")
 	tag := fs.String("tag", "", "image reference")
 	out := fs.String("out", "image.tar", "output tarball")

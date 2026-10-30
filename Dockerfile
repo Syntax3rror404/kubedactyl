@@ -1,7 +1,7 @@
 # Kubedactyl image: frontend build → Go build (frontend embedded) → Alpine.
 # Build: docker build -t <registry>/kubedactyl:<tag> .   (see docs/installation.md)
 
-FROM node:26.12.0-alpine AS frontend
+FROM node:26.13.0-alpine AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ COPY THIRD_PARTY_NOTICES.md /src/
 # Writes to ../backend/web/dist (vite.config.ts)
 RUN npm run build
 
-FROM golang:1.27.2-alpine AS backend
+FROM golang:1.27.3-alpine AS backend
 # docker build --build-arg VERSION=$(cat VERSION) .
 ARG VERSION=dev
 WORKDIR /src/backend
@@ -24,7 +24,7 @@ RUN go run ./tools/licenses -root /src -dist web/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.appVersion=${VERSION}" -o /out/kubedactyl .
 
 # Alpine (not Debian): small, ships the CA bundle for HTTPS (egg import from URLs).
-FROM alpine:3.24.2
+FROM alpine:3.24.3
 RUN addgroup -S -g 65532 kubedactyl && adduser -S -D -H -u 65532 -G kubedactyl kubedactyl
 COPY --from=backend /out/kubedactyl /kubedactyl
 COPY --from=backend /src/backend/web/dist/third-party-licenses.md /usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md

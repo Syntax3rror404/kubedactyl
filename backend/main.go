@@ -150,7 +150,7 @@ func parseFlags() config {
 		"Cilium LB IPAM pool enabled in the panel settings on the first start (name or lb.cilium.io/pool label value)",
 	)
 	flag.StringVar(
-		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.2"),
+		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.3"),
 		"image of the file helper and hardware probe pods",
 	)
 	flag.StringVar(

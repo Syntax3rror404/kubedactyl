@@ -12,7 +12,7 @@ contains it as `/usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md`.
 
 ## Container image: Alpine Linux
 
-The image `ghcr.io/syntax3rror404/kubedactyl` is based on the unmodified `alpine:3.24.2` image. Its packages
+The image `ghcr.io/syntax3rror404/kubedactyl` is based on the unmodified `alpine:3.24.3` image. Its packages
 (musl, BusyBox, apk-tools, ca-certificates, …) keep their own licenses, among them GPL-2.0 (BusyBox). Their
 sources are published by Alpine Linux: https://gitlab.alpinelinux.org/alpine/aports (branch `3.24-stable`) and
 the source archives referenced there.
@@ -459,7 +459,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | go.yaml.in/yaml/v3 | v3.0.5 | Apache-2.0 AND MIT |
 | golang.org/x/crypto | v0.58.0 | BSD-3-Clause |
 | golang.org/x/mod | v0.42.0 | BSD-3-Clause |
-| golang.org/x/net | v0.61.0 | BSD-3-Clause |
+| golang.org/x/net | v0.62.0 | BSD-3-Clause |
 | golang.org/x/oauth2 | v0.37.0 | BSD-3-Clause |
 | golang.org/x/sync | v0.24.0 | BSD-3-Clause |
 | golang.org/x/sys | v0.49.0 | BSD-3-Clause |
@@ -473,18 +473,18 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | gopkg.in/inf.v0 | v0.9.1 | BSD-3-Clause |
 | gopkg.in/ini.v1 | v1.67.3 | Apache-2.0 |
 | helm.sh/helm/v4 | v4.3.1 | Apache-2.0 |
-| k8s.io/api | v0.37.1 | Apache-2.0 |
-| k8s.io/apiextensions-apiserver | v0.37.1 | Apache-2.0 |
-| k8s.io/apimachinery | v0.37.1 | Apache-2.0 |
-| k8s.io/apiserver | v0.37.1 | Apache-2.0 |
-| k8s.io/cli-runtime | v0.37.1 | Apache-2.0 |
-| k8s.io/client-go | v0.37.1 | Apache-2.0 |
-| k8s.io/component-base | v0.37.1 | Apache-2.0 |
+| k8s.io/api | v0.37.2 | Apache-2.0 |
+| k8s.io/apiextensions-apiserver | v0.37.2 | Apache-2.0 |
+| k8s.io/apimachinery | v0.37.2 | Apache-2.0 |
+| k8s.io/apiserver | v0.37.2 | Apache-2.0 |
+| k8s.io/cli-runtime | v0.37.2 | Apache-2.0 |
+| k8s.io/client-go | v0.37.2 | Apache-2.0 |
+| k8s.io/component-base | v0.37.2 | Apache-2.0 |
 | k8s.io/klog/v2 | v2.140.0 | Apache-2.0 |
 | k8s.io/kube-openapi | v0.0.0-20260721132016-d427ff9ee9ad | Apache-2.0 |
 | k8s.io/kubectl | v0.37.1 | Apache-2.0 |
-| k8s.io/streaming | v0.37.1 | Apache-2.0 |
-| k8s.io/utils | v0.0.0-20260707023825-cf1189d6abe3 | Apache-2.0 |
+| k8s.io/streaming | v0.37.2 | Apache-2.0 |
+| k8s.io/utils | v0.0.0-20261023123148-ca04ba58ecab | Apache-2.0 |
 | oras.land/oras-go/v2 | v2.6.2 | Apache-2.0 |
 | sigs.k8s.io/controller-runtime | v0.25.2 | Apache-2.0 |
 | sigs.k8s.io/json | v0.0.0-20250730193827-2d320260d730 | Apache-2.0 AND BSD-3-Clause |
@@ -498,8 +498,8 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 
 | Package | Version | License |
 | --- | --- | --- |
-| @babel/runtime | 7.29.7 | MIT |
-| @codemirror/autocomplete | 6.20.3 | MIT |
+| @babel/runtime | 7.29.10 | MIT |
+| @codemirror/autocomplete | 6.20.4 | MIT |
 | @codemirror/commands | 6.11.1 | MIT |
 | @codemirror/lang-angular | 0.1.4 | MIT |
 | @codemirror/lang-cpp | 6.0.3 | MIT |
@@ -511,7 +511,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @codemirror/lang-jinja | 6.0.1 | MIT |
 | @codemirror/lang-json | 6.0.2 | MIT |
 | @codemirror/lang-less | 6.0.2 | MIT |
-| @codemirror/lang-liquid | 6.3.2 | MIT |
+| @codemirror/lang-liquid | 6.3.3 | MIT |
 | @codemirror/lang-markdown | 6.5.2 | MIT |
 | @codemirror/lang-php | 6.0.2 | MIT |
 | @codemirror/lang-python | 6.2.1 | MIT |
@@ -524,30 +524,30 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @codemirror/lang-yaml | 6.1.3 | MIT |
 | @codemirror/language | 6.13.1 | MIT |
 | @codemirror/language-data | 6.5.2 | MIT |
-| @codemirror/legacy-modes | 6.5.4 | MIT |
+| @codemirror/legacy-modes | 6.5.5 | MIT |
 | @codemirror/lint | 6.9.7 | MIT |
 | @codemirror/search | 6.7.2 | MIT |
 | @codemirror/state | 6.7.6 | MIT |
 | @codemirror/streamparser | 6.0.0 | MIT |
 | @codemirror/theme-one-dark | 6.1.3 | MIT |
-| @codemirror/view | 6.43.14 | MIT |
+| @codemirror/view | 6.43.15 | MIT |
 | @floating-ui/core | 1.8.0 | MIT |
 | @floating-ui/dom | 1.8.0 | MIT |
 | @floating-ui/react-dom | 2.1.9 | MIT |
 | @floating-ui/utils | 0.2.12 | MIT |
 | @fontsource-variable/geist | 5.3.0 | OFL-1.1 |
 | @fontsource-variable/jetbrains-mono | 5.3.0 | OFL-1.1 |
-| @lezer/common | 1.5.3 | MIT |
+| @lezer/common | 1.5.5 | MIT |
 | @lezer/cpp | 1.1.6 | MIT |
-| @lezer/css | 1.3.8 | MIT |
+| @lezer/css | 1.3.9 | MIT |
 | @lezer/go | 1.0.1 | MIT |
-| @lezer/highlight | 1.2.4 | MIT |
+| @lezer/highlight | 1.2.5 | MIT |
 | @lezer/html | 1.3.13 | MIT |
-| @lezer/java | 1.1.4 | MIT |
-| @lezer/javascript | 1.5.5 | MIT |
+| @lezer/java | 1.1.5 | MIT |
+| @lezer/javascript | 1.5.6 | MIT |
 | @lezer/json | 1.0.3 | MIT |
-| @lezer/lr | 1.4.10 | MIT |
-| @lezer/markdown | 1.7.2 | MIT |
+| @lezer/lr | 1.4.12 | MIT |
+| @lezer/markdown | 1.8.1 | MIT |
 | @lezer/php | 1.0.6 | MIT |
 | @lezer/python | 1.1.19 | MIT |
 | @lezer/rust | 1.0.3 | MIT |
@@ -612,27 +612,27 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @radix-ui/react-use-previous | 1.1.4 | MIT |
 | @radix-ui/react-use-size | 1.1.5 | MIT |
 | @radix-ui/react-visually-hidden | 1.2.13 | MIT |
-| @reduxjs/toolkit | 2.12.0 | MIT |
+| @reduxjs/toolkit | 2.13.0 | MIT |
 | @remix-run/route-pattern | 0.22.1 | MIT |
 | @tailwindcss/vite | 4.3.3 | MIT |
-| @tanstack/query-core | 5.104.3 | MIT |
-| @tanstack/react-query | 5.104.3 | MIT |
+| @tanstack/query-core | 5.105.0 | MIT |
+| @tanstack/react-query | 5.105.0 | MIT |
 | @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT |
 | @uiw/react-codemirror | 4.25.12 | MIT |
 | @ungap/structured-clone | 1.4.0 | ISC |
 | @xterm/addon-fit | 0.11.0 | MIT |
 | @xterm/xterm | 6.0.0 | MIT |
 | aria-hidden | 1.2.6 | MIT |
-| attr-accept | 4.0.0 | MIT |
+| attr-accept | 4.0.1 | MIT |
 | bail | 2.0.2 | MIT |
 | ccount | 2.0.1 | MIT |
 | class-variance-authority | 0.7.1 | Apache-2.0 |
 | clsx | 2.1.1 | MIT |
-| cn | 0.4.0 | MIT |
+| cn | 0.5.1 | MIT |
 | comma-separated-tokens | 2.0.3 | MIT |
 | cookie-es | 3.1.1 | MIT |
 | crelt | 1.0.7 | MIT |
-| cronstrue | 3.32.0 | MIT |
+| cronstrue | 3.38.0 | MIT |
 | d3-array | 3.2.4 | ISC |
 | d3-color | 3.1.0 | ISC |
 | d3-format | 3.1.2 | ISC |
@@ -646,27 +646,27 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | decode-named-character-reference | 1.3.0 | MIT |
 | detect-node-es | 1.1.0 | MIT |
 | devlop | 1.1.0 | MIT |
-| es-toolkit | 1.52.0 | MIT |
+| es-toolkit | 1.53.1 | MIT |
 | escape-string-regexp | 5.0.0 | MIT |
 | estree-util-is-identifier-name | 3.0.0 | MIT |
 | eventemitter3 | 5.0.4 | MIT |
 | extend | 3.0.2 | MIT |
 | file-selector | 5.0.1 | MIT |
-| framer-motion | 14.3.0 | MIT |
+| framer-motion | 14.9.0 | MIT |
 | get-nonce | 1.0.1 | MIT |
-| hast-util-to-jsx-runtime | 2.3.6 | MIT |
+| hast-util-to-jsx-runtime | 2.3.7 | MIT |
 | hast-util-whitespace | 3.0.0 | MIT |
 | html-url-attributes | 3.0.1 | MIT |
 | immer | 10.2.0 | MIT |
-| immer | 11.1.18 | MIT |
-| inline-style-parser | 0.2.7 | MIT |
+| immer | 11.2.9 | MIT |
+| inline-style-parser | 0.2.9 | MIT |
 | internmap | 2.0.3 | ISC |
 | is-plain-obj | 4.1.0 | MIT |
 | longest-streak | 3.1.0 | MIT |
-| lucide-react | 1.59.0 | ISC |
+| lucide-react | 1.65.0 | ISC |
 | markdown-table | 3.0.4 | MIT |
-| mdast-util-find-and-replace | 3.0.2 | MIT |
-| mdast-util-from-markdown | 2.0.3 | MIT |
+| mdast-util-find-and-replace | 3.0.4 | MIT |
+| mdast-util-from-markdown | 2.1.0 | MIT |
 | mdast-util-gfm | 3.1.0 | MIT |
 | mdast-util-gfm-autolink-literal | 2.0.1 | MIT |
 | mdast-util-gfm-footnote | 2.1.0 | MIT |
@@ -675,7 +675,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | mdast-util-gfm-task-list-item | 2.0.0 | MIT |
 | mdast-util-phrasing | 4.1.0 | MIT |
 | mdast-util-to-hast | 13.2.1 | MIT |
-| mdast-util-to-markdown | 2.1.3 | MIT |
+| mdast-util-to-markdown | 2.2.1 | MIT |
 | mdast-util-to-string | 4.0.0 | MIT |
 | micromark | 4.0.3 | MIT |
 | micromark-core-commonmark | 2.0.4 | MIT |
@@ -704,21 +704,21 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | micromark-util-resolve-all | 2.0.1 | MIT |
 | micromark-util-sanitize-uri | 2.0.1 | MIT |
 | micromark-util-subtokenize | 2.1.0 | MIT |
-| motion | 14.3.0 | MIT |
-| motion-dom | 14.3.0 | MIT |
-| motion-utils | 14.1.1 | MIT |
+| motion | 14.9.0 | MIT |
+| motion-dom | 14.9.0 | MIT |
+| motion-utils | 14.7.0 | MIT |
 | next-themes | 0.4.6 | MIT |
 | property-information | 7.2.0 | MIT |
 | radix-ui | 1.8.1 | MIT |
 | react | 19.3.1 | MIT |
 | react-dom | 19.3.1 | MIT |
 | react-dropzone | 20.1.4 | MIT |
-| react-is | 19.3.0 | MIT |
+| react-is | 19.3.1 | MIT |
 | react-markdown | 10.1.0 | MIT |
-| react-redux | 9.3.0 | MIT |
+| react-redux | 9.3.1 | MIT |
 | react-remove-scroll | 2.7.2 | MIT |
 | react-remove-scroll-bar | 2.3.8 | MIT |
-| react-router | 8.4.0 | MIT |
+| react-router | 8.5.1 | MIT |
 | react-style-singleton | 2.2.3 | MIT |
 | recharts | 3.8.0 | MIT |
 | redux | 5.0.1 | MIT |
@@ -727,15 +727,14 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | remark-parse | 11.0.0 | MIT |
 | remark-rehype | 11.1.2 | MIT |
 | reselect | 5.1.1 | MIT |
-| reselect | 5.2.0 | MIT |
-| rolldown | 1.2.13 | MIT |
+| reselect | 5.3.0 | MIT |
+| rolldown | 1.2.16 | MIT |
 | scheduler | 0.28.0 | MIT |
-| shadcn | 4.22.0 | MIT |
+| shadcn | 4.23.0 | MIT |
 | sonner | 2.0.8 | MIT |
 | space-separated-tokens | 2.0.2 | MIT |
 | style-mod | 4.1.4 | MIT |
-| style-to-js | 1.1.21 | MIT |
-| style-to-object | 1.0.14 | MIT |
+| style-to-object | 2.0.2 | MIT |
 | tailwindcss | 4.3.3 | MIT |
 | tiny-invariant | 1.3.3 | MIT |
 | trim-lines | 3.0.1 | MIT |
@@ -746,16 +745,16 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | unist-util-is | 6.0.1 | MIT |
 | unist-util-position | 5.0.0 | MIT |
 | unist-util-stringify-position | 4.0.0 | MIT |
-| unist-util-visit | 5.1.0 | MIT |
-| unist-util-visit-parents | 6.0.2 | MIT |
+| unist-util-visit | 5.2.0 | MIT |
+| unist-util-visit-parents | 6.1.0 | MIT |
 | uqr | 0.1.3 | MIT |
 | use-callback-ref | 1.3.3 | MIT |
 | use-sidecar | 1.1.3 | MIT |
 | use-sync-external-store | 1.7.0 | MIT |
 | vfile | 6.0.3 | MIT |
 | vfile-message | 4.0.3 | MIT |
-| victory-vendor | 37.3.6 | MIT AND ISC |
-| vite | 8.3.4 | MIT |
+| victory-vendor | 37.4.1 | MIT AND ISC AND BSD-3-Clause |
+| vite | 8.3.5 | MIT |
 | w3c-keyname | 2.2.8 | MIT |
 | zwitch | 2.0.4 | MIT |
 
