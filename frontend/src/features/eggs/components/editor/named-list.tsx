@@ -11,7 +11,8 @@ type Entry<K extends string> = { name: string } & Record<K, string>
 
 /**
  * A list of named values users pick from by name (docker images, startup commands): the first is the
- * default, entries can be moved and removed (at least one stays). Errors are keyed "<path>.<i>.<key>".
+ * default, entries can be moved and removed (at least one stays). Errors are keyed "<path>.<i>.<key>", so a move or
+ * removal reports reindexed.
  */
 export function NamedList<K extends string>({
   label,
@@ -33,7 +34,7 @@ export function NamedList<K extends string>({
   path: string
   valueKey: K
   items: Entry<K>[]
-  onChange: (items: Entry<K>[]) => void
+  onChange: (items: Entry<K>[], reindexed?: boolean) => void
   errors: FieldErrors
   namePlaceholder: (index: number) => string
   valuePlaceholder: string
@@ -78,8 +79,8 @@ export function NamedList<K extends string>({
                   index={i}
                   count={items.length}
                   size="icon"
-                  onMove={(by) => onChange(move(items, i, by))}
-                  onRemove={items.length > 1 ? () => onChange(removeAt(items, i)) : undefined}
+                  onMove={(by) => onChange(move(items, i, by), true)}
+                  onRemove={items.length > 1 ? () => onChange(removeAt(items, i), true) : undefined}
                 />
               </div>
               {(nameError || valueError) && (

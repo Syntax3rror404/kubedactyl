@@ -17,17 +17,23 @@ import (
 	"app/internal/kube"
 )
 
-// ErrNotFound is returned for missing files or directories.
-var ErrNotFound = errors.New("file not found")
-
-// ErrDenied is returned for paths outside the server root or on the egg denylist.
-var ErrDenied = errors.New("access to this file is denied")
-
-// ErrExists is returned when the target of a move or rename already exists.
-var ErrExists = errors.New("the target already exists")
-
-// ErrTooLarge is returned when a file is too big to be opened in the editor.
-var ErrTooLarge = errors.New("file is too large to be edited")
+// Errors of file operations.
+var (
+	// ErrNotFound is returned for missing files or directories.
+	ErrNotFound = errors.New("file not found")
+	// ErrDenied is returned for paths outside the server root or on the egg denylist.
+	ErrDenied = errors.New("access to this file is denied")
+	// ErrExists is returned when the target of a move, rename or new archive already exists.
+	ErrExists = errors.New("the target already exists")
+	// ErrTooLarge is returned when a file is too big to be opened in the editor.
+	ErrTooLarge = errors.New("file is too large to be edited")
+	// ErrIntoItself is returned when a folder would be moved into itself.
+	ErrIntoItself = errors.New("cannot move a folder into itself")
+	// ErrTooManyEntries is returned for folders whose listing exceeds maxListing.
+	ErrTooManyEntries = errors.New("the folder has too many entries to be listed")
+	// ErrBadName is returned for entry names that are a path, "." or "..".
+	ErrBadName = errors.New(`the file name must not contain slashes or be "." or ".."`)
+)
 
 // Entry is a file or directory in a listing.
 type Entry struct {
@@ -44,12 +50,6 @@ type Manager struct {
 	Kube *kube.Client
 }
 
-// ErrIntoItself is returned when a folder would be moved into itself.
-var ErrIntoItself = errors.New("cannot move a folder into itself")
-
-// ErrTooManyEntries is returned for folders whose listing exceeds maxListing.
-var ErrTooManyEntries = errors.New("the folder has too many entries to be listed")
-
 // maxListing limits the output of a folder listing (about 100,000 entries).
 const maxListing = 16 << 20
 
@@ -64,48 +64,14 @@ func RefOf(gs *v1alpha1.GameServer) Ref {
 	return Ref{Namespace: gs.Namespace, Name: gs.Name}
 }
 
-// Resolve converts a user supplied path into an absolute path below the server root.
-func Resolve(rel string, denylist []string) (string, error) {
-	clean := path.Clean("/" + strings.ReplaceAll(rel, "\\", "/"))
-	if Denied(clean, denylist) {
-		return "", ErrDenied
-	}
-	return path.Join(gameserver.ServerRoot, clean), nil
-}
-
-// Denied checks a root relative path ("/foo/bar") against egg file_denylist globs.
-func Denied(clean string, denylist []string) bool {
-	rel := strings.TrimPrefix(clean, "/")
-	if rel == "" {
-		return false
-	}
-	for _, pattern := range denylist {
-		pattern = strings.TrimPrefix(strings.TrimSpace(pattern), "/")
-		if pattern == "" || strings.HasPrefix(pattern, "!") {
-			continue
-		}
-		if ok, _ := path.Match(pattern, rel); ok {
-			return true
-		}
-		if ok, _ := path.Match(pattern, path.Base(rel)); ok {
-			return true
-		}
-		// A denied directory denies everything inside it.
-		if strings.HasPrefix(rel, strings.TrimSuffix(pattern, "/")+"/") {
-			return true
-		}
-	}
-	return false
-}
-
 // run executes script in the files pod of the server (with gameserver.PathScript); exit codes
 // 3, 4 and 5 are ErrNotFound, ErrTooLarge and ErrExists.
 func (m *Manager) run(
-	ctx context.Context, server Ref, stdin io.Reader, stdout io.Writer, script string, args ...string,
+	ctx context.Context, ref Ref, stdin io.Reader, stdout io.Writer, script string, args ...string,
 ) error {
 	cmd := append([]string{"sh", "-c", gameserver.PathScript + script, scriptName(ctx)}, args...)
-	pod := gameserver.FilesPodName(server.Name)
-	err := m.Kube.Exec(ctx, server.Namespace, pod, gameserver.FilesContainerName, cmd, stdin, stdout)
+	pod := gameserver.FilesPodName(ref.Name)
+	err := m.Kube.Exec(ctx, ref.Namespace, pod, gameserver.FilesContainerName, cmd, stdin, stdout)
 	var exitErr *kube.ExitError
 	if errors.As(err, &exitErr) {
 		switch exitErr.Code {
@@ -121,92 +87,37 @@ func (m *Manager) run(
 	return err
 }
 
-// checkLinks applies the denylist to where the paths really lead, so a symbolic link cannot get
-// around it. With follow every link is resolved (a file that is read or written), otherwise only
-// the folder, because deleting or moving an entry touches the link itself. It returns the resolved
-// paths relative to the root ("/plugins"), or nil without a denylist (the scripts keep every path
-// inside the volume anyway).
-func (m *Manager) checkLinks(
-	ctx context.Context, server Ref, denylist []string, follow bool, abs ...string,
-) ([]string, error) {
-	if len(denylist) == 0 {
-		return nil, nil
-	}
-	resolve := "entry"
-	if follow {
-		resolve = "real"
-	}
-	out := kube.LimitedBuffer{Max: maxListing}
-	err := m.run(ctx, server, nil, &out, `for p; do printf '%s\0' "$(`+resolve+` "$p")"; done`, abs...)
-	if err != nil {
-		return nil, err
-	}
-	return checkReal(strings.Split(strings.TrimSuffix(out.String(), "\x00"), "\x00"), denylist)
-}
-
-// checkReal checks resolved paths: ErrNotFound outside the server root, ErrDenied on the
-// denylist. It returns them relative to the root.
-func checkReal(reals []string, denylist []string) ([]string, error) {
-	rels := make([]string, 0, len(reals))
-	for _, real := range reals {
-		rel, ok := strings.CutPrefix(real, gameserver.ServerRoot)
-		if !ok || (rel != "" && rel[0] != '/') {
-			return nil, ErrNotFound
-		}
-		rel = path.Clean("/" + rel)
-		if Denied(rel, denylist) {
-			return nil, ErrDenied
-		}
-		rels = append(rels, rel)
-	}
-	return rels, nil
-}
-
-// resolve is Resolve plus checkLinks for one path that is followed. It also returns where the path
-// really leads (realDir).
-func (m *Manager) resolve(ctx context.Context, server Ref, rel string, denylist []string) (string, string, error) {
-	abs, err := Resolve(rel, denylist)
-	if err != nil {
-		return "", "", err
-	}
-	reals, err := m.checkLinks(ctx, server, denylist, true, abs)
-	if err != nil {
-		return "", "", err
-	}
-	return abs, realDir(rel, reals), nil
-}
-
-// realDir is where a checked path really leads (relative to the root): the entries of a folder
-// behind a link are checked against the denylist where they really are.
-func realDir(rel string, reals []string) string {
-	if len(reals) > 0 {
-		return reals[0]
-	}
-	return path.Clean("/" + rel)
-}
-
-// List returns the entries of a directory.
-func (m *Manager) List(ctx context.Context, server Ref, dir string, denylist []string) ([]Entry, error) {
-	abs, real, err := m.resolve(ctx, server, dir, denylist)
-	if err != nil {
-		return nil, err
-	}
-	out := kube.LimitedBuffer{Max: maxListing}
-	err = m.run(ctx, server, nil, &out, `[ -d "$1" ] || exit 3
+// listScript prints one stat line per entry of the folder "$1" (parseListing reads them).
+const listScript = `[ -d "$1" ] || exit 3
 inside "$(real "$1")"
 cd "$1" || exit 3
 for f in * .[!.]* ..?*; do
   [ -e "$f" ] || [ -L "$f" ] || continue
   stat -c '%F|%s|%Y|%a|%n' -- "$f"
-done`, abs)
+done`
+
+// listing runs a script that ends with listScript and returns its output.
+func (m *Manager) listing(ctx context.Context, ref Ref, script, abs string) (string, error) {
+	out := kube.LimitedBuffer{Max: maxListing}
+	err := m.run(ctx, ref, nil, &out, script, abs)
 	if out.Full {
-		return nil, ErrTooManyEntries
+		return "", ErrTooManyEntries
 	}
+	return out.String(), err
+}
+
+// List returns the entries of a directory.
+func (m *Manager) List(ctx context.Context, ref Ref, dir string, denylist []string) ([]Entry, error) {
+	abs, real, err := m.resolve(ctx, ref, dir, denylist)
 	if err != nil {
 		return nil, err
 	}
-	entries := parseListing(out.String(), func(name string) bool {
-		return Denied(path.Join(real, name), denylist)
+	out, err := m.listing(ctx, ref, listScript, abs)
+	if err != nil {
+		return nil, err
+	}
+	entries := parseListing(out, func(name string) bool {
+		return denied(path.Join(real, name), denylist)
 	})
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].IsDir != entries[j].IsDir {
@@ -217,7 +128,7 @@ done`, abs)
 	return entries, nil
 }
 
-// parseListing reads the stat lines of List, without the entries skip reports.
+// parseListing reads the stat lines of listScript, without the entries skip reports.
 func parseListing(out string, skip func(name string) bool) []Entry {
 	var entries []Entry
 	for line := range strings.SplitSeq(out, "\n") {
@@ -241,13 +152,13 @@ func parseListing(out string, skip func(name string) bool) []Entry {
 
 // Read returns the content of a file up to maxSize bytes. It reads one byte more to tell a file
 // that is too large (also one that grows or is not a regular file behind a link).
-func (m *Manager) Read(ctx context.Context, server Ref, file string, maxSize int, denylist []string) ([]byte, error) {
-	abs, _, err := m.resolve(ctx, server, file, denylist)
+func (m *Manager) Read(ctx context.Context, ref Ref, file string, maxSize int, denylist []string) ([]byte, error) {
+	abs, _, err := m.resolve(ctx, ref, file, denylist)
 	if err != nil {
 		return nil, err
 	}
 	out := kube.LimitedBuffer{Max: maxSize + 1}
-	err = m.run(ctx, server, nil, &out, `[ -f "$1" ] || exit 3
+	err = m.run(ctx, ref, nil, &out, `[ -f "$1" ] || exit 3
 inside "$(real "$1")"
 head -c "$2" "$1"`, abs, strconv.Itoa(out.Max))
 	if out.Len() > maxSize {
@@ -257,18 +168,18 @@ head -c "$2" "$1"`, abs, strconv.Itoa(out.Max))
 }
 
 // Download streams a file to w.
-func (m *Manager) Download(ctx context.Context, server Ref, file string, w io.Writer, denylist []string) error {
-	abs, _, err := m.resolve(ctx, server, file, denylist)
+func (m *Manager) Download(ctx context.Context, ref Ref, file string, w io.Writer, denylist []string) error {
+	abs, _, err := m.resolve(ctx, ref, file, denylist)
 	if err != nil {
 		return err
 	}
-	return m.run(ctx, server, nil, w, `[ -f "$1" ] || exit 3
+	return m.run(ctx, ref, nil, w, `[ -f "$1" ] || exit 3
 inside "$(real "$1")"
 cat -- "$1"`, abs)
 }
 
 // Write replaces a file with the content of r, creating parent directories.
-func (m *Manager) Write(ctx context.Context, server Ref, file string, r io.Reader, denylist []string) error {
+func (m *Manager) Write(ctx context.Context, ref Ref, file string, r io.Reader, denylist []string) error {
 	abs, err := Resolve(file, denylist)
 	if err != nil {
 		return err
@@ -276,47 +187,48 @@ func (m *Manager) Write(ctx context.Context, server Ref, file string, r io.Reade
 	if abs == gameserver.ServerRoot {
 		return ErrDenied
 	}
-	if _, err := m.checkLinks(ctx, server, denylist, true, abs); err != nil {
+	if _, err := m.checkLinks(ctx, ref, denylist, true, abs); err != nil {
 		return err
 	}
-	return m.run(ctx, server, r, nil, gameserver.WriteFileScript, abs)
+	return m.run(ctx, ref, r, nil, gameserver.WriteFileScript, abs)
 }
 
 // CreateFolder creates a directory.
-func (m *Manager) CreateFolder(ctx context.Context, server Ref, dir string, denylist []string) error {
-	abs, _, err := m.resolve(ctx, server, dir, denylist)
+func (m *Manager) CreateFolder(ctx context.Context, ref Ref, dir string, denylist []string) error {
+	abs, _, err := m.resolve(ctx, ref, dir, denylist)
 	if err != nil {
 		return err
 	}
-	return m.run(ctx, server, nil, nil, `inside "$(real "$1")"
+	return m.run(ctx, ref, nil, nil, `inside "$(real "$1")"
 mkdir -p -- "$1"`, abs)
 }
 
-// Delete removes files and directories (a link, not what it points to).
-func (m *Manager) Delete(ctx context.Context, server Ref, paths []string, denylist []string) error {
-	abs := make([]string, 0, len(paths))
-	for _, p := range paths {
-		a, err := Resolve(p, denylist)
+// Delete removes the entries names of the folder dir (a link, not what it points to).
+func (m *Manager) Delete(ctx context.Context, ref Ref, dir string, names []string, denylist []string) error {
+	abs := make([]string, 0, len(names))
+	for _, n := range names {
+		if !ValidName(n) {
+			return ErrBadName
+		}
+		a, err := Resolve(path.Join(dir, n), denylist)
 		if err != nil {
 			return err
-		}
-		if a == gameserver.ServerRoot {
-			return ErrDenied
 		}
 		abs = append(abs, a)
 	}
 	if len(abs) == 0 {
 		return nil
 	}
-	if _, err := m.checkLinks(ctx, server, denylist, false, abs...); err != nil {
+	if _, err := m.checkLinks(ctx, ref, denylist, false, abs...); err != nil {
 		return err
 	}
-	return m.run(ctx, server, nil, nil, `for p; do inside "$(entry "$p")"; done
+	return m.run(ctx, ref, nil, nil, `for p; do inside "$(entry "$p")"; done
 rm -rf -- "$@"`, abs...)
 }
 
-// Rename moves a file or directory.
-func (m *Manager) Rename(ctx context.Context, server Ref, from, to string, denylist []string) error {
+// Rename moves a file or directory. A folder moves only when nothing in it is denied where it is
+// or would be afterwards.
+func (m *Manager) Rename(ctx context.Context, ref Ref, from, to string, denylist []string) error {
 	src, err := Resolve(from, denylist)
 	if err != nil {
 		return err
@@ -331,76 +243,17 @@ func (m *Manager) Rename(ctx context.Context, server Ref, from, to string, denyl
 	if dst == src || strings.HasPrefix(dst, src+"/") {
 		return ErrIntoItself
 	}
-	if _, err := m.checkLinks(ctx, server, denylist, false, src, dst); err != nil {
+	reals, err := m.checkLinks(ctx, ref, denylist, false, src, dst)
+	if err != nil {
+		return err
+	}
+	if err := m.checkTree(ctx, ref, denylist, src, reals, "."); err != nil {
 		return err
 	}
 	// Never overwrite: mv would replace a file or move into an existing folder.
-	return m.run(ctx, server, nil, nil, `inside "$(entry "$1")"
+	return m.run(ctx, ref, nil, nil, `inside "$(entry "$1")"
 inside "$(entry "$2")"
 [ -e "$1" ] || [ -L "$1" ] || exit 3
 [ -e "$2" ] || [ -L "$2" ] && exit 5
 mkdir -p "$(dirname -- "$2")" && mv -- "$1" "$2"`, src, dst)
-}
-
-// NewArchiveName returns the name of a new archive of the file manager, e.g. "archive-2026-09-28T120000.tar.gz".
-func NewArchiveName(now time.Time) string {
-	return "archive-" + now.UTC().Format("2006-01-02T150405") + ".tar.gz"
-}
-
-// compressScript packs the entries "$3"… (each "./name") of folder "$1" into the archive "$2".
-const compressScript = jobFuncs + `inside "$(real "$1")"
-cd "$1" || exit 3
-out="$2"; shift 2
-pack "$out" "" "$@"`
-
-// Compress creates the tar.gz archive of the given entries inside dir. tar stores links as links.
-func (m *Manager) Compress(
-	ctx context.Context, server Ref, dir, archive string, names []string, denylist []string, report func(Progress),
-) error {
-	absDir, real, err := m.resolve(ctx, server, dir, denylist)
-	if err != nil {
-		return err
-	}
-	args := []string{absDir, archive}
-	for _, n := range names {
-		if strings.Contains(n, "/") || n == ".." || n == "." || n == "" || Denied(path.Join(real, n), denylist) {
-			return ErrDenied
-		}
-		args = append(args, "./"+n)
-	}
-	return m.run(ctx, server, nil, &progressWriter{report: report}, compressScript, args...)
-}
-
-// decompressScript extracts the archive "$1" into a temporary folder next to it and merges it
-// from there into the archive's folder: entries cannot write through links or "../" outside of
-// it, existing folders are merged and existing files overwritten, links in the way replaced.
-const decompressScript = jobFuncs + `merge() {
-  local f t
-  for f in "$1"/* "$1"/.[!.]* "$1"/..?*; do
-    [ -e "$f" ] || [ -L "$f" ] || continue
-    t="$2/${f##*/}"
-    if [ -d "$f" ] && [ ! -L "$f" ] && [ -d "$t" ] && [ ! -L "$t" ]; then
-      merge "$f" "$t" || return 1
-    else
-      rm -rf "$t" && mv "$f" "$t" || return 1
-    fi
-  done
-}
-[ -f "$1" ] || exit 3
-inside "$(real "$1")"
-cd "$(dirname -- "$1")" || exit 3
-tmp=$(mktemp -d .extract-XXXXXX) || exit 1
-trap 'rm -rf "$tmp"' EXIT
-unpack "$1" "$tmp" || exit 1
-merge "$tmp" .`
-
-// Decompress extracts a tar(.gz/.xz/.bz2) or zip archive into its directory.
-func (m *Manager) Decompress(
-	ctx context.Context, server Ref, file string, denylist []string, report func(Progress),
-) error {
-	abs, _, err := m.resolve(ctx, server, file, denylist)
-	if err != nil {
-		return err
-	}
-	return m.run(ctx, server, nil, &progressWriter{report: report}, decompressScript, abs)
 }

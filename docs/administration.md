@@ -28,7 +28,7 @@ instead. After the setup the page answers 409.
   checks count against the client like failed sign-ins.
 - **Password reset link** (key icon of a local account): the same kind of link, for an existing account. Whoever
   opens it sets a new password; every session and API token of the account ends. Accounts linked to the identity
-  provider have none.
+  provider have none: linking deletes open reset links, and a link of a disabled account does not work.
 
 **Subusers:** every user may invite friends who see only the servers the user shares with them, for example for a
 LAN party. The *Invite* button of a server (next to the power buttons) opens the invite on the *Account* page with
@@ -37,7 +37,7 @@ or **Control** (also start, stop and console commands); files, backups, schedule
 with the owner. The owner changes the access later in the server's *Settings* (card *Subusers*), and manages
 subusers and their pending invites on the *Account* page (delete, password reset link). A subuser is a `User` with
 `spec.owner`: it has no namespace, cannot own servers or become an administrator, signs in only with a password
-and is deleted together with its owner. Shares are `spec.sharedWith` of the server; a transfer clears them.
+(not while its owner is disabled) and is deleted together with its owner. Shares are `spec.sharedWith` of the server; a transfer clears them.
 Administrators see all subusers in their own table on the *Users* page. *Settings → Security → Subusers per user*
 limits accounts and open invites per user (default 10, 0 turns subusers off).
 
@@ -48,7 +48,8 @@ grant access and the role; see [Single sign-on](oidc.md).
 - Web UI: `POST /api/auth/login` sets the HttpOnly, SameSite=Strict cookie `kd_session`
   (HMAC-signed). The signing key lives in the secret `kubedactyl-auth`.
 - API clients: `Authorization: Bearer <token>` with the session token from the login response or a
-  personal **API token** (`kdt_…`, created under *Account*, only a SHA-256 hash is stored, shown once).
+  personal **API token** (`kdt_…`, created under *Account*, only a SHA-256 hash is stored, shown once; at most
+  50 per account).
 - Lifetimes (*Settings → Security*): a sign-in lasts 12 hours, an API token at most 90 days
   (1-720 hours / 1-3650 days). Both are checked on every request, so a shorter value also ends older sessions
   and tokens (counted from their creation); tokens without an expiry no longer exist.
@@ -185,17 +186,18 @@ kubelet / runtime, capacity, **live usage** (metrics-server) and the **resources
 pods, plus the totals of the cluster.
 
 Kubernetes does not know the CPU model or the machine. The panel reads it with a short-lived
-**probe pod per ready node** (`kubedactyl-probe-<node>-…` in the panel namespace): unprivileged
+**probe pod per ready node** (`kubedactyl-probe-…` in the panel namespace): unprivileged
 (UID 65534, read-only root filesystem, all capabilities dropped, tolerates every taint), it prints
 `/proc/cpuinfo` (model, cores, threads, max clock, hypervisor flag) and `/sys/class/dmi/id`
 (vendor, product, BIOS) and is deleted right away. Results are cached for 24 h in the ConfigMap
-`kubedactyl-node-hardware`; *Re-read hardware* probes again (`POST /api/cluster/nodes/probe`).
-Nodes that are not ready are skipped.
+`kubedactyl-node-hardware` (nodes that left the cluster are dropped); *Re-read hardware* probes again
+(`POST /api/cluster/nodes/probe`). Nodes that are not ready are skipped. Probe pods left by an earlier panel
+are removed when the panel first reads the nodes.
 
-**Health checks** (`GET /api/cluster/health`, cached 30 s, checked again at once after a settings change) are
-shown in the sidebar cluster card above the user menu (green / amber / red; problems are always listed with
-their explanation, hovering the card also lists the passing checks in green): Kubedactyl CRDs served, all
-permissions granted, nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools
+**Health checks** (`GET /api/cluster/health`, cached 30 s unless a read failed, checked again at once after a
+settings change) are shown in the sidebar cluster card above the user menu (green / amber / red; problems are
+always listed with their explanation, hovering the card also lists the passing checks in green): Kubedactyl CRDs
+served, all permissions granted (a check the API server did not answer is a warning), nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools
 present with free addresses, the enabled storage classes present, and (in the cluster) the admission policy
 that limits the panel's permissions ("Permission guard").
 

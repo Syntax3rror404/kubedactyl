@@ -1,6 +1,7 @@
-import { UsernameField, UsernameHint, usernameRule } from "@/components/common/username-field"
+import { UsernameField, UsernameHint } from "@/components/common/username-field"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { USERNAME_RULE } from "@/lib/validation"
 
 /**
  * Username and display name of a new account (invite and first setup); error is the server's message for the
@@ -9,8 +10,8 @@ import { Input } from "@/components/ui/input"
 export function NewAccountFields({
   username,
   displayName,
-  onUsername,
-  onDisplayName,
+  onUsernameChange,
+  onDisplayNameChange,
   error,
   fixedUsername,
   autoFocus,
@@ -18,8 +19,8 @@ export function NewAccountFields({
 }: {
   username: string
   displayName: string
-  onUsername: (value: string) => void
-  onDisplayName: (value: string) => void
+  onUsernameChange: (value: string) => void
+  onDisplayNameChange: (value: string) => void
   error?: string
   fixedUsername?: boolean
   // Focuses the username, or the display name when the username is fixed.
@@ -31,7 +32,7 @@ export function NewAccountFields({
       <div className="grid gap-4 sm:grid-cols-2">
         <UsernameField
           value={username}
-          onChange={onUsername}
+          onChange={onUsernameChange}
           error={error}
           hint={null}
           readOnly={fixedUsername}
@@ -43,14 +44,14 @@ export function NewAccountFields({
             id="display"
             autoFocus={autoFocus && fixedUsername}
             value={displayName}
-            onChange={(e) => onDisplayName(e.target.value)}
+            onChange={(e) => onDisplayNameChange(e.target.value)}
             placeholder={displayPlaceholder}
           />
         </Field>
       </div>
       <UsernameHint
         error={error}
-        hint={fixedUsername ? "Your administrator chose the username." : `${usernameRule} It cannot be changed later.`}
+        hint={fixedUsername ? "Your administrator chose the username." : `${USERNAME_RULE} It cannot be changed later.`}
       />
     </>
   )

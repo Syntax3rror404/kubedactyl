@@ -46,8 +46,8 @@ const FlowLifetime = 10 * time.Minute
 // asked again for every sign-in.
 const failureTTL = 30 * time.Second
 
-// maxUsedFlows bounds the memory of completed sign-ins; when it is full, further callbacks are refused until
-// entries expire.
+// maxUsedFlows bounds the memory of completed sign-ins; when it is full, the one that ends first is dropped (its
+// code is spent at the identity provider anyway).
 const maxUsedFlows = 10000
 
 // Config is the client configuration of a sign-in.
@@ -86,8 +86,8 @@ type Client struct {
 	failed   time.Time // last failed discovery of issuer
 	err      error
 
-	usedMu sync.Mutex
-	used   map[string]time.Time // state → end of its flow
+	usedMu    sync.Mutex
+	usedFlows map[string]time.Time // state → end of its flow, guarded by usedMu
 }
 
 // CallbackPath is the callback of the panel the identity provider redirects to.
@@ -140,22 +140,39 @@ func (c *Client) providerFor(ctx context.Context, issuer string) (*oidc.Provider
 	return p, err
 }
 
-// complete marks the state of a flow as used; false when it was used before or too many flows are kept.
+// used reports whether the flow of state was completed before.
+func (c *Client) used(state string) bool {
+	c.usedMu.Lock()
+	defer c.usedMu.Unlock()
+	_, ok := c.usedFlows[state]
+	return ok
+}
+
+// complete marks the state of a verified flow as used; false when it was used before.
 func (c *Client) complete(state string, now time.Time) bool {
 	c.usedMu.Lock()
 	defer c.usedMu.Unlock()
-	if c.used == nil {
-		c.used = map[string]time.Time{}
+	if c.usedFlows == nil {
+		c.usedFlows = map[string]time.Time{}
 	}
-	for s, end := range c.used {
-		if now.After(end) {
-			delete(c.used, s)
-		}
-	}
-	if _, ok := c.used[state]; ok || len(c.used) >= maxUsedFlows {
+	if _, ok := c.usedFlows[state]; ok {
 		return false
 	}
-	c.used[state] = now.Add(FlowLifetime)
+	for s, end := range c.usedFlows {
+		if now.After(end) {
+			delete(c.usedFlows, s)
+		}
+	}
+	if len(c.usedFlows) >= maxUsedFlows {
+		first := ""
+		for s, end := range c.usedFlows {
+			if first == "" || end.Before(c.usedFlows[first]) {
+				first = s
+			}
+		}
+		delete(c.usedFlows, first)
+	}
+	c.usedFlows[state] = now.Add(FlowLifetime)
 	return true
 }
 
@@ -184,10 +201,9 @@ func (c *Client) Start(ctx context.Context, cfg Config, next string) (string, Fl
 
 // Finish completes a sign-in with the state and code of the callback (once per flow): it exchanges the code for
 // the tokens, verifies the ID token (signature, issuer, audience, expiry, nonce) and returns the account it
-// describes.
+// describes. Only a verified flow is marked as used, so failed callbacks cannot fill that memory.
 func (c *Client) Finish(ctx context.Context, cfg Config, flow Flow, state, code string) (Account, error) {
-	if flow.State == "" || subtle.ConstantTimeCompare([]byte(state), []byte(flow.State)) != 1 ||
-		!c.complete(flow.State, time.Now()) {
+	if flow.State == "" || subtle.ConstantTimeCompare([]byte(state), []byte(flow.State)) != 1 || c.used(flow.State) {
 		return Account{}, ErrFlow
 	}
 	p, err := c.providerFor(ctx, cfg.IssuerURL)
@@ -208,7 +224,7 @@ func (c *Client) Finish(ctx context.Context, cfg Config, flow Flow, state, code 
 	if err != nil {
 		return Account{}, fmt.Errorf("verifying the ID token: %w", err)
 	}
-	if subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(flow.Nonce)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(flow.Nonce)) != 1 || !c.complete(flow.State, time.Now()) {
 		return Account{}, ErrFlow
 	}
 	var claims map[string]any

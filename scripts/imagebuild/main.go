@@ -29,14 +29,17 @@ func main() {
 		log.Fatal("usage: imagebuild build|push …")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
+	// Same tag as the Dockerfile, the --helper-image default (backend/main.go) and charts/kubedactyl/values.yaml.
 	base := fs.String("base", "alpine:3.24.3", "base image")
 	bin := fs.String("bin", "", "linux/amd64 binary")
 	tag := fs.String("tag", "", "image reference")
 	out := fs.String("out", "image.tar", "output tarball")
 	in := fs.String("in", "image.tar", "input tarball")
-	version := fs.String("version", "0.1.0", "version label")
+	version := fs.String("version", "dev", "version label (the VERSION file)")
 	source := fs.String("source", "", "source repository URL label")
-	licenses := fs.String("licenses", "", "third-party-licenses.md, stored as /usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md")
+	licenses := fs.String(
+		"licenses", "", "third-party-licenses.md, stored as /usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md",
+	)
 	_ = fs.Parse(os.Args[2:])
 	ref, err := name.ParseReference(*tag)
 	must(err)
@@ -55,7 +58,8 @@ func main() {
 
 func build(base, bin string, ref name.Reference, out, version, source, licenses string) {
 	platform := v1.Platform{OS: "linux", Architecture: "amd64"}
-	baseImg, err := remote.Image(mustRef(base), remote.WithPlatform(platform))
+	baseRef := mustRef(base)
+	baseImg, err := remote.Image(baseRef, remote.WithPlatform(platform))
 	must(err)
 	passwd, group := readFile(baseImg, "etc/passwd"), readFile(baseImg, "etc/group")
 	// Same result as: addgroup -S -g 65532 kubedactyl && adduser -S -D -H -u 65532 -G kubedactyl kubedactyl
@@ -68,7 +72,9 @@ func build(base, bin string, ref name.Reference, out, version, source, licenses 
 	tw := tar.NewWriter(&buf)
 	now := time.Unix(0, 0)
 	add := func(path string, mode int64, data []byte) {
-		must(tw.WriteHeader(&tar.Header{Name: path, Mode: mode, Size: int64(len(data)), ModTime: now, Typeflag: tar.TypeReg, Format: tar.FormatPAX}))
+		must(tw.WriteHeader(&tar.Header{
+			Name: path, Mode: mode, Size: int64(len(data)), ModTime: now, Typeflag: tar.TypeReg, Format: tar.FormatPAX,
+		}))
 		_, err := tw.Write(data)
 		must(err)
 	}
@@ -102,7 +108,7 @@ func build(base, bin string, ref name.Reference, out, version, source, licenses 
 		"org.opencontainers.image.version":     version,
 		"org.opencontainers.image.source":      source,
 		"org.opencontainers.image.licenses":    "MIT",
-		"org.opencontainers.image.base.name":   "docker.io/library/" + base,
+		"org.opencontainers.image.base.name":   baseRef.Name(),
 	}
 	img, err = mutate.Config(img, cfg)
 	must(err)
@@ -112,7 +118,9 @@ func build(base, bin string, ref name.Reference, out, version, source, licenses 
 
 	d, _ := img.Digest()
 	cf, _ = img.ConfigFile()
-	fmt.Printf("built %s\n  digest:     %s\n  platform:   %s/%s\n  entrypoint: %v  user: %s  ports: %v\n  layers:     %d\n", ref, d, cf.OS, cf.Architecture, cf.Config.Entrypoint, cf.Config.User, keys(cf.Config.ExposedPorts), len(mustLayers(img)))
+	fmt.Printf("built %s\n  digest:     %s\n  platform:   %s/%s\n", ref, d, cf.OS, cf.Architecture)
+	fmt.Printf("  entrypoint: %v  user: %s  ports: %v\n  layers:     %d\n",
+		cf.Config.Entrypoint, cf.Config.User, keys(cf.Config.ExposedPorts), len(mustLayers(img)))
 }
 
 func readFile(img v1.Image, path string) string {
@@ -133,7 +141,7 @@ func readFile(img v1.Image, path string) string {
 	}
 }
 
-func mustRef(s string) name.Reference { r, err := name.ParseReference(s); must(err); return r }
+func mustRef(s string) name.Reference    { r, err := name.ParseReference(s); must(err); return r }
 func mustLayers(img v1.Image) []v1.Layer { l, err := img.Layers(); must(err); return l }
 func keys(m map[string]struct{}) []string {
 	var out []string

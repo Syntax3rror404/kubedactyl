@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"app/api/v1alpha1"
-	"app/internal/auth"
 	"app/internal/testutil"
 	"app/internal/validation"
 )
@@ -97,31 +95,5 @@ func TestLastAdminIsKeptUnderConcurrency(t *testing.T) {
 		if n, _ := s.ActiveAdmins(ctx); refused != 1 || n != 1 {
 			t.Fatalf("refused %d of 2 changes, %d active admins left, want 1 and 1", refused, n)
 		}
-	}
-}
-
-func TestUpdatePasswordHash(t *testing.T) {
-	ctx := context.Background()
-	s := newStore(t)
-	u, err := s.Create(ctx, CreateInput{Username: "alice", Password: "a-long-password", Role: v1alpha1.RoleUser})
-	if err != nil {
-		t.Fatal(err)
-	}
-	current := u.Spec.PasswordHash
-	if err := s.UpdatePasswordHash(ctx, u, "a-long-password"); err != nil || u.Spec.PasswordHash != current {
-		t.Fatalf("a current hash must stay: %v", err)
-	}
-	// A hash with the former parameters (64 MiB) is replaced; the session epoch stays.
-	u.Spec.PasswordHash = strings.Replace(current, "m=19456,t=2,p=1", "m=65536,t=3,p=2", 1)
-	if err := s.UpdatePasswordHash(ctx, u, "a-long-password"); err != nil {
-		t.Fatal(err)
-	}
-	got := &v1alpha1.User{}
-	if err := s.Client.Get(ctx, client.ObjectKeyFromObject(u), got); err != nil {
-		t.Fatal(err)
-	}
-	if auth.Outdated(got.Spec.PasswordHash) || !auth.VerifyPassword("a-long-password", got.Spec.PasswordHash) ||
-		got.Spec.SessionEpoch != u.Spec.SessionEpoch {
-		t.Errorf("hash not replaced or sessions ended: %+v", got.Spec)
 	}
 }

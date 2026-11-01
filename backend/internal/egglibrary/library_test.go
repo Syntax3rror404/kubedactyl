@@ -6,6 +6,8 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -157,5 +159,59 @@ func TestGetRepository(t *testing.T) {
 	l.List(ctx, []string{base + "/owner/eggs"}, false)
 	if n := downloads.Load(); n != 1 {
 		t.Errorf("checked repository downloaded %d times", n)
+	}
+}
+
+// TestSummarizeLimits: a repository beyond the limits is refused before it fills the memory.
+func TestSummarizeLimits(t *testing.T) {
+	many := map[string][]byte{}
+	for i := range maxEggFiles + 1 {
+		many[fmt.Sprintf("e/egg-%d.json", i)] = []byte("{}")
+	}
+	var huge bytes.Buffer
+	tw := tar.NewWriter(&huge)
+	h := &tar.Header{Name: "eggs-HEAD/big.bin", Mode: 0o644, Size: maxUnpacked + 1, Typeflag: tar.TypeReg}
+	if err := tw.WriteHeader(h); err != nil {
+		t.Fatal(err)
+	}
+	_ = tw.Flush() // the header alone: the size is refused before any content is read
+	for name, data := range map[string][]byte{"too many egg files": tarOf(t, many), "too large": huge.Bytes()} {
+		if _, err := summarize(tar.NewReader(bytes.NewReader(data))); !errors.Is(err, errTooLarge) {
+			t.Errorf("%s: %v, want errTooLarge", name, err)
+		}
+	}
+}
+
+// tarOf builds an uncompressed repository archive.
+func tarOf(t *testing.T, files map[string][]byte) []byte {
+	t.Helper()
+	gz, err := gzip.NewReader(bytes.NewReader(archive(t, files)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(gz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+// TestFailuresAreNotKept: a repository that failed is downloaded again by the next List, also
+// when the request that started the download was cancelled.
+func TestFailuresAreNotKept(t *testing.T) {
+	l, base, downloads := testLibrary(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	repos := []string{base + "/owner/eggs", base + "/owner/missing"}
+	got := l.List(ctx, repos, false)
+	if got[0].Error != "" || len(got[0].Eggs) != 1 || got[1].Error == "" {
+		t.Fatalf("repositories = %+v", got)
+	}
+	if _, kept := l.cache[repos[1]]; kept {
+		t.Error("the failed repository was kept")
+	}
+	l.List(context.Background(), repos, false)
+	if n := downloads.Load(); n != 1 {
+		t.Errorf("the readable repository was downloaded %d times", n)
 	}
 }

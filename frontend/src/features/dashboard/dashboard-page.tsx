@@ -16,9 +16,9 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { ServerCard } from "@/features/dashboard/components/server-card"
 import { ServerFilter } from "@/features/dashboard/components/server-filter"
-import { filterServers, type ServerFilterState } from "@/features/dashboard/lib/server-filter"
+import { filterServers, isActive, type ServerFilterState } from "@/features/dashboard/lib/server-filter"
 import { useAuth } from "@/hooks/use-auth"
-import { activePhases, formatMiB, phaseOf, userName } from "@/lib/format"
+import { formatMiB, userName } from "@/lib/format"
 import { useClusterInfo, useEggs, useServers } from "@/lib/queries"
 
 /** /: the servers the user may see as cards with live usage; search and status filter from 7 servers on. */
@@ -28,7 +28,7 @@ export function DashboardPage() {
   const { isAdmin, user } = useAuth()
   const cluster = useClusterInfo(isAdmin)
   const list = servers.data ?? []
-  const running = list.filter((s) => phaseOf(s) === "Running").length
+  const running = list.filter(isActive).length
   const eggByName = new Map((eggs.data ?? []).map((e) => [e.metadata.name, e]))
   const total = (key: "memoryMiB" | "diskMiB") => formatMiB(list.reduce((sum, s) => sum + s.spec.resources[key], 0))
   // The tiles show placeholders until the list is there.
@@ -37,7 +37,6 @@ export function DashboardPage() {
   const [filter, setFilter] = useState<ServerFilterState>({ query: "", status: "all" })
   const showFilter = list.length > 6
   const shown = showFilter ? filterServers(list, eggByName, filter) : list
-  const active = list.filter((s) => activePhases.includes(phaseOf(s))).length
 
   return (
     <div className="space-y-8">
@@ -91,7 +90,7 @@ export function DashboardPage() {
               <ServerFilter
                 value={filter}
                 onChange={setFilter}
-                counts={{ all: list.length, running: active, stopped: list.length - active }}
+                counts={{ all: list.length, running, stopped: list.length - running }}
               />
             )}
             {shown.length === 0 ? (

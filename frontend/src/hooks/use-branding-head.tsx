@@ -3,6 +3,7 @@ import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import { ContainerIcon } from "lucide-react"
 
+import { BRAND_FROM, BRAND_TO } from "@/components/common/brand-mark"
 import { useBranding } from "@/lib/queries"
 
 /**
@@ -30,8 +31,8 @@ export function useBrandingHead(parts: string[]) {
 }
 
 /**
- * The built-in favicon: the lucide container icon on the brand gradient, as an SVG data URL. Rendered once when the
- * module loads, because flushSync does not render from inside an effect.
+ * The built-in favicon: the lucide container icon on the brand gradient (like BrandMark), as an SVG data URL.
+ * Rendered once when the module loads, because flushSync does not render from inside an effect.
  */
 const builtInFavicon = (() => {
   const div = document.createElement("div")
@@ -41,8 +42,8 @@ const builtInFavicon = (() => {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
         <defs>
           <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#00bc7d" />
-            <stop offset="1" stopColor="#0084d1" />
+            <stop offset="0" stopColor={BRAND_FROM} />
+            <stop offset="1" stopColor={BRAND_TO} />
           </linearGradient>
         </defs>
         <rect width="32" height="32" rx="8" fill="url(#brand)" />

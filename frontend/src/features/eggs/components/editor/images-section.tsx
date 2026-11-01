@@ -47,7 +47,7 @@ export function ImagesSection({
         path="dockerImages"
         valueKey="image"
         items={spec.dockerImages}
-        onChange={(dockerImages) => onChange({ dockerImages })}
+        onChange={(dockerImages, reindexed) => onChange({ dockerImages }, reindexed)}
         errors={errors}
         namePlaceholder={(i) => (i === 0 ? "Java 21 (default)" : "Display name")}
         valuePlaceholder="ghcr.io/pelican-eggs/yolks:java_21"
@@ -60,7 +60,7 @@ export function ImagesSection({
         path="startupCommands"
         valueKey="command"
         items={commands}
-        onChange={(startupCommands) => onChange({ startupCommands })}
+        onChange={(startupCommands, reindexed) => onChange({ startupCommands }, reindexed)}
         errors={errors}
         namePlaceholder={(i) => (i === 0 ? "Default" : "Display name")}
         valuePlaceholder="java -Xms128M -XX:MaxRAMPercentage=95.0 -jar {{SERVER_JARFILE}}"

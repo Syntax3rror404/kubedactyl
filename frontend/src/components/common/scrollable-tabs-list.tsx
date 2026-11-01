@@ -5,16 +5,17 @@ import { cn } from "@/lib/utils"
 
 /**
  * A tab bar that scrolls sideways when its tabs do not fit (phones) instead of overflowing or
- * wrapping; the active tab is scrolled into view.
+ * wrapping; a newly active tab is scrolled into view, so scrolling by hand is kept otherwise.
  */
 export function ScrollableTabsList({ className, ...props }: ComponentProps<typeof TabsList>) {
   const ref = useRef<HTMLDivElement>(null)
+  const shown = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    const active = ref.current?.querySelector<HTMLElement>("[data-state=active],[data-active]")
-    if (active && ref.current) {
-      const bar = ref.current
-      bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.clientWidth) / 2
-    }
+    const bar = ref.current
+    const active = bar?.querySelector<HTMLElement>("[data-state=active],[data-active]") ?? null
+    if (!bar || !active || active === shown.current) return
+    shown.current = active
+    bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.clientWidth) / 2
   })
   return (
     <TabsList

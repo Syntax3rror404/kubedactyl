@@ -33,10 +33,8 @@ export function UpgradeCard() {
       title="Panel updates"
       description={
         st?.enabled
-          ? `The panel looks for new chart versions every ${Math.round(st.intervalSeconds / 60)} minutes. ` +
-            "An upgrade runs helm upgrade with the values of this release and only the new version; " +
-            "the panel restarts and is unavailable for a moment."
-          : "Self-upgrades are off. Enable them with the chart value selfUpgrade.enabled."
+          ? `Checks for new chart versions every ${Math.round(st.intervalSeconds / 60)} minutes.`
+          : "Self-upgrades are off (chart value selfUpgrade.enabled)."
       }
       contentClassName="space-y-4"
     >
@@ -108,12 +106,7 @@ export function UpgradeCard() {
 
 /** Shown while the job runs and the panel restarts; reloads the page once the new version answers. */
 function Restarting({ job }: { job: UpgradeJob }) {
-  // Errors are expected while the panel restarts; the query keeps asking.
-  const live = useLivePanelInfo()
-  useEffect(() => {
-    if (live.data?.version === job.version) window.location.reload()
-  }, [live.data?.version, job.version])
-  // Still the old version long after a successful job: the values pin the image.
+  // Still the old version long after a successful job: the values pin the image (no more waiting for it).
   if (job.state === "succeeded" && job.finishedAt && secondsSince(job.finishedAt) > 300) {
     return (
       <Callout tone="warning" icon={<AlertTriangleIcon />}>
@@ -124,6 +117,16 @@ function Restarting({ job }: { job: UpgradeJob }) {
       </Callout>
     )
   }
+  return <WaitForVersion job={job} />
+}
+
+/** Asks the panel for its version until it is the job's, then reloads the page. */
+function WaitForVersion({ job }: { job: UpgradeJob }) {
+  // Errors are expected while the panel restarts; the query keeps asking.
+  const live = useLivePanelInfo()
+  useEffect(() => {
+    if (live.data?.version === job.version) window.location.reload()
+  }, [live.data?.version, job.version])
   return (
     <Callout
       tone="info"

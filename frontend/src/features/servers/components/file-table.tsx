@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
@@ -145,8 +145,10 @@ export function FileTable({
 }
 
 function EntryIcon({ entry }: { entry: FileEntry }) {
+  // Matching the language list is slow, and the table renders again on every selection or drag.
+  const code = useMemo(() => !entry.isDirectory && languageFor(entry.name) !== null, [entry.isDirectory, entry.name])
   if (entry.isDirectory) return <FolderIcon className="size-4 fill-sky-500/20 text-sky-500" />
-  if (languageFor(entry.name)) return <FileCodeIcon className="size-4 text-emerald-500" />
+  if (code) return <FileCodeIcon className="size-4 text-emerald-500" />
   if (isArchive(entry.name)) return <ArchiveIcon className="size-4 text-amber-500" />
   return <FileIcon className="size-4 text-muted-foreground" />
 }

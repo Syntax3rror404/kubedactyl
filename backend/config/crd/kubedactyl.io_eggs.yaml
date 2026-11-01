@@ -179,6 +179,8 @@ spec:
                       if any.
                     type: string
                   updateUrl:
+                    description: 'UpdateURL is the egg file that "Update from URL"
+                      and AutoUpdate download. Empty: no updates from a URL.'
                     type: string
                   uuid:
                     description: UUID identifies the egg across panels (Pelican overwrites

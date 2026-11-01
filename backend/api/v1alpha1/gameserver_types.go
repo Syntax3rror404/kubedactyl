@@ -87,7 +87,7 @@ type Resources struct {
 type GameServerSpec struct {
 	// DisplayName is the name shown in the panel. Empty: uses the object name.
 	DisplayName string `json:"displayName,omitempty"`
-	// EggRef is the name of the Egg in the same namespace.
+	// EggRef is the name of the Egg in the panel namespace.
 	EggRef string `json:"eggRef"`
 	// Image is the runtime image (one of the egg's docker images or a custom one).
 	Image string `json:"image"`
@@ -281,7 +281,7 @@ type GameServerStatus struct {
 	// +listMapKey=name
 	Schedules []ScheduleStatus `json:"schedules,omitempty"`
 	// RestartRequired is set while the running game pod was created with other runtime
-	// settings (image, startup, variables, memory, CPU, ports) than the spec has now.
+	// settings (image, startup, variables, memory, CPU, ports, the egg's config files) than now.
 	RestartRequired bool `json:"restartRequired,omitempty"`
 	// StorageClass of the bound volume. While spec.storageClass differs, the server is migrating.
 	// +optional

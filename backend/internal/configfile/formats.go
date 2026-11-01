@@ -148,19 +148,27 @@ func (p *fileParser) parseXML(content []byte) ([]byte, error) {
 			parts := strings.SplitN(r.Match, ".", 2)
 			doc.SetRoot(doc.CreateElement(parts[0]))
 		}
-		path := "./" + strings.ReplaceAll(r.Match, ".", "/")
-		if !strings.Contains(path, "*") {
+		// Compiled first: etree panics on an invalid path.
+		path, err := etree.CompilePath("./" + strings.ReplaceAll(r.Match, ".", "/"))
+		if err != nil {
+			return nil, fmt.Errorf("invalid XML path %q: %w", r.Match, err)
+		}
+		if !strings.Contains(r.Match, "*") {
 			parts := strings.Split(r.Match, ".")
 			element := doc.Root()
 			for _, tag := range parts[1:] {
-				if e := element.FindElement(tag); e == nil {
+				tagPath, err := etree.CompilePath(tag)
+				if err != nil {
+					return nil, fmt.Errorf("invalid XML path %q: %w", r.Match, err)
+				}
+				if e := element.FindElementPath(tagPath); e == nil {
 					element = element.CreateElement(tag)
 				} else {
 					element = e
 				}
 			}
 		}
-		for _, element := range doc.FindElements(path) {
+		for _, element := range doc.FindElementsPath(path) {
 			if xmlValueMatchRegex.MatchString(value) {
 				element.CreateAttr(
 					xmlValueMatchRegex.ReplaceAllString(value, "$1"),

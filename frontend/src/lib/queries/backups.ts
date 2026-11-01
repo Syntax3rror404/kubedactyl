@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refresh, refreshAll, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import { refreshJobs } from "@/lib/queries/servers"
 import type { ServerJob } from "@/lib/types"
 
@@ -22,6 +22,9 @@ export const useRestoreBackup = (server: string, cb?: MutationCallbacks<ServerJo
 export const useDeleteBackup = (server: string, cb?: MutationCallbacks<void, string>) =>
   useApiMutation(
     (backup) => api.backups.delete(server, backup),
-    refreshes(keys.backups(server), keys.allFiles(server)),
+    (qc) => {
+      refresh(qc, keys.backups(server))
+      refreshAll(qc, keys.allFiles(server))
+    },
     cb,
   )

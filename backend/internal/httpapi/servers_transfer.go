@@ -5,6 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"app/api/v1alpha1"
+	"app/internal/serverctl"
+	"app/internal/tenancy"
 )
 
 // TransferRequest names the user a server moves to.
@@ -35,6 +39,11 @@ func (a *API) transferServer(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// Checked before ownerNamespace creates the target namespace, so a refused transfer leaves nothing behind.
+	if err := checkTransfer(gs, req.Owner); err != nil {
+		a.fail(c, err)
+		return
+	}
 	namespace, err := a.ownerNamespace(c, req.Owner)
 	if err != nil {
 		a.fail(c, err)
@@ -49,4 +58,12 @@ func (a *API) transferServer(c *gin.Context) {
 	a.audit(c, "server transferred", "server", gs.Name, "from", gs.Namespace, "to", namespace)
 	a.Trigger(moved.Namespace, moved.Name)
 	c.JSON(http.StatusOK, moved)
+}
+
+// checkTransfer refuses a server that already belongs to the owner or is not stopped.
+func checkTransfer(gs *v1alpha1.GameServer, owner string) error {
+	if gs.Namespace == tenancy.Namespace(owner) {
+		return serverctl.ErrSameOwner
+	}
+	return serverctl.Stopped(gs)
 }

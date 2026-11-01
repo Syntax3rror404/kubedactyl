@@ -154,6 +154,7 @@ const docTemplate = `{
         },
         "/auth/logout": {
             "post": {
+                "description": "A user who logs out very often in one session lifetime is signed out everywhere instead.",
                 "tags": [
                     "Auth"
                 ],
@@ -236,7 +237,7 @@ const docTemplate = `{
         },
         "/auth/oidc/callback": {
             "get": {
-                "description": "Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to\n/login?sso=ok\u0026next=\u003cpage the sign-in started from\u003e. The account is the one linked to the user of\nthe identity provider, else the one with the same username, else a new one. Failures redirect to\n/login?sso=\u003creason\u003e (access: in no group with access or disabled, account: the account cannot be\nused, failed).",
+                "description": "Public, opened by the browser: verifies the sign-in, starts a session (cookie) and redirects to\n/login?sso=ok\u0026next=\u003cpage the sign-in started from\u003e. The account is the one linked to the user of\nthe identity provider, else the one with the same username, else a new one. Failures redirect to\n/login?sso=\u003creason\u003e (access: in no group with access or disabled, account: the account cannot be\nused, failed). Failed callbacks are throttled per client like failed sign-ins.",
                 "tags": [
                     "Auth"
                 ],
@@ -361,7 +362,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Use it as \"Authorization: Bearer \u003ctoken\u003e\". The value is returned only once. Only a session can\ncreate tokens: a token cannot extend its own access.",
+                "description": "Use it as \"Authorization: Bearer \u003ctoken\u003e\". The value is returned only once. Only a session can\ncreate tokens: a token cannot extend its own access. An account has at most 50 tokens.",
                 "consumes": [
                     "application/json"
                 ],
@@ -388,6 +389,12 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/httpapi.CreatedToken"
+                        }
+                    },
+                    "409": {
+                        "description": "the account has the most tokens it may have",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
                     }
                 }
@@ -841,7 +848,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "an egg with the same name was updated",
+                        "schema": {
+                            "$ref": "#/definitions/v1alpha1.Egg"
+                        }
+                    },
+                    "201": {
+                        "description": "a new egg was created",
                         "schema": {
                             "$ref": "#/definitions/v1alpha1.Egg"
                         }
@@ -1277,7 +1290,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Settings"
+                    "System"
                 ],
                 "summary": "Request rates",
                 "responses": {
@@ -2793,7 +2806,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "External domain and the storage classes and load balancer pools that can be selected for servers.",
+                "description": "All settings for administrators. Users get only external domain, load balancer pools, server\nnotice, API docs switch and their limits for API tokens and subusers.",
                 "produces": [
                     "application/json"
                 ],
@@ -2991,7 +3004,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Panel"
+                    "System"
                 ],
                 "summary": "Panel updates",
                 "parameters": [
@@ -3025,7 +3038,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Panel"
+                    "System"
                 ],
                 "summary": "Upgrade the panel",
                 "parameters": [
@@ -4327,6 +4340,7 @@ const docTemplate = `{
             "properties": {
                 "note": {
                     "type": "string",
+                    "maxLength": 200,
                     "example": "Alice from the Discord server"
                 },
                 "reset": {
@@ -4491,6 +4505,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 64,
                     "example": "ci"
                 }
             }
@@ -4983,7 +4998,6 @@ const docTemplate = `{
                     "example": "secret-password"
                 },
                 "username": {
-                    "description": "The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from\nfilling the limiters and the log with huge keys.",
                     "type": "string",
                     "maxLength": 64,
                     "example": "admin"
@@ -5311,11 +5325,11 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
                     "type": "integer"
                 },
                 "brandLogo": {
-                    "description": "BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most\n128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
                     "type": "string"
                 },
                 "brandName": {
@@ -5350,15 +5364,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "favicon": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
                     "type": "string"
                 },
                 "kubeApiQps": {
-                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
                     "type": "integer"
                 },
                 "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
                     "type": "integer"
                 },
                 "legalNotice": {
@@ -5393,7 +5407,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
                     "type": "integer"
                 },
                 "storageClasses": {
@@ -5404,7 +5418,7 @@ const docTemplate = `{
                     }
                 },
                 "subusersPerUser": {
-                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
                     "type": "integer"
                 }
             }
@@ -5657,11 +5671,11 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
                     "type": "integer"
                 },
                 "brandLogo": {
-                    "description": "BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most\n128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
                     "type": "string"
                 },
                 "brandName": {
@@ -5696,15 +5710,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "favicon": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
                     "type": "string"
                 },
                 "kubeApiQps": {
-                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
                     "type": "integer"
                 },
                 "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
                     "type": "integer"
                 },
                 "legalNotice": {
@@ -5740,7 +5754,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
                     "type": "integer"
                 },
                 "storageClasses": {
@@ -5751,7 +5765,7 @@ const docTemplate = `{
                     }
                 },
                 "subusersPerUser": {
-                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
                     "type": "integer"
                 }
             }
@@ -6466,6 +6480,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updateUrl": {
+                    "description": "UpdateURL is the egg file that \"Update from URL\" and AutoUpdate download. Empty: no updates from a URL.",
                     "type": "string"
                 },
                 "uuid": {
@@ -6659,7 +6674,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "eggRef": {
-                    "description": "EggRef is the name of the Egg in the same namespace.",
+                    "description": "EggRef is the name of the Egg in the panel namespace.",
                     "type": "string"
                 },
                 "environment": {
@@ -6822,7 +6837,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "restartRequired": {
-                    "description": "RestartRequired is set while the running game pod was created with other runtime\nsettings (image, startup, variables, memory, CPU, ports) than the spec has now.",
+                    "description": "RestartRequired is set while the running game pod was created with other runtime\nsettings (image, startup, variables, memory, CPU, ports, the egg's config files) than now.",
                     "type": "boolean"
                 },
                 "schedules": {
@@ -6908,11 +6923,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "clientId": {
-                    "description": "+optional",
+                    "description": "ClientID is the client of the panel at the identity provider; its secret is kept in a Secret.\n+optional",
                     "type": "string"
                 },
                 "enabled": {
-                    "description": "+optional",
+                    "description": "Enabled shows the single sign-on button on the sign-in page.\n+optional",
                     "type": "boolean"
                 },
                 "groupsClaim": {

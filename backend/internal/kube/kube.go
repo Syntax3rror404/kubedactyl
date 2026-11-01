@@ -64,11 +64,12 @@ func (e *ExitError) Error() string {
 	return fmt.Sprintf("command exited with code %d", e.Code)
 }
 
-// ErrOutputTooLarge is returned by a LimitedBuffer that would grow beyond its limit.
+// ErrOutputTooLarge is returned by a LimitedBuffer that would grow beyond its limit, and by ExecOutput when it
+// cut the output.
 var ErrOutputTooLarge = errors.New("the output of the command is too large")
 
-// LimitedBuffer is a buffer for command output that holds at most Max bytes: a write beyond
-// it fails (and so ends the command's stream) and sets Full.
+// LimitedBuffer is a buffer for command output that holds at most Max bytes. A write beyond it fails and sets
+// Full; the command keeps running and the rest of its output is dropped, so callers check Full.
 type LimitedBuffer struct {
 	bytes.Buffer
 	Max  int
@@ -118,12 +119,15 @@ func (k *Client) Exec(
 	return err
 }
 
-// ExecOutput runs cmd and returns its stdout (at most 1 MiB).
+// ExecOutput runs cmd and returns its stdout; ErrOutputTooLarge (with the first 1 MiB) when there was more.
 func (k *Client) ExecOutput(
 	ctx context.Context, ns, pod, container string, cmd []string, stdin io.Reader,
 ) ([]byte, error) {
 	out := LimitedBuffer{Max: maxOutput}
 	err := k.Exec(ctx, ns, pod, container, cmd, stdin, &out)
+	if err == nil && out.Full {
+		err = ErrOutputTooLarge
+	}
 	return out.Bytes(), err
 }
 

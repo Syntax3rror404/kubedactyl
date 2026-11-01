@@ -66,9 +66,10 @@ test: check-generated embed-placeholder
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
 # unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.52.0
 lint: embed-placeholder
 	cd backend && $(GOLANGCI) run ./...
-	@cd backend && dead="$$(go run golang.org/x/tools/cmd/deadcode@latest ./... | grep -v internal/testutil/)"; \
+	@cd backend && dead="$$($(DEADCODE) ./... | grep -v internal/testutil/)"; \
 		test -z "$$dead" || { echo "unused code:"; echo "$$dead"; exit 1; }
 	cd frontend && npm run format:check && npx tsc -b && npx oxlint && npx knip
 
@@ -116,7 +117,9 @@ sync-version:
 	sed -i.bak -e 's/--version [0-9][0-9.]*/--version $(VERSION)/' charts/kubedactyl/README.md README.md docs/installation.md
 	rm -f charts/kubedactyl/Chart.yaml.bak charts/kubedactyl/README.md.bak README.md.bak docs/installation.md.bak
 
+# The registry config holds the token: removed on every exit, also after Ctrl-C.
 push-chart: sync-version
 	helm package charts/kubedactyl -d bin
-	@cfg=$$(mktemp); gh auth token | helm registry login ghcr.io --registry-config $$cfg --username $(GHCR_USER) --password-stdin && \
-		helm push bin/kubedactyl-$(VERSION).tgz $(CHART_REPO) --registry-config $$cfg; rm -f $$cfg
+	@cfg=$$(mktemp); trap 'rm -f "$$cfg"' EXIT; trap 'exit 130' INT TERM; \
+		gh auth token | helm registry login ghcr.io --registry-config "$$cfg" --username $(GHCR_USER) --password-stdin && \
+		helm push bin/kubedactyl-$(VERSION).tgz $(CHART_REPO) --registry-config "$$cfg"

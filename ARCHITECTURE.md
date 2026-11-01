@@ -145,13 +145,13 @@ pod logs itself (`console/follow.go`), so the output continues when nobody is wa
 | add a field to servers | walk-through below |
 | add an API endpoint | handler in `internal/httpapi`, route in `api.go` (right group: user/admin/files), a case in `authz_test.go`, `make docs`; frontend: `lib/api.ts` + a hook in `lib/queries/<area>.ts` |
 | change how pods look (limits, security, env) | `internal/gameserver/resources.go`, `environment.go`; new pod fields must pass the admission policy `charts/kubedactyl/templates/admission-policy.yaml` |
-| change the panel's Kubernetes permissions | `charts/kubedactyl/templates/rbac.yaml` (cluster role, tenant role bound per user namespace, panel-namespace role), `admission-policy.yaml`, checks in `internal/clusterinfo/identity.go`; test as the service account with `kubectl --as=… --dry-run=server` |
+| change the panel's Kubernetes permissions | `charts/kubedactyl/templates/rbac.yaml` (cluster role, tenant role bound per user namespace, panel-namespace role), `admission-policy.yaml`, checks in `internal/clusterinfo/permissions.go`; test as the service account with `kubectl --as=… --dry-run=server` |
 | change start/stop/crash behavior | `internal/controller/gameserver_game.go` |
 | support another egg field | `internal/egg/parse.go` (import), `export.go` (export), `validate.go`, egg editor in `frontend/src/features/eggs/components/editor` |
 | add an egg console feature (like `eula`) | `frontend/src/features/servers/egg-features/` + key in `features/servers/lib/egg-features.ts` |
 | add a page | `frontend/src/features/<area>/<name>-page.tsx` + entry in `app/router.tsx` |
 | add a health check | `internal/clusterinfo/health_checks.go` + `evaluate` in `health.go` |
-| change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
+| change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`/`StopLimit`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
 | add a server diagnostics check | `internal/diagnostics` (`Run`, a function returning `checks.Check`, a case in the test); shown by `features/servers/diagnostics-page.tsx` |
 | add a panel setting | `api/v1alpha1/settings_types.go`, `internal/settings`, settings page cards |
 | change single sign-on | `internal/sso` (flow, claims), `users/oidc.go` (which account, linking), `httpapi/auth_oidc.go` (routes, cookie), `settings/oidc.go` (validation, client secret), `features/settings/components/sso-card.tsx`, `features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
@@ -196,6 +196,9 @@ tests enforce the ones marked (enforced).
   answers them with 422 and `"fields"`, which the frontend shows next to the inputs.
 - **Logs**: slog with a `component`; the acting user is `by`, affected objects are named by kind (`user`,
   `server`, `egg`).
+- **Contexts**: the gin context does not end when the client goes away, so a handler's changes are never left
+  half done. Only streams the client consumes (a file download) use `c.Request.Context()`; goroutines that outlive
+  the request get their own context, and `kube.TTLCache` loads run with their own 30 second context.
 - **Cached vs. uncached reads**: the controller-runtime cache can lag behind by minutes on this kind of API
   endpoint. Everything whose current state matters (pods, volumes, settings, just created objects, the admin
   count) is read with the uncached `Reader` (`mgr.GetAPIReader()`); decisions create/update use it too.
@@ -239,6 +242,8 @@ tests enforce the ones marked (enforced).
      (download links).
   2. `lib/queries/<area>.ts`: every query (`useServer(name)`) and mutation (`useDeleteServer(name, callbacks)`).
      A mutation hook sends the request and updates the cache (`setQueryData` / invalidate the affected `keys`).
+     The object the page shows (the server, the egg) is the hook's argument; what the user picks on the page (a
+     backup, a job, a file, an account in a list) is the `mutate` variable: `useDeleteBackup(server).mutate(backup)`.
   3. Components call those hooks and only decide what the user sees (toasts, navigation, closing a dialog),
      passed as callbacks (to the hook, or to `mutate(vars, { onSuccess })` when the message needs local values).
      They never import `api`, `useQuery`, `useMutation` or the query client.
@@ -251,7 +256,8 @@ tests enforce the ones marked (enforced).
   with `<FieldError>`; pending state is `mutation.isPending`. Dialogs and inline forms are a `<form onSubmit>` so
   Enter submits; settings pages with several cards save with their Save button, which is enabled while `dirty`.
 - **Dialogs**: confirmations use `ConfirmDialog`, with `trigger` when it belongs to one button, otherwise
-  controlled by the page's single dialog state (`useState<Dialog>(null)` with `{ kind: "delete", … }`). Form
+  controlled by the page's single dialog state (`useState<Dialog>(null)` with `{ kind: "delete", … }`; the title
+  keeps its target while the dialog closes with `useRetained`). Form
   dialogs mount their form fresh on every open. Egg console prompts (`features/servers/egg-features`) stay open
   while their action runs and are built on `AlertDialog` directly.
 - **Toasts**: success "<Thing> <past participle>" ("Backup deleted"); failures `onError: failed("delete the
@@ -265,14 +271,19 @@ tests enforce the ones marked (enforced).
   domain verbs `pull` (the server fetches a URL; "download" is only the browser download), `decompress`,
   `probe`, `transfer` (a server moves to another owner), `migrate` (a server moves to another storage class), and the actions that are not data changes: `send`
   (power, command), `run`, `reinstall`, `suspend`, `rename`, `upload`, `compress`, `open` (console, file
-  session), `read`/`write` (file contents), `restore`, `import`/`export`, `start` (upgrade job), `accept` (an invite creates an account), `renew` (an invite gets a new link). Go handlers are `<verb><Thing>` (`getServerStats`, `listClusterNodes`), api methods
+  session), `read`/`write` (file contents), `restore`, `import`/`export`, `start`/`finish` (upgrade job; the sign-in through
+  the identity provider starts with a redirect and finishes in its callback), `cancel` (a job or a migration stops),
+  `refresh` (a kept value is loaded again: egg library, upgrade check, file listings), `login`/`logout` (a session
+  starts or ends), `accept` (an invite creates an account), `renew` (an invite gets a new link). Go handlers are `<verb><Thing>` (`getServerStats`, `listClusterNodes`), api methods
   `api.<area>.<verb>…` (`api.servers.getStats`), query hooks `use<Thing>` (`useServerStats`), mutation hooks
   `use<Verb><Thing>` (`useDeleteServer`). A server is passed as `server`, never `name`. Public contracts (API
   paths, JSON fields, CRD fields) are never renamed for style; code follows them. Button labels and toasts use
   words for people ("Save", "Revoke", "Download from URL").
 - **Style**: named exports, kebab-case files named after their main export, destructured props with inline types;
-  callbacks `onSubmit` (forms), `onConfirm` (confirmations), `onSelect` (choosing), `on<Field>Change`; imports in
-  the order packages · `@/components/common` · `layout` · `ui` · `@/features` · `@/hooks` · `@/lib`.
+  callbacks `onSubmit` (forms), `onConfirm` (confirmations), `onSelect` (choosing), `on<Field>Change`; constants
+  that name one value (number, limit, duration, URL, id) are `SCREAMING_SNAKE_CASE` (`MAX_IMAGE`), lists, maps,
+  class strings and CSS text `camelCase`; imports in the order packages · `@/components/common` · `layout` · `ui` ·
+  `@/features` · `@/hooks` · `@/lib`.
 
   ```tsx
   // features/servers/components/danger-zone.tsx

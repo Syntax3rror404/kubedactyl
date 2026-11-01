@@ -57,7 +57,8 @@ lines of at most 120 characters, functions of at most 60 lines / 40 statements (
 complexity above 20 (except the ported config file parsers in `internal/configfile`), gofmt and goimports), `deadcode`
 (unreachable functions; `internal/testutil` is only used by tests) and the frontend checks
 `npm run format:check && npx tsc -b && npx oxlint && npx knip` (unused files, exports and dependencies; library files are
-ignored via `knip.json`). `make fmt` rewrites the formatting (Go: gofmt + goimports, frontend: Prettier); long lines are
+ignored via `knip.json`). golangci-lint and deadcode run in fixed versions (`GOLANGCI`, `DEADCODE` in the `Makefile`;
+raised by hand). `make fmt` rewrites the formatting (Go: gofmt + goimports, frontend: Prettier); long lines are
 wrapped by hand.
 
 ## Library components and updates
@@ -138,7 +139,7 @@ frontend/
   public/theme-init.js    theme before first paint (external because of the CSP)
   src/
     main.tsx              entry: providers
-    app/                  router (URL → page), toaster, 404 page
+    app/                  router (URL → page), toaster, 404 page, error page (error-page.tsx)
     features/
       auth/               login-page, setup-page · require-auth, auth-shell
       dashboard/          dashboard-page · server-card, server-filter
@@ -158,7 +159,7 @@ frontend/
                           types/ (api.gen.ts generated from the Go structs by make docs; one file per area on top),
                           formatting, notify (toasts), validation (form errors)
     hooks/                use-mobile (library), use-resolved-theme, use-auth, use-draft (form state), use-before-unload,
-                          use-branding-head
+                          use-branding-head, use-throttle (refused requests), use-retained (closing dialogs)
 scripts/uninstall.sh      cluster cleanup
 charts/kubedactyl/        Helm chart (published as OCI artifact); Dockerfile and VERSION in the root
 scripts/imagebuild/       daemonless image build and push (make image / push-image)

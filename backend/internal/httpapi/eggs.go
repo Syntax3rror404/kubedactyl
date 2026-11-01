@@ -59,7 +59,17 @@ func (a *API) getEgg(c *gin.Context) {
 	}
 }
 
-// eggsByName returns all eggs keyed by name (for sanitizing server responses).
+// loadEgg reads an egg (just created ones, too: eggstore.Store.Get).
+func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
+	e, err := a.Eggs.Get(c, name)
+	if err != nil {
+		a.fail(c, err)
+		return nil, false
+	}
+	return e, true
+}
+
+// eggsByName returns all eggs keyed by name (for visibleServer); empty when they cannot be read.
 func (a *API) eggsByName(c *gin.Context) map[string]*v1alpha1.Egg {
 	var list v1alpha1.EggList
 	out := map[string]*v1alpha1.Egg{}

@@ -18,26 +18,34 @@ import (
 // the stream ends by itself when the container is gone.
 const terminatedGrace = 3 * time.Second
 
-// removeTerminated deletes a finished pod shortly after it ended. It returns how long to
-// wait before calling again (0 when the pod is gone or being deleted).
+// removeTerminated deletes a finished pod terminatedGrace after its main container exited. It
+// returns how long to wait before calling again (0 when the pod is gone or being deleted).
 func (r *Reconciler) removeTerminated(ctx context.Context, pod *corev1.Pod) (time.Duration, error) {
 	if pod.DeletionTimestamp != nil {
-		r.seenTerminated.Delete(pod.UID)
 		return 0, nil
 	}
-	first, _ := r.seenTerminated.LoadOrStore(pod.UID, time.Now())
-	if wait := terminatedGrace - time.Since(first.(time.Time)); wait > 0 {
+	// The exit time comes from the node's clock: at most terminatedGrace even when it runs ahead.
+	if wait := min(terminatedGrace-time.Since(finishedAt(pod)), terminatedGrace); wait > 0 {
 		return wait, nil
 	}
-	r.seenTerminated.Delete(pod.UID)
 	return 0, r.deleteNow(ctx, pod)
+}
+
+// finishedAt returns when the main container of a pod exited (zero when it is not known, e.g.
+// for an evicted pod).
+func finishedAt(pod *corev1.Pod) time.Time {
+	if st, ok := containerState(pod); ok && st.Terminated != nil {
+		return st.Terminated.FinishedAt.Time
+	}
+	return time.Time{}
 }
 
 // cleanupInstall removes the finished install pod and its script once the installation
 // is recorded. It returns how long to wait before the pod can go.
 func (r *Reconciler) cleanupInstall(ctx context.Context, gs *v1alpha1.GameServer) (time.Duration, error) {
 	pod := &corev1.Pod{}
-	err := r.getChild(ctx, gs, gameserver.InstallPodName(gs.Name), pod)
+	// Cached: this runs on every reconcile, and a pod that is gone already makes the delete a no-op.
+	err := r.Get(ctx, client.ObjectKey{Namespace: gs.Namespace, Name: gameserver.InstallPodName(gs.Name)}, pod)
 	if apierrors.IsNotFound(err) {
 		return 0, nil
 	}

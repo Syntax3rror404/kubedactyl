@@ -75,8 +75,25 @@ export function InviteActions({ invite }: { invite: InviteView }) {
   )
 }
 
+/**
+ * The password reset action of an account row: the pending reset link with renew and revoke, else (when the account
+ * can get one) the button that creates one.
+ */
+export function PasswordResetAction({
+  username,
+  reset,
+  canReset = true,
+}: {
+  username: string
+  reset?: InviteView
+  canReset?: boolean
+}) {
+  if (reset) return <InviteActions invite={reset} />
+  return canReset ? <ResetPasswordButton username={username} /> : null
+}
+
 /** Creates a link with which a local account sets a new password, and shows it once. */
-export function ResetPasswordButton({ username }: { username: string }) {
+function ResetPasswordButton({ username }: { username: string }) {
   const [created, setCreated] = useState<CreatedInvite | null>(null)
   const create = useCreateInvite({ onSuccess: setCreated, onError: failed("create the reset link") })
   return (

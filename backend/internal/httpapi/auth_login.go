@@ -59,9 +59,10 @@ func forgiveAttempt(limits []loginLimit, now time.Time) {
 }
 
 // LoginRequest authenticates with username and password.
+//
+// The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from filling
+// the limiters and the log with huge keys.
 type LoginRequest struct {
-	// The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from
-	// filling the limiters and the log with huge keys.
 	Username string `json:"username" binding:"required,max=64"   example:"admin"`
 	Password string `json:"password" binding:"required,max=1024" example:"secret-password"`
 }
@@ -115,8 +116,9 @@ func (a *API) login(c *gin.Context) {
 	a.sendSession(c, http.StatusOK, user)
 }
 
-// checkPassword returns the user when the password matches and the account is enabled. The password is
-// checked for unknown, disabled and single sign-on only users, too: the answer takes as long either way.
+// checkPassword returns the user when the password matches and the account is active (users.Store.CheckActive).
+// The password is checked for unknown, disabled and single sign-on only users, too: the answer takes as long
+// either way.
 func (a *API) checkPassword(ctx context.Context, username, password string) (*v1alpha1.User, bool) {
 	user := &v1alpha1.User{}
 	err := a.Client.Get(ctx, client.ObjectKey{Namespace: a.Opts.Namespace, Name: username}, user)
@@ -124,7 +126,7 @@ func (a *API) checkPassword(ctx context.Context, username, password string) (*v1
 		auth.VerifyDummy(password)
 		return nil, false
 	}
-	return user, auth.VerifyPassword(password, user.Spec.PasswordHash) && !user.Spec.Disabled
+	return user, auth.VerifyPassword(password, user.Spec.PasswordHash) && a.Users.CheckActive(ctx, user) == nil
 }
 
 // startSession signs a session token for the user and sets it as cookie.
@@ -166,16 +168,36 @@ func (a *API) sendSession(c *gin.Context, status int, user *v1alpha1.User) {
 
 // logout godoc
 //
-//	@Summary	Log out (ends the session and clears its cookie)
-//	@Tags		Auth
-//	@Success	204
-//	@Router		/auth/logout [post]
+//	@Summary		Log out (ends the session and clears its cookie)
+//	@Description	A user who logs out very often in one session lifetime is signed out everywhere instead.
+//	@Tags			Auth
+//	@Success		204
+//	@Router			/auth/logout [post]
 func (a *API) logout(c *gin.Context) {
 	if token := credentials(c); token != "" {
-		a.Signer.Revoke(token, time.Now())
+		a.revoke(c, token)
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name: SessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode,
 	})
 	c.Status(http.StatusNoContent)
+}
+
+// revoke ends a session token. When the signer keeps no more logged out tokens of the user, every session of the
+// user ends instead (a new session epoch).
+func (a *API) revoke(c *gin.Context, token string) {
+	sess, err := a.Signer.Revoke(token, time.Now())
+	if !errors.Is(err, auth.ErrTooManyRevoked) {
+		return
+	}
+	user := &v1alpha1.User{}
+	err = a.Reader.Get(c, client.ObjectKey{Namespace: a.Opts.Namespace, Name: sess.User}, user)
+	if err == nil {
+		err = a.Users.EndSessions(c, user)
+	}
+	if err != nil {
+		a.Log.Warn("signing out everywhere after too many logouts", "user", sess.User, "err", err)
+		return
+	}
+	a.Log.Info("signed out everywhere after too many logouts", "user", sess.User)
 }

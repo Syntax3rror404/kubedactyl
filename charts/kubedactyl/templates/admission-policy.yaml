@@ -6,9 +6,11 @@
 # Limits what the panel's service account can do with its cluster wide permissions, so a
 # compromised panel cannot reach beyond its own namespaces: it may only manage its user
 # namespaces (always with the Pod Security "baseline" level), their volumes and role bindings
-# to its tenant role, its own CRDs, pods without service account tokens or host access, and
-# (with self-upgrades) exactly the upgrade job. Checked by the API server; keep in sync with
-# the panel code (tenancy, gameserver pods, selfupgrade.JobFor).
+# to its tenant role, its own CRDs, pods without service account tokens or host access (in its
+# own namespace also without volumes, added capabilities or an unconfined seccomp profile),
+# services without external IPs and (with self-upgrades) exactly the upgrade job. Checked by
+# the API server; keep in sync with the panel code (tenancy, gameserver pods, the hardware
+# probe pod in clusterinfo/hardware.go, selfupgrade.JobFor).
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -23,6 +25,10 @@ spec:
         apiVersions: ["*"]
         resources: [namespaces, persistentvolumes, pods]
         operations: [CREATE, UPDATE, DELETE]
+      - apiGroups: [""]
+        apiVersions: ["*"]
+        resources: [services]
+        operations: [CREATE, UPDATE]
       - apiGroups: [rbac.authorization.k8s.io]
         apiVersions: ["*"]
         resources: [rolebindings]
@@ -43,6 +49,9 @@ spec:
       expression: request.resource.resource
     - name: newPod
       expression: "variables.resource == 'pods' && request.operation != 'DELETE'"
+    # The hardware probe pods: the namespace also holds the session key and the upgrade job's token.
+    - name: panelPod
+      expression: "variables.newPod && request.namespace == '{{ $ns }}'"
     {{- if include "kubedactyl.selfUpgrade" . }}
     - name: upgradeJob
       expression: >-
@@ -95,6 +104,22 @@ spec:
         (!has(object.spec.initContainers) ||
          object.spec.initContainers.all(c, !has(c.securityContext) || !has(c.securityContext.privileged) || !c.securityContext.privileged)))
       message: pods of the panel may not use host namespaces, host paths or privileged containers
+    - expression: >-
+        !variables.panelPod || (
+        (!has(object.spec.volumes) || object.spec.volumes.size() == 0) &&
+        !(has(object.spec.securityContext) && has(object.spec.securityContext.seccompProfile) &&
+          object.spec.securityContext.seccompProfile.type == 'Unconfined') &&
+        object.spec.containers.all(c, !has(c.securityContext) ||
+          (!has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.add)) &&
+          !(has(c.securityContext.seccompProfile) && c.securityContext.seccompProfile.type == 'Unconfined')) &&
+        (!has(object.spec.initContainers) || object.spec.initContainers.all(c, !has(c.securityContext) ||
+          (!has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.add)) &&
+          !(has(c.securityContext.seccompProfile) && c.securityContext.seccompProfile.type == 'Unconfined'))))
+      message: pods in the panel namespace may not mount volumes, add capabilities or run without seccomp
+    - expression: >-
+        variables.resource != 'services' || (request.namespace.startsWith('{{ $prefix }}') &&
+        (!has(object.spec.externalIPs) || object.spec.externalIPs.size() == 0))
+      message: the panel may only manage services of its user namespaces, without external IPs
     - expression: "variables.resource != 'jobs' || {{ if include "kubedactyl.selfUpgrade" . }}variables.upgradeJob{{ else }}false{{ end }}"
       message: the panel may only start its upgrade job
 ---

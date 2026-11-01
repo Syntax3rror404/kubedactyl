@@ -2,10 +2,21 @@ package console
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"strings"
 	"testing"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	"app/internal/gameserver"
+	"app/internal/kube"
+	"app/internal/testutil"
 )
 
 func TestDeduperReconnect(t *testing.T) {
@@ -70,6 +81,67 @@ func TestReadLine(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("line %d: got %d bytes, want %d", i, len(got[i]), len(want[i]))
+		}
+	}
+}
+
+// The done line counts for the followed game pod only; a new pod and the removal of the server forget it.
+func TestDone(t *testing.T) {
+	h := NewHub(&kube.Client{Clientset: k8sfake.NewClientset()}, testutil.Logger())
+	h.stream("mc").session = &session{uid: "pod-1", cancel: func() {}}
+	for _, tc := range []struct {
+		name      string
+		uid       types.UID
+		wantFirst bool
+	}{
+		{"followed pod", "pod-1", true},
+		{"again", "pod-1", false},
+		{"pod no longer followed", "pod-0", false},
+	} {
+		if first := h.markDone("mc", tc.uid); first != tc.wantFirst {
+			t.Errorf("%s: first = %v, want %v", tc.name, first, tc.wantFirst)
+		}
+	}
+	if !h.IsDone("mc", "pod-1") || h.IsDone("mc", "pod-0") || h.IsDone("other", "pod-1") {
+		t.Error("done state of the wrong pod or server")
+	}
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "mc-game", Namespace: "ns", UID: "pod-2"}}
+	h.Follow("mc", pod, KindGame, NewMatcher(nil, false))
+	if h.IsDone("mc", "pod-1") {
+		t.Error("a new pod keeps the done state of the previous one")
+	}
+	h.markDone("mc", "pod-2")
+	h.Remove("mc")
+	if h.IsDone("mc", "pod-2") {
+		t.Error("a removed server keeps its done state")
+	}
+}
+
+// A pod with the same name but another UID is a new pod: the old one is gone.
+func TestContainerTerminated(t *testing.T) {
+	pod := func(uid types.UID, state corev1.ContainerState) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "mc-game", Namespace: "ns", UID: uid},
+			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{
+				{Name: gameserver.ContainerName, State: state},
+			}},
+		}
+	}
+	running := corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}
+	exited := corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{}}
+	for _, tc := range []struct {
+		name string
+		pods []runtime.Object
+		want bool
+	}{
+		{"running", []runtime.Object{pod("pod-1", running)}, false},
+		{"exited", []runtime.Object{pod("pod-1", exited)}, true},
+		{"gone", nil, true},
+		{"replaced by a new pod", []runtime.Object{pod("pod-2", running)}, true},
+	} {
+		h := NewHub(&kube.Client{Clientset: k8sfake.NewClientset(tc.pods...)}, testutil.Logger())
+		if got := h.containerTerminated(context.Background(), "ns", "mc-game", "pod-1"); got != tc.want {
+			t.Errorf("%s: terminated = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }

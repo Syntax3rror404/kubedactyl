@@ -16,9 +16,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -137,6 +140,13 @@ func newHarness(t *testing.T) *harness {
 // do sends a request with an optional bearer token and returns status and body.
 func (h *harness) do(method, path, token string, body any) (int, string) {
 	h.t.Helper()
+	w := h.send(method, path, token, body)
+	return w.Code, w.Body.String()
+}
+
+// send sends a request with an optional bearer token and returns the response.
+func (h *harness) send(method, path, token string, body any) *httptest.ResponseRecorder {
+	h.t.Helper()
 	var rd io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
@@ -149,7 +159,7 @@ func (h *harness) do(method, path, token string, body any) (int, string) {
 	}
 	w := httptest.NewRecorder()
 	h.router.ServeHTTP(w, req)
-	return w.Code, w.Body.String()
+	return w
 }
 
 // login signs in with the password of the test users and returns the session token.
@@ -305,6 +315,59 @@ func TestUserUpdateRestrictions(t *testing.T) {
 	}
 }
 
+// TestUserVariableChecks: users keep the current value (stored, else the egg default) of a variable they may not
+// edit, and send only variables of the egg.
+func TestUserVariableChecks(t *testing.T) {
+	h := newHarness(t)
+	alice := h.login("alice")
+	e := &v1alpha1.Egg{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: "paper"}, e)
+	e.Spec.Variables[1].DefaultValue = "default"
+	gs := &v1alpha1.GameServer{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
+	delete(gs.Spec.Environment, "RO")
+	if h.client.Update(t.Context(), e) != nil || h.client.Update(t.Context(), gs) != nil {
+		t.Fatal("preparing egg and server")
+	}
+	cases := []struct {
+		label string
+		env   map[string]string
+		want  int
+	}{
+		{"unknown variable", map[string]string{"VIS": "new", "EVIL": "x"}, 422},
+		{"read-only variable cleared", map[string]string{"RO": ""}, 403},
+		{"read-only variable changed", map[string]string{"RO": "other"}, 403},
+		{"hidden variable changed", map[string]string{"HID": "other"}, 403},
+		{"read-only variable at its default", map[string]string{"RO": "default", "VIS": "new"}, 200},
+		{"hidden variable unchanged", map[string]string{"HID": "c"}, 200},
+	}
+	for _, c := range cases {
+		code, body := h.do("PATCH", "/api/servers/alice-srv", alice, map[string]any{"environment": c.env})
+		expect(t, c.label, code, c.want, body)
+	}
+}
+
+// TestUsersSeeNoVariablesWithoutEgg: without the egg nothing says which variables are hidden, so users see none.
+func TestUsersSeeNoVariablesWithoutEgg(t *testing.T) {
+	h := newHarness(t)
+	alice, admin := h.login("alice"), h.login("admin")
+	paper := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: "paper", Namespace: sysNS}}
+	if err := h.client.Delete(t.Context(), paper); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/servers", "/api/servers/alice-srv"} {
+		code, body := h.do("GET", path, alice, nil)
+		if code != 200 || !strings.Contains(body, "alice-srv") || strings.Contains(body, `"VIS"`) ||
+			strings.Contains(body, `"RO"`) || strings.Contains(body, `"HID"`) {
+			t.Errorf("%s: %d %s", path, code, body)
+		}
+	}
+	code, body := h.do("GET", "/api/servers/alice-srv", admin, nil)
+	if code != 200 || !strings.Contains(body, `"HID"`) {
+		t.Errorf("admins see every variable: %d %s", code, body)
+	}
+}
+
 func TestOlderEggListsItsStartupCommand(t *testing.T) {
 	h := newHarness(t)
 	e := &v1alpha1.Egg{}
@@ -406,6 +469,17 @@ func TestAdminTransferChecks(t *testing.T) {
 	expect(t, "transfer to an unknown user", code, 422, body)
 	code, body = h.do("POST", "/api/servers/alice-srv/transfer", admin, map[string]string{})
 	expect(t, "transfer without owner", code, 400, body)
+
+	gs := &v1alpha1.GameServer{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
+	gs.Spec.State = v1alpha1.PowerRunning
+	_ = h.client.Update(t.Context(), gs)
+	code, body = h.do("POST", "/api/servers/alice-srv/transfer", admin, map[string]string{"owner": "bob"})
+	expect(t, "transfer a running server", code, 409, body)
+	err := h.client.Get(t.Context(), client.ObjectKey{Name: tenancy.Namespace("bob")}, &corev1.Namespace{})
+	if !apierrors.IsNotFound(err) {
+		t.Errorf("a refused transfer must not create the namespace of the new owner: %v", err)
+	}
 }
 
 func TestAdminMigratesStorage(t *testing.T) {
@@ -513,6 +587,14 @@ func TestAdminCreatesUsersAndServers(t *testing.T) {
 	req["owner"] = "ghost"
 	code, body = h.do("POST", "/api/servers", admin, req)
 	expect(t, "unknown owner", code, 422, body)
+
+	bare := &v1alpha1.Egg{ObjectMeta: metav1.ObjectMeta{Name: "bare", Namespace: sysNS}}
+	_ = h.client.Create(t.Context(), bare)
+	req["egg"], req["owner"], req["startupName"] = "bare", "carol", ""
+	code, body = h.do("POST", "/api/servers", admin, req)
+	if code != 422 || !strings.Contains(body, `"image"`) {
+		t.Errorf("an egg without image: %d %s", code, body)
+	}
 }
 
 func TestLastAdminProtectedAndSessions(t *testing.T) {
@@ -546,6 +628,49 @@ func TestLastAdminProtectedAndSessions(t *testing.T) {
 	expect(t, "password change", code, 204, body)
 	code, body = h.do("GET", "/api/auth/me", bob, nil)
 	expect(t, "old session after password change", code, 401, body)
+}
+
+// TestInactiveAccountsLoseAccess: sessions, API tokens and sign-ins of an account being deleted, and of a subuser
+// whose owner is disabled or being deleted, are refused like those of a disabled account.
+func TestInactiveAccountsLoseAccess(t *testing.T) {
+	h := newHarness(t)
+	admin, alice := h.login("admin"), h.login("alice")
+	carol := h.addSubuser(alice)
+	h.share(alice, v1alpha1.ServerShare{User: "carol", Access: v1alpha1.ShareControl})
+	bob := h.login("bob")
+	bobToken, _ := h.createToken(bob, "ci")
+
+	code, body := h.do("PATCH", "/api/users/alice", admin, map[string]bool{"disabled": true})
+	expect(t, "disable the owner", code, 200, body)
+	stored := &v1alpha1.User{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: "bob"}, stored)
+	stored.Finalizers = []string{"kubedactyl.io/test"}
+	_ = h.client.Update(t.Context(), stored)
+	if err := h.client.Delete(t.Context(), stored); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct{ label, token string }{
+		{"session of a subuser of a disabled owner", carol},
+		{"session of an account being deleted", bob},
+		{"API token of an account being deleted", bobToken},
+	} {
+		code, body := h.do("GET", "/api/auth/me", tc.token, nil)
+		expect(t, tc.label, code, 401, body)
+	}
+	for _, user := range []string{"carol", "bob"} {
+		creds := map[string]string{"username": user, "password": user + "-password"}
+		code, body := h.do("POST", "/api/auth/login", "", creds)
+		expect(t, "sign-in of "+user, code, 401, body)
+	}
+	console := &consoleSession{api: h.api, token: carol, namespace: tenancy.Namespace("alice"), server: "alice-srv"}
+	if _, _, level := console.authorize(t.Context()); level != accessNone {
+		t.Errorf("console of a subuser of a disabled owner: access %d", level)
+	}
+	code, body = h.do("PATCH", "/api/users/alice", admin, map[string]bool{"disabled": false})
+	expect(t, "enable the owner", code, 200, body)
+	code, body = h.do("GET", "/api/auth/me", h.loginWith("carol", "carol-password"), nil)
+	expect(t, "subuser of an enabled owner", code, 200, body)
 }
 
 func TestAPITokens(t *testing.T) {
@@ -890,15 +1015,36 @@ func TestSetup(t *testing.T) {
 	expect(t, "second setup", code, 409, body)
 }
 
+// TestSetupIsThrottled: failed setups count per client before the administrators are counted (uncached), and the
+// refusal says when to try again.
+func TestSetupIsThrottled(t *testing.T) {
+	h := newHarness(t)
+	admin := &v1alpha1.User{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: "admin"}, admin)
+	_ = h.client.Delete(t.Context(), admin)
+	setup := map[string]string{"username": "root", "password": "root-password", "token": "wrong"}
+	for range 5 {
+		code, body := h.do("POST", "/api/setup", "", setup)
+		expect(t, "setup with a wrong token", code, 403, body)
+	}
+	h.api.Users.Reader = unreachableReader{h.api.Users.Reader}
+	w := h.send("POST", "/api/setup", "", setup)
+	if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("throttled setup: %d, Retry-After %q (%s)", w.Code, w.Header().Get("Retry-After"), w.Body)
+	}
+}
+
 func TestCrossSiteCookieRequests(t *testing.T) {
 	h := newHarness(t)
 	token := h.login("alice")
-	send := func(method, site string, bearer bool) int {
+	// send uses the bearer token of an "Authorization: Bearer" header, otherwise the session cookie.
+	send := func(method, site, authorization string) int {
 		req := httptest.NewRequest(method, "/api/servers/alice-srv", strings.NewReader(`{"displayName":"x"}`))
 		req.Header.Set("Content-Type", "application/json")
-		if bearer {
-			req.Header.Set("Authorization", "Bearer "+token)
-		} else {
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		if !strings.HasPrefix(authorization, "Bearer ") {
 			req.AddCookie(&http.Cookie{Name: SessionCookie, Value: token})
 		}
 		if site != "" {
@@ -908,20 +1054,19 @@ func TestCrossSiteCookieRequests(t *testing.T) {
 		h.router.ServeHTTP(w, req)
 		return w.Code
 	}
-	if code := send("PATCH", "cross-site", false); code != 403 {
-		t.Errorf("cross-site PATCH with cookie: %d, want 403", code)
+	cases := []struct {
+		label, method, site, authorization string
+		want                               int
+	}{
+		{"cross-site PATCH with cookie", "PATCH", "cross-site", "", 403},
+		{"same-site (other subdomain) PATCH with cookie", "PATCH", "same-site", "", 403},
+		{"same-origin PATCH with cookie", "PATCH", "same-origin", "", 200},
+		{"cross-site GET (e.g. a link)", "GET", "cross-site", "", 200},
+		{"cross-site PATCH with an API token", "PATCH", "cross-site", "Bearer " + token, 200},
+		{"cross-site PATCH with cookie and another scheme", "PATCH", "cross-site", "Basic YTpi", 403},
 	}
-	if code := send("PATCH", "same-site", false); code != 403 {
-		t.Errorf("same-site (other subdomain) PATCH with cookie: %d, want 403", code)
-	}
-	if code := send("PATCH", "same-origin", false); code != 200 {
-		t.Errorf("same-origin PATCH with cookie: %d, want 200", code)
-	}
-	if code := send("GET", "cross-site", false); code != 200 {
-		t.Errorf("cross-site GET (e.g. a link) must work: %d", code)
-	}
-	if code := send("PATCH", "cross-site", true); code != 200 {
-		t.Errorf("API token requests are not affected: %d", code)
+	for _, tc := range cases {
+		expect(t, tc.label, send(tc.method, tc.site, tc.authorization), tc.want, "")
 	}
 }
 
@@ -939,10 +1084,30 @@ func TestDenylistFromPanelNamespace(t *testing.T) {
 	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("GET", "/", nil)
-	api := &API{Eggs: &eggstore.Store{Client: h.client, Reader: h.client, Namespace: sysNS}}
-	if got := api.denylist(c, gs); len(got) != 1 || got[0] != "server.jar" {
-		t.Errorf("denylist = %v", got)
+	api := &API{Eggs: &eggstore.Store{Client: h.client, Reader: h.client, Namespace: sysNS}, Log: testutil.Logger()}
+	if got, ok := api.denylist(c, gs); !ok || len(got) != 1 || got[0] != "server.jar" {
+		t.Errorf("denylist = %v, %v", got, ok)
 	}
+	// A server whose egg is gone has no denylist; any other failure answers the request.
+	gone := gs.DeepCopy()
+	gone.Spec.EggRef = "gone"
+	if got, ok := api.denylist(c, gone); !ok || got != nil {
+		t.Errorf("denylist of a deleted egg = %v, %v", got, ok)
+	}
+	api.Eggs = &eggstore.Store{Client: failingClient{h.client}, Reader: failingClient{h.client}, Namespace: sysNS}
+	rec := httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest("GET", "/", nil)
+	if _, ok := api.denylist(c, gs); ok || rec.Code != 500 {
+		t.Errorf("a failed egg read must fail the request: ok=%v code=%d", ok, rec.Code)
+	}
+}
+
+// failingClient fails every read with an error other than "not found".
+type failingClient struct{ client.Client }
+
+func (failingClient) Get(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error {
+	return errors.New("api server unavailable")
 }
 
 func TestLogoutEverywhereAndNotice(t *testing.T) {
@@ -1209,7 +1374,7 @@ func TestConsoleChecksCredentialsAgain(t *testing.T) {
 	alice := h.login("alice")
 	allowed := func(token, owner, server string) bool {
 		s := &consoleSession{api: h.api, token: token, namespace: tenancy.Namespace(owner), server: server}
-		_, level := s.authorize(ctx)
+		_, _, level := s.authorize(ctx)
 		return level != accessNone
 	}
 	if !allowed(alice, "alice", "alice-srv") {
@@ -1217,6 +1382,10 @@ func TestConsoleChecksCredentialsAgain(t *testing.T) {
 	}
 	if allowed(alice, "bob", "bob-srv") {
 		t.Error("a console of another user's server")
+	}
+	foreign := &consoleSession{api: h.api, token: h.login("admin"), namespace: "other-user-eve", server: "foreign-srv"}
+	if _, _, level := foreign.authorize(ctx); level != accessNone {
+		t.Error("a console of a server of another installation")
 	}
 	h.do("POST", "/api/auth/logout", alice, nil)
 	if allowed(alice, "alice", "alice-srv") {
@@ -1230,4 +1399,108 @@ func TestConsoleChecksCredentialsAgain(t *testing.T) {
 	if allowed(bob, "bob", "bob-srv") {
 		t.Error("an open console must end when the account is disabled")
 	}
+}
+
+// TestUsersReadOnlyTheirSettings: users get the settings the web UI shows them, never the identity provider, the
+// egg libraries, the storage classes or the limits of the panel.
+func TestUsersReadOnlyTheirSettings(t *testing.T) {
+	h := newHarness(t)
+	panel := &v1alpha1.PanelSettings{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: sysNS, Name: v1alpha1.SettingsName}, panel)
+	panel.Spec.OIDC = v1alpha1.OIDCSettings{Enabled: true, IssuerURL: "https://idp.example.com", AdminGroup: "admins"}
+	panel.Spec.EggLibraries = []string{"https://github.com/example/eggs"}
+	panel.Spec.ServerNotice = "Maintenance"
+	if err := h.client.Update(t.Context(), panel); err != nil {
+		t.Fatal(err)
+	}
+	h.api.Settings.Forget()
+	adminOnly := []string{"idp.example.com", `"admins"`, "example/eggs", "storageClasses", "kubeApiQps", "sessionHours"}
+	userFields := []string{
+		`"externalDomain":"play.example.com"`, `"other-pool"`, `"defaultLoadBalancerPool":"general-pool"`,
+		`"serverNotice":"Maintenance"`, `"apiTokenMaxDays":90`, `"subusersPerUser":10`,
+	}
+	cases := []struct {
+		user          string
+		shown, hidden []string
+	}{
+		{"alice", userFields, adminOnly},
+		{"admin", append(userFields, adminOnly...), nil},
+	}
+	for _, c := range cases {
+		code, body := h.do("GET", "/api/settings", h.login(c.user), nil)
+		expect(t, c.user, code, 200, body)
+		for _, s := range c.shown {
+			if !strings.Contains(body, s) {
+				t.Errorf("%s does not get %s: %s", c.user, s, body)
+			}
+		}
+		for _, s := range c.hidden {
+			if strings.Contains(body, s) {
+				t.Errorf("%s gets %s: %s", c.user, s, body)
+			}
+		}
+	}
+}
+
+// TestOpenConsoleFollowsTheLock: an open console refuses power actions and commands once the server is locked
+// for the caller, like the REST routes.
+func TestOpenConsoleFollowsTheLock(t *testing.T) {
+	suspend := func(gs *v1alpha1.GameServer) { gs.Spec.Suspended = true }
+	migrate := func(gs *v1alpha1.GameServer) { gs.Spec.StorageClass, gs.Status.StorageClass = "longhorn", "old" }
+	cases := []struct {
+		label, user string
+		lock        func(*v1alpha1.GameServer)
+		// reply is the daemon message; empty: the stop is sent.
+		reply string
+	}{
+		{"owner, suspended", "alice", suspend, serverctl.ErrSuspended.Error()},
+		{"admin, suspended", "admin", suspend, ""},
+		{"admin, migrating", "admin", migrate, serverctl.ErrMigrating.Error()},
+	}
+	for _, c := range cases {
+		h := newHarness(t)
+		conn := h.openConsole(h.login(c.user), "alice-srv")
+		key := client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}
+		gs := &v1alpha1.GameServer{}
+		_ = h.client.Get(t.Context(), key, gs)
+		gs.Spec.State = v1alpha1.PowerRunning
+		c.lock(gs)
+		status := gs.Status
+		_ = h.client.Update(t.Context(), gs)
+		gs.Status = status
+		_ = h.client.Status().Update(t.Context(), gs)
+
+		stop := console.Event{Event: "set state", Args: []string{"stop"}}
+		if err := wsjson.Write(t.Context(), conn, stop); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+		var reply console.Event
+		_ = wsjson.Read(ctx, conn, &reply)
+		cancel()
+		_ = h.client.Get(t.Context(), key, gs)
+		stopped := gs.Spec.State == v1alpha1.PowerStopped
+		if got := strings.Join(reply.Args, ""); got != c.reply || stopped != (c.reply == "") {
+			t.Errorf("%s: reply %q, stopped %v", c.label, got, stopped)
+		}
+	}
+}
+
+// openConsole opens the console websocket of a server and reads the first status event.
+func (h *harness) openConsole(token, server string) *websocket.Conn {
+	h.t.Helper()
+	srv := httptest.NewServer(h.router)
+	h.t.Cleanup(srv.Close)
+	header := http.Header{"Authorization": {"Bearer " + token}}
+	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/servers/" + server + "/ws"
+	conn, _, err := websocket.Dial(h.t.Context(), url, &websocket.DialOptions{HTTPHeader: header})
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	h.t.Cleanup(func() { _ = conn.CloseNow() })
+	var ev console.Event
+	if err := wsjson.Read(h.t.Context(), conn, &ev); err != nil || ev.Event != console.EventStatus {
+		h.t.Fatalf("console start: %v %+v", err, ev)
+	}
+	return conn
 }

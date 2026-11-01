@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { api, setUnauthorizedHandler } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
 import { useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
-import type { CreatedToken, LoginResponse, TokenView } from "@/lib/types"
+import type { CreatedToken, LoginResponse, SetupRequest, TokenView } from "@/lib/types"
 
 /** Whether the panel still needs its first administrator (public endpoint). */
 export const useSetupStatus = (enabled = true) =>
@@ -18,7 +18,7 @@ export const useOIDCSignIn = () =>
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: api.auth.getMe, retry: false, staleTime: 30_000 })
 
 /** Creates the first administrator and signs them in. */
-export const useRunSetup = (cb?: MutationCallbacks<LoginResponse, Parameters<typeof api.setup.run>[0]>) =>
+export const useRunSetup = (cb?: MutationCallbacks<LoginResponse, SetupRequest>) =>
   useApiMutation(
     api.setup.run,
     (qc, res) => {

@@ -106,8 +106,13 @@ func TestInvalidInvites(t *testing.T) {
 	expect(t, "revoke", code, 204, body)
 	code, body = h.do("GET", "/api/auth/invite?token="+url.QueryEscape(revoked.Token), "", nil)
 	expect(t, "revoked", code, 404, body)
-	code, body = h.do("GET", "/api/auth/invite?token="+url.QueryEscape(h.invite(admin, nil).Token), "", nil)
-	expect(t, "five failures from one client", code, 429, body)
+	w := h.send("GET", "/api/auth/invite?token="+url.QueryEscape(h.invite(admin, nil).Token), "", nil)
+	expect(t, "five failures from one client", w.Code, 429, w.Body.String())
+	if w.Header().Get("Retry-After") == "" {
+		t.Error("a throttled link check must say when to try again")
+	}
+	code, body = h.do("POST", "/api/invites", admin, map[string]string{"note": strings.Repeat("x", 201)})
+	expect(t, "note over 200 characters", code, 400, body)
 }
 
 func TestMustChangePassword(t *testing.T) {

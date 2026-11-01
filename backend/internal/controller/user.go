@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -26,21 +27,27 @@ const UserFinalizer = "kubedactyl.io/user-cleanup"
 // UserReconciler provisions the namespace of every user and cleans it up on deletion.
 type UserReconciler struct {
 	client.Client
+	// Reader reads directly from the API server (no cache): the user, its servers and namespace,
+	// and the settings.
 	Reader client.Reader
-	Log    *slog.Logger
+	// Namespace is the panel namespace (users, settings).
+	Namespace string
+	Log       *slog.Logger
 }
 
 // SetupWithManager registers the controller.
 func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).For(&v1alpha1.User{}).Named("user").
-		Watches(&v1alpha1.PanelSettings{}, handler.EnqueueRequestsFromMapFunc(r.usersForSettings)).
+		// Of the settings only the private network switch changes the user namespaces.
+		Watches(&v1alpha1.PanelSettings{}, handler.EnqueueRequestsFromMapFunc(r.usersForSettings),
+			builder.WithPredicates(r.privateNetworksChanged())).
 		Complete(r)
 }
 
 // Reconcile gives a user a namespace with the panel's role binding and the network policy, and
 // removes the user's servers and namespace when the user is deleted.
 func (r *UserReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	if req.Namespace != tenancy.SystemNamespace {
+	if req.Namespace != r.Namespace {
 		return reconcile.Result{}, nil // user of another installation
 	}
 	user := &v1alpha1.User{}
@@ -48,7 +55,7 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	if users.Subuser(user) {
-		return reconcile.Result{}, r.reconcileSubuser(ctx, user)
+		return r.reconcileSubuser(ctx, user)
 	}
 	ns := tenancy.Namespace(user.Name)
 
@@ -97,7 +104,8 @@ func (r *UserReconciler) cleanup(ctx context.Context, user *v1alpha1.User, ns st
 		return reconcile.Result{RequeueAfter: 3 * time.Second}, nil
 	}
 	namespace := &corev1.Namespace{}
-	err := r.Get(ctx, client.ObjectKey{Name: ns}, namespace)
+	// Uncached: the owner label decides whether the namespace may be deleted.
+	err := r.Reader.Get(ctx, client.ObjectKey{Name: ns}, namespace)
 	switch {
 	case apierrors.IsNotFound(err):
 	case err != nil:
@@ -116,19 +124,19 @@ func (r *UserReconciler) cleanup(ctx context.Context, user *v1alpha1.User, ns st
 
 // reconcileSubuser gives a subuser no namespace. When it is deleted, its shares on the owner's servers go with
 // it, so a later account with the same name gets none of them.
-func (r *UserReconciler) reconcileSubuser(ctx context.Context, user *v1alpha1.User) error {
+func (r *UserReconciler) reconcileSubuser(ctx context.Context, user *v1alpha1.User) (reconcile.Result, error) {
 	if user.DeletionTimestamp.IsZero() {
 		if controllerutil.AddFinalizer(user, UserFinalizer) {
-			return r.Update(ctx, user)
+			return reconcile.Result{}, r.Update(ctx, user)
 		}
-		return nil
+		return reconcile.Result{}, nil
 	}
 	if !controllerutil.ContainsFinalizer(user, UserFinalizer) {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	var servers v1alpha1.GameServerList
 	if err := r.Reader.List(ctx, &servers, client.InNamespace(users.Home(user))); err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	for i := range servers.Items {
 		gs := &servers.Items[i]
@@ -138,12 +146,17 @@ func (r *UserReconciler) reconcileSubuser(ctx context.Context, user *v1alpha1.Us
 		if len(shares) == len(gs.Spec.SharedWith) {
 			continue
 		}
-		patch := client.MergeFrom(gs.DeepCopy())
+		// Optimistic lock: a share added meanwhile must not be lost.
+		patch := client.MergeFromWithOptions(gs.DeepCopy(), client.MergeFromWithOptimisticLock{})
 		gs.Spec.SharedWith = shares
-		if err := r.Patch(ctx, gs, patch); client.IgnoreNotFound(err) != nil {
-			return err
+		err := r.Patch(ctx, gs, patch)
+		if apierrors.IsConflict(err) {
+			return reconcile.Result{RequeueAfter: time.Second}, nil
+		}
+		if client.IgnoreNotFound(err) != nil {
+			return reconcile.Result{}, err
 		}
 	}
 	controllerutil.RemoveFinalizer(user, UserFinalizer)
-	return r.Update(ctx, user)
+	return reconcile.Result{}, r.Update(ctx, user)
 }

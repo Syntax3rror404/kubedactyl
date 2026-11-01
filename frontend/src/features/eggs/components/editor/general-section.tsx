@@ -93,7 +93,7 @@ export function GeneralSection({
           File names or patterns the file manager hides from users (egg file_denylist).
         </FieldDescription>
       </Field>
-      <Field data-invalid={!!errors["source"]}>
+      <Field>
         <FieldLabel htmlFor="egg-update-url">Update URL</FieldLabel>
         <Input
           id="egg-update-url"

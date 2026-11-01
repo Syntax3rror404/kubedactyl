@@ -9,10 +9,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/internal/auth"
+	"app/internal/users"
 )
 
 // createToken creates an API token with a session and returns its value and ID.
@@ -184,5 +187,40 @@ func TestAuditLog(t *testing.T) {
 	}
 	if strings.Contains(log, "secret-new-password") {
 		t.Error("the audit log contains a password")
+	}
+}
+
+func TestAPITokenLimits(t *testing.T) {
+	h := newHarness(t)
+	alice := h.login("alice")
+	code, body := h.do("POST", "/api/auth/tokens", alice,
+		map[string]any{"name": strings.Repeat("x", 65), "expiresInDays": 30})
+	expect(t, "name over 64 characters", code, 400, body)
+	for i := range users.MaxTokens {
+		h.createToken(alice, fmt.Sprintf("ci-%d", i))
+	}
+	code, body = h.do("POST", "/api/auth/tokens", alice, map[string]any{"name": "one-more", "expiresInDays": 30})
+	expect(t, "token over the limit", code, 409, body)
+}
+
+// TestLogoutsAreBounded: a user who keeps more logged out sessions than the panel remembers is signed out
+// everywhere instead.
+func TestLogoutsAreBounded(t *testing.T) {
+	h := newHarness(t)
+	alice := h.login("alice")
+	expires := time.Now().Add(time.Hour).Unix()
+	for i := range 100 {
+		token, _ := h.api.Signer.Sign(auth.Session{User: "alice", ExpiresAt: expires})
+		code, body := h.do("POST", "/api/auth/logout", token, nil)
+		expect(t, fmt.Sprintf("logout %d", i), code, 204, body)
+	}
+	code, body := h.do("GET", "/api/auth/me", alice, nil)
+	expect(t, "other session while the logouts are kept", code, 200, body)
+	token, _ := h.api.Signer.Sign(auth.Session{User: "alice", ExpiresAt: expires})
+	code, body = h.do("POST", "/api/auth/logout", token, nil)
+	expect(t, "one logout more", code, 204, body)
+	for label, token := range map[string]string{"the logged out session": token, "the other session": alice} {
+		code, body := h.do("GET", "/api/auth/me", token, nil)
+		expect(t, label, code, 401, body)
 	}
 }

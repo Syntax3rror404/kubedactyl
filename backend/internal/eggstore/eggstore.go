@@ -21,9 +21,6 @@ import (
 	"app/internal/tenancy"
 )
 
-// MaxSize is the largest egg file that is accepted.
-const MaxSize = 4 << 20
-
 // Errors of egg operations.
 var (
 	// ErrInvalid wraps parse errors of egg files.
@@ -41,6 +38,9 @@ var (
 	// ErrTooLarge is returned for egg files larger than MaxSize.
 	ErrTooLarge = fmt.Errorf("the egg file is larger than %d MiB", MaxSize>>20)
 )
+
+// MaxSize is the largest egg file that is accepted.
+const MaxSize = 4 << 20
 
 // Store reads and writes eggs.
 type Store struct {
@@ -129,11 +129,16 @@ func (s *Store) Update(ctx context.Context, name string, spec *v1alpha1.EggSpec)
 	if err := s.Client.Update(ctx, cur); err != nil {
 		return nil, err
 	}
-	if !src.AutoUpdate && cur.Status != (v1alpha1.EggStatus{}) {
-		cur.Status = v1alpha1.EggStatus{}
-		return cur, s.Client.Status().Update(ctx, cur)
+	return cur, s.clearStatus(ctx, cur)
+}
+
+// clearStatus removes the results of auto updates from an egg that no longer updates itself.
+func (s *Store) clearStatus(ctx context.Context, e *v1alpha1.Egg) error {
+	if e.Spec.Source.AutoUpdate || e.Status == (v1alpha1.EggStatus{}) {
+		return nil
 	}
-	return cur, nil
+	e.Status = v1alpha1.EggStatus{}
+	return s.Client.Status().Update(ctx, e)
 }
 
 // Import parses an egg file and stores it; an egg with the same name is replaced. source is
@@ -143,9 +148,9 @@ func (s *Store) Update(ctx context.Context, name string, spec *v1alpha1.EggSpec)
 func (s *Store) Import(
 	ctx context.Context, data []byte, source string, autoUpdate bool,
 ) (e *v1alpha1.Egg, created bool, err error) {
-	spec, err := egg.Parse(data)
+	spec, err := Parse(data)
 	if err != nil {
-		return nil, false, invalid{err}
+		return nil, false, err
 	}
 	spec.Source.ImportedFrom = source
 	spec.Source.ImportedAt = metav1.Now()
@@ -171,7 +176,10 @@ func (s *Store) Import(
 	}
 	spec.Source.AutoUpdate = (autoUpdate || cur.Spec.Source.AutoUpdate) && spec.Source.UpdateURL != ""
 	cur.Spec = *spec
-	return cur, false, s.Client.Update(ctx, cur)
+	if err := s.Client.Update(ctx, cur); err != nil {
+		return nil, false, err
+	}
+	return cur, false, s.clearStatus(ctx, cur)
 }
 
 // UpdateFromURL downloads the egg from its update URL and replaces all fields, including
@@ -200,9 +208,9 @@ func fetchUpdate(ctx context.Context, cur *v1alpha1.Egg) (*v1alpha1.EggSpec, err
 	if err != nil {
 		return nil, err
 	}
-	spec, err := egg.Parse(data)
+	spec, err := Parse(data)
 	if err != nil {
-		return nil, invalid{err}
+		return nil, err
 	}
 	spec.Source.ImportedFrom, spec.Source.ImportedAt = raw, metav1.Now()
 	spec.Source.UUID = egg.UUIDFor(cur.Name, &cur.Spec)
@@ -250,7 +258,11 @@ func Download(ctx context.Context, raw string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: %s", ErrDownload, resp.Status)
 	}
-	return ReadFile(resp.Body)
+	data, err := ReadFile(resp.Body)
+	if err != nil && !errors.Is(err, ErrTooLarge) {
+		return nil, fmt.Errorf("%w: %w", ErrDownload, err)
+	}
+	return data, err
 }
 
 // ReadFile reads an egg file of at most MaxSize bytes; a larger one is ErrTooLarge instead of cut off.
@@ -260,6 +272,15 @@ func ReadFile(r io.Reader) ([]byte, error) {
 		return nil, ErrTooLarge
 	}
 	return data, err
+}
+
+// Parse parses an egg file (egg.Parse); its errors are ErrInvalid with the parser's message.
+func Parse(data []byte) (*v1alpha1.EggSpec, error) {
+	spec, err := egg.Parse(data)
+	if err != nil {
+		return nil, invalid{err}
+	}
+	return spec, nil
 }
 
 // invalid marks a parse error as ErrInvalid and keeps its message.

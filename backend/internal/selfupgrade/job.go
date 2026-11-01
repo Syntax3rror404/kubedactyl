@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -33,7 +33,7 @@ const (
 var ErrRunning = errors.New("an upgrade is already running")
 
 // KeepJobs is how many upgrade jobs (with their pods) stay as history; older finished ones
-// are deleted after every upgrade and once an hour.
+// are deleted after every upgrade and once an hour (Prune).
 const KeepJobs = 3
 
 // Job states.
@@ -63,10 +63,14 @@ type Upgrader struct {
 	// Reader reads the jobs uncached (their state changes while the page polls).
 	Reader client.Reader
 	Kube   *kube.Client
+
+	starting sync.Mutex // one Start at a time, so two requests cannot both find no running job
 }
 
 // Start creates the job that upgrades the release to version.
 func (u *Upgrader) Start(ctx context.Context, version string) (*Job, error) {
+	u.starting.Lock()
+	defer u.starting.Unlock()
 	jobs, err := u.Jobs(ctx, false)
 	if err != nil {
 		return nil, err
@@ -90,7 +94,6 @@ func (u *Upgrader) Prune(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sort.Slice(jobs, func(a, b int) bool { return jobs[a].CreationTimestamp.After(jobs[b].CreationTimestamp.Time) })
 	for i := KeepJobs; i < len(jobs); i++ {
 		if jobOf(&jobs[i]).State == JobRunning {
 			continue
@@ -135,16 +138,18 @@ func (u *Upgrader) Jobs(ctx context.Context, withLog bool) ([]Job, error) {
 		}
 		out = append(out, j)
 	}
-	sort.Slice(out, func(a, b int) bool { return out[a].StartedAt.After(out[b].StartedAt) })
 	return out, nil
 }
 
-// listJobs reads the upgrade jobs uncached.
+// listJobs reads the upgrade jobs uncached, newest first.
 func (u *Upgrader) listJobs(ctx context.Context) ([]batchv1.Job, error) {
 	var list batchv1.JobList
 	err := u.Reader.List(
 		ctx, &list, client.InNamespace(u.Config.Namespace), client.MatchingLabels{labelComponent: componentValue},
 	)
+	slices.SortFunc(list.Items, func(a, b batchv1.Job) int {
+		return b.CreationTimestamp.Compare(a.CreationTimestamp.Time)
+	})
 	return list.Items, err
 }
 
@@ -220,9 +225,8 @@ func JobFor(c Config, version string) *batchv1.Job {
 			Annotations: map[string]string{annotationFrom: c.Current},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit:            ptr.To[int32](0),
-			ActiveDeadlineSeconds:   ptr.To[int64](600),
-			TTLSecondsAfterFinished: ptr.To[int32](24 * 3600),
+			BackoffLimit:          ptr.To[int32](0),
+			ActiveDeadlineSeconds: ptr.To[int64](600),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{

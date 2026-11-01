@@ -40,7 +40,11 @@ func (r *Reconciler) ensurePVC(ctx context.Context, gs *v1alpha1.GameServer) err
 	if wantSize.Cmp(curSize) > 0 {
 		patch := client.MergeFrom(cur.DeepCopy())
 		cur.Spec.Resources.Requests[corev1.ResourceStorage] = wantSize
-		return r.Patch(ctx, cur, patch)
+		// A rejected resize (e.g. a storage class without volume expansion) must not stop the server;
+		// the next reconcile tries again.
+		if err := r.Patch(ctx, cur, patch); err != nil {
+			r.Log.Warn("growing the volume failed", "server", gs.Name, "size", wantSize.String(), "err", err)
+		}
 	}
 	return nil
 }
@@ -175,6 +179,13 @@ func containerState(pod *corev1.Pod) (corev1.ContainerState, bool) {
 		}
 	}
 	return corev1.ContainerState{}, false
+}
+
+// containerStarted reports whether the main container runs or ran (it is not waiting for its image,
+// its node or its volume).
+func containerStarted(pod *corev1.Pod) bool {
+	st, ok := containerState(pod)
+	return ok && (st.Running != nil || st.Terminated != nil)
 }
 
 // terminated reports whether the main container has exited and its exit code.

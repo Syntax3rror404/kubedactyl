@@ -2,11 +2,13 @@ package clusterinfo
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"app/api/v1alpha1"
@@ -48,12 +50,28 @@ type healthInputs struct {
 
 // Health checks the dependencies of the panel (cached for 30 seconds).
 func (s *Service) Health(ctx context.Context) *Health {
-	h, _ := s.caches().healthCache.Get(struct{}{}, func() (*Health, error) {
-		h := &Health{Checks: evaluate(s.gatherHealth(ctx)), CheckedAt: time.Now()}
+	h, _ := s.caches().healthCache.Get(ctx, struct{}{}, func(ctx context.Context) (*Health, error) {
+		in := s.gatherHealth(ctx)
+		h := &Health{Checks: evaluate(in), CheckedAt: time.Now()}
 		h.Status = checks.Worst(h.Checks)
-		return h, nil
+		return h, in.readErr()
 	})
 	return h
+}
+
+// readErr joins the reads that failed: such a result is shown, but checked again on the next request. A missing
+// object is an answer, and so is the identity provider's (failed discoveries are kept by package sso).
+func (in healthInputs) readErr() error {
+	var errs []error
+	for _, err := range []error{in.crdErr, in.nodesErr, in.settingsErr, in.storageErr, in.poolsErr, in.policyErr} {
+		if err != nil && !apierrors.IsNotFound(err) {
+			errs = append(errs, err)
+		}
+	}
+	if slices.ContainsFunc(in.permissions, func(p Permission) bool { return p.unknown }) {
+		errs = append(errs, errUnsure)
+	}
+	return errors.Join(errs...)
 }
 
 // ForgetHealth makes the next Health check again, after a change the checks depend on (the settings).

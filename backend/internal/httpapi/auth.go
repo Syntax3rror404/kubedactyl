@@ -53,13 +53,13 @@ var (
 // crossSiteCookieRequest detects state changing requests that another site triggered
 // with the session cookie (CSRF). The SameSite=Strict cookie already prevents this in
 // current browsers; Sec-Fetch-Site is a second, proxy independent check. Requests with
-// an Authorization header (API tokens, scripts) are not affected.
+// a bearer token (API tokens, scripts) are not affected: they do not use the cookie.
 func crossSiteCookieRequest(c *gin.Context) bool {
 	switch c.Request.Method {
 	case http.MethodGet, http.MethodHead, http.MethodOptions:
 		return false
 	}
-	if c.GetHeader("Authorization") != "" {
+	if strings.HasPrefix(c.GetHeader("Authorization"), "Bearer ") {
 		return false
 	}
 	site := c.GetHeader("Sec-Fetch-Site")
@@ -124,6 +124,18 @@ func retryAfter(c *gin.Context, wait time.Duration) {
 	c.Header("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
 }
 
+// takeClientAttempt counts an attempt of the client at a public route under kind ("setup", "invite", "oidc")
+// before it runs, like a sign-in: the caller forgives it (Limiter.Forgive with the key and now) unless it
+// failed. A refusal sets Retry-After and returns the error to answer with.
+func (a *API) takeClientAttempt(c *gin.Context, kind string, now time.Time) (string, error) {
+	key := kind + "|" + c.ClientIP()
+	if ok, wait := a.Limiter.Take(key, now); !ok {
+		retryAfter(c, wait)
+		return key, tooManyRequests(errTooManyAttempts)
+	}
+	return key, nil
+}
+
 // admit counts one request of the user (also every message of an open console) and refuses it over the
 // user's limit or, for non-administrators, while the panel is busy.
 func (a *API) admit(p *Principal) (time.Duration, error) {
@@ -138,13 +150,13 @@ func (a *API) admit(p *Principal) (time.Duration, error) {
 	return a.KubeLimiter.Admit(p.User.Name)
 }
 
-// principalFor resolves a session or API token of an enabled user.
+// principalFor resolves a session or API token of an active user (users.Store.CheckActive).
 func (a *API) principalFor(ctx context.Context, token string) (*Principal, error) {
 	user, tokenID, err := a.resolveToken(ctx, token)
 	if err != nil {
 		return nil, err
 	}
-	if user.Spec.Disabled {
+	if err := a.Users.CheckActive(ctx, user); err != nil {
 		return nil, auth.ErrInvalidToken
 	}
 	p := &Principal{User: user, TokenID: tokenID}
@@ -237,17 +249,4 @@ func (a *API) requireOwnPassword(c *gin.Context) {
 		return
 	}
 	c.Next()
-}
-
-// getMe godoc
-//
-//	@Summary	Current user
-//	@Tags		Auth
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{object}	UserView
-//	@Failure	401	{object}	ErrorResponse
-//	@Router		/auth/me [get]
-func (a *API) getMe(c *gin.Context) {
-	c.JSON(http.StatusOK, a.userView(c, principal(c).User))
 }

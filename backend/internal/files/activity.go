@@ -21,17 +21,17 @@ type Activity struct {
 func NewActivity() *Activity { return &Activity{last: map[Ref]time.Time{}} }
 
 // Touch marks the files of a server as used now.
-func (a *Activity) Touch(server Ref) {
+func (a *Activity) Touch(ref Ref) {
 	a.mu.Lock()
-	a.last[server] = time.Now()
+	a.last[ref] = time.Now()
 	a.mu.Unlock()
 }
 
 // Last returns when the files of a server were last used (zero: not since the panel started).
-func (a *Activity) Last(server Ref) time.Time {
+func (a *Activity) Last(ref Ref) time.Time {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.last[server]
+	return a.last[ref]
 }
 
 // StopsAt is when an unused files pod is removed: IdleTimeout after the last file operation,
@@ -54,15 +54,15 @@ func ReadySince(pod *corev1.Pod) time.Time {
 }
 
 // Active reports whether the files were used within IdleTimeout.
-func (a *Activity) Active(server Ref) bool {
+func (a *Activity) Active(ref Ref) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return time.Since(a.last[server]) < IdleTimeout
+	return time.Since(a.last[ref]) < IdleTimeout
 }
 
 // Forget drops a server (after its files pod was removed).
-func (a *Activity) Forget(server Ref) {
+func (a *Activity) Forget(ref Ref) {
 	a.mu.Lock()
-	delete(a.last, server)
+	delete(a.last, ref)
 	a.mu.Unlock()
 }

@@ -1,14 +1,8 @@
 import { CopyButton } from "@/components/common/copy-button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { describeStop } from "@/features/eggs/lib/describe"
 import type { EggSpec } from "@/lib/types"
-
-function describeStop(stop?: string) {
-  if (!stop) return "Graceful container stop"
-  if (stop === "^C" || stop === "^SIGINT") return "Signal SIGINT (^C)"
-  if (stop.startsWith("^")) return stop === "^SIGTERM" ? "Signal SIGTERM" : `Signal ${stop} → SIGKILL`
-  return `Console command “${stop}”`
-}
 
 /** Marks the first entry of a list users pick from: new servers get it. */
 export function DefaultBadge() {

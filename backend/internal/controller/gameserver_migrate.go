@@ -78,12 +78,13 @@ func (r *Reconciler) migrate(ctx context.Context, gs *v1alpha1.GameServer) (reco
 			return reconcile.Result{RequeueAfter: time.Second}, err
 		}
 	}
-	if err := r.createOwned(ctx, gs, gameserver.MigrateClaim(gs, r.Opts)); err != nil {
-		return reconcile.Result{}, err
-	}
 	pod := &corev1.Pod{}
 	err := r.getChild(ctx, gs, gameserver.MigrateName(gs.Name), pod)
 	if apierrors.IsNotFound(err) {
+		// The new claim first: the copy pod mounts it.
+		if err := r.createOwned(ctx, gs, gameserver.MigrateClaim(gs, r.Opts)); err != nil {
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{RequeueAfter: migratePoll}, r.createOwned(ctx, gs, gameserver.MigratePod(gs, r.Opts))
 	}
 	if err != nil {

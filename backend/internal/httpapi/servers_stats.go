@@ -62,7 +62,7 @@ var errNoPodForDisk = errors.New("no pod mounts the volume")
 // diskUsage measures the server files in the file container or, while the server runs,
 // in the game container. Without either pod the last value stored in the status is used.
 func (a *API) diskUsage(ctx context.Context, gs *v1alpha1.GameServer) *int64 {
-	b, err := a.stats.disk.Get(files.RefOf(gs), func() (int64, error) {
+	b, err := a.stats.disk.Get(ctx, files.RefOf(gs), func(ctx context.Context) (int64, error) {
 		switch {
 		case a.Files.PodState(ctx, files.RefOf(gs)).Ready:
 			return gameserver.DiskUsage(ctx, a.Kube, gs.Namespace, gameserver.FilesPodName(gs.Name),
@@ -116,7 +116,7 @@ func (a *API) getServerStats(c *gin.Context) {
 // metrics-server; nil when metrics are not available (yet).
 func (a *API) gamePodUsage(ctx context.Context, gs *v1alpha1.GameServer) (cpuMillis, memoryBytes *int64) {
 	key := gs.Namespace + "/" + gs.Name + "/" + string(gs.Status.PodUID)
-	u, _ := a.stats.usage.Get(key, func() (podUsage, error) {
+	u, _ := a.stats.usage.Get(ctx, key, func(ctx context.Context) (podUsage, error) {
 		var u podUsage
 		raw, err := a.Kube.Clientset.CoreV1().RESTClient().Get().
 			AbsPath("/apis/metrics.k8s.io/v1beta1/namespaces", gs.Namespace, "pods", gameserver.GamePodName(gs.Name)).

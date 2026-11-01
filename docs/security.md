@@ -8,13 +8,14 @@ Measures for exposing the panel to the internet:
   `Secure` over HTTPS), API tokens stored as SHA-256, login throttling per client IP + username, per client
   IP across usernames and per username across clients (the throttle forgets expired entries and remembers at
   most 10 000 keys; usernames over 64 and passwords over 1024 characters are refused before they reach it).
-  The password of a disabled user is checked like any other, so the answer does not tell
-  disabled accounts apart. At most two
+  The password of a disabled user (also a subuser of a disabled owner or an account being deleted) is checked
+  like any other, so the answer does not tell disabled accounts apart. At most two
   password checks run at once (19 MiB each, OWASP's first Argon2id configuration, 2 iterations; older hashes with
   64 MiB are replaced at the next sign-in), so a burst of logins cannot exhaust the panel's memory. The last
   active administrator cannot be demoted, deactivated or deleted, also not by parallel requests.
 - **Single sign-on** (see [Single sign-on](oidc.md)): authorization code flow with PKCE S256, `state` and `nonce`
-  in a signed `__Host-` cookie (over HTTPS); the panel completes every flow once. The ID token is verified by
+  in a signed `__Host-` cookie (over HTTPS); the panel completes every flow once and remembers only verified
+  ones, and failed callbacks count against the client like failed sign-ins. The ID token is verified by
   go-oidc (signature, issuer, audience, expiry). The redirect URL comes from the settings, not from the request.
   Existing accounts are linked by username only while an administrator allows it, and linking ends their sessions
   and tokens; a linked account accepts only its IdP user (`sub`). The redirect after the sign-in stays inside the
@@ -31,14 +32,16 @@ Measures for exposing the panel to the internet:
   never expands `${…}` references in `.properties` files; console lines are cut at 4 KiB.
 - **Lifetimes:** sign-ins and API tokens expire (default 12 hours / 90 days, adjustable under *Settings*); the
   limits are checked on every request, also for sessions and tokens created before a change.
-- **Sessions:** logging out ends the session at once (in memory until it expires; "log out everywhere" also
-  survives restarts); open consoles check their credentials every 30 seconds and before every command and close
-  after a logout, a disabled account, a password change or a lost admin role.
+- **Sessions:** logging out ends the session at once (in memory until it expires, at most 100 per user: one more
+  logout signs the user out everywhere; "log out everywhere" also survives restarts); open consoles check their
+  credentials every 30 seconds and before every command and close after a logout, a disabled account (also the
+  owner of a subuser), a password change or a lost admin role.
 - **Client IP:** gin trusts only the proxies in `--trusted-proxies` (chart default `10.0.0.0/8`, the usual pod
   networks of an in-cluster gateway), so `X-Forwarded-For` cannot be spoofed to evade the throttle. Without it,
   all clients behind a proxy share the proxy IP and its login limit.
 - **CSRF:** SameSite=Strict plus a `Sec-Fetch-Site` check: state changing requests with the session
-  cookie from another site (also another subdomain) are rejected; API token requests are not affected.
+  cookie from another site (also another subdomain) are rejected; requests with `Authorization: Bearer` are not
+  affected.
   Sign-in and setup only take JSON and refuse other sites, so no page can sign a visitor into another account.
 - **Headers:** a strict Content-Security-Policy (`script-src 'self'`, no inline scripts; the theme
   script is `/theme-init.js`; inline styles are needed by xterm.js/CodeMirror), `frame-ancestors
@@ -51,7 +54,8 @@ Measures for exposing the panel to the internet:
   files are revalidated (`no-cache` + ETag: 304 while unchanged); text files are sent gzip compressed (compressed
   once at start). A missing asset is a 404; a tab of an older build reloads once to get the new one.
 - **Requests** are limited to 8 MiB (uploads stream and are not limited); websocket connections only
-  from the same origin (localhost ports only in dev mode).
+  from the same origin (localhost ports only in dev mode). A request that the client gives up ends its Kubernetes
+  calls; idle connections are closed after 2 minutes.
 - **No information leaks:** internal errors show details only to administrators; `/api/info` only
   returns name, version and mode; servers of other users answer 404.
 - **Network isolation** (panel setting, on by default): every user namespace gets the NetworkPolicy

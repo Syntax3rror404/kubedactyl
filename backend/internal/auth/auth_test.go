@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -162,7 +163,7 @@ func TestRevokedSessions(t *testing.T) {
 	now := time.Now()
 	a, _ := s.Sign(Session{User: "alice", ExpiresAt: now.Add(time.Hour).Unix()})
 	b, _ := s.Sign(Session{User: "alice", ExpiresAt: now.Add(time.Hour).Unix() + 1})
-	s.Revoke(a, now)
+	_, _ = s.Revoke(a, now)
 	if _, err := s.Verify(a, now); err == nil {
 		t.Error("a revoked token must be rejected")
 	}
@@ -170,14 +171,48 @@ func TestRevokedSessions(t *testing.T) {
 		t.Error("other tokens of the user stay valid")
 	}
 	c, _ := s.Sign(Session{User: "alice", ExpiresAt: now.Add(3 * time.Hour).Unix()})
-	s.Revoke(c, now.Add(2*time.Hour)) // a's entry has expired by then and is pruned
-	if len(s.revoked) != 1 {
-		t.Errorf("expired entries must be pruned: %d", len(s.revoked))
+	_, _ = s.Revoke(c, now.Add(2*time.Hour)) // a's entry has expired by then and is pruned
+	if len(s.revoked["alice"]) != 1 {
+		t.Errorf("expired entries must be pruned: %d", len(s.revoked["alice"]))
 	}
 	x, _ := s.Sign(Session{User: "alice", ExpiresAt: now.Add(time.Hour).Unix()})
 	y, _ := s.Sign(Session{User: "alice", ExpiresAt: now.Add(time.Hour).Unix()})
 	if x == y {
 		t.Error("two logins in the same second must get different tokens")
+	}
+}
+
+// TestRevokedSessionsAreBounded: a user keeps at most maxRevoked logged out tokens; expired ones are swept at most
+// once a minute and make room again.
+func TestRevokedSessionsAreBounded(t *testing.T) {
+	s, _ := NewSigner([]byte(strings.Repeat("k", 32)))
+	s.maxRevoked = 2
+	now := time.Now()
+	sign := func(user string, expires time.Time) string {
+		token, _ := s.Sign(Session{User: user, ExpiresAt: expires.Unix()})
+		return token
+	}
+	short := sign("alice", now.Add(30*time.Second))
+	cases := []struct {
+		label string
+		token string
+		at    time.Time
+		want  error
+	}{
+		{"first", short, now, nil},
+		{"second", sign("alice", now.Add(time.Hour)), now, nil},
+		{"over the limit", sign("alice", now.Add(time.Hour)), now, ErrTooManyRevoked},
+		{"another user", sign("bob", now.Add(time.Hour)), now, nil},
+		{"expired entry makes room", sign("alice", now.Add(time.Hour)), now.Add(40 * time.Second), nil},
+		{"invalid token", "garbage.token", now, ErrInvalidToken},
+	}
+	for _, tc := range cases {
+		if _, err := s.Revoke(tc.token, tc.at); !errors.Is(err, tc.want) {
+			t.Errorf("%s: %v, want %v", tc.label, err, tc.want)
+		}
+	}
+	if swept := s.swept; !swept.Equal(now) {
+		t.Errorf("swept again within a minute: %v", swept)
 	}
 }
 

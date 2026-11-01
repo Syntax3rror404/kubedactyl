@@ -86,6 +86,8 @@ type Permission struct {
 	Resource  string `json:"resource"            example:"pods/exec"`
 	Namespace string `json:"namespace,omitempty"`
 	Allowed   bool   `json:"allowed"`
+	// unknown is set when the API server did not answer the check (Allowed is false then).
+	unknown bool
 }
 
 // Identity is the connection summary of the panel.

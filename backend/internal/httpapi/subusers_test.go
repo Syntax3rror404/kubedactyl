@@ -50,11 +50,15 @@ func TestSubuserSeesOnlySharedServers(t *testing.T) {
 	expect(t, "share with a user who is no subuser", code, 422, body)
 	code, body = h.share(alice, v1alpha1.ServerShare{User: "carol"})
 	expect(t, "share", code, 200, body)
+	gs := &v1alpha1.GameServer{}
+	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
+	gs.Status.Schedules = []v1alpha1.ScheduleStatus{{Name: "nightly-restart", LastResult: "ok"}}
+	_ = h.client.Status().Update(t.Context(), gs)
 
 	code, body = h.do("GET", "/api/servers", carol, nil)
 	if code != 200 || !strings.Contains(body, "alice-srv") || strings.Contains(body, "bob-srv") ||
-		strings.Contains(body, `"VIS"`) {
-		t.Errorf("the shared server without its variables: %d %s", code, body)
+		strings.Contains(body, `"VIS"`) || strings.Contains(body, "nightly-restart") {
+		t.Errorf("the shared server without its variables and schedules: %d %s", code, body)
 	}
 	for _, r := range []struct{ method, path string }{
 		{"POST", "/api/servers/alice-srv/power"}, {"POST", "/api/servers/alice-srv/command"},
@@ -74,7 +78,7 @@ func TestSubuserSeesOnlySharedServers(t *testing.T) {
 		t.Errorf("control allows power actions: %d %s", code, body)
 	}
 	console := &consoleSession{api: h.api, token: carol, namespace: tenancy.Namespace("alice"), server: "alice-srv"}
-	if _, level := console.authorize(t.Context()); level != accessControl {
+	if _, _, level := console.authorize(t.Context()); level != accessControl {
 		t.Errorf("console access %d, want control", level)
 	}
 }
@@ -131,7 +135,7 @@ func TestInviteSharesServersAndResetsPasswords(t *testing.T) {
 	h.do("POST", "/api/auth/invite", "", map[string]string{"token": invite.Token, "password": "dave-password"})
 	dave := h.login("dave")
 	console := &consoleSession{api: h.api, token: dave, namespace: tenancy.Namespace("alice"), server: "alice-srv"}
-	if _, level := console.authorize(t.Context()); level != accessControl {
+	if _, _, level := console.authorize(t.Context()); level != accessControl {
 		t.Errorf("the invite shares its servers: access %d (%d %s)", level, code, body)
 	}
 

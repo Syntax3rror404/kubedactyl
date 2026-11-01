@@ -23,7 +23,8 @@ panel:
   storageClass: longhorn
   # Cilium LB IPAM pool (name or value of its lb.cilium.io/pool selector label).
   loadBalancerPool: general
-  # Image of the file manager pod (must be reachable by the nodes).
+  # Image of the file manager and hardware probe pods (must be reachable by the nodes). Same tag as
+  # the panel image base (Dockerfile, scripts/imagebuild) and the --helper-image default.
   helperImage: alpine:3.24.3
   timezone: UTC
   dockerInterface: 127.0.0.1
@@ -43,8 +44,9 @@ serviceAccount:
   annotations: {}
 
 rbac:
-  # ClusterRole/Binding with the permissions the panel needs (CRDs, user namespaces, pods,
-  # services, volumes, network policies, nodes, metrics, storage classes, Cilium pools).
+  # ClusterRoles/Binding with the permissions the panel needs (CRDs, user namespaces, pods,
+  # services, volumes, network policies, nodes, metrics, storage classes, Cilium pools) and a
+  # Role in the release namespace (secrets, hardware probe pods, their config map).
   create: true
 
 # Self-upgrades: the panel looks for newer chart versions in this OCI registry every 10 minutes

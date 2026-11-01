@@ -58,40 +58,42 @@ type PanelSettingsSpec struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=80
 	BrandTagline string `json:"brandTagline,omitempty"`
-	// BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-	// 128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+	// BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+	// Empty: uses the built-in logo.
 	// +optional
 	// +kubebuilder:validation:MaxLength=180000
 	BrandLogo string `json:"brandLogo,omitempty"`
+	// Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+	// Empty: uses the built-in icon.
 	// +optional
 	// +kubebuilder:validation:MaxLength=180000
 	Favicon string `json:"favicon,omitempty"`
-	// SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+	// SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
 	// shortening it also ends older sessions.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=720
 	SessionHours int32 `json:"sessionHours,omitempty"`
-	// APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+	// APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
 	// tokens created before, counted from their creation.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3650
 	APITokenMaxDays int32 `json:"apiTokenMaxDays,omitempty"`
 	// KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-	// twice that). Empty: 50. It applies at once.
+	// twice that). Empty: uses 50. It applies at once.
 	// +optional
 	// +kubebuilder:validation:Minimum=5
 	// +kubebuilder:validation:Maximum=1000
 	KubeAPIQPS int32 `json:"kubeApiQps,omitempty"`
 	// KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-	// that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+	// that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=200
 	KubeAPIUserQPS int32 `json:"kubeApiUserQps,omitempty"`
 	// SubusersPerUser is how many subusers (accounts and invites) every user may create for
-	// their servers. Empty: 10. 0 = off.
+	// their servers. Empty: uses 10. 0 = off.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
@@ -111,6 +113,7 @@ type PanelSettingsSpec struct {
 // OIDCSettings configure the sign-in through an OpenID Connect identity provider. Its groups decide
 // who may sign in and with which role.
 type OIDCSettings struct {
+	// Enabled shows the single sign-on button on the sign-in page.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 	// Name is shown on the sign-in button: "Sign in with <name>".
@@ -121,6 +124,7 @@ type OIDCSettings struct {
 	// <issuerUrl>/.well-known/openid-configuration).
 	// +optional
 	IssuerURL string `json:"issuerUrl,omitempty"`
+	// ClientID is the client of the panel at the identity provider; its secret is kept in a Secret.
 	// +optional
 	ClientID string `json:"clientId,omitempty"`
 	// RedirectURL is the callback of the panel registered at the identity provider

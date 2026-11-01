@@ -22,17 +22,17 @@ interface FeatureProps {
 
 // One dialog or notice per supported feature (the list in lib/egg-features.ts).
 const components: Record<EggFeature, (p: FeatureProps) => React.ReactNode> = {
-  eula: (p) => <EulaPrompt server={p.server} subscribe={p.subscribe} active={p.active} />,
+  eula: (p) => <EulaPrompt {...p} />,
   java_version: (p) => <JavaVersionPrompt {...p} />,
   pid_limit: (p) => <PidLimitNotice {...p} />,
   steam_disk_space: (p) => <SteamDiskSpaceNotice {...p} />,
   gsl_token: (p) => <GslTokenPrompt {...p} />,
-  hytale_oauth: (p) => <HytaleLoginPrompt subscribe={p.subscribe} running={p.running} />,
+  hytale_oauth: (p) => <HytaleLoginPrompt {...p} />,
 }
 
 /**
  * Dialogs for the egg features. They react to console output while the server is not running (a crashed start, a
- * failed update); the history of an earlier run can show them again.
+ * failed update); a dialog the user closed stays closed during this visit (useConsoleMatch).
  */
 export function EggFeatures({ server, egg, subscribe }: { server: GameServer; egg: Egg; subscribe: Subscribe }) {
   const { isAdmin } = useAuth()

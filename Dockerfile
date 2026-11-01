@@ -23,7 +23,8 @@ COPY LICENSE THIRD_PARTY_NOTICES.md /src/
 RUN go run ./tools/licenses -root /src -dist web/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.appVersion=${VERSION}" -o /out/kubedactyl .
 
-# Alpine (not Debian): small, ships the CA bundle for HTTPS (egg import from URLs).
+# Alpine (not Debian): small, ships the CA bundle for HTTPS (egg import from URLs). Same tag as the helper image in
+# backend/main.go, scripts/imagebuild/main.go and charts/kubedactyl/values.yaml.
 FROM alpine:3.24.3
 RUN addgroup -S -g 65532 kubedactyl && adduser -S -D -H -u 65532 -G kubedactyl kubedactyl
 COPY --from=backend /out/kubedactyl /kubedactyl

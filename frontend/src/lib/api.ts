@@ -42,6 +42,7 @@ import type {
   ServerDiagnostics,
   ServerJob,
   ServerStats,
+  SetupRequest,
   SetupStatus,
   StorageClassList,
   TokenView,
@@ -153,8 +154,7 @@ export const api = {
   },
   setup: {
     getStatus: () => request<SetupStatus>("GET", "/setup"),
-    run: (body: { username: string; password: string; displayName?: string; token: string }) =>
-      request<LoginResponse>("POST", "/setup", body),
+    run: (body: SetupRequest) => request<LoginResponse>("POST", "/setup", body),
   },
   auth: {
     login: (username: string, password: string) =>
@@ -290,10 +290,13 @@ export const api = {
   },
 }
 
-/** Links the browser opens itself (downloads); no request is made here. */
+/** Links the browser opens itself (downloads, the console websocket); no request is made here. */
 export const urls = {
   /** Sign-in through the identity provider (a browser redirect), returning to next afterwards. */
   oidcStart: (next: string) => `/api/auth/oidc/start?${q({ next })}`,
+  /** The console websocket of a server (wss: on HTTPS pages). */
+  console: (server: string) =>
+    `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/api${srv(server)}/ws`,
   fileDownload: (server: string, file: string) => `/api${srv(server)}/files/download?${q({ file })}`,
   eggExport: (name: string, format: EggExportFormat) => `/api${egg(name)}/export?${q({ format, download: "true" })}`,
 }

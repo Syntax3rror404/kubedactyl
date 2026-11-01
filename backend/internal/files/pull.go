@@ -11,16 +11,11 @@ import (
 // Errors of downloads from a URL.
 var (
 	ErrBadURL       = errors.New("only http and https URLs can be downloaded")
-	ErrBadName      = errors.New(`the file name must not contain slashes or be "." or ".."`)
 	ErrNameRequired = errors.New("give a file name, the URL does not end with one")
 )
 
-// ValidName reports whether n can be the name of a file inside a folder (no path).
-func ValidName(n string) bool {
-	return n != "" && n != "." && n != ".." && !strings.ContainsAny(n, "/\\\x00")
-}
-
-// PullName returns the target file name: the given one, or the last path segment of the URL.
+// PullName returns the target file name: the given one, or the last path segment of the URL when
+// it is a valid name.
 func PullName(rawURL, name string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
@@ -32,7 +27,7 @@ func PullName(rawURL, name string) (string, error) {
 		}
 		return name, nil
 	}
-	if name = path.Base(u.Path); name == "" || name == "." || name == "/" || name == ".." {
+	if name = path.Base(u.Path); !ValidName(name) {
 		return "", ErrNameRequired
 	}
 	return name, nil
@@ -44,6 +39,7 @@ func PullName(rawURL, name string) (string, error) {
 const pullScript = jobFuncs + `inside "$(real "$2")"
 [ -e "$2" ] && exit 5
 mkdir -p "$(dirname -- "$2")" || exit 1
+sweep "$(dirname -- "$2")"
 tmp="$(dirname -- "$2")/.$(basename -- "$2").download"
 trap 'rm -f "$tmp" "$tmp.log"' EXIT
 wget -S -T 30 -O "$tmp" -- "$1" 2>"$tmp.log" &
@@ -60,16 +56,31 @@ mv "$tmp" "$2"`
 // the network isolation of the user namespace applies and the panel's own network access
 // cannot be abused. Existing files are not overwritten.
 func (m *Manager) Pull(
-	ctx context.Context, server Ref, rawURL, dir, name string, denylist []string, report func(Progress),
+	ctx context.Context, ref Ref, rawURL, dir, name string, denylist []string, report func(Progress),
 ) error {
 	name, err := PullName(rawURL, name)
 	if err != nil {
 		return err
 	}
-	target, _, err := m.resolve(ctx, server, path.Join(dir, name), denylist)
+	target, _, err := m.resolve(ctx, ref, path.Join(dir, name), denylist)
 	if err != nil {
 		return err
 	}
 	out := &progressWriter{report: report}
-	return m.run(ctx, server, nil, out, pullScript, strings.TrimSpace(rawURL), target)
+	return m.run(ctx, ref, nil, out, pullScript, strings.TrimSpace(rawURL), target)
+}
+
+// StartPull downloads a URL into dir in the background; the job's label is the file's path.
+func (s *Service) StartPull(ref Ref, rawURL, dir, name string, denylist []string) (Job, error) {
+	name, err := PullName(rawURL, name)
+	if err != nil {
+		return Job{}, err
+	}
+	file := path.Join(dir, name)
+	if _, err := Resolve(file, denylist); err != nil {
+		return Job{}, err
+	}
+	return s.Start(ref, JobPull, file, func(ctx context.Context, report func(Progress)) error {
+		return s.Manager.Pull(ctx, ref, rawURL, dir, name, denylist, report)
+	})
 }

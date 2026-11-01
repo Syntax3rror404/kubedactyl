@@ -156,4 +156,5 @@ var domainErrors = []struct {
 	{users.ErrSubusersOff, http.StatusForbidden},
 	{users.ErrSubuserLimit, http.StatusConflict},
 	{users.ErrSubuser, http.StatusUnprocessableEntity},
+	{users.ErrTokenLimit, http.StatusConflict},
 }

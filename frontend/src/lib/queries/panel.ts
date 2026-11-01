@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { api, setThrottledHandler, type Throttle } from "@/lib/api"
+import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
 import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { PanelSettings, UpdateSettingsRequest, UpgradeJob, UpgradeStatus } from "@/lib/types"
@@ -39,22 +38,6 @@ export const useLicenses = () =>
 /** Request rates for the footer, every 2 s while the page is visible (these requests do not count). */
 export const useRequestRates = () =>
   useQuery({ queryKey: keys.requestRates, queryFn: api.panel.getRequestRates, refetchInterval: 2000, retry: false })
-
-/** The last request the panel refused for now (too many requests, panel busy) until it may be sent again. */
-export function useThrottle() {
-  const [throttle, setThrottle] = useState<(Throttle & { until: number }) | null>(null)
-  useEffect(() => {
-    // Shown for at least 5 s, so it does not flicker between the polls of a page.
-    setThrottledHandler((t) => setThrottle({ ...t, until: Date.now() + Math.max(t.seconds, 5) * 1000 }))
-    return () => setThrottledHandler(null)
-  }, [])
-  useEffect(() => {
-    if (!throttle) return
-    const id = setTimeout(() => setThrottle(null), throttle.until - Date.now())
-    return () => clearTimeout(id)
-  }, [throttle])
-  return throttle
-}
 
 /** The panel settings; every user reads them (address, storage classes, pools). */
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.settings.get, staleTime: 60_000 })

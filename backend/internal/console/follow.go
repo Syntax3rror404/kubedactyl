@@ -16,25 +16,36 @@ import (
 	"app/internal/gameserver"
 )
 
+// How long follow waits before it asks again for the log of a container that does not run yet. The
+// wait doubles on every try (a pod can wait for its image or node for long) and starts over once a
+// stream was open.
+const (
+	openRetry    = 2 * time.Second
+	maxOpenRetry = 30 * time.Second
+)
+
 // follow streams the output of a pod's main container into the hub until the container has
 // exited. The Kubernetes API cuts log streams now and then; every reconnect continues at the
 // last timestamp and drops lines that were already delivered.
 func (h *Hub) follow(ctx context.Context, namespace, server, pod string, uid types.UID, kind Kind, m *Matcher) {
 	f := &logFollower{hub: h, namespace: namespace, server: server, pod: pod, uid: uid, kind: kind, matcher: m}
+	retry := openRetry
 	for ctx.Err() == nil {
 		rc, err := f.open(ctx)
 		if err != nil {
 			// A starting container has no log yet: retry until it runs. A pod that is gone or a container that
 			// ended without a stream has nothing more to deliver.
-			if apierrors.IsNotFound(err) || h.containerTerminated(ctx, namespace, pod) {
+			if apierrors.IsNotFound(err) || h.containerTerminated(ctx, namespace, pod, uid) {
 				return
 			}
-			sleep(ctx, 2*time.Second)
+			sleep(ctx, retry)
+			retry = min(2*retry, maxOpenRetry)
 			continue
 		}
+		retry = openRetry
 		f.read(ctx, rc)
 		rc.Close()
-		if h.containerTerminated(ctx, namespace, pod) {
+		if h.containerTerminated(ctx, namespace, pod, uid) {
 			// All output of an exited container has been delivered.
 			return
 		}
@@ -111,20 +122,20 @@ func (f *logFollower) deliver(text string) {
 	if f.kind != KindGame || !f.matcher.Match(text) {
 		return
 	}
-	f.hub.mu.Lock()
-	first := !f.hub.done[f.uid]
-	f.hub.done[f.uid] = true
-	f.hub.mu.Unlock()
-	if first && f.hub.OnDone != nil {
+	if f.hub.markDone(f.server, f.uid) && f.hub.OnDone != nil {
 		f.hub.OnDone(f.namespace, f.server)
 	}
 }
 
-// containerTerminated reports whether the main container of a pod has exited (or the pod is gone).
-func (h *Hub) containerTerminated(ctx context.Context, namespace, pod string) bool {
+// containerTerminated reports whether the main container of a pod has exited (or the pod is gone; a
+// new pod with the same name is another one).
+func (h *Hub) containerTerminated(ctx context.Context, namespace, pod string, uid types.UID) bool {
 	p, err := h.kube.Clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
 	if err != nil {
 		return apierrors.IsNotFound(err)
+	}
+	if p.UID != uid {
+		return true
 	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if cs.Name == gameserver.ContainerName {

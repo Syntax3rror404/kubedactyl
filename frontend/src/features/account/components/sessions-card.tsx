@@ -23,7 +23,7 @@ export function SessionsCard() {
       <CardHeader>
         <CardTitle>Sessions</CardTitle>
         <CardDescription>
-          Signs you out in every browser, including this one. API tokens keep working; revoke them below if needed.
+          Signs you out in every browser, including this one. API tokens keep working until you revoke them.
         </CardDescription>
       </CardHeader>
       <CardContent>

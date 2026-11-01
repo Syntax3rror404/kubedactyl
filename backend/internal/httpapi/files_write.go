@@ -1,12 +1,10 @@
 package httpapi
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -54,7 +52,11 @@ func (a *API) writeFile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	err := a.Files.Manager.Write(c, files.RefOf(gs), c.Query("file"), c.Request.Body, a.denylist(c, gs))
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
+	err := a.Files.Manager.Write(c, files.RefOf(gs), c.Query("file"), c.Request.Body, deny)
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -82,8 +84,12 @@ func (a *API) createFolder(c *gin.Context) {
 	if !ok {
 		return
 	}
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
 	folder := inRoot(req.Root, req.Name)
-	if err := a.Files.Manager.CreateFolder(c, files.RefOf(gs), folder, a.denylist(c, gs)); err != nil {
+	if err := a.Files.Manager.CreateFolder(c, files.RefOf(gs), folder, deny); err != nil {
 		a.fail(c, err)
 		return
 	}
@@ -110,19 +116,16 @@ func (a *API) deleteFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var paths []string
-	for _, f := range req.Files {
-		if !files.ValidName(f) {
-			a.fail(c, files.ErrBadName)
-			return
-		}
-		paths = append(paths, inRoot(req.Root, f))
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
 	}
-	if err := a.Files.Manager.Delete(c, files.RefOf(gs), paths, a.denylist(c, gs)); err != nil {
+	dir := cleanDir(req.Root)
+	if err := a.Files.Manager.Delete(c, files.RefOf(gs), dir, req.Files, deny); err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "files deleted", "server", gs.Name, "files", paths)
+	a.audit(c, "files deleted", "server", gs.Name, "folder", dir, "files", req.Files)
 	c.Status(http.StatusNoContent)
 }
 
@@ -146,9 +149,13 @@ func (a *API) renameFile(c *gin.Context) {
 	if !ok {
 		return
 	}
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
 	from := inRoot(req.Root, req.From)
 	to := inRoot(req.Root, req.To)
-	if err := a.Files.Manager.Rename(c, files.RefOf(gs), from, to, a.denylist(c, gs)); err != nil {
+	if err := a.Files.Manager.Rename(c, files.RefOf(gs), from, to, deny); err != nil {
 		a.fail(c, err)
 		return
 	}
@@ -172,7 +179,10 @@ func (a *API) uploadFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
-	deny := a.denylist(c, gs)
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
 		a.fail(c, badRequest(err))
@@ -188,10 +198,15 @@ func (a *API) uploadFiles(c *gin.Context) {
 			a.fail(c, badRequest(err))
 			return
 		}
-		name := path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
-		if part.FormName() != "files" || !files.ValidName(name) {
+		if part.FormName() != "files" {
 			part.Close()
 			continue
+		}
+		name := path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
+		if !files.ValidName(name) {
+			part.Close()
+			a.fail(c, files.ErrBadName)
+			return
 		}
 		// Streamed straight into the file container, nothing is buffered on disk.
 		file := path.Join(dir, name)
@@ -227,23 +242,17 @@ func (a *API) compressFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
-	deny := a.denylist(c, gs)
-	dir := cleanDir(req.Root)
-	if _, err := files.Resolve(dir, deny); err != nil {
-		a.fail(c, err)
+	deny, ok := a.denylist(c, gs)
+	if !ok {
 		return
 	}
-	ref := files.RefOf(gs)
-	archive := files.NewArchiveName(time.Now())
-	compress := func(ctx context.Context, report func(files.Progress)) error {
-		return a.Files.Manager.Compress(ctx, ref, dir, archive, req.Files, deny, report)
-	}
-	job, err := a.Files.Start(ref, files.JobCompress, path.Join(dir, archive), compress)
+	dir := cleanDir(req.Root)
+	job, err := a.Files.StartCompress(files.RefOf(gs), dir, req.Files, deny)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	a.audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", archive)
+	a.audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", job.Label)
 	c.JSON(http.StatusAccepted, job)
 }
 
@@ -268,17 +277,12 @@ func (a *API) decompressFile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	deny := a.denylist(c, gs)
-	archive := inRoot(req.Root, req.File)
-	if _, err := files.Resolve(archive, deny); err != nil {
-		a.fail(c, err)
+	deny, ok := a.denylist(c, gs)
+	if !ok {
 		return
 	}
-	ref := files.RefOf(gs)
-	decompress := func(ctx context.Context, report func(files.Progress)) error {
-		return a.Files.Manager.Decompress(ctx, ref, archive, deny, report)
-	}
-	job, err := a.Files.Start(ref, files.JobDecompress, archive, decompress)
+	archive := inRoot(req.Root, req.File)
+	job, err := a.Files.StartDecompress(files.RefOf(gs), archive, deny)
 	if err != nil {
 		a.fail(c, err)
 		return

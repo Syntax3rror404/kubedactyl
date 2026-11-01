@@ -58,10 +58,16 @@ spec:
             description: UserSpec defines a panel user. The object name is the username.
             properties:
               disabled:
+                description: Disabled refuses every sign-in, session and API token
+                  of the user.
                 type: boolean
               displayName:
+                description: 'DisplayName is the name the panel shows. Empty: uses
+                  the username.'
                 type: string
               email:
+                description: Email is shown to administrators (the panel sends no
+                  e-mails). Optional.
                 type: string
               mustChangePassword:
                 description: MustChangePassword makes the user replace the password

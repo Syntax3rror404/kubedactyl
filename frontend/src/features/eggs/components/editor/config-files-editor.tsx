@@ -14,17 +14,21 @@ const valueTypes = [
   { value: "boolean", label: "Boolean" },
 ]
 
-/** Config files the panel adjusts before every start (egg config.files), one card per file. */
+/**
+ * Config files the panel adjusts before every start (egg config.files), one card per file. Errors are keyed by
+ * index, so removing a file or a replacement reports reindexed.
+ */
 export function ConfigFilesEditor({
   files,
   onChange,
   errors,
 }: {
   files: ConfigFile[]
-  onChange: (files: ConfigFile[]) => void
+  onChange: (files: ConfigFile[], reindexed?: boolean) => void
   errors: FieldErrors
 }) {
-  const setFile = (i: number, patch: Partial<ConfigFile>) => onChange(patchAt(files, i, patch))
+  const setFile = (i: number, patch: Partial<ConfigFile>, reindexed?: boolean) =>
+    onChange(patchAt(files, i, patch), reindexed)
   return (
     <div className="space-y-3">
       {files.map((f, i) => {
@@ -61,13 +65,15 @@ export function ConfigFilesEditor({
                 variant="ghost"
                 className="text-destructive"
                 title="Remove file"
-                onClick={() => onChange(removeAt(files, i))}
+                onClick={() => onChange(removeAt(files, i), true)}
               >
                 <Trash2Icon />
               </Button>
             </div>
             {(errors[p + "file"] || errors[p + "parser"]) && (
-              <FieldError>{errors[p + "file"] ?? errors[p + "parser"]}</FieldError>
+              <FieldError>
+                {errors[p + "file"] ? `File ${errors[p + "file"]}` : `Parser ${errors[p + "parser"]}`}
+              </FieldError>
             )}
             {rows.length > 0 && (
               <div className="space-y-2">
@@ -78,59 +84,68 @@ export function ConfigFilesEditor({
                   <span>Only if current value is</span>
                   <span className="w-8" />
                 </div>
-                {rows.map((r, k) => (
-                  <div
-                    key={k}
-                    className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,8rem)_minmax(0,1fr)_auto]"
-                  >
-                    <Input
-                      aria-label="Key"
-                      className="h-8 font-mono text-xs"
-                      value={r.match}
-                      onChange={(e) => setRow(k, { match: e.target.value })}
-                      placeholder={f.parser === "file" ? "line prefix" : "server-port"}
-                      aria-invalid={!!errors[`${p}replace.${k}.match`]}
-                    />
-                    <Input
-                      aria-label="Value"
-                      className="h-8 font-mono text-xs"
-                      value={r.replaceWith}
-                      onChange={(e) => setRow(k, { replaceWith: e.target.value })}
-                      placeholder="{{server.build.default.port}}"
-                    />
-                    <Select
-                      value={r.valueType || "string"}
-                      onValueChange={(v) => setRow(k, { valueType: v === "string" ? "" : v })}
+                {rows.map((r, k) => {
+                  const matchError = errors[`${p}replace.${k}.match`]
+                  const typeError = errors[`${p}replace.${k}.valueType`]
+                  return (
+                    <div
+                      key={k}
+                      className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,8rem)_minmax(0,1fr)_auto]"
                     >
-                      <SelectTrigger size="sm" className="w-full" aria-label="Type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {valueTypes.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      aria-label="Only if"
-                      className="h-8 font-mono text-xs"
-                      value={r.ifValue ?? ""}
-                      onChange={(e) => setRow(k, { ifValue: e.target.value })}
-                      placeholder="always"
-                    />
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      title="Remove"
-                      onClick={() => setFile(i, { replace: removeAt(rows, k) })}
-                    >
-                      <XIcon />
-                    </Button>
-                  </div>
-                ))}
+                      <Input
+                        aria-label="Key"
+                        className="h-8 font-mono text-xs"
+                        value={r.match}
+                        onChange={(e) => setRow(k, { match: e.target.value })}
+                        placeholder={f.parser === "file" ? "line prefix" : "server-port"}
+                        aria-invalid={!!matchError}
+                      />
+                      <Input
+                        aria-label="Value"
+                        className="h-8 font-mono text-xs"
+                        value={r.replaceWith}
+                        onChange={(e) => setRow(k, { replaceWith: e.target.value })}
+                        placeholder="{{server.build.default.port}}"
+                      />
+                      <Select
+                        value={r.valueType || "string"}
+                        onValueChange={(v) => setRow(k, { valueType: v === "string" ? "" : v })}
+                      >
+                        <SelectTrigger size="sm" className="w-full" aria-label="Type" aria-invalid={!!typeError}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {valueTypes.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        aria-label="Only if"
+                        className="h-8 font-mono text-xs"
+                        value={r.ifValue ?? ""}
+                        onChange={(e) => setRow(k, { ifValue: e.target.value })}
+                        placeholder="always"
+                      />
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        title="Remove"
+                        onClick={() => setFile(i, { replace: removeAt(rows, k) }, true)}
+                      >
+                        <XIcon />
+                      </Button>
+                      {(matchError || typeError) && (
+                        <FieldError className="md:col-span-5">
+                          {matchError ? `Key ${matchError}` : `Type ${typeError}`}
+                        </FieldError>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
             <Button

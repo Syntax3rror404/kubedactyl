@@ -18,7 +18,6 @@ export const useEggExport = (name: string, format: EggExportFormat, enabled: boo
     queryKey: keys.eggExport(name, format),
     queryFn: () => api.eggs.export(name, format),
     enabled,
-    staleTime: 0,
     gcTime: 0,
   })
 
@@ -36,9 +35,12 @@ export const useImportEgg = (cb?: MutationCallbacks<Egg, { file: File } | { url:
     cb,
   )
 
-/** The eggs of the egg library; the panel keeps the repositories for 15 minutes, so does the browser. */
-export const useLibrary = () =>
-  useQuery({ queryKey: keys.library, queryFn: () => api.eggs.listLibrary(), staleTime: 15 * 60_000 })
+/**
+ * The eggs of the egg library; the panel keeps the repositories for 15 minutes, so does the browser. Loading them
+ * can download every repository, so pages enable it only where the library is shown.
+ */
+export const useLibrary = (enabled = true) =>
+  useQuery({ queryKey: keys.library, queryFn: () => api.eggs.listLibrary(), staleTime: 15 * 60_000, enabled })
 
 /** Downloads the library's repositories again. */
 export const useRefreshLibrary = (cb?: MutationCallbacks<LibraryRepository[], void>) =>

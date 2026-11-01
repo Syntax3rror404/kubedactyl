@@ -1,4 +1,7 @@
-/** React Query cache keys; invalidating a prefix (e.g. ["servers", server]) refreshes everything below it. */
+/**
+ * React Query cache keys. refresh() matches a key exactly, so reloading a list never reloads the details below it
+ * (stats, jobs, file listings, diagnostics); refreshAll() reloads a group (keys.allFiles).
+ */
 export const keys = {
   me: ["me"] as const,
   setup: ["setup"] as const,
@@ -35,7 +38,7 @@ export const keys = {
   schedules: (server: string) => ["servers", server, "schedules"] as const,
   backups: (server: string) => ["servers", server, "backups"] as const,
   jobs: (server: string) => ["servers", server, "jobs"] as const,
-  /** Listings and contents of a server's files (the session keys are separate). */
+  /** Group of the listings and contents of a server's files (the session keys are separate); see refreshAll. */
   allFiles: (server: string) => ["servers", server, "files"] as const,
   files: (server: string, dir: string) => ["servers", server, "files", "list", dir] as const,
   fileContent: (server: string, file: string) => ["servers", server, "files", "content", file] as const,

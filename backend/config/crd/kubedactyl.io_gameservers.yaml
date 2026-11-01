@@ -70,7 +70,7 @@ spec:
                   the object name.'
                 type: string
               eggRef:
-                description: EggRef is the name of the Egg in the same namespace.
+                description: EggRef is the name of the Egg in the panel namespace.
                 type: string
               environment:
                 additionalProperties:
@@ -397,7 +397,7 @@ spec:
               restartRequired:
                 description: |-
                   RestartRequired is set while the running game pod was created with other runtime
-                  settings (image, startup, variables, memory, CPU, ports) than the spec has now.
+                  settings (image, startup, variables, memory, CPU, ports, the egg's config files) than now.
                 type: boolean
               schedules:
                 description: Schedules holds the last run of every schedule.

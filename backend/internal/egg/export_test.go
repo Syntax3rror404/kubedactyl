@@ -195,6 +195,8 @@ func TestValidateSpec(t *testing.T) {
 	)
 	bad.ConfigFiles = append(bad.ConfigFiles, v1alpha1.ConfigFile{File: "../etc/passwd", Parser: "toml"})
 	bad.StartupDone = append(bad.StartupDone, "regex:(")
+	bad.Icon = "javascript:alert(1)"
+	bad.FileDenylist = []string{"*.jar", "["}
 	err, _ := ValidateSpec(bad).(FieldErrors)
 	got := (FieldErrors{"variables.0.envVariable": "is reserved"}).Error()
 	if got != "Variable 1, environment variable: is reserved" {
@@ -204,10 +206,27 @@ func TestValidateSpec(t *testing.T) {
 		"author", "dockerImages.2.name", "startupCommands.2.name", "startupCommands.2.command",
 		"startupCommands.3.name", "variables.1.envVariable", "variables.2.envVariable",
 		"variables.3.envVariable", "variables.4.envVariable", "variables.4.rules", "variables.5.rules",
-		"configFiles.1.file", "configFiles.1.parser", "startupDone.2",
+		"configFiles.1.file", "configFiles.1.parser", "startupDone.2", "icon", "fileDenylist.1",
 	} {
 		if err[field] == "" {
 			t.Errorf("expected an error for %s, got %v", field, err)
+		}
+	}
+}
+
+// TestValidateIcon: an icon is a data:image/ URI within the import limit.
+func TestValidateIcon(t *testing.T) {
+	for icon, ok := range map[string]bool{
+		"":                             true,
+		"data:image/png;base64,AAAA":   true,
+		"https://example.com/icon.png": false,
+		"data:text/html;base64,AAAA":   false,
+		"data:image/png;base64," + strings.Repeat("A", maxIconSize): false,
+	} {
+		s := sample()
+		s.Icon = icon
+		if err, _ := ValidateSpec(s).(FieldErrors); (err["icon"] == "") != ok {
+			t.Errorf("icon %.40q: errors %v, want ok=%v", icon, err, ok)
 		}
 	}
 }

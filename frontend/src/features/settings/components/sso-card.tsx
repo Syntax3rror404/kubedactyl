@@ -1,19 +1,12 @@
-import { KeyRoundIcon } from "lucide-react"
+import { KeyRoundIcon, Trash2Icon, Undo2Icon } from "lucide-react"
 
 import { CopyButton } from "@/components/common/copy-button"
 import { UnveilPassword } from "@/components/common/unveil-password"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-  FieldSet,
-} from "@/components/ui/field"
+import { Button } from "@/components/ui/button"
+import { FieldGroup, FieldSeparator, FieldSet } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
-import type { OIDCSettings } from "@/lib/types"
+import { SettingsCard, SettingsField, SwitchField } from "@/features/settings/components/settings-card"
+import type { SettingsCardProps, SettingsDraft } from "@/features/settings/lib/settings-draft"
 
 type TextField = {
   key: "name" | "issuerUrl" | "clientId" | "adminGroup" | "userGroup" | "groupsClaim" | "usernameClaim"
@@ -42,57 +35,46 @@ const textFields: TextField[] = [
   { key: "name", label: "Button name", placeholder: "Keycloak", hint: "The button reads: Sign in with <name>." },
 ]
 
+type OIDCDraft = SettingsDraft["oidc"]
+
 /**
  * Single sign-on through an OpenID Connect identity provider: client, the groups that grant access, how existing
  * accounts are linked and the redirect URL to register (filled with this address when it is turned on). The client
- * secret is write only (the panel never sends it back).
+ * secret is write only (the panel never sends it back); `secretSet` tells whether one is stored.
  */
-export function SsoCard({
-  values,
-  onChange,
-  secret,
-  secretSet,
-  onSecret,
-  errors,
-}: {
-  values: OIDCSettings
-  onChange: (patch: Partial<OIDCSettings>) => void
-  secret: string
-  secretSet: boolean
-  onSecret: (secret: string) => void
-  errors: Record<string, string>
-}) {
+export function SsoCard({ draft, onChange, errors, secretSet }: SettingsCardProps & { secretSet: boolean }) {
   const thisPanel = `${location.origin}/api/auth/oidc/callback`
+  const values = draft.oidc
+  const onOidcChange = (patch: Partial<OIDCDraft>) => onChange({ oidc: { ...values, ...patch } })
   return (
-    <SettingsCard icon={KeyRoundIcon} title="OpenID Connect">
+    <SettingsCard
+      icon={KeyRoundIcon}
+      title="OpenID Connect"
+      description="Users sign in through your identity provider."
+    >
       <FieldGroup className="gap-6">
         <SwitchField
           id="oidc-enabled"
           label="Enable OIDC on login page"
           checked={!!values.enabled}
-          onChange={(enabled) => onChange({ enabled, redirectUrl: values.redirectUrl || thisPanel })}
+          onChange={(enabled) => onOidcChange({ enabled, redirectUrl: values.redirectUrl || thisPanel })}
         />
         <FieldGroup className="grid gap-6 md:grid-cols-2">
           {textFields.map((f) => (
             <TextInput
               key={f.key}
               field={f}
-              value={values[f.key] ?? ""}
-              onChange={(v) => onChange({ [f.key]: v })}
+              value={values[f.key]}
+              onChange={(v) => onOidcChange({ [f.key]: v })}
               error={errors[`oidc.${f.key}`]}
             />
           ))}
-          <Field data-invalid={errors.oidcClientSecret ? true : undefined}>
-            <FieldLabel htmlFor="oidc-secret">Client secret</FieldLabel>
-            <UnveilPassword
-              id="oidc-secret"
-              autoComplete="off"
-              value={secret}
-              onChange={(e) => onSecret(e.target.value)}
-              placeholder={secretSet ? "Stored, type to replace" : "Empty for a public client"}
-            />
-            {errors.oidcClientSecret && <FieldError>{errors.oidcClientSecret}</FieldError>}
-          </Field>
+          <SecretField
+            secret={draft.oidcClientSecret}
+            secretSet={secretSet}
+            onSecretChange={(oidcClientSecret) => onChange({ oidcClientSecret })}
+            error={errors.oidcClientSecret}
+          />
         </FieldGroup>
         <FieldSeparator />
         <FieldSet>
@@ -100,7 +82,7 @@ export function SsoCard({
             id="oidc-link"
             label="Link existing accounts by username"
             checked={!!values.linkByUsername}
-            onChange={(linkByUsername) => onChange({ linkByUsername })}
+            onChange={(linkByUsername) => onOidcChange({ linkByUsername })}
           >
             To take over existing accounts. Turn it off afterwards: whoever picks a name at the identity provider gets
             that account.
@@ -109,26 +91,25 @@ export function SsoCard({
             id="oidc-keep-passwords"
             label="Keep passwords of linked accounts"
             checked={!!values.keepPasswords}
-            onChange={(keepPasswords) => onChange({ keepPasswords })}
+            onChange={(keepPasswords) => onOidcChange({ keepPasswords })}
           >
             They can still sign in with their password; their role then changes only at single sign-on.
           </SwitchField>
         </FieldSet>
-        <Field data-invalid={errors["oidc.redirectUrl"] ? true : undefined}>
-          <FieldLabel htmlFor="oidc-redirect">Redirect URL</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Input
-              id="oidc-redirect"
-              value={values.redirectUrl ?? ""}
-              onChange={(e) => onChange({ redirectUrl: e.target.value })}
-              placeholder="https://panel.example.com/api/auth/oidc/callback"
-              className="font-mono"
-              aria-invalid={errors["oidc.redirectUrl"] ? true : undefined}
-            />
-            <CopyButton value={values.redirectUrl || thisPanel} />
-          </div>
-          {errors["oidc.redirectUrl"] && <FieldError>{errors["oidc.redirectUrl"]}</FieldError>}
-        </Field>
+        <SettingsField id="oidc-redirect" label="Redirect URL" error={errors["oidc.redirectUrl"]}>
+          {(control) => (
+            <div className="flex items-center gap-2">
+              <Input
+                {...control}
+                value={values.redirectUrl}
+                onChange={(e) => onOidcChange({ redirectUrl: e.target.value })}
+                placeholder="https://panel.example.com/api/auth/oidc/callback"
+                className="font-mono"
+              />
+              <CopyButton value={values.redirectUrl || thisPanel} />
+            </div>
+          )}
+        </SettingsField>
       </FieldGroup>
     </SettingsCard>
   )
@@ -145,19 +126,58 @@ function TextInput({
   onChange: (value: string) => void
   error?: string
 }) {
-  const id = `oidc-${field.key}`
   return (
-    <Field data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
-      <Input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={field.placeholder}
-        className="font-mono"
-        aria-invalid={error ? true : undefined}
-      />
-      {error ? <FieldError>{error}</FieldError> : field.hint && <FieldDescription>{field.hint}</FieldDescription>}
-    </Field>
+    <SettingsField id={`oidc-${field.key}`} label={field.label} hint={field.hint} error={error}>
+      {(control) => (
+        <Input
+          {...control}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder}
+          className="font-mono"
+        />
+      )}
+    </SettingsField>
+  )
+}
+
+/**
+ * The client secret: typing replaces the stored one, an empty field keeps it, Remove deletes it on save
+ * (secret "" in the draft, undefined keeps).
+ */
+function SecretField({
+  secret,
+  secretSet,
+  onSecretChange,
+  error,
+}: {
+  secret: string | undefined
+  secretSet: boolean
+  onSecretChange: (secret: string | undefined) => void
+  error?: string
+}) {
+  const removing = secret === ""
+  return (
+    <SettingsField id="oidc-secret" label="Client secret" error={error}>
+      {(control) => (
+        <div className="flex items-center gap-2">
+          <UnveilPassword
+            {...control}
+            autoComplete="off"
+            value={secret ?? ""}
+            onChange={(e) => onSecretChange(e.target.value || undefined)}
+            placeholder={
+              removing ? "Removed when you save" : secretSet ? "Stored, type to replace" : "Empty for a public client"
+            }
+          />
+          {secretSet && !secret && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onSecretChange(removing ? undefined : "")}>
+              {removing ? <Undo2Icon /> : <Trash2Icon />}
+              {removing ? "Keep" : "Remove"}
+            </Button>
+          )}
+        </div>
+      )}
+    </SettingsField>
   )
 }

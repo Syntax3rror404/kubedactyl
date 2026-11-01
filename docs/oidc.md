@@ -36,7 +36,8 @@ page (this ends its sessions).
 - **Existing accounts:** when an account with that username exists and is not linked, the sign-in is refused,
   unless *Link existing accounts by username* is on: then the account is linked to the IdP user (like Nextcloud
   does). Turn it on to take over existing accounts and off again afterwards; while it is on, whoever can choose a
-  username at the IdP gets the account with that name. Linking ends the account's sessions and API tokens. After
+  username at the IdP gets the account with that name. Linking ends the account's sessions and API tokens and
+  deletes its password reset links. After
   the link only that IdP user can sign in to the account through single sign-on.
 - **Profile:** display name (`name`), email (`email`) and role come from the IdP at every sign-in; the *Users*
   page shows linked accounts with an *OIDC* badge and does not let administrators change these fields. The edit
@@ -44,7 +45,8 @@ page (this ends its sessions).
 - **Passwords:** a linked account loses its password and signs in only through the IdP. With *Keep passwords of
   linked accounts* the password stays and works next to single sign-on; the role then changes only at a single
   sign-on, not at a sign-in with the password.
-- **Disabled accounts** are refused. **The last administrator** is not demoted when the IdP removes them from the
+- **Disabled accounts** and accounts being deleted are refused. Failed callbacks count against the client like
+  failed sign-ins (5 within 5 minutes). **The last administrator** is not demoted when the IdP removes them from the
   admin group: the sign-in is refused instead and the panel log says why.
 - **Local accounts** keep working, and administrators can still create users and invites. Keep one local
   administrator that is not linked (for example the `admin` from the setup): it still signs in when the IdP is

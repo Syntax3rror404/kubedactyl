@@ -3,6 +3,7 @@ package egg
 import (
 	"cmp"
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -40,6 +41,8 @@ var fieldNames = map[string]string{
 	"parser":          "parser",
 	"match":           "key",
 	"valueType":       "type",
+	"icon":            "Icon",
+	"fileDenylist":    "File denylist",
 }
 
 // humanize turns "variables.0.envVariable" into "Variable 1, environment variable".
@@ -111,6 +114,7 @@ func Normalize(s *v1alpha1.EggSpec) {
 func ValidateSpec(s *v1alpha1.EggSpec) error {
 	errs := FieldErrors{}
 	validateGeneral(s, errs)
+	validateFileDenylist(s.FileDenylist, errs)
 	validateImages(s.DockerImages, errs)
 	validateStartupCommands(s.StartupCommands, errs)
 	validateVariables(s.Variables, errs)
@@ -135,6 +139,18 @@ func validateGeneral(s *v1alpha1.EggSpec, errs FieldErrors) {
 		errs["author"] = "is required (an e-mail address)"
 	case !emailRe.MatchString(s.Author):
 		errs["author"] = "must be an e-mail address"
+	}
+	if s.Icon != "" && (!strings.HasPrefix(s.Icon, "data:image/") || len(s.Icon) > maxIconSize) {
+		errs["icon"] = fmt.Sprintf("must be a data:image/ URI of at most %d KiB", maxIconSize>>10)
+	}
+}
+
+// validateFileDenylist rejects patterns the file manager cannot read (it would deny every file).
+func validateFileDenylist(list []string, errs FieldErrors) {
+	for i, p := range list {
+		if _, err := path.Match(p, ""); err != nil {
+			errs[fmt.Sprintf("fileDenylist.%d", i)] = "is not a valid pattern"
+		}
 	}
 }
 

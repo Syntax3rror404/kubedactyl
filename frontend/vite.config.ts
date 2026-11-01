@@ -14,7 +14,10 @@ const frontendVersions = Object.fromEntries(
     ["Tailwind CSS", "tailwindcss"],
     ["TanStack Query", "@tanstack/react-query"],
     ["React Router", "react-router"],
-  ].map(([name, pkg]) => [name, JSON.parse(readFileSync(`node_modules/${pkg}/package.json`, "utf8")).version]),
+  ].map(([name, pkg]) => {
+    const file = path.join(import.meta.dirname, "node_modules", pkg, "package.json")
+    return [name, JSON.parse(readFileSync(file, "utf8")).version]
+  }),
 )
 
 export default defineConfig({

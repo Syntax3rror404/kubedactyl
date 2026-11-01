@@ -28,6 +28,9 @@ import { useCreateInvite, useServers } from "@/lib/queries"
 import type { CreatedInvite, Role } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
 
+/** Longest invite note (the panel checks the same limit). */
+const MAX_NOTE = 200
+
 /**
  * Creates an invite link and then shows it once: as QR code and as text to send in a messenger. With subuser the
  * account becomes a subuser of the signed-in user and sees the servers picked here (server is picked at the start).
@@ -125,6 +128,7 @@ function InviteForm({
             value={draft.note}
             onChange={(e) => set("note", e.target.value)}
             placeholder="Who the invite is for"
+            maxLength={MAX_NOTE}
           />
         </Field>
         {subuser && (

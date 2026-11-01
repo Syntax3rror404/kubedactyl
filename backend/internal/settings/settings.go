@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,13 +39,12 @@ type Store struct {
 	// from them (nil: none).
 	Changed func()
 
-	mu     sync.Mutex
-	cached *v1alpha1.PanelSettingsSpec // nil: Current reads the settings again
-	secret *string                     // nil: OIDCClientSecret reads the secret again
+	spec   memo[v1alpha1.PanelSettingsSpec] // kept by Current
+	secret memo[string]                     // kept by OIDCClientSecret
 }
 
-// Get returns the current settings with the default lifetimes filled in (only those when the
-// object does not exist yet). It reads directly from the API server, so changes are visible at once.
+// Get returns the current settings with every default filled in (also when the object does not exist yet). It
+// reads directly from the API server, so changes are visible at once.
 func (s *Store) Get(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 	obj := &v1alpha1.PanelSettings{}
 	err := s.Reader.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: v1alpha1.SettingsName}, obj)
@@ -65,26 +63,16 @@ func (s *Store) Get(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
 
 // Current returns the settings like Get, but keeps them in memory until they change: for values
 // needed on every request (external domain, lifetimes, branding). A save through the store and a
-// change of the object reported by the informer (Watch) make the next call read them again. The
-// result is shared, do not change it.
+// change of the object reported by the informer (Watch) make the next call read them again; calls
+// during that read share it. The result is shared, do not change it.
 func (s *Store) Current(ctx context.Context) (v1alpha1.PanelSettingsSpec, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.cached != nil {
-		return *s.cached, nil
-	}
-	spec, err := s.Get(ctx)
-	if err == nil {
-		s.cached = &spec
-	}
-	return spec, err
+	return s.spec.get(ctx, s.Get)
 }
 
 // Forget drops the kept settings; the next Current reads them again.
 func (s *Store) Forget() {
-	s.mu.Lock()
-	s.cached, s.secret = nil, nil
-	s.mu.Unlock()
+	s.spec.forget()
+	s.secret.forget()
 	if s.Changed != nil {
 		s.Changed()
 	}
@@ -126,11 +114,16 @@ func (s *Store) Update(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (v1
 		return spec, err
 	}
 	s.Forget() // Current reads the saved settings next
+	s.ApplyLimits(spec)
+	return spec, nil
+}
+
+// ApplyLimits gives the Limiter the Kubernetes API limits of the settings, the defaults where they name none.
+func (s *Store) ApplyLimits(spec v1alpha1.PanelSettingsSpec) {
 	if s.Limiter != nil {
 		s.Limiter.SetLimits(int(cmp.Or(spec.KubeAPIQPS, DefaultKubeAPIQPS)),
 			int(cmp.Or(spec.KubeAPIUserQPS, DefaultKubeAPIUserQPS)))
 	}
-	return spec, nil
 }
 
 // Lifetimes of sign-ins and API tokens when the settings name none, and their limits (the CRD
@@ -203,10 +196,6 @@ var brandImage = regexp.MustCompile(
 	`^data:image/(png|jpeg|gif|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,([A-Za-z0-9+/]+=*)$`,
 )
 
-func invalid(field, format string, args ...any) error {
-	return validation.Errors{field: fmt.Sprintf(format, args...)}
-}
-
 // Validate normalizes the settings and checks that every storage class and pool exists
 // and can be used. Missing defaults are set to the first entry.
 func (s *Store) Validate(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsSpec, error) {
@@ -215,25 +204,26 @@ func (s *Store) Validate(ctx context.Context, spec v1alpha1.PanelSettingsSpec) (
 		return spec, err
 	}
 	if spec.SessionHours < 0 || spec.SessionHours > maxSessionHours {
-		return spec, invalid("sessionHours", "must be between 1 and %d hours", maxSessionHours)
+		return spec, validation.Field("sessionHours", fmt.Errorf("must be between 1 and %d hours", maxSessionHours))
 	}
 	if spec.APITokenMaxDays < 0 || spec.APITokenMaxDays > maxAPITokenDays {
-		return spec, invalid("apiTokenMaxDays", "must be between 1 and %d days", maxAPITokenDays)
+		return spec, validation.Field("apiTokenMaxDays", fmt.Errorf("must be between 1 and %d days", maxAPITokenDays))
 	}
 	if q := spec.KubeAPIQPS; q != 0 && (q < minKubeAPIQPS || q > maxKubeAPIQPS) {
-		return spec, invalid("kubeApiQps", "must be between %d and %d per second", minKubeAPIQPS, maxKubeAPIQPS)
+		return spec, validation.Field("kubeApiQps", fmt.Errorf("must be between %d and %d per second",
+			minKubeAPIQPS, maxKubeAPIQPS))
 	}
 	if q := spec.KubeAPIUserQPS; q < 0 || q > maxKubeAPIUserQPS {
-		return spec, invalid("kubeApiUserQps", "must be between %d and %d per second",
-			minKubeAPIUserQPS, maxKubeAPIUserQPS)
+		return spec, validation.Field("kubeApiUserQps", fmt.Errorf("must be between %d and %d per second",
+			minKubeAPIUserQPS, maxKubeAPIUserQPS))
 	}
 	if n := spec.SubusersPerUser; n != nil && (*n < 0 || *n > maxSubusersPerUser) {
-		return spec, invalid("subusersPerUser", "must be between 0 and %d", maxSubusersPerUser)
+		return spec, validation.Field("subusersPerUser", fmt.Errorf("must be between 0 and %d", maxSubusersPerUser))
 	}
 	if spec.EggLibraries, err = normalizeEggLibraries(spec.EggLibraries); err != nil {
 		return spec, err
 	}
-	if spec.OIDC, err = checkOIDC(ctx, spec.OIDC); err != nil {
+	if spec.OIDC, err = normalizeOIDC(ctx, spec.OIDC); err != nil {
 		return spec, err
 	}
 	spec.StorageClasses = unique(spec.StorageClasses)
@@ -254,18 +244,20 @@ func normalizeTexts(spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsSpec
 	spec.ExternalDomain = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(spec.ExternalDomain)), ".")
 	if spec.ExternalDomain != "" {
 		if errs := k8svalidation.IsDNS1123Subdomain(spec.ExternalDomain); len(errs) > 0 {
-			return spec, invalid("externalDomain", "not a valid host name: %s", errs[0])
+			return spec, validation.Field("externalDomain", fmt.Errorf("not a valid host name: %s", errs[0]))
 		}
 	}
 	spec.ServerNotice = strings.TrimSpace(spec.ServerNotice)
 	if n := len([]rune(spec.ServerNotice)); n > maxNoticeLength {
-		return spec, invalid("serverNotice", "the notice is too long (%d of %d characters)", n, maxNoticeLength)
+		return spec, validation.Field("serverNotice",
+			fmt.Errorf("the notice is too long (%d of %d characters)", n, maxNoticeLength))
 	}
 	spec.LegalNotice = strings.TrimSpace(spec.LegalNotice)
 	spec.PrivacyPolicy = strings.TrimSpace(spec.PrivacyPolicy)
 	for _, f := range []textField{{"legalNotice", spec.LegalNotice}, {"privacyPolicy", spec.PrivacyPolicy}} {
 		if n := len([]rune(f.value)); n > maxLegalLength {
-			return spec, invalid(f.name, "the text is too long (%d of %d characters)", n, maxLegalLength)
+			return spec, validation.Field(f.name,
+				fmt.Errorf("the text is too long (%d of %d characters)", n, maxLegalLength))
 		}
 	}
 	return normalizeBranding(spec)
@@ -286,12 +278,12 @@ func normalizeBranding(spec v1alpha1.PanelSettingsSpec) (v1alpha1.PanelSettingsS
 		{textField{"brandTagline", spec.BrandTagline}, maxBrandTagline},
 	} {
 		if n := len([]rune(f.value)); n > f.max {
-			return spec, invalid(f.name, "too long (%d of %d characters)", n, f.max)
+			return spec, validation.Field(f.name, fmt.Errorf("too long (%d of %d characters)", n, f.max))
 		}
 	}
 	for _, f := range []textField{{"brandLogo", spec.BrandLogo}, {"favicon", spec.Favicon}} {
 		if err := checkBrandImage(f.value); err != nil {
-			return spec, invalid(f.name, "%s", err)
+			return spec, validation.Field(f.name, err)
 		}
 	}
 	return spec, nil
@@ -325,7 +317,7 @@ func normalizeEggLibraries(urls []string) ([]string, error) {
 	for _, raw := range urls {
 		u, err := NormalizeEggLibrary(raw)
 		if err != nil {
-			return nil, invalid("eggLibraries", "%q: %s", strings.TrimSpace(raw), err)
+			return nil, validation.Field("eggLibraries", fmt.Errorf("%q: %s", strings.TrimSpace(raw), err))
 		}
 		if u != "" {
 			out = append(out, u)
@@ -333,7 +325,7 @@ func normalizeEggLibraries(urls []string) ([]string, error) {
 	}
 	out = unique(out)
 	if len(out) > maxEggLibraries {
-		return nil, invalid("eggLibraries", "at most %d repositories", maxEggLibraries)
+		return nil, validation.Field("eggLibraries", fmt.Errorf("at most %d repositories", maxEggLibraries))
 	}
 	return out, nil
 }
@@ -361,7 +353,7 @@ var errBrandImage = errors.New("use a PNG, JPEG, GIF, WebP, SVG or ICO image of 
 // checkStorageClasses requires at least one enabled class, and every one must exist.
 func (s *Store) checkStorageClasses(ctx context.Context, names []string) error {
 	if len(names) == 0 {
-		return invalid("storageClasses", "enable at least one storage class")
+		return validation.Field("storageClasses", errors.New("enable at least one storage class"))
 	}
 	classes, err := ListStorageClasses(ctx, s.Reader)
 	if err != nil {
@@ -369,7 +361,7 @@ func (s *Store) checkStorageClasses(ctx context.Context, names []string) error {
 	}
 	for _, name := range names {
 		if !slices.ContainsFunc(classes, func(c StorageClass) bool { return c.Name == name }) {
-			return invalid("storageClasses", "storage class %q does not exist", name)
+			return validation.Field("storageClasses", fmt.Errorf("storage class %q does not exist", name))
 		}
 	}
 	return nil
@@ -387,10 +379,11 @@ func (s *Store) checkPools(ctx context.Context, names []string) error {
 	for _, name := range names {
 		i := slices.IndexFunc(pools, func(p Pool) bool { return p.Name == name })
 		if i < 0 {
-			return invalid("loadBalancerPools", "pool %q does not exist", name)
+			return validation.Field("loadBalancerPools", fmt.Errorf("pool %q does not exist", name))
 		}
 		if !pools[i].Selectable {
-			return invalid("loadBalancerPools", "pool %q cannot be used: %s", name, pools[i].Reason)
+			return validation.Field("loadBalancerPools",
+				fmt.Errorf("pool %q cannot be used: %s", name, pools[i].Reason))
 		}
 	}
 	return nil

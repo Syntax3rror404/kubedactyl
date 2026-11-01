@@ -25,7 +25,7 @@ rules:
     resources: [networkpolicies]
     verbs: [get, list, watch, create, update, patch, delete]
 ---
-# Keep in sync with the permission checks in backend/internal/clusterinfo/identity.go.
+# Keep in sync with the permission checks in backend/internal/clusterinfo/permissions.go.
 #
 # Cluster wide the panel only reads, plus the few writes that have no namespace (its user
 # namespaces, their volumes, its own CRDs). Everything that runs code (pods, exec, attach)

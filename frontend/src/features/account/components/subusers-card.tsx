@@ -8,9 +8,9 @@ import { UserAvatar } from "@/components/common/user-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { InviteActions, InviteIcon, InviteState, ResetPasswordButton } from "@/features/users/components/invite-actions"
+import { InviteActions, InviteIcon, InviteState, PasswordResetAction } from "@/features/users/components/invite-actions"
 import { InviteDialog } from "@/features/users/components/invite-dialog"
-import { inviteLabel } from "@/features/users/lib/invite"
+import { inviteLabel, splitInvites } from "@/features/users/lib/invite"
 import { useAuth } from "@/hooks/use-auth"
 import { formatRelativeTime, plural, userName } from "@/lib/format"
 import { failed } from "@/lib/notify"
@@ -32,8 +32,7 @@ export function SubusersCard({ inviteServer, onInvited }: { inviteServer?: strin
   })
   const mine = users.data?.filter((u) => u.owner === me.username) ?? []
   const pending = invites.data?.filter((i) => i.owner === me.username) ?? []
-  const resets = new Map(pending.filter((i) => i.reset).map((i) => [i.username, i]))
-  const open = pending.filter((i) => !i.reset)
+  const { resets, open } = splitInvites(pending)
   const used = mine.length + open.length
   const closeInvite = () => {
     setInviting(false)
@@ -80,7 +79,7 @@ export function SubusersCard({ inviteServer, onInvited }: { inviteServer?: strin
                           </div>
                         )}
                       </div>
-                      {reset ? <InviteActions invite={reset} /> : <ResetPasswordButton username={u.username} />}
+                      <PasswordResetAction username={u.username} reset={reset} />
                       <ConfirmDialog
                         trigger={
                           <Button variant="ghost" size="icon-sm" aria-label={`Delete ${u.username}`}>

@@ -10,17 +10,14 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// fakeNameServer answers NS queries like a parent zone: a referral to ns1.example.net with glue.
-func fakeNameServer(t *testing.T) netip.Addr {
+// dnsServer answers UDP queries on 127.0.0.1 with reply.
+func dnsServer(t *testing.T, reply func(q dnsmessage.Message) dnsmessage.Message) netip.AddrPort {
 	t.Helper()
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { conn.Close() })
-	old := dnsPort
-	dnsPort = conn.LocalAddr().(*net.UDPAddr).AddrPort().Port()
-	t.Cleanup(func() { dnsPort = old })
 	go func() {
 		buf := make([]byte, 1500)
 		for {
@@ -32,30 +29,67 @@ func fakeNameServer(t *testing.T) netip.Addr {
 			if q.Unpack(buf[:n]) != nil || len(q.Questions) == 0 {
 				continue
 			}
-			ns := dnsmessage.MustNewName("ns1.example.net.")
-			reply := dnsmessage.Message{
-				Header:    dnsmessage.Header{ID: q.Header.ID, Response: true},
-				Questions: q.Questions,
-				Authorities: []dnsmessage.Resource{
-					{
-						Header: dnsmessage.ResourceHeader{
-							Name:  q.Questions[0].Name,
-							Type:  dnsmessage.TypeNS,
-							Class: dnsmessage.ClassINET,
-						},
-						Body: &dnsmessage.NSResource{NS: ns},
-					},
-				},
-				Additionals: []dnsmessage.Resource{{
-					Header: dnsmessage.ResourceHeader{Name: ns, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET},
-					Body:   &dnsmessage.AResource{A: [4]byte{203, 0, 113, 53}},
-				}},
-			}
-			out, _ := reply.Pack()
+			r := reply(q)
+			r.Header.ID, r.Header.Response, r.Questions = q.Header.ID, true, q.Questions
+			out, _ := r.Pack()
 			_, _ = conn.WriteTo(out, addr)
 		}
 	}()
-	return netip.MustParseAddr("127.0.0.1")
+	return conn.LocalAddr().(*net.UDPAddr).AddrPort()
+}
+
+// fakeNameServer answers NS queries like a parent zone: a referral to ns1.example.net with glue.
+func fakeNameServer(t *testing.T) netip.Addr {
+	t.Helper()
+	server := dnsServer(t, func(q dnsmessage.Message) dnsmessage.Message {
+		ns := dnsmessage.MustNewName("ns1.example.net.")
+		return dnsmessage.Message{
+			Authorities: []dnsmessage.Resource{{
+				Header: dnsmessage.ResourceHeader{
+					Name: q.Questions[0].Name, Type: dnsmessage.TypeNS, Class: dnsmessage.ClassINET,
+				},
+				Body: &dnsmessage.NSResource{NS: ns},
+			}},
+			Additionals: []dnsmessage.Resource{{
+				Header: dnsmessage.ResourceHeader{Name: ns, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET},
+				Body:   &dnsmessage.AResource{A: [4]byte{203, 0, 113, 53}},
+			}},
+		}
+	})
+	old := dnsPort
+	dnsPort = server.Port()
+	t.Cleanup(func() { dnsPort = old })
+	return server.Addr()
+}
+
+// TestNameServersTryTheNext: a failing name server is skipped, the next one answers.
+func TestNameServersTryTheNext(t *testing.T) {
+	failing := dnsServer(t, func(dnsmessage.Message) dnsmessage.Message {
+		return dnsmessage.Message{Header: dnsmessage.Header{RCode: dnsmessage.RCodeServerFailure}}
+	})
+	answering := dnsServer(t, func(q dnsmessage.Message) dnsmessage.Message {
+		r := dnsmessage.Message{Header: dnsmessage.Header{Authoritative: true}}
+		if q.Questions[0].Type == dnsmessage.TypeA {
+			r.Answers = []dnsmessage.Resource{{
+				Header: dnsmessage.ResourceHeader{Name: q.Questions[0].Name, Type: dnsmessage.TypeA,
+					Class: dnsmessage.ClassINET, TTL: 60},
+				Body: &dnsmessage.AResource{A: [4]byte{203, 0, 113, 7}},
+			}}
+		}
+		return r
+	})
+	ns := nameServers{failing, answering}
+	got, err := ns.LookupNetIP(context.Background(), "ip4", "play.example.com.")
+	if err != nil || len(got) != 1 || got[0] != netip.MustParseAddr("203.0.113.7") {
+		t.Errorf("ip4 = %v, %v", got, err)
+	}
+	// A name without records of the family is an answer, not a failure.
+	if _, err := ns.LookupNetIP(context.Background(), "ip6", "play.example.com."); !notFound(err) || err == nil {
+		t.Errorf("ip6 = %v, want not found", err)
+	}
+	if _, err := (nameServers{failing}).LookupNetIP(context.Background(), "ip4", "play.example.com."); notFound(err) {
+		t.Errorf("failing server = %v, want an error", err)
+	}
 }
 
 func TestDelegationFollowsReferral(t *testing.T) {

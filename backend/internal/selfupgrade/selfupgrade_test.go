@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -157,5 +159,32 @@ func TestPruneKeepsTheNewestJobs(t *testing.T) {
 	slices.Sort(names)
 	if want := []string{"newest", "old-running", "second", "third"}; !slices.Equal(names, want) {
 		t.Errorf("kept %v, want %v", names, want)
+	}
+}
+
+func TestStartRunsOneJobAtATime(t *testing.T) {
+	c := testutil.Builder(t).Build()
+	cfg := Config{Chart: "oci://ghcr.io/x/charts/kubedactyl", Release: "kubedactyl", Namespace: "kubedactyl",
+		ServiceAccount: "kubedactyl-upgrader", Image: "ghcr.io/x/kubedactyl:0.2.2", Current: "0.2.2"}
+	u := &Upgrader{Config: cfg, Client: c, Reader: c}
+	var wg sync.WaitGroup
+	var running atomic.Int32
+	for range 5 {
+		wg.Go(func() {
+			if _, err := u.Start(t.Context(), "0.2.3"); errors.Is(err, ErrRunning) {
+				running.Add(1)
+			} else if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	jobs, err := u.Jobs(t.Context(), false)
+	if err != nil || len(jobs) != 1 || running.Load() != 4 {
+		t.Errorf("%d jobs (%v), %d refused, want 1 job and 4 refused", len(jobs), err, running.Load())
+	}
+	// Prune keeps the last KeepJobs, so the job has no time to live of its own.
+	if ttl := JobFor(cfg, "0.2.3").Spec.TTLSecondsAfterFinished; ttl != nil {
+		t.Errorf("TTLSecondsAfterFinished = %d", *ttl)
 	}
 }

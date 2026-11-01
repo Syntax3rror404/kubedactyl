@@ -16,6 +16,7 @@ import (
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 	"app/internal/users"
+	"app/internal/validation"
 )
 
 // IndexServerName indexes game servers by name; names are unique across namespaces.
@@ -39,10 +40,13 @@ const (
 	accessFull
 )
 
-// accessTo returns what the caller may do on a server. A subuser needs a share on a server of its owner: the
-// owner check keeps a share from working after a transfer or for a later account with the same name.
+// accessTo returns what the caller may do on a server. Servers of another installation in the same cluster are
+// nobody's. A subuser needs a share on a server of its owner: the owner check keeps a share from working after a
+// transfer or for a later account with the same name.
 func (p *Principal) accessTo(gs *v1alpha1.GameServer) access {
 	switch {
+	case !tenancy.Owns(gs.Namespace):
+		return accessNone
 	case p.Admin() || (p.Namespace != "" && gs.Namespace == p.Namespace):
 		return accessFull
 	case !p.Subuser() || gs.Namespace != p.home():
@@ -90,11 +94,7 @@ func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, err
 	}
 	p := principal(c)
 	for i := range list.Items {
-		gs := &list.Items[i]
-		if !tenancy.Owns(gs.Namespace) {
-			continue
-		}
-		if p.accessTo(gs) != accessNone {
+		if gs := &list.Items[i]; p.accessTo(gs) != accessNone {
 			return gs, nil
 		}
 	}
@@ -111,17 +111,6 @@ func (a *API) serverNameTaken(ctx context.Context, name string) (bool, error) {
 	return len(list.Items) > 0, nil
 }
 
-// ownServers drops servers that belong to another installation in the same cluster.
-func ownServers(items []v1alpha1.GameServer) []v1alpha1.GameServer {
-	out := items[:0]
-	for _, gs := range items {
-		if tenancy.Owns(gs.Namespace) {
-			out = append(out, gs)
-		}
-	}
-	return out
-}
-
 // reloadServer reads the current state of a server (e.g. for a long running websocket).
 func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alpha1.GameServer, bool) {
 	gs := &v1alpha1.GameServer{}
@@ -131,9 +120,21 @@ func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alph
 	return gs, true
 }
 
-// hideFromUser strips what a user may not see from their server, in place (handlers pass their own
-// copy): variables the egg hides and, with an external domain, the load balancer IPs (the domain is
-// the address then; a ClusterIP server keeps its DNS name inside the cluster).
+// visibleServer strips from a server, in place, what the caller may not see (handlers pass their own copy). e is
+// the server's egg, nil when it cannot be read; domain is the external domain of the settings.
+func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
+	if p.Admin() {
+		return gs
+	}
+	hideFromUser(gs, e, domain)
+	if p.Subuser() {
+		hideFromSubuser(gs, p.User.Name)
+	}
+	return gs
+}
+
+// hideFromUser strips the variables the egg hides (all of them without the egg) and, with an external domain,
+// the load balancer IPs (the domain is the address then; a ClusterIP server keeps its DNS name inside the cluster).
 func hideFromUser(gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) {
 	if domain != "" && !gameserver.ClusterOnly(gs) {
 		gs.Spec.LoadBalancerIP = ""
@@ -142,12 +143,11 @@ func hideFromUser(gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) {
 		}
 		gs.Status.Addresses = nil
 	}
-	if e == nil {
-		return
-	}
 	viewable := map[string]bool{}
-	for _, v := range e.Spec.Variables {
-		viewable[v.EnvVariable] = v.UserViewable
+	if e != nil {
+		for _, v := range e.Spec.Variables {
+			viewable[v.EnvVariable] = v.UserViewable
+		}
 	}
 	for k := range gs.Spec.Environment {
 		if !viewable[k] {
@@ -156,10 +156,10 @@ func hideFromUser(gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) {
 	}
 }
 
-// hideFromSubuser strips what only the owner sees from a server shared with a subuser, in place: variables,
-// startup command, schedules and the other shares.
+// hideFromSubuser strips what only the owner sees from a server shared with a subuser: variables, startup
+// command, schedules with their last runs and the other shares.
 func hideFromSubuser(gs *v1alpha1.GameServer, name string) {
-	gs.Spec.Environment, gs.Spec.Startup, gs.Spec.Schedules = nil, "", nil
+	gs.Spec.Environment, gs.Spec.Startup, gs.Spec.Schedules, gs.Status.Schedules = nil, "", nil, nil
 	gs.Spec.SharedWith = slices.DeleteFunc(gs.Spec.SharedWith, func(s v1alpha1.ServerShare) bool {
 		return s.User != name
 	})
@@ -201,37 +201,53 @@ func checkUserUpdate(req *UpdateServerRequest, gs *v1alpha1.GameServer, e *v1alp
 			return forbidden(errors.New("only the images of the egg can be selected"))
 		}
 	}
-	editable := map[string]bool{}
+	return checkUserVariables(req.Environment, gs, e)
+}
+
+// checkUserVariables accepts only variables of the egg and refuses a value for a variable that is not editable
+// unless it is the current one (the stored value, else the egg default).
+func checkUserVariables(env map[string]string, gs *v1alpha1.GameServer, e *v1alpha1.Egg) error {
+	variables := map[string]v1alpha1.EggVariable{}
 	for _, v := range e.Spec.Variables {
-		editable[v.EnvVariable] = v.UserEditable
+		variables[v.EnvVariable] = v
 	}
-	for k, v := range req.Environment {
-		if !editable[k] && gs.Spec.Environment[k] != v {
+	for k, val := range env {
+		v, ok := variables[k]
+		if !ok {
+			return validation.Field(k, errors.New(k+" is no variable of the egg"))
+		}
+		current, stored := gs.Spec.Environment[k]
+		if !stored {
+			current = v.DefaultValue
+		}
+		if !v.UserEditable && val != current {
 			return forbidden(errors.New("variable " + k + " cannot be changed"))
 		}
 	}
 	return nil
 }
 
-// notLocked blocks everything but viewing for everyone while a server is being removed (its finalizer still
-// runs) or its files move to another storage class, and for the owners of a suspended server.
+// notLocked blocks everything but viewing while the server is locked for the caller (lockErr).
 func (a *API) notLocked(c *gin.Context) {
 	gs, ok := a.loadServer(c)
 	if !ok {
 		return
 	}
-	if gs.DeletionTimestamp != nil {
-		a.fail(c, serverctl.ErrRemoving)
-		return
-	}
-	if gameserver.Migrating(gs) {
-		a.fail(c, serverctl.ErrMigrating)
-		return
-	}
-	if gs.Spec.Suspended && !principal(c).Admin() {
-		a.fail(c, serverctl.ErrSuspended)
+	if err := lockErr(principal(c), gs); err != nil {
+		a.fail(c, err)
 		return
 	}
 	c.Set(serverKey, gs)
 	c.Next()
+}
+
+// lockErr returns why the caller may only view the server: it is being removed (its finalizer still runs) or
+// its files move to another storage class (for everyone), or it is suspended (for everyone but administrators).
+// The REST routes (notLocked) and an open console share it.
+func lockErr(p *Principal, gs *v1alpha1.GameServer) error {
+	err := serverctl.Locked(gs)
+	if errors.Is(err, serverctl.ErrSuspended) && p.Admin() {
+		return nil
+	}
+	return err
 }

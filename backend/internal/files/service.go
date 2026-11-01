@@ -14,8 +14,18 @@ import (
 	"app/internal/gameserver"
 )
 
-// Service starts the files pod of a server on demand and runs long file jobs (backups,
-// restores, downloads) in the background while keeping the pod alive.
+// Errors of the files pod.
+var (
+	// ErrForeignPod is returned when a pod with the name of the files pod exists that the panel did
+	// not create for the server: file operations would run in it.
+	ErrForeignPod = errors.New("a pod with the name of the file container exists that the panel did not create")
+	// ErrStarting is returned when the files pod did not become ready in time.
+	ErrStarting = errors.New("the file container is still starting, try again in a few seconds")
+)
+
+// Service starts the files pod of a server on demand and runs long file jobs (downloads from a
+// URL, backups, restores, compressing and extracting archives) in the background while keeping
+// the pod alive.
 type Service struct {
 	Manager  *Manager
 	Activity *Activity
@@ -40,10 +50,6 @@ type PodState struct {
 
 	foreign bool
 }
-
-// ErrForeignPod is returned when a pod with the name of the files pod exists that the panel did
-// not create for the server: file operations would run in it.
-var ErrForeignPod = errors.New("a pod with the name of the file container exists that the panel did not create")
 
 // ours reports whether the server controls the pod (the controller sets the reference).
 func ours(pod *corev1.Pod, ref Ref) bool {
@@ -84,9 +90,6 @@ func (s *Service) PodState(ctx context.Context, ref Ref) PodState {
 	return st
 }
 
-// ErrStarting is returned when the files pod did not become ready in time.
-var ErrStarting = errors.New("the file container is still starting, try again in a few seconds")
-
 // EnsurePod marks the files as used, asks the controller for the pod and waits until it is
 // ready (at most the context deadline).
 func (s *Service) EnsurePod(ctx context.Context, ref Ref) error {
@@ -110,4 +113,12 @@ func (s *Service) EnsurePod(ctx context.Context, ref Ref) error {
 			return nil
 		}
 	}
+}
+
+// Forget drops the jobs and the file activity of a server (after it was deleted).
+func (s *Service) Forget(ref Ref) {
+	s.jobs.mu.Lock()
+	delete(s.jobs.jobs, ref)
+	s.jobs.mu.Unlock()
+	s.Activity.Forget(ref)
 }

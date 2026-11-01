@@ -9,19 +9,21 @@ import type { GameServer } from "@/lib/types"
 const patterns = ["you need to agree to the eula in order to run the server"]
 
 /**
- * Egg feature "eula": offers to accept the Minecraft EULA (writes eula.txt and starts the server). Hidden while the
- * server runs, because the console history can still hold the line of an earlier run.
+ * Egg feature "eula": offers to accept the Minecraft EULA (writes eula.txt and starts the server). Accepting waits
+ * until the server has stopped, a start before would be lost.
  */
 export function EulaPrompt({
   server,
   subscribe,
   active,
+  running,
 }: {
   server: GameServer
   subscribe: Subscribe
   active: boolean
+  running: boolean
 }) {
-  const { line, dismiss } = useConsoleMatch(subscribe, patterns)
+  const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, patterns, running)
   const accept = useAcceptEula(server.metadata.name, {
     onSuccess: () => {
       dismiss()
@@ -32,7 +34,7 @@ export function EulaPrompt({
 
   return (
     <FeaturePrompt
-      open={!!line && !active}
+      open={open}
       onClose={dismiss}
       title="Accept the Minecraft EULA"
       description={
@@ -49,7 +51,7 @@ export function EulaPrompt({
           . This writes <code>eula=true</code> to <code>eula.txt</code> and starts the server.
         </>
       }
-      confirm={{ label: "I accept", pending: accept.isPending, onConfirm: () => accept.mutate() }}
+      confirm={{ label: "I accept", pending: accept.isPending || active, onConfirm: () => accept.mutate() }}
     />
   )
 }

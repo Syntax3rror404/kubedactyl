@@ -3,15 +3,14 @@ import { DownloadIcon, ExternalLinkIcon } from "lucide-react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
-import { EggIcon } from "@/components/common/egg-icon"
 import { QueryState } from "@/components/common/query-state"
-import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { EggHeader } from "@/features/eggs/components/egg-header"
 import { EggTabs } from "@/features/eggs/components/egg-tabs"
 import { installedAs, repositoryName } from "@/features/eggs/lib/library"
 import { failed } from "@/lib/notify"
@@ -32,9 +31,10 @@ export function LibraryEggPage() {
 function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggContent }) {
   const navigate = useNavigate()
   const installed = installedAs(useEggs().data, egg)
-  // Until changed, the checkbox shows the setting of the installed egg (the egg list may load later).
-  const [changed, setAutoUpdate] = useState<boolean>()
-  const autoUpdate = changed ?? installed?.spec.source?.autoUpdate ?? false
+  // Installing again keeps auto update on (it is turned off in the editor), so the box only turns it on.
+  const keepsAutoUpdate = !!installed?.spec.source?.autoUpdate
+  const [chosen, setAutoUpdate] = useState(false)
+  const autoUpdate = keepsAutoUpdate || chosen
   const install = useImportEgg({
     onSuccess: (e) => {
       toast.success(`Egg “${e.spec.displayName}” installed`)
@@ -44,31 +44,17 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
   })
   return (
     <div className="space-y-8">
-      <PageHeader
-        icon={<EggIcon name={s.displayName} icon={s.icon} className="size-14 rounded-xl" />}
-        title={s.displayName}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            <span>{s.author}</span>
-            <Badge variant="outline" className="font-mono">
-              {egg.format}
-            </Badge>
-            <a
-              className="inline-flex items-center gap-1 font-mono text-xs underline-offset-4 hover:underline"
-              href={`${egg.repository}/blob/HEAD/${egg.path}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {repositoryName(egg.repository)}/{egg.path}
-              <ExternalLinkIcon className="size-3" />
-            </a>
-            {installed && <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Installed</Badge>}
-          </span>
-        }
+      <EggHeader
+        spec={s}
         actions={
           <>
             <div className="flex items-center gap-2">
-              <Checkbox id="auto-update" checked={autoUpdate} onCheckedChange={(v) => setAutoUpdate(v === true)} />
+              <Checkbox
+                id="auto-update"
+                checked={autoUpdate}
+                disabled={keepsAutoUpdate}
+                onCheckedChange={(v) => setAutoUpdate(v === true)}
+              />
               <Label htmlFor="auto-update">Update automatically</Label>
             </div>
             {installed && (
@@ -82,11 +68,28 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
             </Button>
           </>
         }
-      />
+      >
+        <Badge variant="outline" className="font-mono">
+          {egg.format}
+        </Badge>
+        <a
+          className="inline-flex items-center gap-1 font-mono text-xs underline-offset-4 hover:underline"
+          href={egg.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {repositoryName(egg.repository)}/{egg.path}
+          <ExternalLinkIcon className="size-3" />
+        </a>
+        {installed && <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Installed</Badge>}
+      </EggHeader>
       <p className="text-sm text-muted-foreground">
-        {installed ? "Installing again replaces the installed egg." : "The file's URL becomes the egg's update URL."}
+        {keepsAutoUpdate
+          ? "Installing again replaces the installed egg; turn auto update off in the egg editor."
+          : installed
+            ? "Installing again replaces the installed egg."
+            : "The file's URL becomes the egg's update URL."}
       </p>
-      {s.description && <p className="max-w-3xl whitespace-pre-line text-muted-foreground">{s.description}</p>}
       <EggTabs spec={s} />
     </div>
   )

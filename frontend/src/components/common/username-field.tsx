@@ -1,8 +1,6 @@
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-
-/** The rule for usernames (checked by the server: tenancy.go). */
-export const usernameRule = "3-32 lowercase letters, digits or dashes, starting with a letter."
+import { USERNAME_RULE } from "@/lib/validation"
 
 /**
  * The username of a new account: typed in lowercase (the only case usernames have), with the server's error or a
@@ -17,7 +15,7 @@ export function UsernameField({
   value,
   onChange,
   error,
-  hint = usernameRule,
+  hint = USERNAME_RULE,
   readOnly,
   autoFocus,
   placeholder,
@@ -51,6 +49,6 @@ export function UsernameField({
 }
 
 /** The server's error for the username, or a hint (by default the rule for usernames). */
-export function UsernameHint({ error, hint = usernameRule }: { error?: string; hint?: string }) {
+export function UsernameHint({ error, hint = USERNAME_RULE }: { error?: string; hint?: string }) {
   return error ? <FieldError>{error}</FieldError> : <FieldDescription>{hint}</FieldDescription>
 }

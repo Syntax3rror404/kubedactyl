@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { RotateCcwIcon, SaveIcon } from "lucide-react"
 import { useOutletContext } from "react-router"
 import { toast } from "sonner"
@@ -25,22 +26,28 @@ export function StartupPage() {
   const { server, egg } = useOutletContext<ServerContext>()
   const name = server.metadata.name
   const { isAdmin } = useAuth()
-  const { draft, set, setDraft, dirty } = useDraft({
-    startup: server.spec.startup ?? "",
-    startupName: server.spec.startupName ?? "",
-    image: server.spec.image,
-    env: server.spec.environment ?? ({} as Record<string, string>),
-  })
+  const spec = server.spec
+  const initial = useMemo(
+    () => ({
+      startup: spec.startup ?? "",
+      startupName: spec.startupName ?? "",
+      image: spec.image,
+      env: spec.environment ?? ({} as Record<string, string>),
+    }),
+    [spec],
+  )
+  const { draft, set, setDraft, dirty } = useDraft(initial)
   const { startup, startupName, image, env } = draft
 
   const knownImage = egg?.spec.dockerImages.some((i) => i.image === image)
+  // Users may only change editable variables and pick one of the egg images.
+  const editable = (key: string) =>
+    isAdmin || !!egg?.spec.variables?.some((v) => v.envVariable === key && v.userEditable)
+  const onlyEditable = (vars: Record<string, string>) =>
+    Object.fromEntries(Object.entries(vars).filter(([k]) => editable(k)))
 
-  const changes = (): UpdateServerRequest => {
-    if (isAdmin) return { startup, startupName, image, environment: env }
-    // Users may only change editable variables and pick one of the egg images.
-    const editable = new Set(egg?.spec.variables?.filter((v) => v.userEditable).map((v) => v.envVariable))
-    return { startupName, image, environment: Object.fromEntries(Object.entries(env).filter(([k]) => editable.has(k))) }
-  }
+  const changes = (): UpdateServerRequest =>
+    isAdmin ? { startup, startupName, image, environment: env } : { startupName, image, environment: onlyEditable(env) }
   const save = useUpdateServer(name, {
     onSuccess: () => toast.success("Startup settings saved", { description: "Changes apply on the next start." }),
     onError: failed("save the startup settings"),
@@ -80,13 +87,23 @@ export function StartupPage() {
       <Card>
         <CardHeader>
           <CardTitle>Docker image</CardTitle>
-          <CardDescription>Pick one of the egg images or enter a custom one.</CardDescription>
+          <CardDescription>
+            {isAdmin
+              ? "Pick one of the egg images or enter a custom one."
+              : knownImage
+                ? "Pick one of the egg images."
+                : "Set by your administrator."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <Field>
               <FieldLabel>Image</FieldLabel>
-              <Select value={knownImage ? image : "custom"} onValueChange={(v) => v !== "custom" && set("image", v)}>
+              <Select
+                value={knownImage ? image : "custom"}
+                onValueChange={(v) => v !== "custom" && set("image", v)}
+                disabled={!isAdmin && !knownImage}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -96,7 +113,7 @@ export function StartupPage() {
                       {i.name}
                     </SelectItem>
                   ))}
-                  {isAdmin && <SelectItem value="custom">Custom…</SelectItem>}
+                  {(isAdmin || !knownImage) && <SelectItem value="custom">Custom…</SelectItem>}
                 </SelectContent>
               </Select>
             </Field>
@@ -135,7 +152,10 @@ export function StartupPage() {
             </FieldGroup>
           </CardContent>
           <CardFooter className="justify-between border-t">
-            <Button variant="ghost" onClick={() => set("env", defaultEnvironment(egg.spec))}>
+            <Button
+              variant="ghost"
+              onClick={() => set("env", { ...env, ...onlyEditable(defaultEnvironment(egg.spec)) })}
+            >
               <RotateCcwIcon />
               Reset to defaults
             </Button>

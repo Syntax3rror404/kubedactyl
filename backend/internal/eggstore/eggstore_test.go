@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,5 +102,26 @@ func TestReadFileRefusesLargeFiles(t *testing.T) {
 	}
 	if _, err := ReadFile(bytes.NewReader(make([]byte, MaxSize+1))); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("larger file: err = %v, want ErrTooLarge", err)
+	}
+}
+
+// TestDownloadErrors: a body cut off is a failed download (502), not an internal error.
+func TestDownloadErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cut":
+			w.Header().Set("Content-Length", "1000")
+			_, _ = w.Write([]byte("name: Paper"))
+		case "/large":
+			_, _ = w.Write(make([]byte, MaxSize+1))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	for path, want := range map[string]error{"/cut": ErrDownload, "/large": ErrTooLarge, "/missing": ErrDownload} {
+		if _, err := Download(context.Background(), srv.URL+path); !errors.Is(err, want) {
+			t.Errorf("%s: %v, want %v", path, err, want)
+		}
 	}
 }

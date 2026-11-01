@@ -18,7 +18,7 @@ var dnsPort uint16 = 53
 // authoritative finds the name servers of the domain's zone the way a recursive resolver does:
 // it starts at the servers of the top-level domain and follows the delegations down. A local
 // DNS server that overrides the domain (a local zone) therefore cannot hide them. It returns a
-// resolver that asks these servers directly, or nil when they cannot be reached.
+// resolver that asks these servers directly (nameServers), or nil when they cannot be reached.
 func authoritative(ctx context.Context, domain string) Resolver {
 	labels := strings.Split(strings.TrimSuffix(domain, "."), ".")
 	if len(labels) < 2 {
@@ -38,10 +38,36 @@ func authoritative(ctx context.Context, domain string) Resolver {
 	if len(servers) == 0 {
 		return nil
 	}
-	server := netip.AddrPortFrom(servers[0], dnsPort).String()
-	return &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, server)
+	var ns nameServers
+	for _, s := range servers[:min(len(servers), 3)] {
+		ns = append(ns, netip.AddrPortFrom(s, dnsPort))
+	}
+	return ns
+}
+
+// nameServers asks the servers one after another until one answers (also "not found").
+type nameServers []netip.AddrPort
+
+// LookupNetIP implements Resolver.
+func (ns nameServers) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+	var err error
+	for _, server := range ns {
+		var ips []netip.Addr
+		if ips, err = lookupAt(ctx, server, network, host); notFound(err) {
+			return ips, err
+		}
+	}
+	return nil, err
+}
+
+// lookupAt asks one name server, for at most two seconds.
+func lookupAt(ctx context.Context, server netip.AddrPort, network, host string) ([]netip.Addr, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	r := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, server.String())
 	}}
+	return r.LookupNetIP(ctx, network, host)
 }
 
 // topLevelServers are the name servers of a top-level domain ("de"), asked at the local DNS.

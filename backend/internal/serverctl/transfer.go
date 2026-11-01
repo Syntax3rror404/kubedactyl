@@ -16,17 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
-	"app/internal/files"
 	"app/internal/gameserver"
 	"app/internal/kube"
 	"app/internal/tenancy"
-)
-
-// Errors of transfers.
-var (
-	ErrSameOwner = errors.New("the server already belongs to this user")
-	ErrFilesBusy = errors.New("a backup, restore or download is running, wait until it has finished")
-	ErrNoVolume  = errors.New("the server has no bound data volume yet")
 )
 
 // How long a transfer waits for the old server object, its claim and its service to go.
@@ -50,7 +42,11 @@ func (o *Ops) Transfer(
 	if err := Stopped(gs); err != nil {
 		return nil, err
 	}
-	if o.Files != nil && o.Files.Busy(files.RefOf(gs), files.JobPull, files.JobBackup, files.JobRestore) {
+	// A migration that has not finished still uses a second claim and volume of the server.
+	if m := gs.Status.Migration; gameserver.Migrating(gs) || (m != nil && m.Step != v1alpha1.MigrationFailed) {
+		return nil, ErrMigrating
+	}
+	if o.filesBusy(gs) {
 		return nil, ErrFilesBusy
 	}
 	// 1. Retain
@@ -61,7 +57,7 @@ func (o *Ops) Transfer(
 	moved := transferred(gs, owner, namespace, pv)
 	// 2. Remove
 	if err := o.removeKeepingVolume(ctx, gs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("volume %s is kept, removing the old server failed: %w", pv, err)
 	}
 	// 3. Reserve: the controller creates the claim of the moved server.
 	err = kube.ReserveVolume(ctx, o.Reader, o.Client, pv, moved.Namespace, gameserver.PVCName(moved.Name))

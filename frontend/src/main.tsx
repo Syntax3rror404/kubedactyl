@@ -8,9 +8,14 @@ import { router } from "@/app/router"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import "@/index.css"
+import { ApiError } from "@/lib/api"
+
+// Queries retry once, but not answers that would not change (4xx); 429 means "try again later".
+const retry = (failures: number, err: Error) =>
+  failures < 1 && !(err instanceof ApiError && err.status >= 400 && err.status < 500 && err.status !== 429)
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { retry, refetchOnWindowFocus: false } },
 })
 
 // After an upgrade an open tab asks for page chunks of its older build, which are gone: load the new build. Once per

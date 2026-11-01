@@ -3,7 +3,7 @@ import { AlertTriangleIcon, CpuIcon, HardDriveIcon, LoaderCircleIcon, MemoryStic
 import { GlowCard } from "@/components/common/glow-card"
 import { UsageRow } from "@/components/common/usage-row"
 import { Badge } from "@/components/ui/badge"
-import { formatBytes, formatCores, formatPercent, formatRelativeTime } from "@/lib/format"
+import { formatBytes, formatCores, formatPercent, formatRelativeTime, plural } from "@/lib/format"
 import type { ClusterNode } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -109,7 +109,7 @@ function Hardware({ node: n }: { node: ClusterNode }) {
           <div className="min-w-0 space-y-0.5">
             <div className="text-sm leading-snug font-medium">{hw.cpuModel || "Unknown CPU"}</div>
             <div className="text-xs text-muted-foreground">
-              {hw.cpuCores} cores · {hw.cpuThreads} threads
+              {plural(hw.cpuCores, "core")} · {plural(hw.cpuThreads, "thread")}
               {hw.cpuMaxMHz ? ` · up to ${(hw.cpuMaxMHz / 1000).toFixed(2)} GHz` : ""}
               {hw.cpuSockets > 1 ? ` · ${hw.cpuSockets} sockets` : ""}
             </div>

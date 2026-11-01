@@ -17,11 +17,11 @@ type GameServerList struct {
 	Items []v1alpha1.GameServer `json:"items"`
 }
 
-// serverKey holds the server that notLocked or requireFilesPod already looked up.
+// serverKey holds the server that the middleware notLocked, requireAccess or requireFilesPod already looked up.
 const serverKey = "kubedactyl.server"
 
+// loadServer returns the server of the path that the caller may access (findServer).
 func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
-	// Set by notLocked or requireFilesPod, which already looked the server up.
 	if v, ok := c.Get(serverKey); ok {
 		return v.(*v1alpha1.GameServer), true
 	}
@@ -31,15 +31,6 @@ func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
 		return nil, false
 	}
 	return gs, true
-}
-
-func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
-	e, err := a.Eggs.Get(c, name)
-	if err != nil {
-		a.fail(c, err)
-		return nil, false
-	}
-	return e, true
 }
 
 // listServers godoc
@@ -61,18 +52,13 @@ func (a *API) listServers(c *gin.Context) {
 		a.fail(c, err)
 		return
 	}
-	list.Items = slices.DeleteFunc(ownServers(list.Items), func(gs v1alpha1.GameServer) bool {
+	list.Items = slices.DeleteFunc(list.Items, func(gs v1alpha1.GameServer) bool {
 		return p.accessTo(&gs) == accessNone
 	})
-	if !p.Admin() {
-		eggs := a.eggsByName(c)
-		domain := a.externalDomain(c)
-		for i := range list.Items {
-			hideFromUser(&list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
-			if p.Subuser() {
-				hideFromSubuser(&list.Items[i], p.User.Name)
-			}
-		}
+	eggs := a.eggsByName(c)
+	domain := a.externalDomain(c)
+	for i := range list.Items {
+		visibleServer(p, &list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
 	}
 	sort.Slice(list.Items, func(i, j int) bool {
 		return strings.ToLower(list.Items[i].Spec.DisplayName) < strings.ToLower(list.Items[j].Spec.DisplayName)
@@ -95,16 +81,11 @@ func (a *API) getServer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if p := principal(c); !p.Admin() {
-		var e *v1alpha1.Egg // stays nil when the egg is gone (like in listServers)
-		if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
-			e = found
-		}
-		hideFromUser(gs, e, a.externalDomain(c))
-		if p.Subuser() {
-			hideFromSubuser(gs, p.User.Name)
-		}
+	var e *v1alpha1.Egg // stays nil when the egg cannot be read: users then see no variables
+	if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
+		e = found
 	}
+	visibleServer(principal(c), gs, e, a.externalDomain(c))
 	c.JSON(http.StatusOK, gs)
 }
 

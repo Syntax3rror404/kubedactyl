@@ -70,7 +70,8 @@ type EggSource struct {
 	// ExportedAt is the exported_at of the imported file: when its panel exported the egg.
 	// +optional
 	ExportedAt *metav1.Time `json:"exportedAt,omitempty"`
-	UpdateURL  string       `json:"updateUrl,omitempty"`
+	// UpdateURL is the egg file that "Update from URL" and AutoUpdate download. Empty: no updates from a URL.
+	UpdateURL string `json:"updateUrl,omitempty"`
 	// ImportedFrom is the URL the egg was fetched from, if any.
 	ImportedFrom string      `json:"importedFrom,omitempty"`
 	ImportedAt   metav1.Time `json:"importedAt,omitempty"`

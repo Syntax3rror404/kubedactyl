@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 /**
- * Dialog of an egg feature that offers a fix: closing it dismisses the matched console line. The confirm button
- * keeps the dialog open while its request runs; `action` replaces it (a link, for example).
+ * Dialog of an egg feature: closing it dismisses the matched console line. The confirm button keeps the dialog open
+ * while its request runs; `action` replaces it (a link, for example). Without both it only explains (Close).
  */
 export function FeaturePrompt({
   open,
@@ -28,7 +28,7 @@ export function FeaturePrompt({
   description: React.ReactNode
   /** Fields between the description and the buttons. */
   children?: React.ReactNode
-  /** Omitted when the user cannot fix it: only Cancel shows. */
+  /** Omitted when the user cannot fix it. */
   confirm?: { label: string; pending: boolean; onConfirm: () => void }
   action?: React.ReactNode
 }) {
@@ -37,11 +37,13 @@ export function FeaturePrompt({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">{description}</div>
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {children}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{confirm || action ? "Cancel" : "Close"}</AlertDialogCancel>
           {confirm && (
             <AlertDialogAction
               disabled={confirm.pending}

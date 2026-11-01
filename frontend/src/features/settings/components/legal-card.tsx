@@ -1,13 +1,13 @@
 import { ScaleIcon } from "lucide-react"
 
 import { Markdown } from "@/components/common/markdown"
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { SettingsCard } from "@/features/settings/components/settings-card"
+import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
+import { tooLong, type SettingsCardProps } from "@/features/settings/lib/settings-draft"
 import { legalDocs, legalTitles, type LegalDoc } from "@/lib/legal"
 
-const MAX = 20000
+const MAX_LEGAL = 20000
 
 const placeholders: Record<LegalDoc, string> = {
   legalNotice: "# Legal notice\n\nName\nStreet 1\n12345 City\n\nE-mail: admin@example.com",
@@ -15,15 +15,7 @@ const placeholders: Record<LegalDoc, string> = {
 }
 
 /** Imprint and privacy policy (Markdown) with a live preview; linked in the footer of every page. */
-export function LegalCard({
-  values,
-  onChange,
-  errors,
-}: {
-  values: Record<LegalDoc, string>
-  onChange: (key: LegalDoc, text: string) => void
-  errors: Record<string, string>
-}) {
+export function LegalCard({ draft, onChange, errors }: SettingsCardProps) {
   return (
     <SettingsCard
       icon={ScaleIcon}
@@ -39,29 +31,26 @@ export function LegalCard({
           ))}
         </TabsList>
         {legalDocs.map((d) => {
-          const text = values[d]
-          const error = errors[d] ?? (text.length > MAX ? `Too long (${text.length} of ${MAX} characters)` : undefined)
+          const text = draft[d]
           return (
             <TabsContent key={d} value={d} className="mt-4 grid gap-4 lg:grid-cols-2">
-              <Field data-invalid={!!error}>
-                <FieldLabel htmlFor={d}>{legalTitles[d]}</FieldLabel>
-                <Textarea
-                  id={d}
-                  rows={14}
-                  className="font-mono text-xs"
-                  value={text}
-                  placeholder={placeholders[d]}
-                  onChange={(e) => onChange(d, e.target.value)}
-                  aria-invalid={!!error}
-                />
-                {error ? (
-                  <FieldError>{error}</FieldError>
-                ) : (
-                  <FieldDescription>
-                    {text.length} / {MAX} characters
-                  </FieldDescription>
+              <SettingsField
+                id={d}
+                label={legalTitles[d]}
+                hint={`${text.length} / ${MAX_LEGAL} characters`}
+                error={errors[d] ?? tooLong(text, MAX_LEGAL)}
+              >
+                {(control) => (
+                  <Textarea
+                    {...control}
+                    rows={14}
+                    className="font-mono text-xs"
+                    value={text}
+                    placeholder={placeholders[d]}
+                    onChange={(e) => onChange({ [d]: e.target.value })}
+                  />
                 )}
-              </Field>
+              </SettingsField>
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Preview</p>
                 {text.trim() ? (

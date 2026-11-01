@@ -93,3 +93,27 @@ func TestRatesCountRefusedRequestsAndWaitingCalls(t *testing.T) {
 		t.Errorf("panel: %+v", got)
 	}
 }
+
+func TestSweepForgetsIdleUsers(t *testing.T) {
+	r := NewRateLimiter(100, 2)
+	_, _ = r.Admit("alice")
+	_ = r.UserRate("bob") // asked, but sent nothing
+	now := time.Now()
+	cases := []struct {
+		at        time.Time
+		wantAlice bool
+	}{
+		{now, true},                  // her bucket is not full and she just sent a request
+		{now.Add(sweepEvery), false}, // full again and quiet
+	}
+	for _, tc := range cases {
+		r.mu.Lock()
+		r.sweep(tc.at)
+		_, alice := r.users["alice"]
+		_, bob := r.users["bob"]
+		r.mu.Unlock()
+		if alice != tc.wantAlice || bob {
+			t.Errorf("at %v: alice kept %v, bob kept %v", tc.at.Sub(now), alice, bob)
+		}
+	}
+}

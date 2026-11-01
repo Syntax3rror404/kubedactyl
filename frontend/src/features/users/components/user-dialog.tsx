@@ -23,7 +23,7 @@ import { roleLabel } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useCreateUser, useUpdateUser } from "@/lib/queries"
 import type { Role, UserView } from "@/lib/types"
-import { fieldErrors, MIN_PASSWORD_LENGTH } from "@/lib/validation"
+import { fieldErrors, MIN_PASSWORD_LENGTH, PASSWORD_RULE } from "@/lib/validation"
 
 /** Create a user (user = null) or edit an existing one. */
 export function UserDialog({ open, user, onClose }: { open: boolean; user: UserView | null; onClose: () => void }) {
@@ -44,17 +44,14 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
     // A password the administrator chose is a start password: by default the user replaces it.
     mustChangePassword: user?.mustChangePassword ?? true,
   })
-  const feedback = {
-    onSuccess: (u: UserView) => {
-      toast.success(user ? `${u.username} saved` : `${u.username} created`, {
-        description: user ? undefined : `Namespace ${u.namespace}`,
-      })
-      onClose()
-    },
-    onError: failed("save the user"),
+  const onSuccess = (u: UserView) => {
+    toast.success(user ? `${u.username} saved` : `${u.username} created`, {
+      description: user ? undefined : `Namespace ${u.namespace}`,
+    })
+    onClose()
   }
-  const create = useCreateUser(feedback)
-  const update = useUpdateUser(feedback)
+  const create = useCreateUser({ onSuccess, onError: failed("create the user") })
+  const update = useUpdateUser({ onSuccess, onError: failed("save the user") })
   const pending = create.isPending || update.isPending
   const errors = fieldErrors(create.error ?? update.error)
   const { username, password, displayName, email, role, mustChangePassword } = draft
@@ -142,7 +139,7 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
           <PasswordFields
             isNew={!user}
             password={password}
-            onPassword={(v) => set("password", v)}
+            onPasswordChange={(v) => set("password", v)}
             mustChange={mustChangePassword}
             onMustChange={(v) => set("mustChangePassword", v)}
             tooShort={tooShort}
@@ -167,7 +164,7 @@ function UserForm({ user, onClose }: { user: UserView | null; onClose: () => voi
 function PasswordFields({
   isNew,
   password,
-  onPassword,
+  onPasswordChange,
   mustChange,
   onMustChange,
   tooShort,
@@ -175,7 +172,7 @@ function PasswordFields({
 }: {
   isNew: boolean
   password: string
-  onPassword: (v: string) => void
+  onPasswordChange: (v: string) => void
   mustChange: boolean
   onMustChange: (v: boolean) => void
   tooShort: boolean
@@ -188,10 +185,10 @@ function PasswordFields({
         label={isNew ? "Password" : "New password"}
         autoComplete="new-password"
         value={password}
-        onChange={onPassword}
+        onChange={onPasswordChange}
         invalid={tooShort}
         error={error}
-        hint={`At least ${MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash.`}
+        hint={PASSWORD_RULE}
       />
       <Field orientation="horizontal">
         <Switch id="u-must-change" checked={mustChange} onCheckedChange={onMustChange} />

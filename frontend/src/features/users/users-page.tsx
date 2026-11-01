@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { InviteDialog } from "@/features/users/components/invite-dialog"
 import { UserDialog } from "@/features/users/components/user-dialog"
 import { UserTable } from "@/features/users/components/user-table"
+import { useRetained } from "@/hooks/use-retained"
 import { failed } from "@/lib/notify"
 import { useDeleteUser, useInvites, useUsers } from "@/lib/queries"
 import type { UserView } from "@/lib/types"
@@ -25,12 +26,16 @@ export function UsersPage() {
   const users = useUsers()
   const invites = useInvites()
   const [dialog, setDialog] = useState<Dialog>(null)
-  const remove = useDeleteUser({
-    onSuccess: (_, username) =>
-      toast.success(`${username} deleted`, { description: "Servers, data and the namespace are being removed." }),
-    onError: failed("delete the user"),
-  })
-  const deleting = dialog?.kind === "delete" ? dialog.user : null
+  const remove = useDeleteUser({ onError: failed("delete the user") })
+  const deleting = useRetained(dialog?.kind === "delete" ? dialog.user : null)
+  // A subuser has no servers or namespace of its own.
+  const deleteUser = (user: UserView) =>
+    remove.mutate(user.username, {
+      onSuccess: () =>
+        toast.success(`${user.username} deleted`, {
+          description: user.owner ? undefined : "Servers, data and the namespace are being removed.",
+        }),
+    })
 
   return (
     <div className="space-y-8">
@@ -51,7 +56,7 @@ export function UsersPage() {
       />
       <QueryState query={users}>
         {(list) => {
-          // Reset links belong to an account of either table; the rows find them by username.
+          // Reset links belong to an account of either table; the rows find them by username (splitInvites).
           const pending = invites.data ?? []
           const subuserInvites = pending.filter((i) => i.reset || i.owner)
           const subusers = list.filter((u) => u.owner)
@@ -87,7 +92,7 @@ export function UsersPage() {
         onClose={() => setDialog(null)}
       />
       <ConfirmDialog
-        open={!!deleting}
+        open={dialog?.kind === "delete"}
         onOpenChange={(o) => !o && setDialog(null)}
         title={`Delete ${deleting?.username}?`}
         description={
@@ -102,7 +107,7 @@ export function UsersPage() {
         }
         confirmLabel="Delete user"
         destructive
-        onConfirm={() => deleting && remove.mutate(deleting.username)}
+        onConfirm={() => deleting && deleteUser(deleting)}
       />
     </div>
   )

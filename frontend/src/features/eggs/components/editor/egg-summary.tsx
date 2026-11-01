@@ -1,9 +1,12 @@
 import { DefaultBadge } from "@/features/eggs/components/egg-overview"
+import { describeStop, installRuntime } from "@/features/eggs/lib/describe"
+import { plural } from "@/lib/format"
 import type { EggSpec } from "@/lib/types"
 
 /** Overview of an egg before it is created (wizard review step). */
 export function EggSummary({ spec }: { spec: EggSpec }) {
   const script = spec.install?.script?.trim() ?? ""
+  const { container, entrypoint } = installRuntime(spec)
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Name", value: spec.displayName || "-" },
     { label: "Author", value: spec.author || "-" },
@@ -37,7 +40,7 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
         </span>
       ),
     },
-    { label: "Stop", value: spec.stop ? <code className="text-xs">{spec.stop}</code> : "graceful container stop" },
+    { label: "Stop", value: describeStop(spec.stop) },
     {
       label: "Running when",
       value: spec.startupDone?.length
@@ -61,7 +64,7 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
     {
       label: "Install",
       value: script
-        ? `${spec.install?.container || "default installer"} · ${spec.install?.entrypoint || "bash"} · ${script.split("\n").length} lines`
+        ? `${container} · ${entrypoint} · ${plural(script.split("\n").length, "line")}`
         : "no install script",
     },
   ]

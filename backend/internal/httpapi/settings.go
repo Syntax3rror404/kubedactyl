@@ -43,7 +43,7 @@ type RequestRates struct {
 //	@Summary		Request rates
 //	@Description	Averages over the last 5 seconds; refused requests and waiting calls count, too. This request
 //	@Description	does not count. Panel is set for administrators only.
-//	@Tags			Settings
+//	@Tags			System
 //	@Produce		json
 //	@Success		200	{object}	RequestRates
 //	@Security		BearerAuth
@@ -61,7 +61,8 @@ func (a *API) getRequestRates(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// SettingsView is the panel settings; the client secret of the identity provider is never sent.
+// SettingsView is the panel settings; the client secret of the identity provider is never sent. Users get only
+// the fields the web UI shows them, the others are empty.
 type SettingsView struct {
 	v1alpha1.PanelSettingsSpec
 	// OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).
@@ -76,24 +77,40 @@ type UpdateSettingsRequest struct {
 }
 
 // sendSettings answers with the settings and, for administrators (only they edit them), whether a client
-// secret is stored.
+// secret is stored; users get userSettings.
 func (a *API) sendSettings(c *gin.Context, spec v1alpha1.PanelSettingsSpec) {
-	view := SettingsView{PanelSettingsSpec: spec}
-	if principal(c).Admin() {
-		secret, err := a.Settings.OIDCClientSecret(c)
-		if err != nil {
-			a.fail(c, err)
-			return
-		}
-		view.OIDCClientSecretSet = secret != ""
+	if !principal(c).Admin() {
+		c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: userSettings(spec)})
+		return
 	}
-	c.JSON(http.StatusOK, view)
+	secret, err := a.Settings.OIDCClientSecret(c)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""})
+}
+
+// userSettings keeps the settings the web UI needs for users: the address and pools of their servers, the
+// server notice, the API docs switch and their limits for API tokens and subusers.
+func userSettings(spec v1alpha1.PanelSettingsSpec) v1alpha1.PanelSettingsSpec {
+	return v1alpha1.PanelSettingsSpec{
+		ExternalDomain:          spec.ExternalDomain,
+		LoadBalancerPools:       spec.LoadBalancerPools,
+		DefaultLoadBalancerPool: spec.DefaultLoadBalancerPool,
+		AllowClusterIP:          spec.AllowClusterIP,
+		ServerNotice:            spec.ServerNotice,
+		DisableAPIDocs:          spec.DisableAPIDocs,
+		APITokenMaxDays:         spec.APITokenMaxDays,
+		SubusersPerUser:         spec.SubusersPerUser,
+	}
 }
 
 // getSettings godoc
 //
 //	@Summary		Panel settings
-//	@Description	External domain and the storage classes and load balancer pools that can be selected for servers.
+//	@Description	All settings for administrators. Users get only external domain, load balancer pools, server
+//	@Description	notice, API docs switch and their limits for API tokens and subusers.
 //	@Tags			Settings
 //	@Produce		json
 //	@Success		200	{object}	SettingsView

@@ -2,19 +2,40 @@ package clusterinfo
 
 import (
 	"fmt"
+	"io/fs"
 	"slices"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 
+	"app/config/crd"
 	"app/internal/checks"
 	"app/internal/settings"
 )
 
+// ownResources are the resources of the CRDs the panel installs on start (config/crd).
+var ownResources = sync.OnceValue(func() []string {
+	var out []string
+	entries, _ := fs.ReadDir(crd.Files, ".")
+	for _, e := range entries {
+		var def struct {
+			Spec struct {
+				Names struct{ Plural string } `json:"names"`
+			} `json:"spec"`
+		}
+		if data, err := fs.ReadFile(crd.Files, e.Name()); err == nil && yaml.Unmarshal(data, &def) == nil {
+			out = append(out, def.Spec.Names.Plural)
+		}
+	}
+	return out
+})
+
 // checkCRDs requires the panel's own resources to be served.
 func checkCRDs(in healthInputs) checks.Check {
 	const id, label = "crds", "Kubedactyl CRDs"
-	absent := missing([]string{"eggs", "gameservers", "users", "panelsettings", "invites"}, func(r string) bool {
+	absent := missing(ownResources(), func(r string) bool {
 		return slices.Contains(in.crdResources, r)
 	})
 	switch {
@@ -30,17 +51,24 @@ func checkCRDs(in healthInputs) checks.Check {
 	return checks.New(id, label, checks.OK, "")
 }
 
-// checkPermissions requires every permission check of the service account to pass.
+// checkPermissions requires every permission check of the service account to pass; checks the API server did not
+// answer are a warning.
 func checkPermissions(in healthInputs) checks.Check {
 	const id, label = "permissions", "Permissions"
-	var denied []string
+	var denied, unknown []string
 	for _, p := range in.permissions {
-		if !p.Allowed {
+		switch {
+		case p.unknown:
+			unknown = append(unknown, p.Label)
+		case !p.Allowed:
 			denied = append(denied, p.Label)
 		}
 	}
-	if len(denied) > 0 {
+	switch {
+	case len(denied) > 0:
 		return checks.New(id, label, checks.Error, "not allowed: "+strings.Join(denied, ", "))
+	case len(unknown) > 0:
+		return checks.New(id, label, checks.Warning, "could not check: "+strings.Join(unknown, ", "))
 	}
 	return checks.New(id, label, checks.OK, "")
 }

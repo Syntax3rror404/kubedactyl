@@ -65,8 +65,8 @@ func initialSpec(
 	return spec
 }
 
-// migrateServers fills in storageClass and loadBalancerPool of servers that have none,
-// from their existing volume and service (or the defaults).
+// migrateServers fills in storageClass and loadBalancerPool of servers that have none, from their existing volume
+// and service (or the defaults); servers with nothing to fill in are left alone.
 func migrateServers(ctx context.Context, c client.Client, spec v1alpha1.PanelSettingsSpec, log *slog.Logger) error {
 	var list v1alpha1.GameServerList
 	if err := c.List(ctx, &list); err != nil {
@@ -78,7 +78,7 @@ func migrateServers(ctx context.Context, c client.Client, spec v1alpha1.PanelSet
 		if !tenancy.Owns(gs.Namespace) || (gs.Spec.StorageClass != "" && gs.Spec.LoadBalancerPool != "") {
 			continue
 		}
-		patch := client.MergeFrom(gs.DeepCopy())
+		before := gs.DeepCopy()
 		if gs.Spec.StorageClass == "" {
 			gs.Spec.StorageClass = cmp.Or(existingStorageClass(ctx, c, gs), spec.DefaultStorageClass)
 		}
@@ -88,7 +88,11 @@ func migrateServers(ctx context.Context, c client.Client, spec v1alpha1.PanelSet
 			}
 			gs.Spec.LoadBalancerPool = cmp.Or(existingPool(ctx, c, gs, pools), spec.DefaultLoadBalancerPool)
 		}
-		if err := c.Patch(ctx, gs, patch); err != nil {
+		if gs.Spec.StorageClass == before.Spec.StorageClass &&
+			gs.Spec.LoadBalancerPool == before.Spec.LoadBalancerPool {
+			continue // nothing known to fill in
+		}
+		if err := c.Patch(ctx, gs, client.MergeFrom(before)); err != nil {
 			return err
 		}
 		log.Info("migrated server settings",

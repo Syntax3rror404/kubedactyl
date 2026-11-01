@@ -2,16 +2,16 @@ import { serverName } from "@/lib/format"
 import type { GameServer, UpdateServerRequest } from "@/lib/types"
 
 /** Pool selection of a server without load balancer (Cilium pool names have no capitals). */
-export const noLoadBalancer = "ClusterIP"
+export const NO_LOAD_BALANCER = "ClusterIP"
 
-/** The pool selection of a saved server: its pool, or noLoadBalancer. */
+/** The pool selection of a saved server: its pool, or NO_LOAD_BALANCER. */
 export function poolValue(server: GameServer) {
-  return server.spec.serviceType === "ClusterIP" ? noLoadBalancer : (server.spec.loadBalancerPool ?? "")
+  return server.spec.serviceType === "ClusterIP" ? NO_LOAD_BALANCER : (server.spec.loadBalancerPool ?? "")
 }
 
 /** The service type and pool of a pool selection. */
 export function poolRequest(pool: string) {
-  return pool === noLoadBalancer
+  return pool === NO_LOAD_BALANCER
     ? ({ serviceType: "ClusterIP" } as const)
     : ({ serviceType: "LoadBalancer", loadBalancerPool: pool } as const)
 }
@@ -48,25 +48,32 @@ export interface SettingsCardProps {
   errors: Record<string, string>
 }
 
-/** The update request; users may only change the name, crash restarts, the pool and the subusers who see it. */
-export function settingsChanges(server: GameServer, d: SettingsDraft, isAdmin: boolean): UpdateServerRequest {
-  const pool = d.pool !== poolValue(server) && poolRequest(d.pool)
-  const shares = JSON.stringify(d.sharedWith) !== JSON.stringify(server.spec.sharedWith ?? []) && {
-    sharedWith: d.sharedWith,
-  }
-  if (!isAdmin) return { displayName: d.displayName, crashRestart: d.crashRestart, ...pool, ...shares }
-  return {
-    displayName: d.displayName,
-    memoryMiB: d.memory,
-    cpuMillis: d.cpu,
-    diskMiB: d.disk,
-    ports: d.ports,
-    loadBalancerIP: d.lbIP.trim(),
-    externalTrafficPolicy: d.trafficPolicy,
-    ipv6: d.ipv6,
-    crashRestart: d.crashRestart,
-    stopTimeoutSeconds: d.stopTimeout,
-    ...pool,
-    ...shares,
-  }
+// The request fields of each draft field.
+const requestOf: { [K in keyof SettingsDraft]: (value: SettingsDraft[K]) => UpdateServerRequest } = {
+  displayName: (displayName) => ({ displayName }),
+  memory: (memoryMiB) => ({ memoryMiB }),
+  cpu: (cpuMillis) => ({ cpuMillis }),
+  disk: (diskMiB) => ({ diskMiB }),
+  ports: (ports) => ({ ports }),
+  lbIP: (ip) => ({ loadBalancerIP: ip.trim() }),
+  trafficPolicy: (externalTrafficPolicy) => ({ externalTrafficPolicy }),
+  ipv6: (ipv6) => ({ ipv6 }),
+  pool: poolRequest,
+  crashRestart: (crashRestart) => ({ crashRestart }),
+  stopTimeout: (stopTimeoutSeconds) => ({ stopTimeoutSeconds }),
+  sharedWith: (sharedWith) => ({ sharedWith }),
+}
+
+// What users may change; the rest is for administrators.
+const userFields = new Set<keyof SettingsDraft>(["displayName", "crashRestart", "pool", "sharedWith"])
+
+/**
+ * The update request: only the fields that differ from the saved draft, so a save never reverts what someone else
+ * changed meanwhile. Users may only change the name, crash restarts, the pool and the subusers who see it.
+ */
+export function settingsChanges(saved: SettingsDraft, d: SettingsDraft, isAdmin: boolean): UpdateServerRequest {
+  const changed = (Object.keys(requestOf) as (keyof SettingsDraft)[]).filter(
+    (k) => (isAdmin || userFields.has(k)) && JSON.stringify(d[k]) !== JSON.stringify(saved[k]),
+  )
+  return Object.assign({}, ...changed.map((k) => (requestOf[k] as (v: unknown) => UpdateServerRequest)(d[k])))
 }

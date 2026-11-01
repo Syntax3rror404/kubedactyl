@@ -4,33 +4,26 @@ import { LibraryIcon, XIcon } from "lucide-react"
 import { CheckStatusIcon } from "@/components/common/check-status-icon"
 import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { Button } from "@/components/ui/button"
-import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-import { SettingsCard } from "@/features/settings/components/settings-card"
+import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 import { useLibrary, useLibraryRepository } from "@/lib/queries"
 import type { LibraryRepository } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
 
 /** The panel accepts at most this many repositories (settings.maxEggLibraries). */
-const maxRepositories = 20
+const MAX_REPOSITORIES = 20
 
 /**
  * The git repositories the egg library lists: one field each, plus an empty one for the next as
  * soon as the last has text. Saved repositories show what the library read (the same query as the
  * Library tab); a new URL is checked while it is typed.
  */
-export function EggLibrariesCard({
-  repositories,
-  onChange,
-  error,
-}: {
-  repositories: string[]
-  onChange: (repositories: string[]) => void
-  error?: string
-}) {
+export function EggLibrariesCard({ draft, onChange, errors }: SettingsCardProps) {
+  const repositories = draft.eggLibraries
   const library = useLibrary()
-  const full = repositories.length >= maxRepositories || repositories.at(-1) === ""
+  const full = repositories.length >= MAX_REPOSITORIES || repositories.at(-1) === ""
   const rows = full ? repositories : [...repositories, ""]
   // Stable row keys: a row keeps its check state when one above it is removed.
   const [keys, setKeys] = useState(() => rows.map((_, i) => i))
@@ -41,7 +34,7 @@ export function EggLibrariesCard({
   // Empty fields at the end are not part of the value (the draft stays clean).
   const change = (next: string[]) => {
     while (next.at(-1) === "") next.pop()
-    onChange(next)
+    onChange({ eggLibraries: next })
   }
   return (
     <SettingsCard
@@ -49,24 +42,24 @@ export function EggLibrariesCard({
       title="Egg library"
       description="Git repositories whose eggs the library offers to install."
     >
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="egg-library-0">Repositories</FieldLabel>
-        {rows.map((url, i) => (
-          <RepositoryRow
-            key={keys[i] ?? -1 - i}
-            id={`egg-library-${i}`}
-            url={url}
-            listed={library.isPending ? "loading" : library.data?.find((r) => r.url === url.trim())}
-            removable={url !== "" || i < rows.length - 1}
-            onChange={(v) => change(rows.map((r, j) => (j === i ? v : r)))}
-            onRemove={() => {
-              setKeys(keys.filter((_, j) => j !== i))
-              change(rows.filter((_, j) => j !== i))
-            }}
-          />
-        ))}
-        {error && <FieldError>{error}</FieldError>}
-      </Field>
+      <SettingsField id="egg-library-0" label="Repositories" error={errors.eggLibraries}>
+        {() =>
+          rows.map((url, i) => (
+            <RepositoryRow
+              key={keys[i] ?? -1 - i}
+              id={`egg-library-${i}`}
+              url={url}
+              listed={library.isPending ? "loading" : library.data?.find((r) => r.url === url.trim())}
+              removable={url !== "" || i < rows.length - 1}
+              onChange={(v) => change(rows.map((r, j) => (j === i ? v : r)))}
+              onRemove={() => {
+                setKeys(keys.filter((_, j) => j !== i))
+                change(rows.filter((_, j) => j !== i))
+              }}
+            />
+          ))
+        }
+      </SettingsField>
     </SettingsCard>
   )
 }

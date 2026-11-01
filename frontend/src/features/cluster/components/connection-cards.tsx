@@ -1,10 +1,12 @@
 import { useState } from "react"
 import { FileKeyIcon, KeyRoundIcon, LinkIcon, ShieldCheckIcon, UserCheckIcon } from "lucide-react"
 
+import { CheckStatusIcon } from "@/components/common/check-status-icon"
 import { CopyButton } from "@/components/common/copy-button"
 import { DetailList } from "@/components/common/detail-list"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { plural } from "@/lib/format"
 import type { CertInfo, ClusterIdentity } from "@/lib/types"
 
 const methodLabel: Record<string, string> = {
@@ -23,7 +25,7 @@ function Cert({ cert }: { cert: CertInfo }) {
   return (
     <span title={`Issuer: ${cert.issuer}`}>
       {cert.subject} ·{" "}
-      <span className={days < 30 ? "text-amber-600 dark:text-amber-400" : ""}>expires in {days} days</span>
+      <span className={days < 30 ? "text-amber-600 dark:text-amber-400" : ""}>expires in {plural(days, "day")}</span>
     </span>
   )
 }
@@ -154,18 +156,16 @@ export function PermissionsCard({ id }: { id: ClusterIdentity }) {
           Permissions
         </CardTitle>
         <CardDescription>
-          {missing === 0 ? "Everything the panel needs is allowed." : `${missing} required permission(s) missing.`}
+          {missing === 0
+            ? "Everything the panel needs is allowed."
+            : `${plural(missing, "required permission")} missing.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="divide-y rounded-xl border">
           {id.permissions.map((p) => (
             <div key={p.label} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${p.allowed ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-red-500/15 text-red-600"}`}
-              >
-                {p.allowed ? "✓" : "✕"}
-              </span>
+              <CheckStatusIcon status={p.allowed ? "ok" : "error"} className="size-4" />
               <div className="min-w-0 flex-1">
                 <div>{p.label}</div>
                 <code className="block truncate text-[11px] text-muted-foreground">

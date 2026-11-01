@@ -59,8 +59,8 @@ export function ChangePasswordPage() {
             <NewPasswordFields
               password={draft.password}
               confirm={draft.confirm}
-              onPassword={(v) => set("password", v)}
-              onConfirm={(v) => set("confirm", v)}
+              onPasswordChange={(v) => set("password", v)}
+              onConfirmChange={(v) => set("confirm", v)}
               error={errors.new}
               label="New password"
             />

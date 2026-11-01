@@ -2,11 +2,14 @@ package clusterinfo
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"app/api/v1alpha1"
 	"app/internal/checks"
@@ -72,7 +75,7 @@ func TestHealthProblems(t *testing.T) {
 			func(in *healthInputs) { in.crdResources = []string{"eggs", "users"} },
 			"crds",
 			checks.Error,
-			"gameservers, panelsettings, invites",
+			"gameservers, invites, panelsettings",
 		},
 		{
 			"permission missing",
@@ -80,6 +83,15 @@ func TestHealthProblems(t *testing.T) {
 			"permissions",
 			checks.Error,
 			"Exec into pods",
+		},
+		{
+			"permission check failed",
+			func(in *healthInputs) {
+				in.permissions = append(in.permissions, Permission{Label: "Exec into pods", unknown: true})
+			},
+			"permissions",
+			checks.Warning,
+			"could not check: Exec into pods",
 		},
 		{
 			"node not ready",
@@ -184,6 +196,40 @@ func TestHealthProblems(t *testing.T) {
 		got := byID(evaluate(in))[c.id]
 		if got.Status != c.status || !strings.Contains(got.Message, c.msg) {
 			t.Errorf("%s: %s = %s %q, want %s containing %q", c.name, c.id, got.Status, got.Message, c.status, c.msg)
+		}
+	}
+}
+
+func TestOwnResourcesComeFromTheEmbeddedCRDs(t *testing.T) {
+	want := []string{"eggs", "gameservers", "invites", "panelsettings", "users"}
+	if got := ownResources(); !slices.Equal(got, want) {
+		t.Errorf("own resources = %v, want %v", got, want)
+	}
+}
+
+func TestHealthIsKeptOnlyWhenEveryReadAnswered(t *testing.T) {
+	notFound := apierrors.NewNotFound(schema.GroupResource{Resource: "validatingadmissionpolicies"}, "x")
+	cases := []struct {
+		name   string
+		change func(*healthInputs)
+		kept   bool
+	}{
+		{"all answered", func(*healthInputs) {}, true},
+		{"policy missing", func(in *healthInputs) { in.policyErr = notFound }, true},
+		{"identity provider down", func(in *healthInputs) { in.oidcErr = errors.New("timeout") }, true},
+		{"nodes not read", func(in *healthInputs) { in.nodesErr = errors.New("timeout") }, false},
+		{"settings not read", func(in *healthInputs) { in.settingsErr = errors.New("timeout") }, false},
+		{
+			"permission not checked",
+			func(in *healthInputs) { in.permissions = append(in.permissions, Permission{unknown: true}) },
+			false,
+		},
+	}
+	for _, c := range cases {
+		in := healthyInputs()
+		c.change(&in)
+		if kept := in.readErr() == nil; kept != c.kept {
+			t.Errorf("%s: kept %v, want %v", c.name, kept, c.kept)
 		}
 	}
 }

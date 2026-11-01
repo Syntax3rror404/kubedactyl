@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"app/api/v1alpha1"
 	"app/internal/console"
 	"app/internal/files"
-	"app/internal/gameserver"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 )
@@ -59,8 +59,7 @@ func (r *Runner) tick(ctx context.Context, minute time.Time) {
 	}
 	for i := range list.Items {
 		gs := &list.Items[i]
-		if !tenancy.Owns(gs.Namespace) || !gs.DeletionTimestamp.IsZero() || gs.Spec.Suspended ||
-			gameserver.Migrating(gs) {
+		if !tenancy.Owns(gs.Namespace) || serverctl.Locked(gs) != nil {
 			continue
 		}
 		for _, s := range gs.Spec.Schedules {
@@ -99,8 +98,17 @@ func (r *Runner) Started(gs *v1alpha1.GameServer) {
 }
 
 // StartStopping runs the enabled "stopping" schedules of a server and returns how long the
-// stop may wait for them at most (0: there are none).
+// stop may wait for them at most (StopLimit).
 func (r *Runner) StartStopping(gs *v1alpha1.GameServer) time.Duration {
+	for _, s := range eventSchedules(gs, EventStopping) {
+		r.start(client.ObjectKeyFromObject(gs), s)
+	}
+	return r.StopLimit(gs)
+}
+
+// StopLimit is how long the stop of a server may wait for its enabled "stopping" schedules at most
+// (0: there are none): their delays plus 10 seconds per task and 15 seconds per schedule.
+func (r *Runner) StopLimit(gs *v1alpha1.GameServer) time.Duration {
 	var wait time.Duration
 	for _, s := range eventSchedules(gs, EventStopping) {
 		d := 15 * time.Second
@@ -108,7 +116,6 @@ func (r *Runner) StartStopping(gs *v1alpha1.GameServer) time.Duration {
 			d += time.Duration(t.DelaySeconds)*time.Second + 10*time.Second
 		}
 		wait = max(wait, d)
-		r.start(client.ObjectKeyFromObject(gs), s)
 	}
 	return wait
 }
@@ -197,15 +204,10 @@ func (r *Runner) run(ctx context.Context, ref types.NamespacedName, s v1alpha1.S
 		if err := r.Reader.Get(ctx, ref, gs); err != nil {
 			return // server deleted meanwhile
 		}
-		var err error
-		switch t.Action {
-		case "command":
-			err = r.Ops.Command(ctx, gs, t.Payload)
-		case "backup":
-			err = r.backup(ctx, gs, t.Payload)
-		default:
-			err = r.Ops.Power(ctx, gs, t.Action)
-			r.Trigger(ref.Namespace, ref.Name)
+		// The server may have been suspended, or started moving or going, since the run began.
+		err := serverctl.Locked(gs)
+		if err == nil {
+			err = r.runTask(ctx, gs, t)
 		}
 		if err != nil {
 			result := fmt.Sprintf("failed: task %d (%s): %v", i+1, t.Action, err)
@@ -217,6 +219,19 @@ func (r *Runner) run(ctx context.Context, ref types.NamespacedName, s v1alpha1.S
 	r.record(ctx, ref, s.Name, "ok")
 }
 
+// runTask runs one task of a schedule.
+func (r *Runner) runTask(ctx context.Context, gs *v1alpha1.GameServer, t v1alpha1.ScheduleTask) error {
+	switch t.Action {
+	case "command":
+		return r.Ops.Command(ctx, gs, t.Payload)
+	case "backup":
+		return r.backup(ctx, gs, t.Payload)
+	}
+	err := r.Ops.Power(ctx, gs, t.Action)
+	r.Trigger(gs.Namespace, gs.Name)
+	return err
+}
+
 // record stores the result of a run in the server status.
 func (r *Runner) record(ctx context.Context, ref types.NamespacedName, name, result string) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -225,20 +240,35 @@ func (r *Runner) record(ctx context.Context, ref types.NamespacedName, name, res
 			return err
 		}
 		entry := v1alpha1.ScheduleStatus{Name: name, LastRunAt: &metav1.Time{Time: time.Now()}, LastResult: result}
-		found := false
-		for i := range gs.Status.Schedules {
-			if gs.Status.Schedules[i].Name == name {
-				gs.Status.Schedules[i], found = entry, true
-			}
-		}
-		if !found {
-			gs.Status.Schedules = append(gs.Status.Schedules, entry)
-		}
+		gs.Status.Schedules = withResult(gs, entry)
 		return r.Client.Status().Update(ctx, gs)
 	})
 	if err != nil {
 		r.Log.Warn("storing schedule result", "server", ref.Name, "schedule", name, "err", err)
 	}
+}
+
+// withResult returns the schedule results of a server with entry in place of the previous result of its
+// schedule. Results of schedules that are no longer in the spec are dropped.
+func withResult(gs *v1alpha1.GameServer, entry v1alpha1.ScheduleStatus) []v1alpha1.ScheduleStatus {
+	inSpec := func(name string) bool {
+		return slices.ContainsFunc(gs.Spec.Schedules, func(s v1alpha1.Schedule) bool { return s.Name == name })
+	}
+	var out []v1alpha1.ScheduleStatus
+	found := false
+	for _, st := range gs.Status.Schedules {
+		switch {
+		case !inSpec(st.Name):
+		case st.Name == entry.Name:
+			out, found = append(out, entry), true
+		default:
+			out = append(out, st)
+		}
+	}
+	if !found && inSpec(entry.Name) {
+		out = append(out, entry)
+	}
+	return out
 }
 
 // backup creates a backup and waits for it, so the next task runs after it.

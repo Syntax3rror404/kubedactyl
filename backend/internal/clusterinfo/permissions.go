@@ -1,6 +1,7 @@
 package clusterinfo
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -16,9 +17,9 @@ import (
 )
 
 // permissionCheck is one access the panel needs. Scope "" is cluster wide, "panel" the panel
-// namespace and "tenant" a user namespace (where the panel's tenant role is bound).
+// namespace and "tenant" a user namespace (where the panel's tenant role is bound); namespace names a fixed one.
 type permissionCheck struct {
-	label, verb, group, resource, sub, name, scope string
+	label, verb, group, resource, sub, name, scope, namespace string
 }
 
 // errUnsure marks permission checks that failed or could not run yet: shown, but not cached.
@@ -26,7 +27,7 @@ var errUnsure = errors.New("permission checks incomplete")
 
 // permissions verifies the access the panel needs (cached for permissionTTL).
 func (s *Service) permissions(ctx context.Context) []Permission {
-	p, _ := s.caches().permissionCache.Get(struct{}{}, func() ([]Permission, error) { return s.checkPermissions(ctx) })
+	p, _ := s.caches().permissionCache.Get(ctx, struct{}{}, s.checkPermissions)
 	return p
 }
 
@@ -43,7 +44,7 @@ func (s *Service) checkPermissions(ctx context.Context) ([]Permission, error) {
 	out := make([]Permission, len(checks))
 	var wg sync.WaitGroup
 	for i, c := range checks {
-		ns := map[string]string{"panel": s.Namespace, "tenant": tenantNS}[c.scope]
+		ns := cmp.Or(c.namespace, map[string]string{"panel": s.Namespace, "tenant": tenantNS}[c.scope])
 		resource := c.resource
 		if c.sub != "" {
 			resource += "/" + c.sub
@@ -56,7 +57,7 @@ func (s *Service) checkPermissions(ctx context.Context) ([]Permission, error) {
 			spec := authzv1.SelfSubjectAccessReviewSpec{ResourceAttributes: attrs}
 			res, err := s.Kube.Clientset.AuthorizationV1().SelfSubjectAccessReviews().
 				Create(ctx, &authzv1.SelfSubjectAccessReview{Spec: spec}, metav1.CreateOptions{})
-			out[i].Allowed = err == nil && res.Status.Allowed
+			out[i].Allowed, out[i].unknown = err == nil && res.Status.Allowed, err != nil
 			if err != nil {
 				unsure.Store(true)
 			}
@@ -85,7 +86,8 @@ func (s *Service) permissionChecks() []permissionCheck {
 		{label: "List services", verb: "list", resource: "services"},
 		// Whether servers can get IPv6 addresses.
 		{label: "List service CIDRs", verb: "list", group: "networking.k8s.io", resource: "servicecidrs"},
-		{label: "Read the Cilium config", verb: "get", resource: "configmaps", name: settings.CiliumConfig.Name},
+		{label: "Read the Cilium config", verb: "get", resource: "configmaps", name: settings.CiliumConfig.Name,
+			namespace: settings.CiliumConfig.Namespace},
 		{label: "Manage secrets", verb: "create", resource: "secrets", scope: "panel"},
 		{label: "Store the OIDC client secret", verb: "patch", resource: "secrets", name: settings.OIDCSecret,
 			scope: "panel"},
@@ -96,6 +98,7 @@ func (s *Service) permissionChecks() []permissionCheck {
 		{label: "Exec into pods", verb: "create", resource: "pods", sub: "exec", scope: "tenant"},
 		{label: "Attach to pods", verb: "create", resource: "pods", sub: "attach", scope: "tenant"},
 		{label: "Read pod logs", verb: "get", resource: "pods", sub: "log", scope: "tenant"},
+		{label: "Read pod metrics", verb: "get", group: "metrics.k8s.io", resource: "pods", scope: "tenant"},
 		{label: "Create services", verb: "create", resource: "services", scope: "tenant"},
 		{label: "Create volume claims", verb: "create", resource: "persistentvolumeclaims", scope: "tenant"},
 		{label: "Manage network policies", verb: "create", group: "networking.k8s.io", resource: "networkpolicies",

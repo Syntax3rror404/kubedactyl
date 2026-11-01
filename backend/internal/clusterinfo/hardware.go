@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"cmp"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/internal/tenancy"
 )
@@ -113,8 +113,8 @@ const (
 // probeNode runs a short-lived, unprivileged pod pinned to the node and parses its output.
 func (s *Service) probeNode(ctx context.Context, node string) (*Hardware, error) {
 	pods := s.Kube.Clientset.CoreV1().Pods(s.Namespace)
-	pod := s.probePod(node)
-	if _, err := pods.Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+	pod, err := pods.Create(ctx, s.probePod(node), metav1.CreateOptions{})
+	if err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -125,14 +125,8 @@ func (s *Service) probeNode(ctx context.Context, node string) (*Hardware, error)
 
 // probePod is the unprivileged pod that runs probeScript on the node.
 func (s *Service) probePod(node string) *corev1.Pod {
-	suffix := make([]byte, 3)
-	_, _ = rand.Read(suffix)
-	name := fmt.Sprintf("kubedactyl-probe-%s-%s", strings.ToLower(node), hex.EncodeToString(suffix))
-	if len(name) > 63 {
-		name = name[:56] + "-" + hex.EncodeToString(suffix)
-	}
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: map[string]string{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "kubedactyl-probe-", Labels: map[string]string{
 			tenancy.LabelManagedBy: tenancy.ManagedBy, probeLabel: probeRole,
 		}},
 		Spec: corev1.PodSpec{
@@ -198,23 +192,58 @@ func waitForProbe(ctx context.Context, pods typedcorev1.PodInterface, name strin
 	return nil, errors.New("probe timed out (is the node reachable?)")
 }
 
-// loadCache reads persisted probe results once, so a panel restart does not probe again.
-func (s *Service) loadCache(ctx context.Context) {
+// loadCache reads the persisted probe results once, so a panel restart does not probe again, and removes the
+// probe pods an earlier panel left behind. It reports whether the results are loaded; after a failed read it tries
+// again on the next call, and nothing is probed until then (a probe would overwrite the stored results).
+func (s *Service) loadCache(ctx context.Context) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.loaded {
-		return
+		return true
 	}
-	s.loaded = true
-	s.hardware = map[string]*hardwareEntry{}
 	cm, err := s.Kube.Clientset.CoreV1().ConfigMaps(s.Namespace).Get(ctx, hardwareCacheCM, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		s.Log.Warn("reading hardware cache", "err", err)
+		return false
+	}
+	s.hardware = map[string]*hardwareEntry{}
+	if err == nil {
+		for node, raw := range cm.Data {
+			e := &hardwareEntry{}
+			if json.Unmarshal([]byte(raw), e) == nil {
+				s.hardware[node] = e
+			}
+		}
+	}
+	// Before the first probe of this panel, so every probe pod found here is a leftover.
+	s.removeProbePods(ctx)
+	s.loaded = true
+	return true
+}
+
+// removeProbePods deletes the probe pods in the panel namespace.
+func (s *Service) removeProbePods(ctx context.Context) {
+	pods := s.Kube.Clientset.CoreV1().Pods(s.Namespace)
+	list, err := pods.List(ctx, metav1.ListOptions{LabelSelector: probeLabel + "=" + probeRole})
 	if err != nil {
+		s.Log.Warn("listing old hardware probe pods", "err", err)
 		return
 	}
-	for node, raw := range cm.Data {
-		e := &hardwareEntry{}
-		if json.Unmarshal([]byte(raw), e) == nil {
-			s.hardware[node] = e
+	for _, p := range list.Items {
+		err := pods.Delete(ctx, p.Name, metav1.DeleteOptions{GracePeriodSeconds: ptr.To[int64](0)})
+		if client.IgnoreNotFound(err) != nil {
+			s.Log.Warn("removing an old hardware probe pod", "pod", p.Name, "err", err)
+		}
+	}
+}
+
+// forgetGoneNodes drops the results of nodes that left the cluster, so they are not saved again.
+func (s *Service) forgetGoneNodes(nodes []corev1.Node) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for name := range s.hardware {
+		if !slices.ContainsFunc(nodes, func(n corev1.Node) bool { return n.Name == name }) {
+			delete(s.hardware, name)
 		}
 	}
 }
@@ -248,7 +277,9 @@ func (s *Service) saveCache(ctx context.Context) {
 
 // ProbeNodes probes the given nodes in parallel and stores the results.
 func (s *Service) ProbeNodes(ctx context.Context, nodes []string) {
-	s.loadCache(ctx)
+	if !s.loadCache(ctx) {
+		return
+	}
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		s.mu.Lock()

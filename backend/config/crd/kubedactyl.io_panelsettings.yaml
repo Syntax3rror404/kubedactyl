@@ -66,7 +66,7 @@ spec:
                 type: boolean
               apiTokenMaxDays:
                 description: |-
-                  APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+                  APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
                   tokens created before, counted from their creation.
                 format: int32
                 maximum: 3650
@@ -74,8 +74,8 @@ spec:
                 type: integer
               brandLogo:
                 description: |-
-                  BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-                  128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+                  BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+                  Empty: uses the built-in logo.
                 maxLength: 180000
                 type: string
               brandName:
@@ -115,12 +115,15 @@ spec:
                   balancer IP. Empty: shows the IP.
                 type: string
               favicon:
+                description: |-
+                  Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+                  Empty: uses the built-in icon.
                 maxLength: 180000
                 type: string
               kubeApiQps:
                 description: |-
                   KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-                  twice that). Empty: 50. It applies at once.
+                  twice that). Empty: uses 50. It applies at once.
                 format: int32
                 maximum: 1000
                 minimum: 5
@@ -128,7 +131,7 @@ spec:
               kubeApiUserQps:
                 description: |-
                   KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-                  that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+                  that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
                 format: int32
                 maximum: 200
                 minimum: 1
@@ -156,8 +159,12 @@ spec:
                       else may sign in.
                     type: string
                   clientId:
+                    description: ClientID is the client of the panel at the identity
+                      provider; its secret is kept in a Secret.
                     type: string
                   enabled:
+                    description: Enabled shows the single sign-on button on the sign-in
+                      page.
                     type: boolean
                   groupsClaim:
                     description: 'GroupsClaim holds the groups of the user. Empty:
@@ -206,7 +213,7 @@ spec:
                 type: string
               sessionHours:
                 description: |-
-                  SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+                  SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
                   shortening it also ends older sessions.
                 format: int32
                 maximum: 720
@@ -221,7 +228,7 @@ spec:
               subusersPerUser:
                 description: |-
                   SubusersPerUser is how many subusers (accounts and invites) every user may create for
-                  their servers. Empty: 10. 0 = off.
+                  their servers. Empty: uses 10. 0 = off.
                 format: int32
                 maximum: 100
                 minimum: 0

@@ -2,6 +2,8 @@ package settings
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -13,6 +15,7 @@ import (
 	"app/internal/kube"
 	"app/internal/sso"
 	"app/internal/tenancy"
+	"app/internal/validation"
 )
 
 // OIDCSecret holds the client secret of the identity provider (key client-secret) in the panel namespace: it
@@ -23,9 +26,9 @@ const (
 	maxOIDCName   = 40
 )
 
-// checkOIDC trims the single sign-on settings and, while it is on, requires the client and both groups and
+// normalizeOIDC trims the single sign-on settings and, while it is on, requires the client and both groups and
 // checks that the issuer answers.
-func checkOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSettings, error) {
+func normalizeOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSettings, error) {
 	for _, f := range []*string{
 		&o.Name, &o.IssuerURL, &o.ClientID, &o.RedirectURL, &o.UsernameClaim, &o.GroupsClaim, &o.AdminGroup,
 		&o.UserGroup,
@@ -33,7 +36,7 @@ func checkOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSetti
 		*f = strings.TrimSpace(*f)
 	}
 	if n := len([]rune(o.Name)); n > maxOIDCName {
-		return o, invalid("oidc.name", "too long (%d of %d characters)", n, maxOIDCName)
+		return o, validation.Field("oidc.name", fmt.Errorf("too long (%d of %d characters)", n, maxOIDCName))
 	}
 	if !o.Enabled {
 		return o, nil
@@ -43,21 +46,21 @@ func checkOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSetti
 		{"oidc.adminGroup", o.AdminGroup}, {"oidc.userGroup", o.UserGroup},
 	} {
 		if f.value == "" {
-			return o, invalid(f.name, "required for single sign-on")
+			return o, validation.Field(f.name, errors.New("required for single sign-on"))
 		}
 	}
 	if o.AdminGroup == o.UserGroup {
-		return o, invalid("oidc.userGroup", "must differ from the admin group")
+		return o, validation.Field("oidc.userGroup", errors.New("must differ from the admin group"))
 	}
 	if err := sso.CheckURL(o.IssuerURL); err != nil {
-		return o, invalid("oidc.issuerUrl", "%s", err)
+		return o, validation.Field("oidc.issuerUrl", err)
 	}
 	if u, err := url.Parse(o.RedirectURL); err != nil || sso.CheckURL(o.RedirectURL) != nil ||
 		u.Path != sso.CallbackPath {
-		return o, invalid("oidc.redirectUrl", "must be https://<panel>%s", sso.CallbackPath)
+		return o, validation.Field("oidc.redirectUrl", fmt.Errorf("must be https://<panel>%s", sso.CallbackPath))
 	}
 	if err := sso.Discover(ctx, o.IssuerURL); err != nil {
-		return o, invalid("oidc.issuerUrl", "%s", err)
+		return o, validation.Field("oidc.issuerUrl", err)
 	}
 	return o, nil
 }
@@ -65,19 +68,14 @@ func checkOIDC(ctx context.Context, o v1alpha1.OIDCSettings) (v1alpha1.OIDCSetti
 // OIDCClientSecret returns the client secret of the identity provider ("" when none is stored). Like Current,
 // it is kept in memory until the settings change.
 func (s *Store) OIDCClientSecret(ctx context.Context) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.secret != nil {
-		return *s.secret, nil
-	}
-	secret := &corev1.Secret{}
-	err := s.Reader.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: OIDCSecret}, secret)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return "", err
-	}
-	value := string(secret.Data[oidcSecretKey])
-	s.secret = &value
-	return value, nil
+	return s.secret.get(ctx, func(ctx context.Context) (string, error) {
+		secret := &corev1.Secret{}
+		err := s.Reader.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: OIDCSecret}, secret)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		return string(secret.Data[oidcSecretKey]), nil
+	})
 }
 
 // UpdateOIDCClientSecret stores the client secret of the identity provider ("" removes it).

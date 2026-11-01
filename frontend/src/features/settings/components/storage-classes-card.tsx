@@ -1,22 +1,24 @@
-import { DatabaseIcon } from "lucide-react"
+import { AlertTriangleIcon, DatabaseIcon } from "lucide-react"
 
+import { Callout } from "@/components/common/callout"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FieldError } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DefaultCell, type Selection, type SelectionHandlers } from "@/features/settings/components/default-cell"
+import { DefaultCell } from "@/features/settings/components/default-cell"
 import { SettingsCard } from "@/features/settings/components/settings-card"
-import type { StorageClass } from "@/lib/types"
+import { selectionHandlers, type Selection, type SettingsCardProps } from "@/features/settings/lib/settings-draft"
+import { useStorageClasses } from "@/lib/queries"
 
 /** All storage classes of the cluster; the checked ones can be selected for server volumes. */
-export function StorageClassesCard({
-  classes,
-  selection,
-  onToggle,
-  onDefault,
-  fieldError,
-}: { classes?: StorageClass[]; selection: Selection; fieldError?: string } & SelectionHandlers) {
+export function StorageClassesCard({ draft, onChange, errors }: SettingsCardProps) {
+  const query = useStorageClasses()
+  const classes = query.data
+  const selection: Selection = { enabled: draft.storageClasses, defaultName: draft.defaultStorageClass }
+  const { onToggle, onDefault } = selectionHandlers(selection, (s) =>
+    onChange({ storageClasses: s.enabled, defaultStorageClass: s.defaultName }),
+  )
   return (
     <SettingsCard
       icon={DatabaseIcon}
@@ -24,7 +26,11 @@ export function StorageClassesCard({
       description="Checked classes can be picked for new servers. A volume keeps its class."
       contentClassName="px-0"
     >
-      {!classes ? (
+      {query.error ? (
+        <Callout tone="warning" icon={<AlertTriangleIcon />} className="mx-6">
+          <p>{query.error.message}</p>
+        </Callout>
+      ) : !classes ? (
         <Skeleton className="mx-6 h-32" />
       ) : (
         <Table>
@@ -80,7 +86,7 @@ export function StorageClassesCard({
           </TableBody>
         </Table>
       )}
-      {fieldError && <FieldError className="mx-6 mt-3">{fieldError}</FieldError>}
+      {errors.storageClasses && <FieldError className="mx-6 mt-3">{errors.storageClasses}</FieldError>}
     </SettingsCard>
   )
 }

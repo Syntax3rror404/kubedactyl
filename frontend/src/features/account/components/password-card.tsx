@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
+import { NewPasswordFields } from "@/features/auth/components/new-password-fields"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
 import { useUpdatePassword } from "@/lib/queries"
-import { fieldErrors, MIN_PASSWORD_LENGTH } from "@/lib/validation"
+import { fieldErrors, newPasswordReady } from "@/lib/validation"
 
 /**
  * Change the own password; this signs the user out everywhere, including this browser. The API tokens are revoked,
@@ -20,9 +21,8 @@ import { fieldErrors, MIN_PASSWORD_LENGTH } from "@/lib/validation"
  */
 export function PasswordCard() {
   const navigate = useNavigate()
-  const { draft, set } = useDraft({ current: "", next: "", repeat: "" })
+  const { draft, set } = useDraft({ current: "", password: "", confirm: "" })
   const [revokeTokens, setRevokeTokens] = useState(true)
-  const mismatch = draft.repeat.length > 0 && draft.next !== draft.repeat
   const change = useUpdatePassword({
     onSuccess: () => {
       toast.success("Password changed", { description: "Please sign in again." })
@@ -33,7 +33,7 @@ export function PasswordCard() {
   const errors = fieldErrors(change.error)
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    change.mutate({ current: draft.current, next: draft.next, revokeTokens })
+    change.mutate({ current: draft.current, next: draft.password, revokeTokens })
   }
   return (
     <Card>
@@ -52,22 +52,13 @@ export function PasswordCard() {
               onChange={(v) => set("current", v)}
               error={errors.current}
             />
-            <PasswordField
-              id="pw-new"
-              label="New password"
-              autoComplete="new-password"
-              value={draft.next}
-              onChange={(v) => set("next", v)}
+            <NewPasswordFields
+              password={draft.password}
+              confirm={draft.confirm}
+              onPasswordChange={(v) => set("password", v)}
+              onConfirmChange={(v) => set("confirm", v)}
               error={errors.new}
-              hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
-            />
-            <PasswordField
-              id="pw-repeat"
-              label="Repeat new password"
-              autoComplete="new-password"
-              value={draft.repeat}
-              onChange={(v) => set("repeat", v)}
-              error={mismatch ? "The passwords do not match." : undefined}
+              label="New password"
             />
             <Field orientation="horizontal">
               <Switch id="pw-revoke-tokens" checked={revokeTokens} onCheckedChange={setRevokeTokens} />
@@ -78,12 +69,7 @@ export function PasswordCard() {
         <CardFooter className="justify-end">
           <Button
             type="submit"
-            disabled={
-              !draft.current ||
-              draft.next.length < MIN_PASSWORD_LENGTH ||
-              draft.next !== draft.repeat ||
-              change.isPending
-            }
+            disabled={change.isPending || !draft.current || !newPasswordReady(draft.password, draft.confirm)}
           >
             {change.isPending ? <Spinner /> : <KeyRoundIcon />}
             Change password

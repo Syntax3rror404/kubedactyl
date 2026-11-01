@@ -9,7 +9,7 @@ import type { ScheduleAction, ScheduleTask } from "@/lib/types"
 
 const MAX_TASKS = 10
 
-/** The steps of a schedule: action (tasks only run commands), payload and delay, in order. */
+/** The steps of a schedule: action (only commands at events), payload and delay, in order. */
 export function ScheduleSteps({
   tasks,
   isTask,
@@ -65,7 +65,7 @@ export function ScheduleSteps({
             value={t.delaySeconds ?? 0}
             onChange={(e) => setTask(i, { delaySeconds: Math.min(900, Math.max(0, Number(e.target.value) || 0)) })}
             aria-label="Delay in seconds"
-            title="Seconds to wait before this task"
+            title="Seconds to wait before this step"
           />
           <Button
             type="button"

@@ -95,7 +95,7 @@ func (a *API) startOIDC(c *gin.Context) {
 //	@Description	/login?sso=ok&next=<page the sign-in started from>. The account is the one linked to the user of
 //	@Description	the identity provider, else the one with the same username, else a new one. Failures redirect to
 //	@Description	/login?sso=<reason> (access: in no group with access or disabled, account: the account cannot be
-//	@Description	used, failed).
+//	@Description	used, failed). Failed callbacks are throttled per client like failed sign-ins.
 //	@Tags			Auth
 //	@Param			code	query	string	false	"Authorization code"
 //	@Param			state	query	string	false	"State of the sign-in"
@@ -103,7 +103,13 @@ func (a *API) startOIDC(c *gin.Context) {
 //	@Router			/auth/oidc/callback [get]
 func (a *API) finishOIDC(c *gin.Context) {
 	flow := a.takeOIDCFlow(c)
-	user, err := a.oidcUser(c, flow)
+	// Failed callbacks count against the client like failed sign-ins.
+	now := time.Now()
+	key, err := a.takeClientAttempt(c, "oidc", now)
+	var user *v1alpha1.User
+	if err == nil {
+		user, err = a.oidcUser(c, flow)
+	}
 	if err == nil {
 		_, err = a.startSession(c, user)
 	}
@@ -111,6 +117,7 @@ func (a *API) finishOIDC(c *gin.Context) {
 		a.oidcFailed(c, err)
 		return
 	}
+	a.Limiter.Forgive(key, now)
 	a.Log.Info("signed in", "user", user.Name, "ip", c.ClientIP(), "via", "oidc")
 	c.Redirect(http.StatusFound, "/login?"+url.Values{"sso": {ssoSignedIn}, "next": {flow.Next}}.Encode())
 }

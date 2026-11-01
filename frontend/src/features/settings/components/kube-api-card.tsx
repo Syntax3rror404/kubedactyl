@@ -1,28 +1,19 @@
 import { GaugeIcon } from "lucide-react"
 
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { FieldGroup } from "@/components/ui/field"
 import { Slider } from "@/components/ui/slider"
-import { SettingsCard } from "@/features/settings/components/settings-card"
-
-type Limits = { kubeApiQps: number; kubeApiUserQps: number }
+import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 
 /** How many requests per second the panel sends to the Kubernetes API, and one user to the panel. */
-export function KubeApiCard({
-  values,
-  onChange,
-  errors,
-}: {
-  values: Limits
-  onChange: (patch: Partial<Limits>) => void
-  errors: Record<string, string>
-}) {
+export function KubeApiCard({ draft, onChange, errors }: SettingsCardProps) {
   return (
     <SettingsCard icon={GaugeIcon} title="Kube API limit" description="Protects the Kubernetes API from overload.">
       <FieldGroup className="gap-6">
         <LimitField
           id="kube-api-qps"
           label="Requests per second"
-          value={values.kubeApiQps}
+          value={draft.kubeApiQps}
           range={[5, 1000, 5]}
           onChange={(kubeApiQps) => onChange({ kubeApiQps })}
           error={errors.kubeApiQps}
@@ -31,7 +22,7 @@ export function KubeApiCard({
         <LimitField
           id="kube-api-user-qps"
           label="Per user"
-          value={values.kubeApiUserQps}
+          value={draft.kubeApiUserQps}
           range={[1, 200, 1]}
           onChange={(kubeApiUserQps) => onChange({ kubeApiUserQps })}
           error={errors.kubeApiUserQps}
@@ -61,13 +52,16 @@ function LimitField({
   hint: string
 }) {
   return (
-    <Field data-invalid={error ? true : undefined}>
-      <div className="flex items-center justify-between">
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
-        <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-sm tabular-nums">{value}</span>
-      </div>
-      <Slider id={id} value={[value]} min={min} max={max} step={step} onValueChange={(v) => onChange(v[0])} />
-      {error ? <FieldError>{error}</FieldError> : <FieldDescription>{hint}</FieldDescription>}
-    </Field>
+    <SettingsField
+      id={id}
+      label={label}
+      aside={<span className="rounded-md bg-muted px-2 py-0.5 font-mono text-sm tabular-nums">{value}</span>}
+      hint={hint}
+      error={error}
+    >
+      {(control) => (
+        <Slider {...control} value={[value]} min={min} max={max} step={step} onValueChange={(v) => onChange(v[0])} />
+      )}
+    </SettingsField>
   )
 }

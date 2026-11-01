@@ -8,7 +8,7 @@ import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
-// Pelican's list (Pterodactyl's without the 1.19 line), matched case-insensitively.
+// The patterns of the egg feature in Pterodactyl and Pelican (case-insensitive substrings).
 const patterns = [
   "java.lang.unsupportedclassversionerror",
   "unsupported major.minor version",
@@ -32,7 +32,7 @@ export function JavaVersionPrompt({
   running: boolean
   isAdmin: boolean
 }) {
-  const { line, dismiss } = useConsoleMatch(subscribe, patterns)
+  const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, patterns, running)
   const images = egg.spec.dockerImages.filter((i) => i.image !== server.spec.image)
   // Users never replace a custom image an administrator has set.
   const custom = !egg.spec.dockerImages.some((i) => i.image === server.spec.image)
@@ -53,7 +53,7 @@ export function JavaVersionPrompt({
       : ""
   return (
     <FeaturePrompt
-      open={!!line && !running}
+      open={open}
       onClose={dismiss}
       title="Unsupported Java version"
       description={`This Java version is not supported, so the server cannot start.${hint}`}

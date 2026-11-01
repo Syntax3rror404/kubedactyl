@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -23,13 +22,17 @@ import (
 // crashWindow is how soon a second crash stops the server instead of restarting it.
 const crashWindow = 60 * time.Second
 
+// preStartTries is how often the pre-start steps are tried before the start is given up.
+const preStartTries = 3
+
 // reconcileGame drives the game pod towards the desired power state: it follows a pod that
 // runs, removes one whose exit was handled, and otherwise reports offline or starts the server.
 func (r *Reconciler) reconcileGame(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg,
 ) (reconcile.Result, error) {
-	// A suspended server is stopped and stays stopped, a migrating one until its files have moved.
-	locked := gs.Spec.Suspended || gameserver.Migrating(gs)
+	// A suspended server is stopped and stays stopped, a migrating one until its files have moved, a
+	// reinstalled one until the install script ran.
+	locked := gs.Spec.Suspended || gameserver.Migrating(gs) || installPending(gs)
 	wantRunning := gs.Spec.State == v1alpha1.PowerRunning && !locked
 	restart := gs.Annotations[gameserver.AnnotationRestart] != "" && !locked
 
@@ -57,10 +60,16 @@ func (r *Reconciler) reconcileGame(
 		wantRunning = true
 	}
 	if !wantRunning {
+		r.preStartFailures.Delete(client.ObjectKeyFromObject(gs))
 		r.setPhase(gs, v1alpha1.PhaseOffline, offlineMessage(gs))
 		return reconcile.Result{}, nil
 	}
 	return r.startGame(ctx, gs, egg)
+}
+
+// installPending reports whether the egg's install script has to run before the server may start.
+func installPending(gs *v1alpha1.GameServer) bool {
+	return gs.Status.InstalledRevision < gs.Spec.InstallRevision
 }
 
 // removeExitedPod deletes a game pod whose exit was already handled: right away when the server
@@ -87,11 +96,9 @@ func (r *Reconciler) removeExitedPod(
 // clearPodState resets the status fields of the previous game pod.
 func (r *Reconciler) clearPodState(ctx context.Context, gs *v1alpha1.GameServer) error {
 	gs.Status.RestartRequired = false
-	if uid := gs.Status.PodUID; uid != "" {
+	if gs.Status.PodUID != "" {
 		// The pod vanished without passing handleExit, e.g. after a kill.
 		r.Hub.Daemon(gs.Name, "Server marked as offline...")
-		r.seenTerminated.Delete(types.UID(uid))
-		stopTaskLimits.Delete(uid)
 	}
 	setPod(gs, "")
 	if _, ok := gs.Annotations[gameserver.AnnotationStopSent]; !ok {
@@ -107,12 +114,12 @@ func setPod(gs *v1alpha1.GameServer, uid string) {
 	gs.Status.StopTasksStartedAt = nil
 }
 
-// offlineMessage keeps a crash message visible until the server is started again.
+// offlineMessage keeps a crash or pre-start message visible until the server is started again.
 func offlineMessage(gs *v1alpha1.GameServer) string {
 	switch {
 	case gs.Spec.Suspended:
 		return "suspended by an administrator"
-	case strings.HasPrefix(gs.Status.Message, "crashed"):
+	case strings.HasPrefix(gs.Status.Message, "crashed"), strings.HasPrefix(gs.Status.Message, preStartFailed):
 		return gs.Status.Message
 	}
 	return ""
@@ -124,7 +131,7 @@ func (r *Reconciler) startGame(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg,
 ) (reconcile.Result, error) {
 	ref := files.RefOf(gs)
-	r.Files.Touch(ref)
+	r.Files.Activity.Touch(ref)
 	filesReady, err := r.ensureFilesPod(ctx, gs)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("files pod: %w", err)
@@ -139,15 +146,14 @@ func (r *Reconciler) startGame(
 	preCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	warnings, err := gameserver.PreStart(preCtx, r.Kube, gs, egg, r.Opts)
 	cancel()
-	r.Files.Touch(ref)
+	r.Files.Activity.Touch(ref)
 	for _, w := range warnings {
 		r.Hub.Daemon(gs.Name, w)
 	}
 	if err != nil {
-		r.Hub.Daemon(gs.Name, "Pre-start failed: "+err.Error())
-		r.setPhase(gs, v1alpha1.PhaseStarting, "pre-start failed: "+err.Error())
-		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+		return r.handlePreStartFailure(ctx, gs, err)
 	}
+	r.preStartFailures.Delete(client.ObjectKeyFromObject(gs))
 	if err := r.createOwned(ctx, gs, gameserver.GamePod(gs, egg, r.Opts)); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -155,6 +161,34 @@ func (r *Reconciler) startGame(
 	gs.Status.StartedAt = &now
 	gs.Status.LastExitCode = nil
 	r.setPhase(gs, v1alpha1.PhaseStarting, "")
+	return reconcile.Result{}, nil
+}
+
+// preStartFailed starts the status message of a failed pre-start.
+const preStartFailed = "pre-start failed: "
+
+// handlePreStartFailure tries the pre-start steps again 10 seconds later; after preStartTries
+// failures in a row the server is stopped like after a second crash.
+func (r *Reconciler) handlePreStartFailure(
+	ctx context.Context, gs *v1alpha1.GameServer, err error,
+) (reconcile.Result, error) {
+	r.Hub.Daemon(gs.Name, "Pre-start failed: "+err.Error())
+	key := client.ObjectKeyFromObject(gs)
+	failures := 1
+	if n, ok := r.preStartFailures.Load(key); ok {
+		failures += n.(int)
+	}
+	if failures < preStartTries {
+		r.preStartFailures.Store(key, failures)
+		r.setPhase(gs, v1alpha1.PhaseStarting, preStartFailed+err.Error())
+		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+	r.preStartFailures.Delete(key)
+	r.Hub.Daemon(gs.Name, fmt.Sprintf("Aborting the start, the pre-start steps failed %d times.", failures))
+	if err := r.patchServer(ctx, gs, func() { gs.Spec.State = v1alpha1.PowerStopped }); err != nil {
+		return reconcile.Result{}, err
+	}
+	r.setPhase(gs, v1alpha1.PhaseOffline, preStartFailed+err.Error())
 	return reconcile.Result{}, nil
 }
 
@@ -179,7 +213,7 @@ func (r *Reconciler) reconcileGamePod(
 		return reconcile.Result{RequeueAfter: 15 * time.Second}, nil
 	}
 	// Running once the egg's "done" output appeared (or right away for eggs without one).
-	if gs.Status.Phase == v1alpha1.PhaseRunning || r.Hub.IsDone(pod.UID) ||
+	if gs.Status.Phase == v1alpha1.PhaseRunning || r.Hub.IsDone(gs.Name, pod.UID) ||
 		(len(egg.Spec.StartupDone) == 0 && pod.Status.Phase == corev1.PodRunning) {
 		if gs.Status.Phase != v1alpha1.PhaseRunning {
 			r.Hub.Daemon(gs.Name, "Server marked as running...")
@@ -223,8 +257,6 @@ func (r *Reconciler) handleExit(
 			return reconcile.Result{}, err
 		}
 	}
-	r.Hub.ForgetPod(pod.UID)
-	stopTaskLimits.Delete(string(pod.UID))
 	setPod(gs, "")
 
 	if restart {

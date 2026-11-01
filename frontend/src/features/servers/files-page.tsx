@@ -3,10 +3,10 @@ import { FolderIcon, UploadIcon } from "lucide-react"
 import { useOutletContext, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
+import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { EmptyState, QueryState } from "@/components/common/query-state"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { FileDeleteDialog } from "@/features/servers/components/file-delete-dialog"
 import { FileEditorDialog } from "@/features/servers/components/file-editor-dialog"
 import { FileNameDialog } from "@/features/servers/components/file-name-dialog"
 import { FilePathBreadcrumb } from "@/features/servers/components/file-path-breadcrumb"
@@ -21,6 +21,7 @@ import { useDesktopDrop } from "@/features/servers/hooks/use-desktop-drop"
 import { useFileContainer } from "@/features/servers/hooks/use-file-container"
 import { isEditable, joinPath, uploadedText } from "@/features/servers/lib/files"
 import type { ServerContext } from "@/features/servers/server-layout"
+import { useRetained } from "@/hooks/use-retained"
 import { urls } from "@/lib/api"
 import { failed } from "@/lib/notify"
 import {
@@ -30,7 +31,6 @@ import {
   useDecompressFile,
   useFileList,
   useRenameFiles,
-  useRenameFile,
   useUploadFiles,
 } from "@/lib/queries"
 import type { FileEntry } from "@/lib/types"
@@ -44,6 +44,9 @@ type Dialog =
   | { kind: "delete"; names: string[] }
   | { kind: "edit"; file: string; isNew?: boolean }
   | null
+
+// One name, or how many entries (toasts).
+const entriesText = (names: string[]) => (names.length === 1 ? names[0] : `${names.length} items`)
 
 /** /servers/:server/files: the file manager; the file container starts on demand (useFileContainer). */
 export function FilesPage() {
@@ -61,32 +64,36 @@ export function FilesPage() {
   const setSelected = (names: Set<string>) => setSelection({ dir, names })
   const go = (d: string) => setParams(d === "/" ? {} : { dir: d })
 
-  // Listings reload in the hooks; failures are reported the same way for every operation.
-  const onError = failed("change the files")
-  const uploadFiles = useUploadFiles(name, { onError })
-  const moveFiles = useRenameFiles(name, { onError })
-  const renameFile = useRenameFile(name, { onError })
-  const createFolder = useCreateFolder(name, { onError })
+  // Listings reload in the hooks. Renames and moves share one hook, so their messages are passed to mutate.
+  const uploadFiles = useUploadFiles(name, { onError: failed("upload the files") })
+  const renameFiles = useRenameFiles(name)
+  const createFolder = useCreateFolder(name, { onError: failed("create the folder") })
   // Packing and extracting run as jobs: the job list shows them, a toast says when they are finished.
-  const compressFiles = useCompressFiles(name, { onError })
-  const decompressFile = useDecompressFile(name, { onError })
-  const deleteFiles = useDeleteFiles(name, { onError, onSuccess: () => setSelected(new Set()) })
+  const compressFiles = useCompressFiles(name, { onError: failed("compress the files") })
+  const decompressFile = useDecompressFile(name, { onError: failed("extract the archive") })
+  const deleteFiles = useDeleteFiles(name, {
+    onSuccess: (_, { names }) => {
+      setSelected(new Set())
+      toast.success(`${entriesText(names)} deleted`)
+    },
+    onError: failed("delete the files"),
+  })
   const drop = useDesktopDrop(ready, (dropped) =>
     uploadFiles.mutate({ dir, files: dropped }, { onSuccess: () => toast.success(uploadedText(dropped)) }),
   )
   const move = (names: string[], target: string) => {
     if (target === dir || names.length === 0) return
-    const moves = names.map((n) => ({ from: joinPath(dir, n), to: joinPath(target, n) }))
-    moveFiles.mutate(moves, {
+    const moves = names.map((n) => ({ dir: "/", from: joinPath(dir, n), to: joinPath(target, n) }))
+    renameFiles.mutate(moves, {
       onSuccess: () => {
         setSelected(new Set())
-        toast.success(
-          names.length === 1 ? `${names[0]} moved to ${target}` : `${names.length} items moved to ${target}`,
-        )
+        toast.success(`${entriesText(names)} moved to ${target}`)
       },
+      onError: failed("move the files"),
     })
   }
   const compress = (names: string[]) => compressFiles.mutate({ dir, names })
+  const deleting = useRetained(dialog?.kind === "delete" ? dialog.names : null)
   const path = (e: FileEntry) => joinPath(dir, e.name)
 
   const actions: FileActions = {
@@ -181,7 +188,17 @@ export function FilesPage() {
         label="Folder name"
         onClose={() => setDialog(null)}
         pending={createFolder.isPending}
-        onSubmit={(n) => createFolder.mutate({ dir, name: n }, { onSuccess: () => setDialog(null) })}
+        onSubmit={(n) =>
+          createFolder.mutate(
+            { dir, name: n },
+            {
+              onSuccess: () => {
+                toast.success(`Folder ${n} created`)
+                setDialog(null)
+              },
+            },
+          )
+        }
       />
       <FileNameDialog
         open={dialog?.kind === "newfile"}
@@ -196,18 +213,28 @@ export function FilesPage() {
         label="New name (use / to move into a folder)"
         initial={dialog?.kind === "rename" ? dialog.entry.name : ""}
         onClose={() => setDialog(null)}
-        pending={renameFile.isPending}
+        pending={renameFiles.isPending}
         onSubmit={(n) =>
           dialog?.kind === "rename" &&
-          renameFile.mutate({ dir, from: dialog.entry.name, to: n }, { onSuccess: () => setDialog(null) })
+          renameFiles.mutate([{ dir, from: dialog.entry.name, to: n }], {
+            onSuccess: () => {
+              toast.success(`${dialog.entry.name} renamed to ${n}`)
+              setDialog(null)
+            },
+            onError: failed("rename the file"),
+          })
         }
       />
       <FileUploadDialog open={dialog?.kind === "upload"} server={name} dir={dir} onClose={() => setDialog(null)} />
       <FilePullDialog open={dialog?.kind === "pull"} server={name} dir={dir} onClose={() => setDialog(null)} />
-      <FileDeleteDialog
-        names={dialog?.kind === "delete" ? dialog.names : null}
-        onClose={() => setDialog(null)}
-        onConfirm={(names) => deleteFiles.mutate({ dir, names })}
+      <ConfirmDialog
+        open={dialog?.kind === "delete"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title={`Delete ${entriesText(deleting ?? [])}?`}
+        description="Folders are deleted with all their contents. This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => deleting && deleteFiles.mutate({ dir, names: deleting })}
       />
       {dialog?.kind === "edit" && (
         <FileEditorDialog

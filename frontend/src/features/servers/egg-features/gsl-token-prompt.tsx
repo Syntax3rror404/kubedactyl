@@ -28,7 +28,7 @@ export function GslTokenPrompt({
   running: boolean
   isAdmin: boolean
 }) {
-  const { line, dismiss } = useConsoleMatch(subscribe, patterns)
+  const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, patterns, running)
   const variable = egg.spec.variables?.find((v) => v.envVariable === VARIABLE)
   const editable = !!variable && (isAdmin || !!variable.userEditable)
   const [token, setToken] = useState("")
@@ -42,12 +42,13 @@ export function GslTokenPrompt({
   })
   const save = () =>
     update.mutate({
-      changes: { environment: { ...server.spec.environment, [VARIABLE]: token.trim() } },
+      // The panel merges the variables, so only the token is sent.
+      changes: { environment: { [VARIABLE]: token.trim() } },
       signal: active ? "restart" : "start",
     })
   return (
     <FeaturePrompt
-      open={!!line && !running}
+      open={open}
       onClose={dismiss}
       title="Invalid GSL token"
       description={

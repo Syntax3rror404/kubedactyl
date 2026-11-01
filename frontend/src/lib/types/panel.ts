@@ -14,6 +14,4 @@ export type {
   KubeRate as Rate,
   SelfupgradeJob as UpgradeJob,
   SettingsPool as Pool,
-  SettingsStorageClass as StorageClass,
-  V1Alpha1OIDCSettings as OIDCSettings,
 } from "@/lib/types/api.gen"

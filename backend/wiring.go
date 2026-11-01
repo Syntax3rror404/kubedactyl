@@ -105,7 +105,7 @@ func prepareCluster(
 		return nil, fmt.Errorf("loading session key: %w", err)
 	}
 	// 4. First admin
-	setupToken, err := bootstrap.Admin(ctx, direct, ns, "http://localhost"+cfg.addr, log.With("component", "bootstrap"))
+	setupToken, err := bootstrap.Admin(ctx, direct, ns, localURL(cfg.addr), log.With("component", "bootstrap"))
 	if err != nil {
 		return nil, fmt.Errorf("creating initial admin: %w", err)
 	}
@@ -163,7 +163,7 @@ func newPanel(
 		Hub:         hub,
 		Files:       svc.files,
 		Settings:    svc.settings,
-		Users:       &users.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: cfg.opts.Namespace},
+		Users:       svc.users,
 		Eggs:        svc.eggs,
 		Library:     egglibrary.New(),
 		Diagnostics: &diagnostics.Diagnoser{},
@@ -208,6 +208,7 @@ type services struct {
 	schedules *schedule.Runner
 	settings  *settings.Store
 	eggs      *eggstore.Store
+	users     *users.Store
 }
 
 // setupServices builds the domain services and registers their background runnables (schedules,
@@ -236,25 +237,40 @@ func setupServices(
 	if err := mgr.Add(schedules); err != nil {
 		return nil, fmt.Errorf("setting up schedules: %w", err)
 	}
-	// The controller runs the "Tasks" (event schedules) when a server started and before it stops.
-	rec.Events = schedules
+	// The controller runs the "Tasks" (event schedules) when a server started and before it stops,
+	// and keeps the files pod while the file service uses it.
+	rec.Events, rec.Files = schedules, filesService
 	eggs := &eggstore.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns}
 	// Eggs with "update automatically" are checked against their update URL every hour.
 	updater := &eggstore.Updater{Store: eggs, Interval: time.Hour, Log: log.With("component", "eggs")}
 	if err := mgr.Add(updater); err != nil {
 		return nil, fmt.Errorf("setting up egg auto updates: %w", err)
 	}
-	// The stored Kubernetes API limit applies from the start and after every save.
+	store, err := setupSettings(ctx, mgr, limiter, ns)
+	if err != nil {
+		return nil, err
+	}
+	accounts := &users.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns}
+	return &services{
+		files: filesService, ops: ops, schedules: schedules, settings: store, eggs: eggs, users: accounts,
+	}, nil
+}
+
+// setupSettings builds the settings store: the stored Kubernetes API limit applies from the start and after every
+// save, and changes made with kubectl reach it through the informer.
+func setupSettings(
+	ctx context.Context, mgr ctrl.Manager, limiter *kube.RateLimiter, ns string,
+) (*settings.Store, error) {
 	store := &settings.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns, Limiter: limiter}
 	set, err := store.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reading panel settings: %w", err)
 	}
-	limiter.SetLimits(int(set.KubeAPIQPS), int(set.KubeAPIUserQPS))
+	store.ApplyLimits(set)
 	if err := store.Watch(ctx, mgr.GetCache()); err != nil {
 		return nil, fmt.Errorf("watching panel settings: %w", err)
 	}
-	return &services{files: filesService, ops: ops, schedules: schedules, settings: store, eggs: eggs}, nil
+	return store, nil
 }
 
 // newManager creates the controller-runtime manager (shared cache, no metrics/health server).
@@ -286,7 +302,6 @@ func setupControllers(
 		Kube:   kc,
 		Hub:    hub,
 		Opts:   cfg.opts,
-		Files:  activity,
 		Pools:  &settings.PoolResolver{Reader: mgr.GetAPIReader()},
 		Log:    log.With("component", "controller"),
 	}
@@ -307,9 +322,10 @@ func setupControllers(
 		return nil, fmt.Errorf("setting up files reaper: %w", err)
 	}
 	users := &controller.UserReconciler{
-		Client: mgr.GetClient(),
-		Reader: mgr.GetAPIReader(),
-		Log:    log.With("component", "users"),
+		Client:    mgr.GetClient(),
+		Reader:    mgr.GetAPIReader(),
+		Namespace: cfg.opts.Namespace,
+		Log:       log.With("component", "users"),
 	}
 	if err := users.SetupWithManager(mgr); err != nil {
 		return nil, fmt.Errorf("setting up user controller: %w", err)

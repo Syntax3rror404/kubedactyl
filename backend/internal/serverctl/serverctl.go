@@ -21,13 +21,28 @@ import (
 	"app/internal/kube"
 )
 
-// Errors of power actions and commands.
+// Errors of the actions on game servers.
 var (
+	// Power actions and commands.
 	ErrOffline   = errors.New("server is not running")
 	ErrSuspended = errors.New("this server is suspended by an administrator")
 	ErrRemoving  = errors.New("this server is being removed")
 	ErrRunning   = errors.New("stop the server first")
+	// Transfers and storage migrations.
+	ErrSameOwner = errors.New("the server already belongs to this user")
+	ErrFilesBusy = errors.New("a backup, restore, download or archive job is running, wait until it has finished")
+	ErrNoVolume  = errors.New("the server has no bound data volume yet")
+	// Storage migrations.
+	ErrMigrating        = errors.New("the server files are moving to another storage class")
+	ErrSameStorageClass = errors.New("the server already uses this storage class")
+	ErrInstalling       = errors.New("wait until the installation has finished")
+	ErrNotMigrating     = errors.New("no storage migration is running")
+	ErrSwitching        = errors.New("the files are copied already, the migration finishes in a moment")
 )
+
+// busyJobs are the file jobs that read or write the whole volume: a transfer or a storage
+// migration waits until they have finished.
+var busyJobs = []string{files.JobPull, files.JobBackup, files.JobRestore, files.JobCompress, files.JobDecompress}
 
 // Signals are the power actions.
 var Signals = []string{"start", "stop", "restart", "kill"}
@@ -142,6 +157,25 @@ func (o *Ops) Suspend(ctx context.Context, gs *v1alpha1.GameServer, suspended bo
 	}
 	o.Hub.Daemon(gs.Name, msg)
 	return nil
+}
+
+// Locked returns why nothing may run on the server now (ErrRemoving, ErrMigrating, ErrSuspended),
+// nil when it is not locked.
+func Locked(gs *v1alpha1.GameServer) error {
+	switch {
+	case gs.DeletionTimestamp != nil:
+		return ErrRemoving
+	case gameserver.Migrating(gs):
+		return ErrMigrating
+	case gs.Spec.Suspended:
+		return ErrSuspended
+	}
+	return nil
+}
+
+// filesBusy reports whether a file job of busyJobs runs for the server.
+func (o *Ops) filesBusy(gs *v1alpha1.GameServer) bool {
+	return o.Files != nil && o.Files.Busy(files.RefOf(gs), busyJobs...)
 }
 
 // Stopped fails with ErrRunning unless the server is stopped and not installing, e.g. before

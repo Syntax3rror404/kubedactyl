@@ -43,7 +43,7 @@ type CreatedInvite struct {
 type CreateInviteRequest struct {
 	Username string            `json:"username,omitempty" example:"alice"`
 	Role     v1alpha1.UserRole `json:"role,omitempty"     example:"user"                          enums:"admin,user"`
-	Note     string            `json:"note,omitempty"     example:"Alice from the Discord server"`
+	Note     string            `json:"note,omitempty"     binding:"max=200"                       example:"Alice from the Discord server"`
 	// Subuser invites a subuser of the caller (role user). Users always invite subusers.
 	Subuser bool `json:"subuser,omitempty"`
 	// Shares are servers of the caller the subuser sees once the account exists.
@@ -195,24 +195,21 @@ func inviteScope(p *Principal) string {
 	return p.User.Name
 }
 
-// findInvite returns the invite of a link. Failures count against the client like failed sign-ins, so nobody
-// can make the panel look up invites without end.
-func (a *API) findInvite(c *gin.Context, token string) (*v1alpha1.Invite, bool) {
-	key := "invite|" + c.ClientIP()
+// useInviteLink runs use, which looks up an invite link. Invalid links count against the client like failed
+// sign-ins, so nobody can make the panel look up invites without end.
+func (a *API) useInviteLink(c *gin.Context, use func() error) bool {
 	now := time.Now()
-	if ok, _ := a.Limiter.Take(key, now); !ok {
-		a.fail(c, tooManyRequests(errTooManyAttempts))
-		return nil, false
-	}
-	invite, err := a.Users.FindInvite(c, strings.TrimSpace(token))
-	if !errors.Is(err, users.ErrInvalidInvite) {
-		a.Limiter.Forgive(key, now)
+	key, err := a.takeClientAttempt(c, "invite", now)
+	if err == nil {
+		if err = use(); !errors.Is(err, users.ErrInvalidInvite) {
+			a.Limiter.Forgive(key, now)
+		}
 	}
 	if err != nil {
 		a.fail(c, err)
-		return nil, false
+		return false
 	}
-	return invite, true
+	return true
 }
 
 // getInvite godoc
@@ -227,7 +224,12 @@ func (a *API) findInvite(c *gin.Context, token string) (*v1alpha1.Invite, bool) 
 //	@Failure		429		{object}	ErrorResponse
 //	@Router			/auth/invite [get]
 func (a *API) getInvite(c *gin.Context) {
-	if invite, ok := a.findInvite(c, c.Query("token")); ok {
+	var invite *v1alpha1.Invite
+	find := func() (err error) {
+		invite, err = a.Users.FindInvite(c, strings.TrimSpace(c.Query("token")))
+		return err
+	}
+	if a.useInviteLink(c, find) {
 		c.JSON(http.StatusOK, InviteDetails{
 			Username: invite.Spec.Username, ExpiresAt: invite.Spec.ExpiresAt.Time, Reset: invite.Spec.Reset,
 		})
@@ -253,15 +255,15 @@ func (a *API) acceptInvite(c *gin.Context) {
 	if !a.bindJSON(c, &req) {
 		return
 	}
-	invite, ok := a.findInvite(c, req.Token)
-	if !ok {
-		return
+	var u *v1alpha1.User
+	var invite *v1alpha1.Invite
+	accept := func() (err error) {
+		u, invite, err = a.Users.AcceptInvite(c, strings.TrimSpace(req.Token), users.AcceptInput{
+			Username: req.Username, DisplayName: req.DisplayName, Password: req.Password,
+		})
+		return err
 	}
-	u, err := a.Users.AcceptInvite(c, strings.TrimSpace(req.Token), users.AcceptInput{
-		Username: req.Username, DisplayName: req.DisplayName, Password: req.Password,
-	})
-	if err != nil {
-		a.fail(c, err)
+	if !a.useInviteLink(c, accept) {
 		return
 	}
 	msg := "account created through an invite"

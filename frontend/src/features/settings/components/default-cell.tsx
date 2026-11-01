@@ -2,18 +2,7 @@ import { StarIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-
-/** A list of enabled names plus one default, e.g. storage classes or load balancer pools. */
-export interface Selection {
-  enabled: string[]
-  defaultName: string
-}
-
-/** Callbacks of a selection table. */
-export interface SelectionHandlers {
-  onToggle: (name: string, on: boolean) => void
-  onDefault: (name: string) => void
-}
+import type { Selection } from "@/features/settings/lib/settings-draft"
 
 /** Shows the default badge, or a button that makes an enabled entry the default. */
 export function DefaultCell({

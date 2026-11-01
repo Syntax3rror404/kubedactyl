@@ -15,13 +15,14 @@ import { FilesSessionGate } from "@/features/servers/components/files-session-ga
 import { JobProgressList } from "@/features/servers/components/job-progress-list"
 import { useFileContainer } from "@/features/servers/hooks/use-file-container"
 import type { ServerContext } from "@/features/servers/server-layout"
+import { useRetained } from "@/hooks/use-retained"
 import { urls } from "@/lib/api"
 import { formatBytes, formatRelativeTime, phaseOf, plural, stoppedPhases } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useBackups, useCreateBackup, useDeleteBackup, useRestoreBackup } from "@/lib/queries"
 import type { Backup } from "@/lib/types"
 
-/** Backups: tar.gz archives of all server files in the .backups folder of the volume. */
+/** /servers/:server/backups: tar.gz archives of all server files in the .backups folder of the volume. */
 export function BackupsPage() {
   const { server } = useOutletContext<ServerContext>()
   const name = server.metadata.name
@@ -29,6 +30,7 @@ export function BackupsPage() {
   const backups = useBackups(name, ready)
   const [label, setLabel] = useState("")
   const [dialog, setDialog] = useState<{ kind: "restore" | "delete"; backup: Backup } | null>(null)
+  const target = useRetained(dialog)?.backup.name
 
   const busy = jobs.data?.some((j) => j.state === "running" && (j.kind === "backup" || j.kind === "restore"))
   const stopped = stoppedPhases.includes(phaseOf(server))
@@ -166,7 +168,7 @@ export function BackupsPage() {
       <ConfirmDialog
         open={dialog?.kind === "restore"}
         onOpenChange={(o) => !o && setDialog(null)}
-        title={`Restore ${dialog?.backup.name}?`}
+        title={`Restore ${target}?`}
         description={
           stopped
             ? "All server files except backups are replaced by this backup. The server cannot start until it is done."
@@ -175,16 +177,16 @@ export function BackupsPage() {
         confirmLabel="Delete files and restore"
         destructive
         disabled={!stopped}
-        onConfirm={() => dialog && restore.mutate(dialog.backup.name)}
+        onConfirm={() => target && restore.mutate(target)}
       />
       <ConfirmDialog
         open={dialog?.kind === "delete"}
         onOpenChange={(o) => !o && setDialog(null)}
-        title={`Delete ${dialog?.backup.name}?`}
+        title={`Delete ${target}?`}
         description="The archive is removed from the server volume. This cannot be undone."
         confirmLabel="Delete"
         destructive
-        onConfirm={() => dialog && remove.mutate(dialog.backup.name)}
+        onConfirm={() => target && remove.mutate(target)}
       />
     </div>
   )

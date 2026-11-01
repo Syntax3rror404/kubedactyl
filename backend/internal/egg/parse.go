@@ -16,7 +16,7 @@ import (
 	"app/api/v1alpha1"
 )
 
-// ReservedVariables cannot be defined by eggs because they are set by the system.
+// ReservedVariables are set by the panel; egg variables with these names are ignored.
 var ReservedVariables = map[string]bool{
 	"SERVER_MEMORY": true, "SERVER_IP": true, "SERVER_PORT": true, "ENV": true, "HOME": true,
 	"USER": true, "STARTUP": true, "SERVER_UUID": true, "UUID": true, "P_SERVER_UUID": true,

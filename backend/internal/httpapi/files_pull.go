@@ -1,9 +1,7 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
-	"path"
 
 	"github.com/gin-gonic/gin"
 
@@ -41,27 +39,15 @@ func (a *API) pullFile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	name, err := files.PullName(req.URL, req.Filename)
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
+	job, err := a.Files.StartPull(files.RefOf(gs), req.URL, cleanDir(req.Directory), req.Filename, deny)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
-	deny := a.denylist(c, gs)
-	dir := cleanDir(req.Directory)
-	file := path.Join(dir, name)
-	if _, err := files.Resolve(file, deny); err != nil {
-		a.fail(c, err)
-		return
-	}
-	ref := files.RefOf(gs)
-	pull := func(ctx context.Context, report func(files.Progress)) error {
-		return a.Files.Manager.Pull(ctx, ref, req.URL, dir, name, deny, report)
-	}
-	job, err := a.Files.Start(ref, files.JobPull, file, pull)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.audit(c, "download started", "server", gs.Name, "url", req.URL, "file", file)
+	a.audit(c, "download started", "server", gs.Name, "url", req.URL, "file", job.Label)
 	c.JSON(http.StatusAccepted, job)
 }

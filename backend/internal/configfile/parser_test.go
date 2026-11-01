@@ -119,6 +119,16 @@ func TestXML(t *testing.T) {
 	}
 }
 
+// TestXMLInvalidPath: a path etree cannot read is an error, not a panic.
+func TestXMLInvalidPath(t *testing.T) {
+	for _, match := range []string{"Settings.Port[", "Settings.a[@x='1.b']"} {
+		reps := []Replacement{{Match: match, Value: "1"}}
+		if _, _, err := Apply("xml", []byte("<Settings/>"), true, reps, cfg); err == nil {
+			t.Errorf("%s: no error", match)
+		}
+	}
+}
+
 func TestFile(t *testing.T) {
 	out := apply(
 		t, "file", "port 1\nname x\n", true, Replacement{Match: "port", Value: "port {{config.docker.interface}}"},

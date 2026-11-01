@@ -1,7 +1,7 @@
 import { HourglassIcon } from "lucide-react"
 
 import { Callout } from "@/components/common/callout"
-import { useThrottle } from "@/lib/queries"
+import { useThrottle } from "@/hooks/use-throttle"
 
 /** Floating notice while the panel refuses requests for a moment (Retry-After); pages poll on by themselves. */
 export function ThrottleNotice() {
@@ -17,7 +17,7 @@ export function ThrottleNotice() {
     >
       <p className="text-muted-foreground">
         {throttle.busy
-          ? "The Kubernetes API is overloaded. The page continues on its own in a moment."
+          ? "The panel is at its Kubernetes API limit. The page continues on its own in a moment."
           : "You sent too many requests. The page continues on its own in a moment."}
       </p>
     </Callout>

@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { SaveIcon } from "lucide-react"
 import { useOutletContext } from "react-router"
 import { toast } from "sonner"
@@ -22,11 +23,12 @@ import { fieldErrors } from "@/lib/validation"
  * /servers/:server/settings: the settings cards (also the subusers who see the server), one save button for all of
  * them, and the danger zone.
  */
-export function ServerSettingsPage() {
+export function SettingsPage() {
   const { server } = useOutletContext<ServerContext>()
   const { isAdmin } = useAuth()
   const settings = useSettings()
-  const { draft, setDraft, dirty } = useDraft(settingsDraft(server))
+  const saved = useMemo(() => settingsDraft(server), [server])
+  const { draft, setDraft, dirty } = useDraft(saved)
   const onChange = (patch: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...patch }))
   const save = useUpdateServer(server.metadata.name, {
     onSuccess: () => {
@@ -55,7 +57,7 @@ export function ServerSettingsPage() {
         <Button
           size="lg"
           disabled={!dirty || save.isPending || (isAdmin && draft.ports.length === 0)}
-          onClick={() => save.mutate(settingsChanges(server, draft, isAdmin))}
+          onClick={() => save.mutate(settingsChanges(saved, draft, isAdmin))}
         >
           {save.isPending ? <Spinner /> : <SaveIcon />}
           Save settings

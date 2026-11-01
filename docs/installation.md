@@ -52,7 +52,7 @@ installed or last upgraded with, only the version changes. Only versions above t
 (no downgrades, no pre-releases). The Deployment uses `Recreate`, so the panel restarts on the new version
 (game servers keep running); the page waits for the new version and reloads. Failed jobs show their last
 log lines on the card. Only the last 3 upgrade jobs (with their pods) are kept; older finished ones are removed
-after every upgrade and once an hour, all of them 24 hours after they finish.
+after every upgrade and once an hour.
 
 - Self-upgrades need the admission policy (Kubernetes 1.30+): without it the chart leaves the upgrade account,
   its roles and the button out, and the panel is upgraded with `helm upgrade` only.
@@ -87,9 +87,10 @@ with the permissions the panel needs, split so a compromised panel cannot reach 
 - **Role `<release>-panel`** in the release namespace: its session key secret, short-lived hardware probe
   pods (logs, no exec) and the config map `kubedactyl-node-hardware` with their results.
 - **ValidatingAdmissionPolicy `<release>-panel`** (Kubernetes 1.30+): the API server rejects requests of the
-  panel's service account outside its user namespaces (namespaces, role bindings, volumes), foreign CRDs, pods
-  with a service account token, host namespaces, host paths or privileged containers, and every job except the
-  upgrade job. The sidebar health card warns when it is missing.
+  panel's service account outside its user namespaces (namespaces, role bindings, volumes, services), foreign
+  CRDs, pods with a service account token, host namespaces, host paths or privileged containers, pods in the
+  release namespace with volumes, added capabilities or an unconfined seccomp profile, services with external
+  IPs, and every job except the upgrade job. The sidebar health card warns when it is missing.
 
 The Deployment runs a single replica (non-root, read-only root filesystem, probes on
 `/api/health`). With Docker the image can also be built from the `Dockerfile`

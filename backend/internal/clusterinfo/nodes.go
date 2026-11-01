@@ -98,10 +98,11 @@ type nodeMetricsList struct {
 // without (fresh) hardware data are probed in the background.
 func (s *Service) Nodes(ctx context.Context) (*NodesResponse, error) {
 	s.loadCache(ctx)
-	data, err := s.caches().nodeCache.Get(struct{}{}, func() (*nodeData, error) { return s.readNodes(ctx) })
+	data, err := s.caches().nodeCache.Get(ctx, struct{}{}, s.readNodes)
 	if err != nil {
 		return nil, err
 	}
+	s.forgetGoneNodes(data.nodes)
 
 	resp := &NodesResponse{Nodes: []Node{}}
 	var toProbe []string
@@ -125,7 +126,8 @@ func (s *Service) Nodes(ctx context.Context) (*NodesResponse, error) {
 	slices.SortFunc(resp.Nodes, func(a, b Node) int { return strings.Compare(a.Name, b.Name) })
 	resp.Totals = totals(resp.Nodes, data.metricsOK)
 	if len(toProbe) > 0 {
-		go s.ProbeNodes(context.WithoutCancel(ctx), toProbe)
+		// Not the request context: the probes outlive the request.
+		go s.ProbeNodes(context.Background(), toProbe)
 	}
 	return resp, nil
 }

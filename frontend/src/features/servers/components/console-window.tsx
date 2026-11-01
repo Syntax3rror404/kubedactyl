@@ -3,15 +3,15 @@ import { Terminal } from "@/features/servers/components/terminal"
 import type { useConsole } from "@/features/servers/hooks/use-console"
 import { cn } from "@/lib/utils"
 
-/** Terminal window: title bar with connection state, output and command line. */
+/** Terminal window: title bar with connection state, output and command line (`blocked` says why it is off). */
 export function ConsoleWindow({
   title,
   console: c,
-  canSend,
+  blocked,
 }: {
   title: string
   console: ReturnType<typeof useConsole>
-  canSend: boolean
+  blocked?: string
 }) {
   return (
     <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-950">
@@ -29,13 +29,13 @@ export function ConsoleWindow({
           )}
         >
           <span className={cn("size-1.5 rounded-full", c.connected ? "bg-emerald-500" : "bg-zinc-400")} />
-          {c.connected ? "live" : "connecting…"}
+          {c.connected ? "live" : c.ended ? "disconnected" : "connecting…"}
         </span>
       </div>
       <div className="h-[60vh] min-h-96 px-3 py-2">
         <Terminal subscribe={c.subscribe} />
       </div>
-      <CommandInput disabled={!canSend} onSend={c.sendCommand} />
+      <CommandInput blocked={blocked} onSend={c.sendCommand} />
     </div>
   )
 }

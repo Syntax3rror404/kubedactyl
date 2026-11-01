@@ -4,7 +4,7 @@ import { useResolvedTheme } from "@/hooks/use-resolved-theme"
 import { cn } from "@/lib/utils"
 
 // Milliseconds between frames: the dots move slowly, 30 frames per second look smooth and halve the work.
-const frameTime = 1000 / 30
+const FRAME_TIME = 1000 / 30
 
 /** Draws one frame: every dot rises, falls and swells as the waves pass from bottom left to top right (t in ms). */
 function drawDots(ctx: CanvasRenderingContext2D, width: number, height: number, t: number, gap: number, lift: number) {
@@ -26,7 +26,8 @@ function drawDots(ctx: CanvasRenderingContext2D, width: number, height: number, 
 
 /**
  * A dot grid whose dots rise and fall like waves on water, drawn on a canvas in the element's text color
- * (still for users who prefer reduced motion; the browser pauses it while the tab is hidden).
+ * (still for users who prefer reduced motion; it pauses while scrolled out of view, the browser while the tab is
+ * hidden).
  *
  * Usage:
  *   <WaveDots className="absolute inset-0 text-border" />
@@ -70,18 +71,28 @@ export function WaveDots({
     }
     const tick = (t: number) => {
       frame = requestAnimationFrame(tick)
-      if (t - last < frameTime) return
+      if (t - last < FRAME_TIME) return
       last = t
       draw(t)
     }
+    const stop = () => {
+      cancelAnimationFrame(frame)
+      frame = 0
+    }
+    // Animates only while some of it is on screen (the observer reports the first state at once).
+    const visibility = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) stop()
+      else if (!still && !frame) frame = requestAnimationFrame(tick)
+    })
 
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
+    visibility.observe(canvas)
     resize()
-    if (!still) frame = requestAnimationFrame(tick)
     return () => {
       observer.disconnect()
-      cancelAnimationFrame(frame)
+      visibility.disconnect()
+      stop()
     }
   }, [gap, lift, theme])
 

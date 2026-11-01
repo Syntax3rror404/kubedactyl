@@ -23,11 +23,11 @@ function Keyframes() {
 
 // Time from the answer until the animation has ended: the pop after a check (0.55 s + 0.4 s) and the shake after a
 // cross (0.55 s + 0.55 s).
-export const verifyOkMs = 950
-export const verifyFailMs = 1100
+export const VERIFY_OK_MS = 950
+export const VERIFY_FAIL_MS = 1100
 
-const radius = 27
-const circumference = 2 * Math.PI * radius
+const RADIUS = 27
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 // Twelve ticks around the center, each one lighter than the one before (an activity indicator).
 const ticks = Array.from({ length: 12 }, (_, i) => i)
 const labels: Record<VerifyState, string> = { waiting: "Waiting", ok: "Accepted", fail: "Rejected" }
@@ -89,10 +89,10 @@ export function VerifyMark({ state, label, className }: { state: VerifyState; la
         <circle
           cx={32}
           cy={32}
-          r={radius}
+          r={RADIUS}
           strokeWidth={3.5}
-          strokeDasharray={circumference}
-          strokeDashoffset={done ? 0 : circumference}
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={done ? 0 : CIRCUMFERENCE}
           transform="rotate(-90 32 32)"
           className="transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none"
         />

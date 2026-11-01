@@ -9,6 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
@@ -71,7 +73,9 @@ func IsolationPolicy(namespace string) *networkingv1.NetworkPolicy {
 // ensureNetworkPolicy applies or removes the isolation policy according to the panel settings.
 func (r *UserReconciler) ensureNetworkPolicy(ctx context.Context, namespace string) error {
 	settings := &v1alpha1.PanelSettings{}
-	key := client.ObjectKey{Namespace: tenancy.SystemNamespace, Name: v1alpha1.SettingsName}
+	// Uncached, not settings.Store.Current: the store learns about a change from its own handler of
+	// the informer, which may run after this reconcile.
+	key := client.ObjectKey{Namespace: r.Namespace, Name: v1alpha1.SettingsName}
 	if err := r.Reader.Get(ctx, key, settings); client.IgnoreNotFound(err) != nil {
 		return err
 	}
@@ -91,10 +95,28 @@ func (r *UserReconciler) ensureNetworkPolicy(ctx context.Context, namespace stri
 	return err
 }
 
-// usersForSettings re-reconciles all users when the panel settings change.
+// privateNetworksChanged passes the settings object of this installation when it is created or
+// deleted, or when a change turned the private network switch.
+func (r *UserReconciler) privateNetworksChanged() predicate.Predicate {
+	ours := func(obj client.Object) bool {
+		return obj.GetNamespace() == r.Namespace && obj.GetName() == v1alpha1.SettingsName
+	}
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return ours(e.Object) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return ours(e.Object) },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			old, okOld := e.ObjectOld.(*v1alpha1.PanelSettings)
+			cur, okNew := e.ObjectNew.(*v1alpha1.PanelSettings)
+			return okOld && okNew && ours(cur) && old.Spec.AllowPrivateNetworks != cur.Spec.AllowPrivateNetworks
+		},
+	}
+}
+
+// usersForSettings re-reconciles all users when the private network switch changes.
 func (r *UserReconciler) usersForSettings(ctx context.Context, _ client.Object) []reconcile.Request {
 	var users v1alpha1.UserList
-	if err := r.List(ctx, &users, client.InNamespace(tenancy.SystemNamespace)); err != nil {
+	if err := r.List(ctx, &users, client.InNamespace(r.Namespace)); err != nil {
 		return nil
 	}
 	out := make([]reconcile.Request, 0, len(users.Items))

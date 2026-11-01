@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { noLoadBalancer } from "@/features/servers/lib/settings-draft"
+import { NO_LOAD_BALANCER } from "@/features/servers/lib/settings-draft"
 import { formatPoolUsage, isIPv6, poolUsage } from "@/lib/format"
 import type { Pool, TrafficPolicy } from "@/lib/types"
 
@@ -59,7 +59,7 @@ export function PlacementSelect({
 
 /**
  * Load balancer pool selection with the pool's addresses (admins get pool details) and, when the
- * settings allow it, "ClusterIP" (noLoadBalancer).
+ * settings allow it, "ClusterIP" (NO_LOAD_BALANCER).
  */
 export function PoolField({
   value,
@@ -79,7 +79,7 @@ export function PoolField({
   hint?: string
 }) {
   const pool = pools?.find((p) => p.name === value)
-  const clusterOnly = value === noLoadBalancer
+  const clusterOnly = value === NO_LOAD_BALANCER
   return (
     <Field>
       <FieldLabel htmlFor="pool">Load balancer pool</FieldLabel>
@@ -88,7 +88,7 @@ export function PoolField({
         value={value}
         options={options}
         defaultName={defaultName}
-        extra={allowClusterIP || clusterOnly ? { value: noLoadBalancer, label: "ClusterIP" } : undefined}
+        extra={allowClusterIP || clusterOnly ? { value: NO_LOAD_BALANCER, label: "ClusterIP" } : undefined}
         onChange={onChange}
       />
       <FieldDescription>

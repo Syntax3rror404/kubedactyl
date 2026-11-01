@@ -18,6 +18,7 @@ import { EggSection } from "@/features/eggs/components/editor/egg-section"
 import { UnsavedGuard } from "@/features/eggs/components/editor/unsaved-guard"
 import { errorCount, firstErrorSection, sections, type SectionId } from "@/features/eggs/lib/egg-draft"
 import { useDraft } from "@/hooks/use-draft"
+import { plural } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useEgg, useServers, useUpdateEgg } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
@@ -44,9 +45,9 @@ function EggEditor({ egg }: { egg: Egg }) {
   const [done, setDone] = useState(false)
 
   const save = useUpdateEgg(name, {
-    onSuccess: () => {
+    onSuccess: (e) => {
       setDone(true)
-      toast.success("Egg saved")
+      toast.success(`Egg “${e.spec.displayName}” saved`)
     },
     onError: (err) => {
       const first = firstErrorSection(err)
@@ -81,10 +82,7 @@ function EggEditor({ egg }: { egg: Egg }) {
       />
       {servers > 0 && (
         <Callout tone="info" icon={<InfoIcon />}>
-          <p>
-            {servers} server{servers === 1 ? " uses" : "s use"} this egg and keep their own image, startup and
-            variables.
-          </p>
+          <p>Used by {plural(servers, "server")}. Servers keep their own image, startup and variables.</p>
         </Callout>
       )}
       <Tabs value={tab} onValueChange={(v) => setTab(v as SectionId)}>
@@ -114,7 +112,10 @@ function EggEditor({ egg }: { egg: Egg }) {
                 <EggSection
                   id={s.id}
                   spec={draft}
-                  onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+                  onChange={(patch, reindexed) => {
+                    setDraft((d) => ({ ...d, ...patch }))
+                    if (reindexed) save.reset()
+                  }}
                   errors={errors}
                   self={name}
                 />

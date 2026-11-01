@@ -41,7 +41,7 @@ var errUpgradesDisabled = errors.New("self-upgrades are not enabled (chart value
 //	@Summary		Panel updates
 //	@Description	Newer chart versions (checked every 10 minutes) and the upgrade jobs. refresh=true checks the
 //	@Description	registry now.
-//	@Tags			Panel
+//	@Tags			System
 //	@Produce		json
 //	@Param			refresh	query		bool	false	"Check the registry now"
 //	@Success		200		{object}	UpgradeStatus
@@ -84,7 +84,7 @@ func (a *API) getUpgradeStatus(c *gin.Context) {
 //	@Summary		Upgrade the panel
 //	@Description	Starts a job that runs helm upgrade with the release's values and the chosen chart version. The
 //	@Description	panel restarts on the new version.
-//	@Tags			Panel
+//	@Tags			System
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		StartUpgradeRequest	true	"Version"

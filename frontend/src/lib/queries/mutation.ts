@@ -28,9 +28,14 @@ export function useApiMutation<TData, TVars = void>(
 
 type QueryKey = readonly unknown[]
 
-/** Marks cached data as stale; mounted queries load it again. */
+/** Marks the cached data of exactly these keys stale (never the keys below them); mounted queries load it again. */
 export function refresh(qc: QueryClient, ...queryKeys: QueryKey[]) {
-  for (const queryKey of queryKeys) void qc.invalidateQueries({ queryKey })
+  for (const queryKey of queryKeys) void qc.invalidateQueries({ queryKey, exact: true })
+}
+
+/** Marks everything below a group key stale, e.g. keys.allFiles: every listing and opened file of a server. */
+export function refreshAll(qc: QueryClient, group: QueryKey) {
+  void qc.invalidateQueries({ queryKey: group })
 }
 
 /** The cache update of a mutation that only makes the given data stale: `useApiMutation(fn, refreshes(keys.users))`. */

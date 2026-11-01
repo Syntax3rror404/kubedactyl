@@ -1,40 +1,16 @@
 import { ShieldIcon } from "lucide-react"
 
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-} from "@/components/ui/field"
+import { FieldGroup, FieldLegend, FieldSeparator, FieldSet } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
-
-type Security = {
-  allowPrivateNetworks: boolean
-  sessionHours: number
-  apiTokenMaxDays: number
-  subusersPerUser: number
-  disableApiDocs: boolean
-}
+import { SettingsCard, SettingsField, SwitchField } from "@/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 
 /**
  * Network isolation of user namespaces (NetworkPolicy kubedactyl-isolation), how long sign-ins and API tokens stay
  * valid, how many subusers every user may invite, and whether the API documentation (Swagger UI at /swagger/) is
  * served.
  */
-export function SecurityCard({
-  values,
-  onChange,
-  errors,
-}: {
-  values: Security
-  onChange: (patch: Partial<Security>) => void
-  errors: Record<string, string>
-}) {
+export function SecurityCard({ draft, onChange, errors }: SettingsCardProps) {
   return (
     <SettingsCard
       icon={ShieldIcon}
@@ -47,14 +23,14 @@ export function SecurityCard({
           <SwitchField
             id="isolation"
             label="Isolate user namespaces (recommended)"
-            checked={!values.allowPrivateNetworks}
+            checked={!draft.allowPrivateNetworks}
             onChange={(isolated) => onChange({ allowPrivateNetworks: !isolated })}
           >
             Servers only reach the internet, the cluster DNS and their owner's other servers. Players are not affected.
           </SwitchField>
         </FieldSet>
         <FieldSeparator />
-        <LifetimeFields values={values} onChange={onChange} errors={errors} />
+        <LifetimeFields draft={draft} onChange={onChange} errors={errors} />
         <FieldSeparator />
         <FieldSet>
           <FieldLegend variant="label">Subusers</FieldLegend>
@@ -64,7 +40,7 @@ export function SecurityCard({
             hint="Accounts a user may invite to watch their servers (0-100, 0 = off)."
             min={0}
             max={100}
-            value={values.subusersPerUser}
+            value={draft.subusersPerUser}
             onChange={(subusersPerUser) => onChange({ subusersPerUser })}
             error={errors.subusersPerUser}
           />
@@ -75,7 +51,7 @@ export function SecurityCard({
           <SwitchField
             id="api-docs"
             label="Enable Swagger UI"
-            checked={!values.disableApiDocs}
+            checked={!draft.disableApiDocs}
             onChange={(enabled) => onChange({ disableApiDocs: !enabled })}
           />
         </FieldSet>
@@ -85,15 +61,7 @@ export function SecurityCard({
 }
 
 /** Sign-in and API token lifetimes; shorter values also end existing sessions and tokens. */
-function LifetimeFields({
-  values,
-  onChange,
-  errors,
-}: {
-  values: Security
-  onChange: (patch: Partial<Security>) => void
-  errors: Record<string, string>
-}) {
+function LifetimeFields({ draft, onChange, errors }: SettingsCardProps) {
   return (
     <FieldSet>
       <FieldLegend variant="label">Sessions and API tokens</FieldLegend>
@@ -103,7 +71,7 @@ function LifetimeFields({
           label="Sign-in lasts (hours)"
           hint="After that, users sign in again (1-720 hours)."
           max={720}
-          value={values.sessionHours}
+          value={draft.sessionHours}
           onChange={(sessionHours) => onChange({ sessionHours })}
           error={errors.sessionHours}
         />
@@ -112,7 +80,7 @@ function LifetimeFields({
           label="API tokens last at most (days)"
           hint="Counted from creation, also for existing tokens (1-3650 days)."
           max={3650}
-          value={values.apiTokenMaxDays}
+          value={draft.apiTokenMaxDays}
           onChange={(apiTokenMaxDays) => onChange({ apiTokenMaxDays })}
           error={errors.apiTokenMaxDays}
         />
@@ -142,18 +110,17 @@ function NumberField({
   error?: string
 }) {
   return (
-    <Field data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input
-        id={id}
-        type="number"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(e.target.valueAsNumber || 0)}
-        aria-invalid={error ? true : undefined}
-      />
-      {error ? <FieldError>{error}</FieldError> : <FieldDescription>{hint}</FieldDescription>}
-    </Field>
+    <SettingsField id={id} label={label} hint={hint} error={error}>
+      {(control) => (
+        <Input
+          {...control}
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(e.target.valueAsNumber || 0)}
+        />
+      )}
+    </SettingsField>
   )
 }

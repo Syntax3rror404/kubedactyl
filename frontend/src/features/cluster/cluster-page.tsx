@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { ClusterSummary } from "@/features/cluster/components/cluster-summary"
 import { AuthCard, ConnectionCard, PermissionsCard } from "@/features/cluster/components/connection-cards"
 import { NodeCard } from "@/features/cluster/components/node-card"
-import { formatRelativeTime } from "@/lib/format"
+import { formatRelativeTime, plural } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useClusterIdentity, useClusterNodes, useProbeNodes } from "@/lib/queries"
 
@@ -18,7 +18,9 @@ export function ClusterPage() {
   const identity = useClusterIdentity()
   const probe = useProbeNodes({
     onSuccess: (data) => {
-      toast.success("Hardware probed", { description: `${data.nodes.filter((n) => n.hardware).length} nodes probed` })
+      toast.success("Hardware probed", {
+        description: `${plural(data.nodes.filter((n) => n.hardware).length, "node")} probed`,
+      })
     },
     onError: failed("probe the hardware"),
   })

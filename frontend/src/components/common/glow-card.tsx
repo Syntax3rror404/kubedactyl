@@ -1,3 +1,4 @@
+import { BRAND_FROM, BRAND_TO } from "@/components/common/brand-mark"
 import { MagicCard } from "@/components/ui/magic-card"
 import { useResolvedTheme } from "@/hooks/use-resolved-theme"
 import { cn } from "@/lib/utils"
@@ -14,8 +15,8 @@ export function GlowCard({ children, className }: { children: React.ReactNode; c
         "h-full rounded-2xl shadow-sm [--color-background:var(--color-card)] [&>div:last-child]:h-full",
         className,
       )}
-      gradientFrom="#10b981"
-      gradientTo="#0ea5e9"
+      gradientFrom={BRAND_FROM}
+      gradientTo={BRAND_TO}
       gradientSize={220}
       gradientColor={theme === "dark" ? "#1f2937" : "#e2e8f0"}
       gradientOpacity={theme === "dark" ? 0.55 : 0.45}

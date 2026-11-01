@@ -93,10 +93,7 @@ func (a *API) updateServer(c *gin.Context) {
 	}
 	a.audit(c, "server updated", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
-	if !p.Admin() {
-		hideFromUser(gs, e, a.externalDomain(c))
-	}
-	c.JSON(http.StatusOK, gs)
+	c.JSON(http.StatusOK, visibleServer(p, gs, e, a.externalDomain(c)))
 }
 
 // applyServerUpdate applies the fields of the request to the server spec and validates them.

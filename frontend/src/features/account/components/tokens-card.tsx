@@ -8,6 +8,7 @@ import { CopyField } from "@/components/common/copy-button"
 import { EmptyState, QueryState } from "@/components/common/query-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,8 +18,11 @@ import { formatDate, formatRelativeTime, plural } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useCreateToken, useDeleteToken, useSettings, useTokens } from "@/lib/queries"
 import type { CreatedToken } from "@/lib/types"
+import { fieldErrors } from "@/lib/validation"
 
 const presets = [7, 30, 90, 365]
+/** Longest token name (the panel checks the same limit). */
+const MAX_TOKEN_NAME = 64
 
 /** Lifetimes a new token can have: the presets below the panel's limit, plus the limit itself. */
 const lifetimeOptions = (max: number) => [...presets.filter((d) => d < max), max]
@@ -38,6 +42,7 @@ export function TokensCard() {
     },
     onError: failed("create the token"),
   })
+  const errors = fieldErrors(create.error)
   const revoke = useDeleteToken({
     onSuccess: () => toast.success("Token revoked"),
     onError: failed("revoke the token"),
@@ -58,9 +63,20 @@ export function TokensCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
-          <Input placeholder="Token name, e.g. ci" value={draft.name} onChange={(e) => set("name", e.target.value)} />
+          <Input
+            placeholder="Token name, e.g. ci"
+            aria-label="Token name"
+            maxLength={MAX_TOKEN_NAME}
+            value={draft.name}
+            onChange={(e) => set("name", e.target.value)}
+            aria-invalid={errors.name ? true : undefined}
+          />
           <Select value={days} onValueChange={(v) => set("days", v)}>
-            <SelectTrigger className="sm:w-40">
+            <SelectTrigger
+              className="sm:w-40"
+              aria-label="Lifetime"
+              aria-invalid={errors.expiresInDays ? true : undefined}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -76,9 +92,18 @@ export function TokensCard() {
             Create
           </Button>
         </form>
+        <FieldError>{errors.name ?? errors.expiresInDays}</FieldError>
 
         {created && (
-          <Callout tone="success" title="Copy the token now, it will not be shown again.">
+          <Callout
+            tone="success"
+            title="Copy the token now, it will not be shown again."
+            action={
+              <Button variant="outline" size="sm" onClick={() => setCreated(null)}>
+                Done
+              </Button>
+            }
+          >
             <CopyField value={created.token} label="Copy token" />
           </Callout>
         )}

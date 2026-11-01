@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"app/api/v1alpha1"
 	"app/internal/files"
 	"app/internal/serverctl"
 )
@@ -47,7 +49,7 @@ func (a *API) listBackups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	entries, err := a.Files.Manager.Backups(c, files.RefOf(gs))
+	entries, err := a.Files.Manager.ListBackups(c, files.RefOf(gs))
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -115,11 +117,17 @@ func (a *API) restoreBackup(c *gin.Context) {
 	if !ok {
 		return
 	}
-	name := c.Param("backup")
-	if err := serverctl.Stopped(gs); err != nil {
+	// Uncached: a server started a moment ago must count as running.
+	cur := &v1alpha1.GameServer{}
+	if err := a.Reader.Get(c, client.ObjectKeyFromObject(gs), cur); err != nil {
 		a.fail(c, err)
 		return
 	}
+	if err := serverctl.Stopped(cur); err != nil {
+		a.fail(c, err)
+		return
+	}
+	name := c.Param("backup")
 	job, err := a.Files.StartRestore(files.RefOf(gs), name)
 	if err != nil {
 		a.fail(c, err)

@@ -28,7 +28,11 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
   const navigate = useNavigate()
   const phase = phaseOf(server)
   const active = activePhases.includes(phase)
-  const stats = useServerStats(server.metadata.name, active)
+  // Asked every 10 s (the panel keeps the values that long). CPU and memory only while the game runs; the disk falls
+  // back to the last measured size.
+  const stats = useServerStats(server.metadata.name, active, 10_000)
+  const usage = active ? stats.data : undefined
+  const disk = usage?.diskBytes ?? server.status?.diskUsedBytes
   const address = serverAddress(server, useSettings().data?.externalDomain)
   const r = server.spec.resources
   const suspended = !!server.spec.suspended
@@ -41,7 +45,7 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
       role="link"
       tabIndex={0}
       onClick={open}
-      onKeyDown={(e) => e.key === "Enter" && open()}
+      onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && open()}
       className="h-full cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <GlowCard>
@@ -74,11 +78,11 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
               label="CPU"
               detail={
                 <>
-                  <span className="text-foreground">{formatCpuPercent(stats.data?.cpuMillis)}</span> /{" "}
+                  <span className="text-foreground">{formatCpuPercent(usage?.cpuMillis)}</span> /{" "}
                   {r.cpuMillis ? formatCpuPercent(r.cpuMillis) : "∞"}
                 </>
               }
-              value={stats.data?.cpuMillis}
+              value={usage?.cpuMillis}
               max={r.cpuMillis || null}
             />
             <UsageRow
@@ -86,11 +90,10 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
               label="Memory"
               detail={
                 <>
-                  <span className="text-foreground">{formatBytes(active ? stats.data?.memoryBytes : null)}</span> /{" "}
-                  {formatMiB(r.memoryMiB)}
+                  <span className="text-foreground">{formatBytes(usage?.memoryBytes)}</span> / {formatMiB(r.memoryMiB)}
                 </>
               }
-              value={active ? stats.data?.memoryBytes : null}
+              value={usage?.memoryBytes}
               max={r.memoryMiB * 1024 * 1024}
             />
             <UsageRow
@@ -98,10 +101,10 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
               label="Disk"
               detail={
                 <>
-                  <span className="text-foreground">{formatBytes(stats.data?.diskBytes)}</span> / {formatMiB(r.diskMiB)}
+                  <span className="text-foreground">{formatBytes(disk)}</span> / {formatMiB(r.diskMiB)}
                 </>
               }
-              value={stats.data?.diskBytes}
+              value={disk}
               max={r.diskMiB * 1024 * 1024}
             />
           </div>

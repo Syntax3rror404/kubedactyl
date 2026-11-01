@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,9 +28,6 @@ type SetupRequest struct {
 	// Token is the one-time setup token from the panel log (or KUBEDACTYL_SETUP_TOKEN).
 	Token string `json:"token" binding:"required"`
 }
-
-// setupMu serializes setup requests, so only one first administrator can be created.
-var setupMu sync.Mutex
 
 // needsSetup reports whether no active administrator exists. The setup routes are public: once the cache
 // knows an administrator they need no call to the API server; until then the answer is read uncached, so it
@@ -81,37 +77,41 @@ func (a *API) runSetup(c *gin.Context) {
 	if !a.bindJSON(c, &req) {
 		return
 	}
-	setupMu.Lock()
-	defer setupMu.Unlock()
-	required, err := a.needsSetup(c)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	if !required {
-		a.fail(c, conflict(errors.New("the panel is already set up")))
-		return
-	}
-	key := "setup|" + c.ClientIP()
+	// Counted before the uncached admin count, so anonymous requests cannot repeat that read without end.
 	now := time.Now()
-	if ok, _ := a.Limiter.Take(key, now); !ok {
-		a.fail(c, tooManyRequests(errTooManyAttempts))
-		return
-	}
-	if a.SetupToken == "" || !auth.EqualTokens(strings.TrimSpace(req.Token), a.SetupToken) {
-		err := errors.New("invalid setup token, use the link from the panel log")
-		a.fail(c, fieldError(http.StatusForbidden, "token", err))
-		return
-	}
-	u, err := a.Users.Create(c, users.CreateInput{
-		Username: req.Username, Password: req.Password, DisplayName: req.DisplayName, Email: req.Email,
-		Role: v1alpha1.RoleAdmin,
-	})
+	key, err := a.takeClientAttempt(c, "setup", now)
 	if err != nil {
 		a.fail(c, err)
 		return
 	}
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+	u, err := a.createFirstAdmin(c, req)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	a.Limiter.Forgive(key, now)
 	a.Log.Info("first administrator created via the setup page", "user", u.Name)
 	a.SetupToken = ""
 	a.sendSession(c, http.StatusCreated, u)
+}
+
+// createFirstAdmin creates the administrator of a setup request while no active one exists (guarded by setupMu).
+func (a *API) createFirstAdmin(c *gin.Context, req SetupRequest) (*v1alpha1.User, error) {
+	required, err := a.needsSetup(c)
+	if err != nil {
+		return nil, err
+	}
+	if !required {
+		return nil, conflict(errors.New("the panel is already set up"))
+	}
+	if a.SetupToken == "" || !auth.EqualTokens(strings.TrimSpace(req.Token), a.SetupToken) {
+		err := errors.New("invalid setup token, use the link from the panel log")
+		return nil, fieldError(http.StatusForbidden, "token", err)
+	}
+	return a.Users.Create(c, users.CreateInput{
+		Username: req.Username, Password: req.Password, DisplayName: req.DisplayName, Email: req.Email,
+		Role: v1alpha1.RoleAdmin,
+	})
 }

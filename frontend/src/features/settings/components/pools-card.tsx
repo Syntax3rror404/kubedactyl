@@ -8,34 +8,32 @@ import { FieldError } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { DefaultCell, type Selection, type SelectionHandlers } from "@/features/settings/components/default-cell"
+import { DefaultCell } from "@/features/settings/components/default-cell"
 import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
+import {
+  selectionHandlers,
+  type Selection,
+  type SelectionHandlers,
+  type SettingsCardProps,
+} from "@/features/settings/lib/settings-draft"
 import { formatCount, formatPoolSize, poolUsage } from "@/lib/format"
+import { usePools } from "@/lib/queries"
 import type { Pool } from "@/lib/types"
 
 /**
  * All Cilium LB IPAM pools; the checked ones can be selected for servers. "Allow ClusterIP" lets
  * owners publish a server only inside the cluster.
  */
-export function PoolsCard({
-  pools,
-  ipv6Missing,
-  loadError,
-  fieldError,
-  selection,
-  allowClusterIP,
-  onAllowClusterIP,
-  ...handlers
-}: {
-  pools?: Pool[]
-  /** Why servers get no IPv6 address even from a pool with an IPv6 block. */
-  ipv6Missing?: string
-  loadError?: string
-  fieldError?: string
-  selection: Selection
-  allowClusterIP: boolean
-  onAllowClusterIP: (allow: boolean) => void
-} & SelectionHandlers) {
+export function PoolsCard({ draft, onChange, errors }: SettingsCardProps) {
+  const query = usePools()
+  const pools = query.data?.items
+  // Why servers get no IPv6 address even from a pool with an IPv6 block.
+  const ipv6Missing = query.data?.ipv6Missing
+  const loadError = query.data?.error ?? query.error?.message
+  const selection: Selection = { enabled: draft.loadBalancerPools, defaultName: draft.defaultLoadBalancerPool }
+  const handlers = selectionHandlers(selection, (s) =>
+    onChange({ loadBalancerPools: s.enabled, defaultLoadBalancerPool: s.defaultName }),
+  )
   return (
     <SettingsCard
       icon={NetworkIcon}
@@ -68,12 +66,12 @@ export function PoolsCard({
           </TableBody>
         </Table>
       )}
-      {fieldError && <FieldError className="mx-6 mt-3">{fieldError}</FieldError>}
+      {errors.loadBalancerPools && <FieldError className="mx-6 mt-3">{errors.loadBalancerPools}</FieldError>}
       <SwitchField
         id="cluster-ip"
         label="Allow ClusterIP"
-        checked={allowClusterIP}
-        onChange={onAllowClusterIP}
+        checked={draft.allowClusterIP}
+        onChange={(allowClusterIP) => onChange({ allowClusterIP })}
         className="mx-6 mt-6 w-auto"
       />
     </SettingsCard>

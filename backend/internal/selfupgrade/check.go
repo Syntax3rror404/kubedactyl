@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -142,7 +142,7 @@ func newerVersions(tags []string, current string) (string, []string) {
 		}
 	}
 	out := make([]string, 0, len(newer))
-	sort.Sort(sort.Reverse(semver.Collection(newer)))
+	slices.SortFunc(newer, func(a, b *semver.Version) int { return b.Compare(a) })
 	for _, v := range newer {
 		out = append(out, v.Original())
 	}

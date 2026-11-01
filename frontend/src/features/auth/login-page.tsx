@@ -1,9 +1,9 @@
-import { KeyRoundIcon, LogInIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { KeyRoundIcon, LogInIcon } from "lucide-react"
 import { Navigate, useNavigate, useSearchParams } from "react-router"
 
 import { PasswordField } from "@/components/common/unveil-password"
-import { VerifyMark, verifyFailMs, verifyOkMs, type VerifyState } from "@/components/common/verify-mark"
+import { VerifyMark, VERIFY_FAIL_MS, VERIFY_OK_MS, type VerifyState } from "@/components/common/verify-mark"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
@@ -16,26 +16,29 @@ import { cn } from "@/lib/utils"
 import { fieldErrors } from "@/lib/validation"
 
 /** Why a sign-in through the identity provider failed (/login?sso=<reason>, set by the panel). */
-const ssoErrors: Record<string, string> = {
-  access: "Your account has no access to this panel.",
-  account: "This account cannot sign in here. Ask your administrator.",
-  failed: "Single sign-on failed. Please try again.",
-}
+const ssoErrors = new Map([
+  ["access", "Your account has no access to this panel."],
+  ["account", "This account cannot sign in here. Ask your administrator."],
+  ["failed", "Single sign-on failed. Please try again."],
+])
 
 type SignInVia = "password" | "sso"
 type Answer = "ok" | "fail"
 
 // The ticks turn at least this long, so a fast answer (or one already known, back from the identity provider)
 // still shows the wait and the ring closing.
-const minWaitMs = 500
+const MIN_WAIT_MS = 500
 
 /**
  * What the sign-in page shows instead of the form: waiting for the panel (password) or the identity provider
- * (SSO), then the answer. Accepted opens `target`, rejected brings the form back. `sso` is the result the panel
- * sent after a sign-in through the identity provider (/login?sso=ok|<reason>).
+ * (SSO), then the answer. Accepted opens `target`, rejected brings the form back.
+ * The panel sends the result of a sign-in through the identity provider as /login?sso=ok|<reason>; `ssoError` keeps
+ * the reason until the next sign-in starts.
  */
-function useSignInFlow(target: string, sso: string | null) {
+function useSignInFlow(target: string) {
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const [sso, setSso] = useState(() => params.get("sso"))
   const [via, setVia] = useState<SignInVia | null>(sso ? "sso" : null)
   // The answer as it came and as it shows (after the shortest wait).
   const [result, setResult] = useState<Answer | null>(sso ? (sso === "ok" ? "ok" : "fail") : null)
@@ -48,6 +51,14 @@ function useSignInFlow(target: string, sso: string | null) {
     setShown(null)
   }
 
+  // The result leaves the URL at once (kept in state), so a reload does not show it again; next stays.
+  useEffect(() => {
+    if (!params.has("sso")) return
+    const rest = new URLSearchParams(params)
+    rest.delete("sso")
+    setParams(rest, { replace: true })
+  }, [params, setParams])
+
   // Back from the identity provider the page waits from its start.
   useEffect(() => {
     waitingSince.current = performance.now()
@@ -55,7 +66,7 @@ function useSignInFlow(target: string, sso: string | null) {
 
   useEffect(() => {
     if (!result) return
-    const timer = setTimeout(() => setShown(result), minWaitMs - (performance.now() - waitingSince.current))
+    const timer = setTimeout(() => setShown(result), MIN_WAIT_MS - (performance.now() - waitingSince.current))
     return () => clearTimeout(timer)
   }, [result])
 
@@ -64,7 +75,7 @@ function useSignInFlow(target: string, sso: string | null) {
     if (!shown) return
     const timer = setTimeout(
       () => (shown === "ok" ? navigate(target, { replace: true }) : reset()),
-      shown === "ok" ? verifyOkMs : verifyFailMs,
+      shown === "ok" ? VERIFY_OK_MS : VERIFY_FAIL_MS,
     )
     return () => clearTimeout(timer)
   }, [shown, navigate, target])
@@ -81,7 +92,9 @@ function useSignInFlow(target: string, sso: string | null) {
   return {
     via,
     state,
+    ssoError: sso ? ssoErrors.get(sso) : undefined,
     wait: (next: SignInVia) => {
+      setSso(null)
       waitingSince.current = performance.now()
       setVia(next)
       setResult(null)
@@ -117,12 +130,11 @@ export function LoginPage() {
   const [params] = useSearchParams()
   const next = params.get("next") || "/"
   const target = next.startsWith("/") ? next : "/"
-  const flow = useSignInFlow(target, params.get("sso"))
+  const flow = useSignInFlow(target)
   const login = useLogin({ onSuccess: () => flow.answer(true), onError: () => flow.answer(false) })
   const me = useMe()
   const setup = useSetupStatus()
   const sso = useOIDCSignIn()
-  const ssoError = ssoErrors[params.get("sso") ?? ""]
   const { draft, set } = useDraft({ username: "", password: "" })
   const error = fieldErrors(login.error).form
 
@@ -181,7 +193,7 @@ export function LoginPage() {
                       Sign in with {sso.data.name}
                     </a>
                   </Button>
-                  {ssoError && <FieldError>{ssoError}</FieldError>}
+                  {flow.ssoError && <FieldError>{flow.ssoError}</FieldError>}
                 </Field>
               </>
             )}

@@ -4,10 +4,7 @@ import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { EggIcon } from "@/components/common/egg-icon"
 import { QueryState } from "@/components/common/query-state"
-import { PageHeader } from "@/components/layout/page-header"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EggExportDialog } from "@/features/eggs/components/egg-export-dialog"
+import { EggHeader } from "@/features/eggs/components/egg-header"
 import { EggOrigin } from "@/features/eggs/components/egg-origin"
 import { EggTabs } from "@/features/eggs/components/egg-tabs"
 import { UpdateUrlBadge } from "@/features/eggs/components/update-url-badge"
@@ -37,54 +35,29 @@ export function EggDetailPage() {
   )
 }
 
+type Dialog = { kind: "update" } | { kind: "delete" } | null
+
 function EggDetail({ egg }: { egg: Egg }) {
   const name = egg.metadata.name
   const navigate = useNavigate()
-  const [confirm, setConfirm] = useState<"delete" | "update" | null>(null)
+  const [dialog, setDialog] = useState<Dialog>(null)
+  const s = egg.spec
   const update = useUpdateEggFromUrl(name, {
-    onSuccess: () => toast.success("Egg updated from its URL"),
+    onSuccess: (e) => toast.success(`Egg “${e.spec.displayName}” updated`),
     onError: failed("update the egg"),
   })
   const del = useDeleteEgg(name, {
     onSuccess: () => {
-      toast.success("Egg deleted")
+      toast.success(`Egg “${s.displayName}” deleted`)
       navigate("/eggs")
     },
     onError: failed("delete the egg"),
   })
-  const s = egg.spec
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        icon={<EggIcon name={s.displayName} icon={s.icon} className="size-14 rounded-xl" />}
-        title={s.displayName}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            <span>{s.author}</span>
-            <EggOrigin spec={s} className="font-mono" />
-            <UpdateUrlBadge spec={s} />
-            {s.features?.map((f) => (
-              <Badge key={f} variant="secondary">
-                {f}
-              </Badge>
-            ))}
-            {s.tags?.map((t) => (
-              <Badge key={t} variant="outline">
-                #{t}
-              </Badge>
-            ))}
-            {s.source?.editedAt && <span className="text-xs">edited {formatRelativeTime(s.source.editedAt)}</span>}
-            {s.source?.autoUpdate && egg.status?.updateCheckedAt && (
-              <span className={egg.status.updateError ? "text-xs text-destructive" : "text-xs"}>
-                {egg.status.updateError
-                  ? `auto update failed ${formatRelativeTime(egg.status.updateCheckedAt)}: ${egg.status.updateError}`
-                  : `checked ${formatRelativeTime(egg.status.updateCheckedAt)}` +
-                    (egg.status.updatedAt ? ` · updated ${formatRelativeTime(egg.status.updatedAt)}` : "")}
-              </span>
-            )}
-          </span>
-        }
+      <EggHeader
+        spec={s}
         actions={
           <>
             <DropdownMenu>
@@ -102,13 +75,13 @@ function EggDetail({ egg }: { egg: Egg }) {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!s.source?.updateUrl || update.isPending}
-                  onClick={() => setConfirm("update")}
+                  onClick={() => setDialog({ kind: "update" })}
                 >
                   <RefreshCwIcon />
                   Update from URL
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirm("delete")}>
+                <DropdownMenuItem variant="destructive" onClick={() => setDialog({ kind: "delete" })}>
                   <Trash2Icon />
                   Delete
                 </DropdownMenuItem>
@@ -129,11 +102,23 @@ function EggDetail({ egg }: { egg: Egg }) {
             </Button>
           </>
         }
-      />
+      >
+        <EggOrigin spec={s} className="font-mono" />
+        <UpdateUrlBadge spec={s} />
+        {s.source?.editedAt && <span className="text-xs">edited {formatRelativeTime(s.source.editedAt)}</span>}
+        {s.source?.autoUpdate && egg.status?.updateCheckedAt && (
+          <span className={egg.status.updateError ? "text-xs text-destructive" : "text-xs"}>
+            {egg.status.updateError
+              ? `auto update failed ${formatRelativeTime(egg.status.updateCheckedAt)}: ${egg.status.updateError}`
+              : `checked ${formatRelativeTime(egg.status.updateCheckedAt)}` +
+                (egg.status.updatedAt ? ` · updated ${formatRelativeTime(egg.status.updatedAt)}` : "")}
+          </span>
+        )}
+      </EggHeader>
 
       <ConfirmDialog
-        open={confirm === "update"}
-        onOpenChange={(o) => !o && setConfirm(null)}
+        open={dialog?.kind === "update"}
+        onOpenChange={(o) => !o && setDialog(null)}
         title={`Update ${s.displayName} from its URL?`}
         description={
           <>
@@ -145,16 +130,14 @@ function EggDetail({ egg }: { egg: Egg }) {
         onConfirm={() => update.mutate()}
       />
       <ConfirmDialog
-        open={confirm === "delete"}
-        onOpenChange={(o) => !o && setConfirm(null)}
+        open={dialog?.kind === "delete"}
+        onOpenChange={(o) => !o && setDialog(null)}
         title={`Delete ${s.displayName}?`}
         description="Eggs that are used by servers cannot be deleted."
         confirmLabel="Delete"
         destructive
         onConfirm={() => del.mutate()}
       />
-
-      {s.description && <p className="max-w-3xl whitespace-pre-line text-muted-foreground">{s.description}</p>}
 
       <EggTabs spec={s} />
     </div>

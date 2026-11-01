@@ -3,9 +3,11 @@ package sso
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"app/api/v1alpha1"
 	"app/internal/testutil"
@@ -125,6 +127,36 @@ func TestSignInRefusesForeignCallbacks(t *testing.T) {
 	verifier := (&Client{}).verifierFor(t, cfg)
 	if _, err := verifier(idp.IDToken(map[string]any{"sub": "u-1", "aud": "other-client"})); err == nil {
 		t.Error("accepted an ID token of another client")
+	}
+}
+
+// TestUsedFlowsStayBounded: only verified flows are remembered, and a full memory drops the flow that ends first
+// instead of refusing every sign-in.
+func TestUsedFlowsStayBounded(t *testing.T) {
+	idp := testutil.NewIdP(t)
+	var c Client
+	idp.SignInAs(map[string]any{"sub": "u-1", "preferred_username": "alice", "groups": []any{"admins"}})
+	ctx := context.Background()
+
+	flow, back := signIn(t, &c, config(idp))
+	if _, err := c.Finish(ctx, config(idp), flow, back.Get("state"), "forged-code"); err == nil {
+		t.Fatal("a forged code was accepted")
+	}
+	if len(c.usedFlows) != 0 {
+		t.Errorf("a failed callback was remembered: %d", len(c.usedFlows))
+	}
+
+	now := time.Now()
+	c.usedFlows = map[string]time.Time{}
+	for i := range maxUsedFlows {
+		c.usedFlows[fmt.Sprint(i)] = now.Add(FlowLifetime + time.Duration(i)*time.Millisecond)
+	}
+	flow, back = signIn(t, &c, config(idp))
+	if _, err := c.Finish(ctx, config(idp), flow, back.Get("state"), back.Get("code")); err != nil {
+		t.Fatalf("sign-in with a full memory: %v", err)
+	}
+	if _, ok := c.usedFlows["0"]; ok || len(c.usedFlows) != maxUsedFlows || !c.used(flow.State) {
+		t.Errorf("the flow that ends first must make room: %d flows", len(c.usedFlows))
 	}
 }
 

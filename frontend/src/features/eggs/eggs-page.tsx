@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import { EggCard } from "@/features/eggs/components/egg-card"
 import { EggImportDialog } from "@/features/eggs/components/egg-import-dialog"
 import { EggLibrary } from "@/features/eggs/components/egg-library"
-import { matches } from "@/features/eggs/lib/library"
+import { matches } from "@/lib/format"
 import { useEggs, useLibrary, useServers } from "@/lib/queries"
 
 /**
@@ -24,7 +24,8 @@ export function EggsPage() {
   const tab = params.get("tab") === "library" ? "library" : "installed"
   const [search, setSearch] = useState("")
   const installed = useEggs().data
-  const library = useLibrary().data
+  // Loaded once the Library tab is opened; its count shows from then on.
+  const library = useLibrary(tab === "library").data
   return (
     <div className="space-y-8">
       <PageHeader

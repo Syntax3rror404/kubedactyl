@@ -35,20 +35,30 @@ type Session struct {
 // Signer creates and verifies HMAC-SHA256 signed session tokens.
 type Signer struct {
 	key []byte
+	// maxRevoked is how many logged out tokens are kept per user (maxRevokedPerUser).
+	maxRevoked int
 
 	mu sync.Mutex
-	// revoked holds the signatures of logged out tokens until they expire (unix time). It lives
-	// in memory: after a panel restart a logged out token works again until it expires, while
+	// revoked holds the signatures of logged out tokens per user until they expire (unix time), guarded by mu.
+	// It lives in memory: after a panel restart a logged out token works again until it expires, while
 	// "log out everywhere" (the user's session epoch) also survives restarts.
-	revoked map[string]int64
+	revoked map[string]map[string]int64
+	swept   time.Time
 }
+
+// maxRevokedPerUser bounds the logged out tokens kept per user; Revoke refuses more with ErrTooManyRevoked.
+const maxRevokedPerUser = 100
+
+// ErrTooManyRevoked means the user has the most logged out tokens kept already and the token was not
+// kept: the caller ends every session of the user instead (a new session epoch).
+var ErrTooManyRevoked = errors.New("too many logged out sessions kept")
 
 // NewSigner returns a signer for a secret key (at least 32 bytes).
 func NewSigner(key []byte) (*Signer, error) {
 	if len(key) < 32 {
 		return nil, errors.New("session key must be at least 32 bytes")
 	}
-	return &Signer{key: key}, nil
+	return &Signer{key: key, maxRevoked: maxRevokedPerUser}, nil
 }
 
 func (s *Signer) mac(payload string) string {
@@ -88,44 +98,74 @@ func (s *Signer) Sign(sess Session) (string, error) {
 	return s.seal("", sess)
 }
 
-// Revoke invalidates a valid session token until it expires (logout).
-func (s *Signer) Revoke(token string, now time.Time) {
+// Revoke invalidates a valid session token until it expires (logout) and returns its session. Expired entries
+// are swept at most once a minute; Verify ignores them anyway, as their tokens have expired.
+func (s *Signer) Revoke(token string, now time.Time) (Session, error) {
 	sess, err := s.Verify(token, now)
 	if err != nil {
-		return
+		return sess, err
 	}
 	_, sig, _ := strings.Cut(token, ".")
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.revoked == nil {
-		s.revoked = map[string]int64{}
+	if now.Sub(s.swept) >= time.Minute {
+		s.sweep(now)
 	}
-	for k, expires := range s.revoked {
-		if now.Unix() >= expires {
-			delete(s.revoked, k)
-		}
+	sigs := s.revoked[sess.User]
+	if len(sigs) >= s.maxRevoked {
+		dropExpired(sigs, now)
 	}
-	s.revoked[sig] = sess.ExpiresAt
+	if len(sigs) >= s.maxRevoked {
+		return sess, ErrTooManyRevoked
+	}
+	if sigs == nil {
+		sigs = map[string]int64{}
+		s.revoked[sess.User] = sigs
+	}
+	sigs[sig] = sess.ExpiresAt
+	return sess, nil
 }
 
-func (s *Signer) isRevoked(sig string) bool {
+// sweep drops the entries of expired tokens (guarded by mu).
+func (s *Signer) sweep(now time.Time) {
+	s.swept = now
+	if s.revoked == nil {
+		s.revoked = map[string]map[string]int64{}
+	}
+	for user, sigs := range s.revoked {
+		if dropExpired(sigs, now); len(sigs) == 0 {
+			delete(s.revoked, user)
+		}
+	}
+}
+
+// dropExpired removes the signatures of tokens that expired before now.
+func dropExpired(sigs map[string]int64, now time.Time) {
+	for sig, expires := range sigs {
+		if now.Unix() >= expires {
+			delete(sigs, sig)
+		}
+	}
+}
+
+func (s *Signer) isRevoked(user, sig string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, ok := s.revoked[sig]
+	_, ok := s.revoked[user][sig]
 	return ok
 }
 
 // Verify checks signature, expiry and revocation and returns the session.
 func (s *Signer) Verify(token string, now time.Time) (Session, error) {
 	raw, sig, err := s.open("", token)
-	if err != nil || s.isRevoked(sig) {
+	if err != nil {
 		return Session{}, ErrInvalidToken
 	}
 	var sess Session
 	if err := json.Unmarshal(raw, &sess); err != nil || sess.User == "" {
 		return Session{}, ErrInvalidToken
 	}
-	if now.Unix() >= sess.ExpiresAt {
+	if now.Unix() >= sess.ExpiresAt || s.isRevoked(sess.User, sig) {
 		return Session{}, ErrInvalidToken
 	}
 	return sess, nil

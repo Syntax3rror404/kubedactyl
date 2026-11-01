@@ -15,7 +15,6 @@ import (
 
 // Errors of a sign-in through the identity provider.
 var (
-	ErrDisabled = errors.New("this account is disabled")
 	// ErrOtherIdentity means the account with the username is linked to another user of the identity provider.
 	ErrOtherIdentity = errors.New("the account is linked to another user of the identity provider")
 	// ErrNotLinked means an account with the username exists but is not linked, and linking by username is off.
@@ -37,14 +36,20 @@ func (s *Store) SignInOIDC(ctx context.Context, acc sso.Account, o v1alpha1.OIDC
 		link(&u.Spec, acc, o.KeepPasswords)
 		return u, s.create(ctx, u)
 	}
-	if u.Spec.Disabled {
-		return nil, ErrDisabled
+	if err := s.CheckActive(ctx, u); err != nil {
+		return nil, err
 	}
+	linking := u.Spec.OIDC == nil
 	removesAdmin := isActiveAdmin(u) && acc.Role != v1alpha1.RoleAdmin
-	return u, s.change(ctx, u, removesAdmin, func(spec *v1alpha1.UserSpec) error {
+	err = s.change(ctx, u, removesAdmin, func(spec *v1alpha1.UserSpec) error {
 		link(spec, acc, o.KeepPasswords)
 		return nil
 	})
+	if err == nil && linking {
+		// The identity provider manages the password of a linked account: reset links no longer apply.
+		err = s.deleteResetLinks(ctx, u.Name)
+	}
+	return u, err
 }
 
 // link takes the profile and role from the identity provider and links the account to its user. Linking an

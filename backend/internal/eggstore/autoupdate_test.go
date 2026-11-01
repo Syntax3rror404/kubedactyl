@@ -145,3 +145,32 @@ func TestImportWithAutoUpdate(t *testing.T) {
 		t.Fatalf("auto update not on: %v %+v", err, e.Spec.Source)
 	}
 }
+
+// A re-import that ends the auto update (the file has no update URL) removes its results too.
+func TestImportWithoutURLClearsStatus(t *testing.T) {
+	file := testutil.Download(t, testutil.PaperPLCN)
+	c := testutil.Builder(t).WithStatusSubresource(&v1alpha1.Egg{}).Build()
+	s := &Store{Client: c, Reader: c, Namespace: testutil.Namespace}
+	ctx := context.Background()
+	e, _, err := s.Import(ctx, file, "https://example.com/paper.yaml", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.Status.UpdateError = "download failed"
+	if err := c.Status().Update(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	spec := e.Spec.DeepCopy()
+	spec.Source.UpdateURL = ""
+	upload, _, err := egg.Export("paper", spec, egg.FormatYAML, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Import(ctx, upload, "", false); err != nil {
+		t.Fatal(err)
+	}
+	saved, _ := s.Get(ctx, e.Name)
+	if saved.Spec.Source.AutoUpdate || saved.Status != (v1alpha1.EggStatus{}) {
+		t.Errorf("auto update must end with its results: %+v %+v", saved.Spec.Source, saved.Status)
+	}
+}

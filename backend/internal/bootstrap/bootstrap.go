@@ -159,10 +159,10 @@ func LoadSessionSigner(ctx context.Context, c client.Client, ns string) (*auth.S
 }
 
 // Admin creates the user "admin" from KUBEDACTYL_ADMIN_PASSWORD when no active
-// administrator exists (for automated installations). Without the variable the web UI
-// shows the setup page, which needs the setup token returned here (from
-// KUBEDACTYL_SETUP_TOKEN or generated and logged once). The token is empty when an
-// administrator exists.
+// administrator exists (for automated installations). Without the variable, or when a user
+// "admin" exists but is no active administrator, the web UI shows the setup page, which needs
+// the setup token returned here (from KUBEDACTYL_SETUP_TOKEN or generated and logged once).
+// The token is empty when an administrator exists.
 func Admin(ctx context.Context, c client.Client, ns, url string, log *slog.Logger) (string, error) {
 	var users v1alpha1.UserList
 	if err := c.List(ctx, &users, client.InNamespace(ns)); err != nil {
@@ -175,16 +175,7 @@ func Admin(ctx context.Context, c client.Client, ns, url string, log *slog.Logge
 	}
 	password := os.Getenv("KUBEDACTYL_ADMIN_PASSWORD")
 	if password == "" {
-		token := os.Getenv("KUBEDACTYL_SETUP_TOKEN")
-		if token == "" {
-			token = auth.NewSetupToken()
-			log.Warn(
-				"no administrator yet, open the setup page with this one-time link", "url", url+"/setup?token="+token,
-			)
-		} else {
-			log.Warn("no administrator yet, open the setup page with KUBEDACTYL_SETUP_TOKEN", "url", url+"/setup")
-		}
-		return token, nil
+		return setupToken(url, log), nil
 	}
 	hash, err := auth.HashPassword(password)
 	if err != nil {
@@ -194,9 +185,26 @@ func Admin(ctx context.Context, c client.Client, ns, url string, log *slog.Logge
 		ObjectMeta: metav1.ObjectMeta{Name: "admin", Namespace: ns},
 		Spec:       v1alpha1.UserSpec{DisplayName: "Administrator", Role: v1alpha1.RoleAdmin, PasswordHash: hash},
 	}
-	if err := c.Create(ctx, admin); err != nil {
+	// Fail-safe: an existing "admin" (disabled or demoted) is never changed; the setup page creates another one.
+	switch err := c.Create(ctx, admin); {
+	case apierrors.IsAlreadyExists(err):
+		log.Warn("KUBEDACTYL_ADMIN_PASSWORD ignored: the user admin exists but is no active administrator")
+		return setupToken(url, log), nil
+	case err != nil:
 		return "", err
 	}
 	log.Info("created initial admin user from KUBEDACTYL_ADMIN_PASSWORD", "user", "admin")
 	return "", nil
+}
+
+// setupToken returns the token of the setup page: KUBEDACTYL_SETUP_TOKEN, or a generated one that is logged once.
+func setupToken(url string, log *slog.Logger) string {
+	token := os.Getenv("KUBEDACTYL_SETUP_TOKEN")
+	if token == "" {
+		token = auth.NewSetupToken()
+		log.Warn("no administrator yet, open the setup page with this one-time link", "url", url+"/setup?token="+token)
+	} else {
+		log.Warn("no administrator yet, open the setup page with KUBEDACTYL_SETUP_TOKEN", "url", url+"/setup")
+	}
+	return token
 }

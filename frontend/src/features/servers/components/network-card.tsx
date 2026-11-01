@@ -3,7 +3,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/components/placement-fields"
 import { PortEditor } from "@/features/servers/components/port-editor"
-import { noLoadBalancer, poolValue, type SettingsCardProps } from "@/features/servers/lib/settings-draft"
+import { NO_LOAD_BALANCER, poolValue, type SettingsCardProps } from "@/features/servers/lib/settings-draft"
 import { serverAddress, serverIPs } from "@/lib/format"
 import { usePools, useSettings } from "@/lib/queries"
 
@@ -16,7 +16,7 @@ export function NetworkCard({ server, draft, onChange, errors, isAdmin }: Settin
   const pools = usePools(isAdmin)
   const address = serverIPs(server).join(", ") || undefined
   const saved = poolValue(server)
-  const clusterOnly = draft.pool === noLoadBalancer
+  const clusterOnly = draft.pool === NO_LOAD_BALANCER
   if (!isAdmin && !settings?.loadBalancerPools?.length && !settings?.allowClusterIP) return null
   const poolField = (
     <PoolField

@@ -2,9 +2,11 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	storagev1 "k8s.io/api/storage/v1"
@@ -237,6 +239,53 @@ func TestCurrentKeepsSettingsUntilTheyChange(t *testing.T) {
 	}
 	if got := brand(); got != "Saved" {
 		t.Errorf("after a save: %q", got)
+	}
+}
+
+// heldReader holds every Get until release is closed, counts them and fails them with err (nil: reads).
+type heldReader struct {
+	client.Reader
+	release chan struct{}
+	err     error
+	gets    atomic.Int32
+}
+
+func (r *heldReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object, o ...client.GetOption) error {
+	r.gets.Add(1)
+	<-r.release
+	if r.err != nil {
+		return r.err
+	}
+	return r.Reader.Get(ctx, key, obj, o...)
+}
+
+// TestCurrentSharesOneRead: callers that arrive while the settings are read wait for that read and get its
+// result, also a failure; a failure is not kept.
+func TestCurrentSharesOneRead(t *testing.T) {
+	for _, failure := range []error{nil, errors.New("api server unavailable")} {
+		synctest.Test(t, func(t *testing.T) {
+			c := testutil.Builder(t).Build()
+			r := &heldReader{Reader: c, release: make(chan struct{}), err: failure}
+			s := &Store{Client: c, Reader: r, Namespace: testutil.Namespace}
+			errs := make(chan error, 5)
+			for range 5 {
+				go func() {
+					_, err := s.Current(t.Context())
+					errs <- err
+				}()
+			}
+			synctest.Wait()
+			close(r.release)
+			for range 5 {
+				if err := <-errs; !errors.Is(err, failure) {
+					t.Errorf("caller got %v, want %v", err, failure)
+				}
+			}
+			_, _ = s.Current(t.Context())
+			if want := map[bool]int32{true: 1, false: 2}[failure == nil]; r.gets.Load() != want {
+				t.Errorf("failure %v: %d reads, want %d", failure, r.gets.Load(), want)
+			}
+		})
 	}
 }
 

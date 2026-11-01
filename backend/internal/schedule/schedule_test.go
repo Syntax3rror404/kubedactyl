@@ -115,8 +115,10 @@ func TestValidate(t *testing.T) {
 func TestRunnerRun(t *testing.T) {
 	gs := &v1alpha1.GameServer{
 		ObjectMeta: metav1.ObjectMeta{Name: "srv", Namespace: tenancy.Namespace("alice")},
-		Spec:       v1alpha1.GameServerSpec{State: v1alpha1.PowerRunning},
-		Status:     v1alpha1.GameServerStatus{Phase: v1alpha1.PhaseOffline},
+		Spec: v1alpha1.GameServerSpec{
+			State: v1alpha1.PowerRunning, Schedules: []v1alpha1.Schedule{{Name: "nightly", Cron: "@daily"}},
+		},
+		Status: v1alpha1.GameServerStatus{Phase: v1alpha1.PhaseOffline},
 	}
 	c := testutil.Builder(t).WithStatusSubresource(&v1alpha1.GameServer{}).WithObjects(gs).Build()
 	log := testutil.Logger()
@@ -239,5 +241,102 @@ func TestStoppingTasks(t *testing.T) {
 	empty := &v1alpha1.GameServer{ObjectMeta: gs.ObjectMeta}
 	if r.StartStopping(empty) != 0 {
 		t.Error("a server without stop tasks must not wait")
+	}
+}
+
+// A task does not run when the server was locked after the run began.
+func TestRunnerRunLocked(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		lock func(gs *v1alpha1.GameServer)
+		want string
+	}{
+		{"suspended", func(gs *v1alpha1.GameServer) { gs.Spec.Suspended = true }, serverctl.ErrSuspended.Error()},
+		{"migrating", func(gs *v1alpha1.GameServer) {
+			gs.Spec.StorageClass, gs.Status.StorageClass = "fast", "slow"
+		}, serverctl.ErrMigrating.Error()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gs := &v1alpha1.GameServer{
+				ObjectMeta: metav1.ObjectMeta{Name: "srv", Namespace: tenancy.Namespace("alice")},
+				Spec: v1alpha1.GameServerSpec{
+					State: v1alpha1.PowerRunning, Schedules: []v1alpha1.Schedule{{Name: "nightly", Cron: "@daily"}},
+				},
+			}
+			tc.lock(gs)
+			c := testutil.Builder(t).WithStatusSubresource(&v1alpha1.GameServer{}).WithObjects(gs).Build()
+			log := testutil.Logger()
+			r := &Runner{
+				Client: c, Reader: c, Hub: console.NewHub(nil, log), Location: time.UTC, Log: log,
+				Ops:     &serverctl.Ops{Client: c, Hub: console.NewHub(nil, log)},
+				Trigger: func(string, string) {},
+			}
+			ref := types.NamespacedName{Namespace: gs.Namespace, Name: gs.Name}
+			stop := []v1alpha1.ScheduleTask{{Action: "stop"}}
+			r.run(t.Context(), ref, v1alpha1.Schedule{Name: "nightly", Tasks: stop})
+			cur := &v1alpha1.GameServer{}
+			_ = c.Get(t.Context(), ref, cur)
+			if cur.Spec.State != v1alpha1.PowerRunning || len(cur.Status.Schedules) != 1 ||
+				!strings.HasSuffix(cur.Status.Schedules[0].LastResult, tc.want) {
+				t.Errorf("state %s, results %+v", cur.Spec.State, cur.Status.Schedules)
+			}
+		})
+	}
+}
+
+// A result replaces the previous one of its schedule; results of deleted schedules go.
+func TestWithResult(t *testing.T) {
+	gs := &v1alpha1.GameServer{
+		Spec: v1alpha1.GameServerSpec{Schedules: []v1alpha1.Schedule{{Name: "a"}, {Name: "b"}}},
+		Status: v1alpha1.GameServerStatus{Schedules: []v1alpha1.ScheduleStatus{
+			{Name: "deleted", LastResult: "ok"}, {Name: "a", LastResult: "ok"}, {Name: "b", LastResult: "ok"},
+		}},
+	}
+	names := func(list []v1alpha1.ScheduleStatus) string {
+		var out []string
+		for _, s := range list {
+			out = append(out, s.Name+"="+s.LastResult)
+		}
+		return strings.Join(out, ",")
+	}
+	for _, tc := range []struct {
+		entry v1alpha1.ScheduleStatus
+		want  string
+	}{
+		{v1alpha1.ScheduleStatus{Name: "b", LastResult: "failed"}, "a=ok,b=failed"},
+		{v1alpha1.ScheduleStatus{Name: "deleted", LastResult: "failed"}, "a=ok,b=ok"},
+	} {
+		if got := names(withResult(gs, tc.entry)); got != tc.want {
+			t.Errorf("%s: got %s, want %s", tc.entry.Name, got, tc.want)
+		}
+	}
+	gs.Status.Schedules = nil
+	if got := names(withResult(gs, v1alpha1.ScheduleStatus{Name: "a", LastResult: "ok"})); got != "a=ok" {
+		t.Errorf("first result: %s", got)
+	}
+}
+
+// StopLimit counts the enabled "stopping" schedules only: the longest one, delays plus margins.
+func TestStopLimit(t *testing.T) {
+	stopping := func(enabled bool, delays ...int32) v1alpha1.Schedule {
+		s := v1alpha1.Schedule{Event: EventStopping, Enabled: enabled}
+		for _, d := range delays {
+			s.Tasks = append(s.Tasks, v1alpha1.ScheduleTask{Action: "command", DelaySeconds: d})
+		}
+		return s
+	}
+	for _, tc := range []struct {
+		name      string
+		schedules []v1alpha1.Schedule
+		want      time.Duration
+	}{
+		{"none", nil, 0},
+		{"disabled", []v1alpha1.Schedule{stopping(false, 60)}, 0},
+		{"longest counts", []v1alpha1.Schedule{stopping(true, 30), stopping(true, 0, 0)}, 55 * time.Second},
+	} {
+		gs := &v1alpha1.GameServer{Spec: v1alpha1.GameServerSpec{Schedules: tc.schedules}}
+		if got := (&Runner{}).StopLimit(gs); got != tc.want {
+			t.Errorf("%s: %s, want %s", tc.name, got, tc.want)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -64,19 +65,7 @@ func TestAttachIntegration(t *testing.T) {
 	}
 	waitFor(t, func() bool { return strings.Contains(logs(), "GOT:second command") })
 
-	out, err := k.ExecOutput(
-		ctx, ns, "t", "server", []string{"sh", "-c", `cat > /tmp/x && echo "len=$(wc -c < /tmp/x)"`},
-		strings.NewReader("hello"),
-	)
-	if err != nil || !strings.Contains(string(out), "len=5") {
-		t.Fatalf("exec with stdin: %q %v", out, err)
-	}
-	if err := k.Exec(
-		ctx, ns, "t", "server", []string{"sh", "-c", "echo boom >&2; exit 7"}, nil, nil,
-	); err == nil || !strings.Contains(err.Error(), "code 7") ||
-		!strings.Contains(err.Error(), "boom") {
-		t.Fatalf("expected exit error, got %v", err)
-	}
+	checkExec(t, ctx, k, ns, "t")
 
 	// ^C through the TTY must deliver SIGINT to the process.
 	if err := k.AttachWrite(ctx, ns, "t", "server", []byte{0x03}); err != nil {
@@ -99,6 +88,26 @@ func TestAttachIntegration(t *testing.T) {
 			t.Fatalf("AttachWrite(%s) = %v after %v, want a fast error", pod, err, time.Since(start))
 		}
 		t.Logf("AttachWrite(%s) failed as expected after %v: %v", pod, time.Since(start).Round(time.Millisecond), err)
+	}
+}
+
+// checkExec runs commands in the container of pod: stdin, exit codes with stderr and output beyond the limit.
+func checkExec(t *testing.T, ctx context.Context, k *Client, ns, pod string) {
+	t.Helper()
+	out, err := k.ExecOutput(
+		ctx, ns, pod, "server", []string{"sh", "-c", `cat > /tmp/x && echo "len=$(wc -c < /tmp/x)"`},
+		strings.NewReader("hello"),
+	)
+	if err != nil || !strings.Contains(string(out), "len=5") {
+		t.Fatalf("exec with stdin: %q %v", out, err)
+	}
+	err = k.Exec(ctx, ns, pod, "server", []string{"sh", "-c", "echo boom >&2; exit 7"}, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "code 7") || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("expected exit error, got %v", err)
+	}
+	big, err := k.ExecOutput(ctx, ns, pod, "server", []string{"head", "-c", "2000000", "/dev/zero"}, nil)
+	if !errors.Is(err, ErrOutputTooLarge) || len(big) != maxOutput {
+		t.Fatalf("output beyond the limit: %d bytes, %v", len(big), err)
 	}
 }
 

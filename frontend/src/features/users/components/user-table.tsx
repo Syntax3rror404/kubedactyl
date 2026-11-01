@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { InviteActions, InviteIcon, InviteState, ResetPasswordButton } from "@/features/users/components/invite-actions"
-import { inviteLabel } from "@/features/users/lib/invite"
+import { InviteActions, InviteIcon, InviteState, PasswordResetAction } from "@/features/users/components/invite-actions"
+import { inviteLabel, splitInvites } from "@/features/users/lib/invite"
 import { useAuth } from "@/hooks/use-auth"
 import { formatRelativeTime, plural, roleLabel, userName } from "@/lib/format"
 import { failed } from "@/lib/notify"
@@ -38,7 +38,7 @@ export function UserTable({
   onEdit: (u: UserView) => void
   onDelete: (u: UserView) => void
 }) {
-  const resets = new Map(invites.filter((i) => i.reset).map((i) => [i.username, i]))
+  const { resets, open } = splitInvites(invites)
   return (
     <Table>
       <TableHeader>
@@ -69,11 +69,9 @@ export function UserTable({
             onDelete={onDelete}
           />
         ))}
-        {invites
-          .filter((i) => !i.reset)
-          .map((i) => (
-            <InviteRow key={i.id} invite={i} subusers={subusers} />
-          ))}
+        {open.map((i) => (
+          <InviteRow key={i.id} invite={i} subusers={subusers} />
+        ))}
       </TableBody>
     </Table>
   )
@@ -149,19 +147,15 @@ function UserRow({
           checked={!u.disabled}
           disabled={u.username === me.username || toggle.isPending}
           onCheckedChange={() => toggle.mutate({ name: u.username, changes: { disabled: !u.disabled } })}
-          aria-label="Active"
+          aria-label={`${u.username} active`}
         />
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-end">
-          {reset ? (
-            <InviteActions invite={reset} />
-          ) : (
-            !u.oidc && u.username !== me.username && <ResetPasswordButton username={u.username} />
-          )}
+          <PasswordResetAction username={u.username} reset={reset} canReset={!u.oidc && u.username !== me.username} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.username}`}>
                 <MoreHorizontalIcon />
               </Button>
             </DropdownMenuTrigger>

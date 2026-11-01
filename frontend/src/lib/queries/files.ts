@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
+import { refresh, refreshAll, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import { refreshJobs } from "@/lib/queries/servers"
 import type { FilesSession, ServerJob } from "@/lib/types"
 
@@ -28,7 +28,6 @@ export function useFilesSession(server: string) {
     queryFn: () => api.files.openSession(server).then(track),
     staleTime: Infinity,
     gcTime: 0,
-    refetchOnWindowFocus: false,
   })
   // Polling the state is no activity, so an open tab does not keep the container alive. Until it was ready once,
   // the poll keeps asking for it: the start can take over a minute and a pod that vanished meanwhile comes back.
@@ -57,7 +56,8 @@ export function useFilesSession(server: string) {
 
 /**
  * State of the file container for the light on the Files tab. Only reads it (GET), so watching neither starts the
- * container nor keeps it running; useFilesSession writes its answers here.
+ * container nor keeps it running; useFilesSession writes its answers here. Named after the pod it shows, because
+ * useFilesSession is the hook that opens the session.
  */
 export const useFilesPodState = (server: string) =>
   useQuery({
@@ -82,37 +82,53 @@ export const useFileContent = (server: string, file: string, enabled: boolean) =
 /** Reloads listings and backups, e.g. after a background job changed the files. */
 export function useRefreshFiles(server: string) {
   const qc = useQueryClient()
-  return () => refresh(qc, keys.allFiles(server), keys.backups(server))
+  return () => {
+    refreshAll(qc, keys.allFiles(server))
+    refresh(qc, keys.backups(server))
+  }
 }
 
-// Every file operation changes listings.
-const refreshListings = (server: string) => refreshes(keys.allFiles(server))
+/**
+ * A file operation: listings reload when it is settled, also after a failure, because a request can fail after it
+ * changed some files (a move of several entries, a delete).
+ */
+function useFilesMutation<TVars>(
+  server: string,
+  mutationFn: (vars: TVars) => Promise<void>,
+  cb: MutationCallbacks<void, TVars> = {},
+) {
+  const qc = useQueryClient()
+  return useApiMutation(mutationFn, () => {}, {
+    ...cb,
+    onSettled: (...args) => {
+      refreshAll(qc, keys.allFiles(server))
+      return cb.onSettled?.(...args)
+    },
+  })
+}
 
 /** Saves a file from the editor. */
 export const useWriteFile = (server: string, cb?: MutationCallbacks<void, { file: string; content: string }>) =>
-  useApiMutation(({ file, content }) => api.files.write(server, file, content), refreshListings(server), cb)
+  useFilesMutation(server, ({ file, content }) => api.files.write(server, file, content), cb)
 
 /** Uploads files into dir. */
 export const useUploadFiles = (server: string, cb?: MutationCallbacks<void, { dir: string; files: File[] }>) =>
-  useApiMutation(({ dir, files }) => api.files.upload(server, dir, files), refreshListings(server), cb)
+  useFilesMutation(server, ({ dir, files }) => api.files.upload(server, dir, files), cb)
 
 /** Creates a folder in dir. */
 export const useCreateFolder = (server: string, cb?: MutationCallbacks<void, { dir: string; name: string }>) =>
-  useApiMutation(({ dir, name }) => api.files.createFolder(server, dir, name), refreshListings(server), cb)
+  useFilesMutation(server, ({ dir, name }) => api.files.createFolder(server, dir, name), cb)
 
-/** Renames an entry of dir; a name with "/" moves it into another folder. */
-export const useRenameFile = (
+/** Renames entries of dir one after the other; a name with "/" moves the entry into another folder. */
+export const useRenameFiles = (
   server: string,
-  cb?: MutationCallbacks<void, { dir: string; from: string; to: string }>,
-) => useApiMutation(({ dir, from, to }) => api.files.rename(server, dir, from, to), refreshListings(server), cb)
-
-/** Renames (moves) entries by full paths from → to, one after the other. */
-export const useRenameFiles = (server: string, cb?: MutationCallbacks<void, { from: string; to: string }[]>) =>
-  useApiMutation(
-    async (moves) => {
-      for (const m of moves) await api.files.rename(server, "/", m.from, m.to)
+  cb?: MutationCallbacks<void, { dir: string; from: string; to: string }[]>,
+) =>
+  useFilesMutation(
+    server,
+    async (renames) => {
+      for (const r of renames) await api.files.rename(server, r.dir, r.from, r.to)
     },
-    refreshListings(server),
     cb,
   )
 
@@ -126,7 +142,7 @@ export const useDecompressFile = (server: string, cb?: MutationCallbacks<ServerJ
 
 /** Deletes entries of dir. */
 export const useDeleteFiles = (server: string, cb?: MutationCallbacks<void, { dir: string; names: string[] }>) =>
-  useApiMutation(({ dir, names }) => api.files.delete(server, dir, names), refreshListings(server), cb)
+  useFilesMutation(server, ({ dir, names }) => api.files.delete(server, dir, names), cb)
 
 /** Starts a download job from a URL into dir; the job list shows its progress. */
 export const usePullFile = (

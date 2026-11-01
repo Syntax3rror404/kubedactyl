@@ -44,6 +44,7 @@ func TestFetchName(t *testing.T) {
 	for _, bad := range [][2]string{
 		{"ftp://example.com/x", ""}, {"file:///etc/passwd", ""}, {"javascript:alert(1)", ""},
 		{"https://example.com", ""}, {"https://example.com/x", "../evil"}, {"https://example.com/x", "a/b"},
+		{"https://example.com/a%5Cb", ""}, {"https://example.com/%2E%2E", ""}, {"https://example.com/a%00", ""},
 	} {
 		if _, err := PullName(bad[0], bad[1]); err == nil {
 			t.Errorf("FetchName(%q, %q) accepted", bad[0], bad[1])

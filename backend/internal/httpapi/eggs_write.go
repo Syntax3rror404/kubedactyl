@@ -62,7 +62,8 @@ func (a *API) importEgg(c *gin.Context) {
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		ImportURLRequest	true	"Egg URL"
-//	@Success	200		{object}	v1alpha1.Egg
+//	@Success	200		{object}	v1alpha1.Egg		"an egg with the same name was updated"
+//	@Success	201		{object}	v1alpha1.Egg		"a new egg was created"
 //	@Failure	422		{object}	ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/eggs/import-url [post]

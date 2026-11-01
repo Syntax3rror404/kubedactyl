@@ -24,8 +24,10 @@ type APIToken struct {
 
 // UserSpec defines a panel user. The object name is the username.
 type UserSpec struct {
+	// DisplayName is the name the panel shows. Empty: uses the username.
 	DisplayName string `json:"displayName,omitempty"`
-	Email       string `json:"email,omitempty"`
+	// Email is shown to administrators (the panel sends no e-mails). Optional.
+	Email string `json:"email,omitempty"`
 	// +kubebuilder:default=user
 	Role UserRole `json:"role"`
 	// PasswordHash is an Argon2id hash in PHC format; the password itself is never stored. Empty:
@@ -34,7 +36,8 @@ type UserSpec struct {
 	PasswordHash string `json:"passwordHash,omitempty"`
 	// MustChangePassword makes the user replace the password set by an administrator after signing in.
 	MustChangePassword bool `json:"mustChangePassword,omitempty"`
-	Disabled           bool `json:"disabled,omitempty"`
+	// Disabled refuses every sign-in, session and API token of the user.
+	Disabled bool `json:"disabled,omitempty"`
 	// SessionEpoch ends all sessions of the user when it is increased.
 	SessionEpoch int64      `json:"sessionEpoch,omitempty"`
 	Tokens       []APIToken `json:"tokens,omitempty"`

@@ -1,13 +1,6 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
+import type { GameServer } from "@/lib/types"
 
 // The patterns of the egg features in Pterodactyl and Pelican (case-insensitive substrings).
 const pidPatterns = [
@@ -20,83 +13,55 @@ const pidPatterns = [
 ]
 const diskPatterns = ["steamcmd needs 250mb of free disk space to update", "0x202 after update job"]
 
-/** Dialog of an egg feature that only explains: closing it dismisses the matched console line. */
-function Notice({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-2">{children}</div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction>Close</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  )
-}
-
-/** Egg feature "pid_limit": the server could not create threads (memory or process limit). */
-export function PidLimitNotice({
-  subscribe,
-  running,
-  isAdmin,
-}: {
+interface NoticeProps {
+  server: GameServer
   subscribe: Subscribe
   running: boolean
   isAdmin: boolean
-}) {
-  const { line, dismiss } = useConsoleMatch(subscribe, pidPatterns)
+}
+
+/** Egg feature "pid_limit": the server could not create threads (memory or process limit). */
+export function PidLimitNotice({ server, subscribe, running, isAdmin }: NoticeProps) {
+  const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, pidPatterns, running)
   return (
-    <Notice
-      open={!!line && !running}
+    <FeaturePrompt
+      open={open}
       onClose={dismiss}
       title={isAdmin ? "Memory or process limit reached" : "Possible resource limit reached"}
-    >
-      {isAdmin ? (
-        <>
-          <p>The server hit its memory or process limit.</p>
-          <p>
-            Give it more memory, or raise <code>podPidsLimit</code> of the node's kubelet.
-          </p>
-        </>
-      ) : (
-        <p>The server needs more resources. Send an administrator this error: “pthread_create failed”.</p>
-      )}
-    </Notice>
+      description={
+        isAdmin ? (
+          <>
+            <p>The server hit its memory or process limit.</p>
+            <p>
+              Give it more memory, or raise <code>podPidsLimit</code> of the node's kubelet.
+            </p>
+          </>
+        ) : (
+          <p>The server needs more resources. Send an administrator this error: “pthread_create failed”.</p>
+        )
+      }
+    />
   )
 }
 
 /** Egg feature "steam_disk_space": SteamCMD ran out of disk space. */
-export function SteamDiskSpaceNotice({
-  subscribe,
-  running,
-  isAdmin,
-}: {
-  subscribe: Subscribe
-  running: boolean
-  isAdmin: boolean
-}) {
-  const { line, dismiss } = useConsoleMatch(subscribe, diskPatterns)
+export function SteamDiskSpaceNotice({ server, subscribe, running, isAdmin }: NoticeProps) {
+  const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, diskPatterns, running)
   return (
-    <Notice open={!!line && !running} onClose={dismiss} title="Out of disk space">
-      <p>The server ran out of disk space and cannot finish the install or update.</p>
-      <p>
-        {isAdmin ? "Increase the disk size or delete files." : "Delete files or ask an administrator for more space."}
-      </p>
-    </Notice>
+    <FeaturePrompt
+      open={open}
+      onClose={dismiss}
+      title="Out of disk space"
+      description={
+        <>
+          <p>The server ran out of disk space and cannot finish the install or update.</p>
+          <p>
+            {isAdmin
+              ? "Increase the disk size or delete files."
+              : "Delete files or ask an administrator for more space."}
+          </p>
+        </>
+      }
+    />
   )
 }

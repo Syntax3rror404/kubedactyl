@@ -88,7 +88,7 @@ function EditorBody({
       setSaved(content)
       toast.success(`${file} saved`)
     },
-    onError: failed("save"),
+    onError: failed("save the file"),
   })
   const { mutate } = save
   useEffect(() => {

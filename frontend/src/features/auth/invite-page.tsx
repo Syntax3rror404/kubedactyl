@@ -84,8 +84,8 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
               <NewAccountFields
                 username={draft.username}
                 displayName={draft.displayName}
-                onUsername={(v) => set("username", v)}
-                onDisplayName={(v) => set("displayName", v)}
+                onUsernameChange={(v) => set("username", v)}
+                onDisplayNameChange={(v) => set("displayName", v)}
                 error={errors.username}
                 fixedUsername={!!invite.username}
                 autoFocus
@@ -94,8 +94,8 @@ function AccountForm({ token, invite }: { token: string; invite: InviteDetails }
             <NewPasswordFields
               password={draft.password}
               confirm={draft.confirm}
-              onPassword={(v) => set("password", v)}
-              onConfirm={(v) => set("confirm", v)}
+              onPasswordChange={(v) => set("password", v)}
+              onConfirmChange={(v) => set("confirm", v)}
               error={errors.password}
             />
             {errors.form && <FieldError>{errors.form}</FieldError>}

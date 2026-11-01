@@ -28,13 +28,15 @@ export function ProcessSection({
           exclude={self}
           label="Copy settings from…"
           onSelect={(egg) => {
-            onChange({
-              stop: egg.spec.stop ?? "",
-              startupDone: [...(egg.spec.startupDone ?? [])],
-              stripAnsi: !!egg.spec.stripAnsi,
-              configFiles: structuredClone(egg.spec.configFiles ?? []),
-            })
-            toast.success(`Copied stop command, startup detection and config files from ${egg.spec.displayName}`)
+            onChange(
+              {
+                startupDone: [...(egg.spec.startupDone ?? [])],
+                stripAnsi: !!egg.spec.stripAnsi,
+                configFiles: structuredClone(egg.spec.configFiles ?? []),
+              },
+              true,
+            )
+            toast.success(`Copied startup detection and config files from ${egg.spec.displayName}`)
           }}
         />
       </div>
@@ -78,7 +80,7 @@ export function ProcessSection({
         </FieldDescription>
         <ConfigFilesEditor
           files={spec.configFiles ?? []}
-          onChange={(configFiles) => onChange({ configFiles })}
+          onChange={(configFiles, reindexed) => onChange({ configFiles }, reindexed)}
           errors={errors}
         />
       </Field>

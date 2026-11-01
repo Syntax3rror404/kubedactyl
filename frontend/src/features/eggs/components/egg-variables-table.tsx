@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { EggSpec } from "@/lib/types"
 
-/** Read-only table of an egg's variables (detail page). */
+/** Read-only table of an egg's variables (egg tabs). */
 export function EggVariablesTable({ spec: s }: { spec: EggSpec }) {
+  if (!s.variables?.length) return <p className="text-sm text-muted-foreground">This egg has no variables.</p>
   return (
     <Card className="py-0">
       <Table>
@@ -17,7 +18,7 @@ export function EggVariablesTable({ spec: s }: { spec: EggSpec }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {s.variables?.map((v) => (
+          {s.variables.map((v) => (
             <TableRow key={v.envVariable}>
               <TableCell className="max-w-md whitespace-normal">
                 <div className="font-medium">{v.name}</div>

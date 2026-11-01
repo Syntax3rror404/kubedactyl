@@ -92,17 +92,17 @@ func (a *API) createServer(c *gin.Context) {
 }
 
 // newGameServer validates a create request and builds the GameServer object.
-//  1. Resources and ports, checked against the egg.
+//  1. Image, resources and ports, checked against the egg.
 //  2. Placement: storage class and pool, the panel defaults when the request names none.
 //  3. Variables: the egg defaults plus the request, checked against the egg rules.
 //  4. Owner and name: the owner's namespace and a free server name.
 func (a *API) newGameServer(
 	ctx context.Context, req *CreateServerRequest, e *v1alpha1.Egg,
 ) (*v1alpha1.GameServer, error) {
-	if req.Image == "" {
+	// 1. Image, resources and ports
+	if req.Image == "" && len(e.Spec.DockerImages) > 0 {
 		req.Image = e.Spec.DockerImages[0].Image
 	}
-	// 1. Resources and ports
 	resources, err := validateServer(req, e)
 	if err != nil {
 		return nil, err
@@ -158,9 +158,12 @@ func (a *API) newGameServer(
 	}, nil
 }
 
-// validateServer checks the resources, ports and startup command of a create request.
+// validateServer checks the image, resources, ports and startup command of a create request.
 func validateServer(req *CreateServerRequest, e *v1alpha1.Egg) (v1alpha1.Resources, error) {
 	resources := v1alpha1.Resources{MemoryMiB: req.MemoryMiB, CPUMillis: req.CPUMillis, DiskMiB: req.DiskMiB}
+	if req.Image == "" {
+		return resources, validation.Field("image", errors.New("the egg has no image, enter one"))
+	}
 	if err := gameserver.ValidateResources(resources); err != nil {
 		return resources, err
 	}
@@ -173,7 +176,7 @@ func validateServer(req *CreateServerRequest, e *v1alpha1.Egg) (v1alpha1.Resourc
 // choosePlacement picks storage class and load balancer pool (the panel defaults when the
 // request names none) and checks the service type and a fixed IP against the pool.
 func (a *API) choosePlacement(ctx context.Context, req *CreateServerRequest) (storageClass, pool string, err error) {
-	set, err := a.Settings.Get(ctx)
+	set, err := a.Settings.Current(ctx)
 	if err != nil {
 		return "", "", err
 	}

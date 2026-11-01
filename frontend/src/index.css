@@ -138,8 +138,3 @@
     @apply font-sans;
   }
 }
-/* xterm paints its viewport black by default; let the console card show through */
-.xterm .xterm-viewport,
-.xterm .xterm-screen {
-  background-color: transparent !important;
-}

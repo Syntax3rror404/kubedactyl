@@ -2,22 +2,11 @@ package serverctl
 
 import (
 	"context"
-	"errors"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
-	"app/internal/files"
 	"app/internal/gameserver"
-)
-
-// Errors of storage migrations.
-var (
-	ErrMigrating        = errors.New("the server files are moving to another storage class")
-	ErrSameStorageClass = errors.New("the server already uses this storage class")
-	ErrInstalling       = errors.New("wait until the installation has finished")
-	ErrNotMigrating     = errors.New("no storage migration is running")
-	ErrSwitching        = errors.New("the files are copied already, the migration finishes in a moment")
 )
 
 // Migrate moves the server files to a volume of another storage class. It only names the class in
@@ -34,9 +23,7 @@ func (o *Ops) Migrate(ctx context.Context, gs *v1alpha1.GameServer, storageClass
 		return ErrSameStorageClass
 	case gs.Status.Phase == v1alpha1.PhaseInstalling:
 		return ErrInstalling
-	case o.Files != nil && o.Files.Busy(
-		files.RefOf(gs), files.JobPull, files.JobBackup, files.JobRestore, files.JobCompress, files.JobDecompress,
-	):
+	case o.filesBusy(gs):
 		return ErrFilesBusy
 	}
 	patch := client.MergeFrom(gs.DeepCopy())

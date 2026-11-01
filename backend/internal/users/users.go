@@ -152,59 +152,6 @@ func (s *Store) change(
 	})
 }
 
-// UpdatePassword replaces the own password after checking the current one. Every session of
-// the user ends (this one too); revokeTokens also removes the API tokens. A required password
-// change is done with it.
-func (s *Store) UpdatePassword(
-	ctx context.Context, u *v1alpha1.User, current, next string, revokeTokens bool,
-) error {
-	if u.Spec.PasswordHash == "" {
-		return ErrNoPassword
-	}
-	if !auth.VerifyPassword(current, u.Spec.PasswordHash) {
-		return validation.Field("current", ErrWrongPassword)
-	}
-	hash, err := auth.HashPassword(next)
-	if err != nil {
-		return validation.Field("new", err)
-	}
-	return s.endSessions(ctx, u, func(spec *v1alpha1.UserSpec) {
-		spec.PasswordHash = hash
-		spec.MustChangePassword = false
-		if revokeTokens {
-			spec.Tokens = nil
-		}
-	})
-}
-
-// UpdatePasswordHash hashes a password that was just verified again when its stored hash uses
-// older parameters (auth.Outdated), so every check costs what the current parameters cost.
-// Sessions stay valid.
-func (s *Store) UpdatePasswordHash(ctx context.Context, u *v1alpha1.User, password string) error {
-	if !auth.Outdated(u.Spec.PasswordHash) {
-		return nil
-	}
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		return err
-	}
-	patch := client.MergeFrom(u.DeepCopy())
-	u.Spec.PasswordHash = hash
-	return s.Client.Patch(ctx, u, patch)
-}
-
-// EndSessions ends every session of the user (a new session epoch). API tokens stay valid.
-func (s *Store) EndSessions(ctx context.Context, u *v1alpha1.User) error {
-	return s.endSessions(ctx, u, func(*v1alpha1.UserSpec) {})
-}
-
-func (s *Store) endSessions(ctx context.Context, u *v1alpha1.User, change func(*v1alpha1.UserSpec)) error {
-	patch := client.MergeFrom(u.DeepCopy())
-	change(&u.Spec)
-	u.Spec.SessionEpoch++
-	return s.Client.Patch(ctx, u, patch)
-}
-
 // Delete removes a user (the controller removes its namespace and servers). by is the caller.
 func (s *Store) Delete(ctx context.Context, u *v1alpha1.User, by string) error {
 	if u.Name == by {

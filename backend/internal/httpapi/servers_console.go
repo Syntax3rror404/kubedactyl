@@ -73,16 +73,16 @@ type consoleSession struct {
 // authorize checks the credentials of the connection again and reloads the server: a logout, "log out
 // everywhere", a password change, a disabled account, a lost admin role or a removed share ends an open
 // console (accessNone).
-func (s *consoleSession) authorize(ctx context.Context) (*v1alpha1.GameServer, access) {
+func (s *consoleSession) authorize(ctx context.Context) (*Principal, *v1alpha1.GameServer, access) {
 	p, err := s.api.principalFor(ctx, s.token)
 	if err != nil {
-		return nil, accessNone
+		return nil, nil, accessNone
 	}
 	gs, ok := s.api.reloadServer(ctx, s.namespace, s.server)
 	if !ok {
-		return nil, accessNone
+		return nil, nil, accessNone
 	}
-	return gs, p.accessTo(gs)
+	return p, gs, p.accessTo(gs)
 }
 
 // end closes a connection whose credentials are no longer valid.
@@ -125,13 +125,17 @@ func (s *consoleSession) readCommands(ctx context.Context) {
 		if len(msg.Args) == 0 {
 			continue
 		}
-		gs, level := s.authorize(ctx)
+		p, gs, level := s.authorize(ctx)
 		if level == accessNone {
 			s.end()
 			return
 		}
 		if level < accessControl {
 			s.daemonMessage(ctx, "You may only watch this server.")
+			continue
+		}
+		if err := lockErr(p, gs); err != nil {
+			s.daemonMessage(ctx, err.Error())
 			continue
 		}
 		if _, err := s.api.admit(s.caller); err != nil {
@@ -142,7 +146,7 @@ func (s *consoleSession) readCommands(ctx context.Context) {
 	}
 }
 
-// handle runs one client message on the server, reloaded for it: state (suspended, running) may have changed.
+// handle runs one client message on the server, reloaded for it: its state (locked, running) may have changed.
 func (s *consoleSession) handle(ctx context.Context, gs *v1alpha1.GameServer, msg console.Event) {
 	switch msg.Event {
 	case "send command":
@@ -179,7 +183,7 @@ func (s *consoleSession) stream(ctx context.Context, events <-chan console.Event
 				return
 			}
 		case <-ping.C:
-			if _, level := s.authorize(ctx); level == accessNone {
+			if _, _, level := s.authorize(ctx); level == accessNone {
 				s.end()
 				return
 			}

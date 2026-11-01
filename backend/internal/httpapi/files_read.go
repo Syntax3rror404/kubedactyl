@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"app/api/v1alpha1"
 	"app/internal/files"
@@ -20,13 +21,18 @@ type FileList struct {
 	Items     []files.Entry `json:"items"`
 }
 
-// denylist returns the egg's file_denylist.
-func (a *API) denylist(c *gin.Context, gs *v1alpha1.GameServer) []string {
+// denylist returns the egg's file_denylist; a server whose egg is gone has none. Any other
+// failure answers the request (fail closed).
+func (a *API) denylist(c *gin.Context, gs *v1alpha1.GameServer) ([]string, bool) {
 	e, err := a.Eggs.Get(c, gs.Spec.EggRef)
-	if err != nil {
-		return nil
+	switch {
+	case apierrors.IsNotFound(err):
+		return nil, true
+	case err != nil:
+		a.fail(c, err)
+		return nil, false
 	}
-	return e.Spec.FileDenylist
+	return e.Spec.FileDenylist, true
 }
 
 // cleanDir turns a directory from a request into an absolute, clean path below the server root.
@@ -50,8 +56,12 @@ func (a *API) listFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
 	dir := cleanDir(c.Query("directory"))
-	items, err := a.Files.Manager.List(c, files.RefOf(gs), dir, a.denylist(c, gs))
+	items, err := a.Files.Manager.List(c, files.RefOf(gs), dir, deny)
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -78,7 +88,11 @@ func (a *API) readFile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	data, err := a.Files.Manager.Read(c, files.RefOf(gs), c.Query("file"), maxEditableSize, a.denylist(c, gs))
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
+	data, err := a.Files.Manager.Read(c, files.RefOf(gs), c.Query("file"), maxEditableSize, deny)
 	if err != nil {
 		a.fail(c, err)
 		return
@@ -102,11 +116,16 @@ func (a *API) downloadFile(c *gin.Context) {
 	if !ok {
 		return
 	}
+	deny, ok := a.denylist(c, gs)
+	if !ok {
+		return
+	}
 	file := c.Query("file")
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": path.Base(file)}))
 	c.Status(http.StatusOK)
-	err := a.Files.Manager.Download(c, files.RefOf(gs), file, c.Writer, a.denylist(c, gs))
+	// The request context ends the copy in the files pod when the browser cancels the download.
+	err := a.Files.Manager.Download(c.Request.Context(), files.RefOf(gs), file, c.Writer, deny)
 	switch {
 	case err == nil:
 		a.audit(c, "file downloaded", "server", gs.Name, "file", file)

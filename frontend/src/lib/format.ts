@@ -1,4 +1,4 @@
-// Formatting helpers for the UI (sizes, CPU, durations, relative times, names, roles and phases).
+// Formatting helpers for the UI (sizes, CPU, durations, relative times, names, roles and phases) and search matching.
 
 import type { Egg, GameServer, Phase, Pool, Role, ShareAccess, UserView } from "@/lib/types"
 
@@ -113,13 +113,13 @@ export function isMigrating(gs: GameServer): boolean {
   return !!storageClass && !!current && storageClass !== current
 }
 
-/** A deleted server stays until its finalizer has released the volume; nothing can be done with it anymore. */
 /** What the user may do on a server: everything (owner, admin), or what the owner shared with a subuser. */
 export function serverAccess(gs: GameServer, user: UserView): "full" | ShareAccess {
   if (!user.owner) return "full"
   return gs.spec.sharedWith?.find((s) => s.user === user.username)?.access ?? "view"
 }
 
+/** A deleted server stays until its finalizer has released the volume; nothing can be done with it anymore. */
 export function isRemoving(gs: GameServer): boolean {
   return !!gs.metadata.deletionTimestamp
 }
@@ -157,6 +157,15 @@ export function formatPoolUsage(u: ReturnType<typeof poolUsage>[number]): string
       ? `${formatCount(u.used)} used of ${formatPoolSize(u.total)}`
       : `${formatCount(u.available)} of ${formatCount(u.total)} free`
   return u.family ? `${u.family} ${text}` : text
+}
+
+/** Whether every word of the search occurs in one of the texts (case-insensitive); search fields use it. */
+export function matches(search: string, ...texts: (string | undefined)[]) {
+  const text = texts.join(" ").toLowerCase()
+  return search
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => text.includes(word))
 }
 
 /** A count with its word, plural unless 1 ("2 files", "1 file"). */

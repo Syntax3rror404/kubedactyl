@@ -72,7 +72,7 @@ function EggWizard({ initial, copyOf }: { initial: EggSpec; copyOf?: string }) {
 
   const create = useCreateEgg({
     onSuccess: (egg) => {
-      toast.success(`Egg ${egg.spec.displayName} created`)
+      toast.success(`Egg “${egg.spec.displayName}” created`)
       setCreated(egg.metadata.name)
     },
     onError: (err) => {
@@ -156,7 +156,10 @@ function EggWizard({ initial, copyOf }: { initial: EggSpec; copyOf?: string }) {
             <EggSection
               id={current.id}
               spec={draft}
-              onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+              onChange={(patch, reindexed) => {
+                setDraft((d) => ({ ...d, ...patch }))
+                if (reindexed) setErrors({})
+              }}
               errors={errors}
             />
           )}

@@ -121,12 +121,16 @@ func checkBetween(in ruleInput) error {
 
 var digitsRe = regexp.MustCompile(`^\d+$`)
 
+// checkDigitsBetween is a no-op when a bound is no number, like between.
 func checkDigitsBetween(in ruleInput) error {
 	if len(in.args) != 2 {
 		return nil
 	}
-	lo, _ := strconv.Atoi(in.args[0])
-	hi, _ := strconv.Atoi(in.args[1])
+	lo, e1 := strconv.Atoi(in.args[0])
+	hi, e2 := strconv.Atoi(in.args[1])
+	if e1 != nil || e2 != nil {
+		return nil
+	}
 	if !digitsRe.MatchString(in.value) || len(in.value) < lo || len(in.value) > hi {
 		return fmt.Errorf("must have between %s and %s digits", in.args[0], in.args[1])
 	}

@@ -17,7 +17,7 @@ import { uploadedText } from "@/features/servers/lib/files"
 import { failed } from "@/lib/notify"
 import { useUploadFiles } from "@/lib/queries"
 
-/** Upload files into the current directory (several files at once). */
+/** Upload files into the current directory (several files at once); the dialog stays open while they upload. */
 export function FileUploadDialog({
   open,
   server,
@@ -29,31 +29,43 @@ export function FileUploadDialog({
   dir: string
   onClose: () => void
 }) {
+  // Kept outside the form, so closing is refused while the request runs.
+  const upload = useUploadFiles(server, { onError: failed("upload the files") })
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl">
+    <Dialog open={open} onOpenChange={(o) => !o && !upload.isPending && onClose()}>
+      <DialogContent className="sm:max-w-xl" showCloseButton={!upload.isPending}>
         {/* mounted fresh on every open */}
-        <UploadForm server={server} dir={dir} onClose={onClose} />
+        <UploadForm upload={upload} dir={dir} onClose={onClose} />
       </DialogContent>
     </Dialog>
   )
 }
 
-function UploadForm({ server, dir, onClose }: { server: string; dir: string; onClose: () => void }) {
+function UploadForm({
+  upload,
+  dir,
+  onClose,
+}: {
+  upload: ReturnType<typeof useUploadFiles>
+  dir: string
+  onClose: () => void
+}) {
   const [files, setFiles] = useState<File[]>([])
-  const upload = useUploadFiles(server, {
-    onSuccess: () => {
-      toast.success(uploadedText(files))
-      onClose()
-    },
-    onError: failed("upload the files"),
-  })
   return (
     <form
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault()
-        if (files.length) upload.mutate({ dir, files })
+        if (!files.length) return
+        upload.mutate(
+          { dir, files },
+          {
+            onSuccess: () => {
+              toast.success(uploadedText(files))
+              onClose()
+            },
+          },
+        )
       }}
     >
       <DialogHeader>
@@ -66,7 +78,7 @@ function UploadForm({ server, dir, onClose }: { server: string; dir: string; onC
         <FileDropzone files={files} onChange={setFiles} />
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onClose} disabled={upload.isPending}>
           Cancel
         </Button>
         <Button type="submit" disabled={!files.length || upload.isPending}>

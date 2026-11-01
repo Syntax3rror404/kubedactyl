@@ -4,8 +4,11 @@ import { fieldErrors } from "@/lib/validation"
 /** Validation errors from the API, keyed by field path ("variables.2.envVariable"). */
 export type FieldErrors = Record<string, string>
 
-/** Change handler of the editor sections. */
-export type SpecChange = (patch: Partial<EggSpec>) => void
+/**
+ * Change handler of the editor sections. reindexed: list entries were removed or moved, so the field errors of the
+ * last save (keyed by index) no longer fit and are dropped.
+ */
+export type SpecChange = (patch: Partial<EggSpec>, reindexed?: boolean) => void
 
 export type SectionId = "config" | "images" | "process" | "variables" | "install"
 
@@ -22,7 +25,7 @@ export const sections: {
     id: "config",
     title: "Configuration",
     description: "Name, author and how the egg is listed.",
-    fields: ["displayName", "author", "description", "features", "tags", "fileDenylist", "source"],
+    fields: ["displayName", "author", "description", "features", "tags", "fileDenylist"],
   },
   {
     id: "images",

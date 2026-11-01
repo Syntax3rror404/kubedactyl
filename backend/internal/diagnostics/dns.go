@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -14,44 +15,76 @@ import (
 // records are the addresses of the domain as one resolver sees them.
 type records struct {
 	v4, v6 []netip.Addr
-	// public is false when the public view could not be asked and the local answer is used.
+	// public is false when the public view gave no address and the local answer is used.
 	public bool
+	// err is set when the IPv4 addresses could not be looked up (not when there are none).
+	err error
 }
 
-// lookupPublic resolves the domain as players on the internet see it. Without access to the
-// public name servers it falls back to the DNS of the server's network (marked in the records).
+// lookupPublic resolves the domain as players on the internet see it.
+//  1. Public: the domain's name servers, asked directly.
+//  2. Local: the DNS of the server's network (marked in the records), when the public view gives
+//     no address: its name servers cannot be reached, fail, or answer only with a CNAME into a
+//     zone they do not serve.
 func (d *Diagnoser) lookupPublic(ctx context.Context, domain string) records {
-	ctx, cancel := context.WithTimeout(ctx, 2*d.timeout())
-	defer cancel()
-	public := d.PublicResolver
-	if public == nil {
-		public = authoritative(ctx, domain)
-	}
-	if public != nil {
-		pub := resolve(ctx, public, domain)
+	// A trailing dot keeps the resolver from trying the search domains of the pod first.
+	fqdn := strings.TrimSuffix(domain, ".") + "."
+	// 1. Public
+	if pub := d.resolvePublic(ctx, fqdn); len(pub.v4)+len(pub.v6) > 0 {
 		pub.public = true
 		return pub
 	}
+	// 2. Local
 	var local Resolver = net.DefaultResolver
 	if d.Resolver != nil {
 		local = d.Resolver
 	}
-	return resolve(ctx, local, domain)
+	ctx, cancel := context.WithTimeout(ctx, d.timeout())
+	defer cancel()
+	return resolve(ctx, local, fqdn)
+}
+
+// resolvePublic asks the public name servers of the domain; no records when they are not found.
+func (d *Diagnoser) resolvePublic(ctx context.Context, fqdn string) records {
+	ctx, cancel := context.WithTimeout(ctx, 2*d.timeout())
+	defer cancel()
+	public := d.PublicResolver
+	if public == nil {
+		public = authoritative(ctx, fqdn)
+	}
+	if public == nil {
+		return records{}
+	}
+	return resolve(ctx, public, fqdn)
 }
 
 // resolve asks for both address families at once.
 func resolve(ctx context.Context, r Resolver, domain string) records {
 	var out records
+	var err error
 	var wg sync.WaitGroup
-	wg.Go(func() { out.v4, _ = r.LookupNetIP(ctx, "ip4", domain) })
+	wg.Go(func() { out.v4, err = r.LookupNetIP(ctx, "ip4", domain) })
 	out.v6, _ = r.LookupNetIP(ctx, "ip6", domain)
 	wg.Wait()
+	if !notFound(err) {
+		out.err = err
+	}
 	return out
+}
+
+// notFound reports a lookup that was answered: the name or its records do not exist.
+func notFound(err error) bool {
+	var dnsErr *net.DNSError
+	return err == nil || errors.As(err, &dnsErr) && dnsErr.IsNotFound
 }
 
 func aRecord(in Input, pub records) checks.Check {
 	const id, label = "dns-a", "DNS A record (IPv4)"
 	v4 := pub.v4
+	if len(v4) == 0 && pub.err != nil {
+		return checks.New(id, label, checks.Warning, fmt.Sprintf("The DNS records of %s could not be read. "+
+			"Try again in a moment.", in.Domain))
+	}
 	if len(v4) == 0 {
 		return checks.New(id, label, checks.Error, fmt.Sprintf("%s has no A record, so players cannot find the "+
 			"server. An administrator must create one that points to the public IP of the server's network.",
@@ -77,7 +110,7 @@ func aRecord(in Input, pub records) checks.Check {
 	}
 	msg := strings.Join(parts, "; ") + "."
 	if !pub.public {
-		msg += " (Answer of the DNS in the server's network; the public name servers could not be asked.)"
+		msg += " (Answer of the DNS in the server's network; the public name servers gave no address.)"
 	}
 	return checks.New(id, label, status, msg)
 }
@@ -113,7 +146,10 @@ func firstPublic(ips []netip.Addr) netip.Addr {
 	return netip.Addr{}
 }
 
+// sharedAddressSpace is the carrier-grade NAT range (RFC 6598), not reachable from the internet.
+var sharedAddressSpace = netip.MustParsePrefix("100.64.0.0/10")
+
 // internal reports addresses players on the internet cannot reach.
 func internal(ip netip.Addr) bool {
-	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || sharedAddressSpace.Contains(ip)
 }

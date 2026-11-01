@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+// Errors of jobs.
+var (
+	ErrBusy      = errors.New("a backup or restore of this server is already running")
+	ErrRestoring = errors.New("a backup is being restored, wait until it has finished")
+)
+
 // Job kinds.
 const (
 	JobPull       = "pull"
@@ -49,12 +55,6 @@ type Job struct {
 
 // Task is the work of a job; report updates its progress.
 type Task func(ctx context.Context, report func(Progress)) error
-
-// Errors of jobs.
-var (
-	ErrBusy      = errors.New("a backup or restore of this server is already running")
-	ErrRestoring = errors.New("a backup is being restored, wait until it has finished")
-)
 
 const (
 	keptJobs = 20
@@ -133,12 +133,20 @@ func (s *Service) add(ref Ref, kind, label string) (*Job, error) {
 	if s.jobs.jobs == nil {
 		s.jobs.jobs = map[Ref][]*Job{}
 	}
-	list := append(s.jobs.jobs[ref], j)
-	if len(list) > keptJobs {
-		list = list[len(list)-keptJobs:]
-	}
-	s.jobs.jobs[ref] = list
+	s.jobs.jobs[ref] = trimJobs(append(s.jobs.jobs[ref], j))
 	return j, nil
+}
+
+// trimJobs drops the oldest finished jobs beyond keptJobs; running ones stay, so Busy sees them.
+func trimJobs(list []*Job) []*Job {
+	for len(list) > keptJobs {
+		i := slices.IndexFunc(list, func(j *Job) bool { return j.State != JobRunning })
+		if i < 0 {
+			break
+		}
+		list = slices.Delete(list, i, i+1)
+	}
+	return list
 }
 
 func (s *Service) run(ctx context.Context, ref Ref, j *Job, fn Task) (err error) {

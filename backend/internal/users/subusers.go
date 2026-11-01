@@ -9,6 +9,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -136,21 +137,25 @@ func (s *Store) checkShares(ctx context.Context, owner string, shares []v1alpha1
 // share gives the new account of an invite the servers listed in it; servers deleted since are skipped.
 func (s *Store) share(ctx context.Context, invite *v1alpha1.Invite, user string) error {
 	for _, sh := range invite.Spec.Shares {
-		gs := &v1alpha1.GameServer{}
 		key := client.ObjectKey{Namespace: tenancy.Namespace(invite.Spec.Owner), Name: sh.Server}
-		if err := s.Reader.Get(ctx, key, gs); err != nil {
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			return err
-		}
-		patch := client.MergeFromWithOptions(gs.DeepCopy(), client.MergeFromWithOptimisticLock{})
-		gs.Spec.SharedWith = append(slices.DeleteFunc(gs.Spec.SharedWith, func(s v1alpha1.ServerShare) bool {
-			return s.User == user
-		}), v1alpha1.ServerShare{User: user, Access: sh.Access})
-		if err := s.Client.Patch(ctx, gs, patch); client.IgnoreNotFound(err) != nil {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error { return s.addShare(ctx, key, user, sh.Access) })
+		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// addShare gives a user access to one server. It reads the server uncached, so a retry after a conflict sees the
+// latest version.
+func (s *Store) addShare(ctx context.Context, key client.ObjectKey, user string, access v1alpha1.ShareAccess) error {
+	gs := &v1alpha1.GameServer{}
+	if err := s.Reader.Get(ctx, key, gs); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	patch := client.MergeFromWithOptions(gs.DeepCopy(), client.MergeFromWithOptimisticLock{})
+	gs.Spec.SharedWith = append(slices.DeleteFunc(gs.Spec.SharedWith, func(s v1alpha1.ServerShare) bool {
+		return s.User == user
+	}), v1alpha1.ServerShare{User: user, Access: access})
+	return client.IgnoreNotFound(s.Client.Patch(ctx, gs, patch))
 }

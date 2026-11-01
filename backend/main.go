@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -119,7 +120,7 @@ func run(ctx context.Context, cfg config, log *slog.Logger) error {
 			fatal(log, "controller manager stopped", err)
 		}
 	}()
-	log.Info("panel started", "name", appName, "version", appVersion, "url", "http://localhost"+cfg.addr,
+	log.Info("panel started", "name", appName, "version", appVersion, "url", localURL(cfg.addr),
 		"context", p.api.Cluster.Context, "namespace", cfg.opts.Namespace)
 	return serve(ctx, cfg.addr, router)
 }
@@ -149,6 +150,7 @@ func parseFlags() config {
 		&o.LoadBalancerPool, "lb-pool", envOr("LB_POOL", "general"),
 		"Cilium LB IPAM pool enabled in the panel settings on the first start (name or lb.cilium.io/pool label value)",
 	)
+	// Same tag as the image base (Dockerfile, scripts/imagebuild) and the chart's panel.helperImage.
 	flag.StringVar(
 		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.3"),
 		"image of the file helper and hardware probe pods",
@@ -189,7 +191,10 @@ func setupLogging(verbose bool) *slog.Logger {
 
 // serve runs the HTTP server until ctx ends and then shuts it down gracefully.
 func serve(ctx context.Context, addr string, handler http.Handler) error {
-	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	// No ReadTimeout: uploads stream for as long as they take.
+	srv := &http.Server{
+		Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute,
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -236,6 +241,15 @@ func currentContext(explicit string) string {
 		return "in-cluster"
 	}
 	return raw.CurrentContext
+}
+
+// localURL is the address of the web interface on this machine (for the log), built from the listen address.
+func localURL(addr string) string {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "http://localhost"
+	}
+	return "http://" + net.JoinHostPort("localhost", port)
 }
 
 func envOr(key, fallback string) string {

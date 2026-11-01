@@ -40,7 +40,7 @@ export function DangerZone({
   })
   const remove = useDeleteServer(name, {
     onSuccess: () => {
-      toast.success(`${serverName(server)} deleted`)
+      toast.success(`Server “${serverName(server)}” deleted`)
       navigate("/")
     },
     onError: failed("delete the server"),

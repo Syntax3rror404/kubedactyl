@@ -35,11 +35,13 @@ import (
 )
 
 // ServerEvents runs the "Tasks" of a server: after it was marked as running and before it is
-// stopped. The stop waits while Stopping reports true, at most the returned duration.
+// stopped. The stop waits while Stopping reports true, at most StopLimit (also returned by
+// StartStopping).
 type ServerEvents interface {
 	Started(gs *v1alpha1.GameServer)
 	StartStopping(gs *v1alpha1.GameServer) time.Duration
 	Stopping(gs *v1alpha1.GameServer) bool
+	StopLimit(gs *v1alpha1.GameServer) time.Duration
 }
 
 // Reconciler runs the game servers: it keeps the volume, service, files, install and game pods of
@@ -52,8 +54,9 @@ type Reconciler struct {
 	Kube   *kube.Client
 	Hub    *console.Hub
 	Opts   gameserver.Options
-	// Files records file manager use; the files pod only exists while it is used.
-	Files *files.Activity
+	// Files records file manager use (the files pod only exists while it is used) and runs the
+	// file jobs of the servers.
+	Files *files.Service
 	// Pools resolves load balancer pool names to service labels.
 	Pools *settings.PoolResolver
 	// Events runs the tasks of a server at its start and before its stop (schedule.Runner).
@@ -61,8 +64,9 @@ type Reconciler struct {
 	Log    *slog.Logger
 
 	events chan event.GenericEvent
-	// seenTerminated records when a finished pod was first seen (see removeTerminated).
-	seenTerminated sync.Map
+	// preStartFailures counts the failed pre-starts in a row per server (types.NamespacedName -> int);
+	// a start, a stop and the deletion of the server drop the count.
+	preStartFailures sync.Map
 }
 
 // Trigger requests a reconcile of a server, e.g. after its done line was printed.
@@ -114,7 +118,7 @@ func (r *Reconciler) serversOfEgg(ctx context.Context, obj client.Object) []reco
 //  1. Read: the server uncached; a deleted one is finalized (its volume released first).
 //  2. Finalizer: added before anything is created, so a deletion always passes finalize.
 //  3. Reconcile: children, migration and game (reconcile); an error shows as status.message.
-//  4. Save: the status only when it changed. Active servers are checked again every 20 s.
+//  4. Save: the changed status fields only. Active servers are checked again every 20 s.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) {
 	defer r.logReconcile(ctx, req.Name, time.Now(), &result, &err)
 	if !tenancy.Owns(req.Namespace) {
@@ -125,9 +129,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// spec (a kill would look like a crash).
 	gs := &v1alpha1.GameServer{}
 	if err := r.Reader.Get(ctx, req.NamespacedName, gs); err != nil {
-		if apierrors.IsNotFound(err) {
-			r.Hub.Remove(req.Name)
-		}
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	if !gs.DeletionTimestamp.IsZero() {
@@ -155,16 +156,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if equality.Semantic.DeepEqual(before, &gs.Status) {
 		return result, err
 	}
-	if uerr := r.Status().Update(ctx, gs); uerr != nil {
-		if apierrors.IsConflict(uerr) {
-			return reconcile.Result{RequeueAfter: time.Second}, nil
-		}
-		return reconcile.Result{}, uerr
+	if serr := r.saveStatus(ctx, gs, before); serr != nil {
+		return reconcile.Result{}, serr
 	}
 	if before.Phase != gs.Status.Phase {
 		r.Hub.Status(gs.Name, string(gs.Status.Phase))
 	}
 	return result, err
+}
+
+// saveStatus stores the status fields that differ from before (the status as read) as a merge
+// patch. It never conflicts, so the side effects the reconcile recorded (crash time, started tasks)
+// are not lost, and status fields written by others meanwhile (schedule results, disk usage) stay.
+func (r *Reconciler) saveStatus(
+	ctx context.Context, gs *v1alpha1.GameServer, before *v1alpha1.GameServerStatus,
+) error {
+	base := gs.DeepCopy()
+	base.Status = *before
+	return r.Status().Patch(ctx, gs, client.MergeFrom(base))
 }
 
 func isActive(phase v1alpha1.Phase) bool {
@@ -211,7 +220,7 @@ func (r *Reconciler) patchServer(ctx context.Context, gs *v1alpha1.GameServer, c
 //  2. Volume and service: they exist whatever the server does.
 //  3. Storage migration: while the files move, nothing else may touch the volume.
 //  4. Files pod: kept while the file manager uses it.
-//  5. Install: a new install revision runs the egg's install script first.
+//  5. Install: a new install revision runs the egg's install script once the game has stopped.
 //  6. Game: the game pod follows the power state; finished install pods go.
 func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (reconcile.Result, error) {
 	// 1. Egg
@@ -236,7 +245,7 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 		return res, err
 	}
 	// 4. Files pod (also started on demand by startGame for the pre-start steps)
-	if r.Files.Active(files.RefOf(gs)) {
+	if r.Files.Activity.Active(files.RefOf(gs)) {
 		if _, err := r.ensureFilesPod(ctx, gs); err != nil {
 			return reconcile.Result{}, fmt.Errorf("files pod: %w", err)
 		}
@@ -249,10 +258,12 @@ func (r *Reconciler) reconcile(ctx context.Context, gs *v1alpha1.GameServer) (re
 	); gs.Status.InstalledRevision < rev {
 		gs.Status.InstalledRevision = rev
 	}
+	// A game pod is stopped first by step 6 like on any other stop (stop command, tasks, timeout):
+	// installPending locks the server.
 	if gs.Status.InstalledRevision < gs.Spec.InstallRevision {
 		if gs.Spec.SkipInstall {
 			gs.Status.InstalledRevision = gs.Spec.InstallRevision
-		} else {
+		} else if gs.Status.PodUID == "" {
 			return r.reconcileInstall(ctx, gs, egg)
 		}
 	}
@@ -276,7 +287,11 @@ func (r *Reconciler) finalize(ctx context.Context, gs *v1alpha1.GameServer) (rec
 	if !controllerutil.ContainsFinalizer(gs, gameserver.Finalizer) {
 		return reconcile.Result{}, nil
 	}
+	// Only here, not for a request of a server that is gone: a server transferred to another owner
+	// keeps its name, and the console of its new object must stay.
 	r.Hub.Remove(gs.Name)
+	r.Files.Forget(files.RefOf(gs))
+	r.preStartFailures.Delete(client.ObjectKeyFromObject(gs))
 	if gs.Annotations[gameserver.AnnotationKeepVolume] == "" {
 		var volumes []string
 		if m := gs.Status.Migration; m != nil {

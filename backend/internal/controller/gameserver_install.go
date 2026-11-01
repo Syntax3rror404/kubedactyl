@@ -20,8 +20,9 @@ import (
 	"app/internal/kube"
 )
 
-// reconcileInstall runs the egg install script for a new install revision: it stops the game
-// server, follows the install pod of the current revision and starts one when none exists.
+// reconcileInstall runs the egg install script for a new install revision once the game has
+// stopped: it removes a game pod left over, follows the install pod of the current revision and
+// starts one when none exists.
 func (r *Reconciler) reconcileInstall(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg,
 ) (reconcile.Result, error) {
@@ -42,14 +43,19 @@ func (r *Reconciler) reconcileInstall(
 	return r.startInstall(ctx, gs, egg)
 }
 
-// stopGameForInstall stops a running game pod first (killed after a 10 second timeout);
-// done is true while a game pod still exists.
+// stopGameForInstall removes a game pod that is left after the stop: one whose exit was handled,
+// or one the status does not track yet (killed after a 10 second timeout). Without a game pod it
+// clears the pod state, so nothing of the old pod shows after the install. done is true while a
+// game pod still exists.
 func (r *Reconciler) stopGameForInstall(
 	ctx context.Context, gs *v1alpha1.GameServer,
 ) (res reconcile.Result, done bool, err error) {
 	game := &corev1.Pod{}
 	err = r.getChild(ctx, gs, gameserver.GamePodName(gs.Name), game)
 	if apierrors.IsNotFound(err) {
+		if err := r.clearPodState(ctx, gs); err != nil {
+			return reconcile.Result{}, true, err
+		}
 		return reconcile.Result{}, false, nil
 	}
 	if err != nil {
@@ -82,12 +88,8 @@ func (r *Reconciler) followInstall(gs *v1alpha1.GameServer, pod *corev1.Pod) (re
 		gs.Status.InstallExitCode = ptr.To(code)
 		r.setPhase(gs, v1alpha1.PhaseOffline, "")
 		r.Hub.Daemon(gs.Name, fmt.Sprintf("Installation process completed (exit code %d).", code))
-		// Give the log stream a moment to deliver the last lines.
-		go func(ns, server string) {
-			time.Sleep(3 * time.Second)
-			r.Trigger(ns, server)
-		}(gs.Namespace, gs.Name)
-		return reconcile.Result{}, nil
+		// The install pod goes once the log stream delivered the last lines (cleanupInstall).
+		return reconcile.Result{RequeueAfter: terminatedGrace}, nil
 	}
 	if problem := waitingProblem(pod); problem != "" {
 		r.setPhase(gs, v1alpha1.PhaseInstallFailed, problem)

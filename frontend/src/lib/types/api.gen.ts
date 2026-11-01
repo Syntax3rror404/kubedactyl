@@ -372,7 +372,10 @@ export interface HttpapiCreateFolderRequest {
 }
 
 export interface HttpapiCreateInviteRequest {
-  /** @example "Alice from the Discord server" */
+  /**
+   * @maxLength 200
+   * @example "Alice from the Discord server"
+   */
   note?: string;
   /** Reset creates a link that sets a new password for the existing account Username (users: their subusers). */
   reset?: boolean;
@@ -446,7 +449,10 @@ export interface HttpapiCreateTokenRequest {
    * @example 90
    */
   expiresInDays: number;
-  /** @example "ci" */
+  /**
+   * @maxLength 64
+   * @example "ci"
+   */
   name: string;
 }
 
@@ -646,8 +652,6 @@ export interface HttpapiLoginRequest {
    */
   password: string;
   /**
-   * The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from
-   * filling the limiters and the log with huge keys.
    * @maxLength 64
    * @example "admin"
    */
@@ -818,7 +822,7 @@ export interface HttpapiSettingsView {
    */
   allowPrivateNetworks?: boolean;
   /**
-   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
    * tokens created before, counted from their creation.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -826,8 +830,8 @@ export interface HttpapiSettingsView {
    */
   apiTokenMaxDays?: number;
   /**
-   * BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-   * 128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+   * Empty: uses the built-in logo.
    * +optional
    * +kubebuilder:validation:MaxLength=180000
    */
@@ -875,13 +879,15 @@ export interface HttpapiSettingsView {
    */
   externalDomain?: string;
   /**
+   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+   * Empty: uses the built-in icon.
    * +optional
    * +kubebuilder:validation:MaxLength=180000
    */
   favicon?: string;
   /**
    * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-   * twice that). Empty: 50. It applies at once.
+   * twice that). Empty: uses 50. It applies at once.
    * +optional
    * +kubebuilder:validation:Minimum=5
    * +kubebuilder:validation:Maximum=1000
@@ -889,7 +895,7 @@ export interface HttpapiSettingsView {
   kubeApiQps?: number;
   /**
    * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-   * that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
    * +optional
    * +kubebuilder:validation:Minimum=1
    * +kubebuilder:validation:Maximum=200
@@ -927,7 +933,7 @@ export interface HttpapiSettingsView {
    */
   serverNotice?: string;
   /**
-   * SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
    * shortening it also ends older sessions.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -941,7 +947,7 @@ export interface HttpapiSettingsView {
   storageClasses?: string[];
   /**
    * SubusersPerUser is how many subusers (accounts and invites) every user may create for
-   * their servers. Empty: 10. 0 = off.
+   * their servers. Empty: uses 10. 0 = off.
    * +optional
    * +kubebuilder:validation:Minimum=0
    * +kubebuilder:validation:Maximum=100
@@ -1052,7 +1058,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   allowPrivateNetworks?: boolean;
   /**
-   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
    * tokens created before, counted from their creation.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -1060,8 +1066,8 @@ export interface HttpapiUpdateSettingsRequest {
    */
   apiTokenMaxDays?: number;
   /**
-   * BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-   * 128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+   * Empty: uses the built-in logo.
    * +optional
    * +kubebuilder:validation:MaxLength=180000
    */
@@ -1109,13 +1115,15 @@ export interface HttpapiUpdateSettingsRequest {
    */
   externalDomain?: string;
   /**
+   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+   * Empty: uses the built-in icon.
    * +optional
    * +kubebuilder:validation:MaxLength=180000
    */
   favicon?: string;
   /**
    * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-   * twice that). Empty: 50. It applies at once.
+   * twice that). Empty: uses 50. It applies at once.
    * +optional
    * +kubebuilder:validation:Minimum=5
    * +kubebuilder:validation:Maximum=1000
@@ -1123,7 +1131,7 @@ export interface HttpapiUpdateSettingsRequest {
   kubeApiQps?: number;
   /**
    * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-   * that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
    * +optional
    * +kubebuilder:validation:Minimum=1
    * +kubebuilder:validation:Maximum=200
@@ -1161,7 +1169,7 @@ export interface HttpapiUpdateSettingsRequest {
    */
   serverNotice?: string;
   /**
-   * SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
    * shortening it also ends older sessions.
    * +optional
    * +kubebuilder:validation:Minimum=1
@@ -1175,7 +1183,7 @@ export interface HttpapiUpdateSettingsRequest {
   storageClasses?: string[];
   /**
    * SubusersPerUser is how many subusers (accounts and invites) every user may create for
-   * their servers. Empty: 10. 0 = off.
+   * their servers. Empty: uses 10. 0 = off.
    * +optional
    * +kubebuilder:validation:Minimum=0
    * +kubebuilder:validation:Maximum=100
@@ -1425,6 +1433,7 @@ export interface V1Alpha1EggSource {
   importedAt?: string;
   /** ImportedFrom is the URL the egg was fetched from, if any. */
   importedFrom?: string;
+  /** UpdateURL is the egg file that "Update from URL" and AutoUpdate download. Empty: no updates from a URL. */
   updateUrl?: string;
   /**
    * UUID identifies the egg across panels (Pelican overwrites an egg with the same UUID on import).
@@ -1536,7 +1545,7 @@ export interface V1Alpha1GameServerSpec {
   crashRestart?: boolean;
   /** DisplayName is the name shown in the panel. Empty: uses the object name. */
   displayName?: string;
-  /** EggRef is the name of the Egg in the same namespace. */
+  /** EggRef is the name of the Egg in the panel namespace. */
   eggRef: string;
   /**
    * Environment holds the values of the egg variables. Missing ones use the egg's defaults.
@@ -1673,7 +1682,7 @@ export interface V1Alpha1GameServerStatus {
   podUID?: string;
   /**
    * RestartRequired is set while the running game pod was created with other runtime
-   * settings (image, startup, variables, memory, CPU, ports) than the spec has now.
+   * settings (image, startup, variables, memory, CPU, ports, the egg's config files) than now.
    */
   restartRequired?: boolean;
   /**
@@ -1725,9 +1734,15 @@ export interface V1Alpha1OIDCSettings {
    * +optional
    */
   adminGroup?: string;
-  /** +optional */
+  /**
+   * ClientID is the client of the panel at the identity provider; its secret is kept in a Secret.
+   * +optional
+   */
   clientId?: string;
-  /** +optional */
+  /**
+   * Enabled shows the single sign-on button on the sign-in page.
+   * +optional
+   */
   enabled?: boolean;
   /**
    * GroupsClaim holds the groups of the user. Empty: groups.

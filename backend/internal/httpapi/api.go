@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"log/slog"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,6 +77,8 @@ type API struct {
 	stats *statsCache
 	// oidc signs users in through the identity provider of the settings.
 	oidc sso.Client
+	// setupMu serializes setup requests, so only one first administrator can be created.
+	setupMu sync.Mutex
 }
 
 // ClusterInfo describes the cluster the panel is connected to.
@@ -109,11 +112,11 @@ func (a *API) Register(r *gin.RouterGroup) {
 	r.POST("/auth/logout", a.logout)
 	// First start: create the first administrator (only while none exists).
 	r.GET("/setup", a.getSetupStatus)
+	r.POST("/setup", a.sameOrigin, a.runSetup)
 	// Imprint and privacy policy must be readable without an account.
 	r.GET("/legal", a.getLegalTexts)
 	// Name, logo and favicon: the sign-in page shows them, too.
 	r.GET("/branding", a.getBranding)
-	r.POST("/setup", a.sameOrigin, a.runSetup)
 	// Invite links create an account.
 	r.GET("/auth/invite", a.getInvite)
 	r.POST("/auth/invite", a.sameOrigin, a.acceptInvite)

@@ -760,6 +760,7 @@ definitions:
     properties:
       note:
         example: Alice from the Discord server
+        maxLength: 200
         type: string
       reset:
         description: 'Reset creates a link that sets a new password for the existing
@@ -883,6 +884,7 @@ definitions:
         type: integer
       name:
         example: ci
+        maxLength: 64
         type: string
     required:
     - expiresInDays
@@ -1243,9 +1245,6 @@ definitions:
         maxLength: 1024
         type: string
       username:
-        description: |-
-          The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from
-          filling the limiters and the log with huge keys.
         example: admin
         maxLength: 64
         type: string
@@ -1505,7 +1504,7 @@ definitions:
         type: boolean
       apiTokenMaxDays:
         description: |-
-          APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
           tokens created before, counted from their creation.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1513,8 +1512,8 @@ definitions:
         type: integer
       brandLogo:
         description: |-
-          BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-          128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+          Empty: uses the built-in logo.
           +optional
           +kubebuilder:validation:MaxLength=180000
         type: string
@@ -1564,13 +1563,15 @@ definitions:
         type: string
       favicon:
         description: |-
+          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+          Empty: uses the built-in icon.
           +optional
           +kubebuilder:validation:MaxLength=180000
         type: string
       kubeApiQps:
         description: |-
           KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-          twice that). Empty: 50. It applies at once.
+          twice that). Empty: uses 50. It applies at once.
           +optional
           +kubebuilder:validation:Minimum=5
           +kubebuilder:validation:Maximum=1000
@@ -1578,7 +1579,7 @@ definitions:
       kubeApiUserQps:
         description: |-
           KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-          that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
           +optional
           +kubebuilder:validation:Minimum=1
           +kubebuilder:validation:Maximum=200
@@ -1621,7 +1622,7 @@ definitions:
         type: string
       sessionHours:
         description: |-
-          SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
           shortening it also ends older sessions.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1637,7 +1638,7 @@ definitions:
       subusersPerUser:
         description: |-
           SubusersPerUser is how many subusers (accounts and invites) every user may create for
-          their servers. Empty: 10. 0 = off.
+          their servers. Empty: uses 10. 0 = off.
           +optional
           +kubebuilder:validation:Minimum=0
           +kubebuilder:validation:Maximum=100
@@ -1831,7 +1832,7 @@ definitions:
         type: boolean
       apiTokenMaxDays:
         description: |-
-          APITokenMaxDays is the longest lifetime of an API token (days). Empty: 90. It also limits the
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
           tokens created before, counted from their creation.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1839,8 +1840,8 @@ definitions:
         type: integer
       brandLogo:
         description: |-
-          BrandLogo and Favicon are images as data URLs (PNG, JPEG, GIF, WebP, SVG or ICO, at most
-          128 KiB); without a logo the built-in one is shown, without a favicon the browser's default.
+          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+          Empty: uses the built-in logo.
           +optional
           +kubebuilder:validation:MaxLength=180000
         type: string
@@ -1890,13 +1891,15 @@ definitions:
         type: string
       favicon:
         description: |-
+          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+          Empty: uses the built-in icon.
           +optional
           +kubebuilder:validation:MaxLength=180000
         type: string
       kubeApiQps:
         description: |-
           KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-          twice that). Empty: 50. It applies at once.
+          twice that). Empty: uses 50. It applies at once.
           +optional
           +kubebuilder:validation:Minimum=5
           +kubebuilder:validation:Maximum=1000
@@ -1904,7 +1907,7 @@ definitions:
       kubeApiUserQps:
         description: |-
           KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-          that). Empty: 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
           +optional
           +kubebuilder:validation:Minimum=1
           +kubebuilder:validation:Maximum=200
@@ -1948,7 +1951,7 @@ definitions:
         type: string
       sessionHours:
         description: |-
-          SessionHours is how long a sign-in lasts (hours). Empty: 12. It applies to every session, so
+          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
           shortening it also ends older sessions.
           +optional
           +kubebuilder:validation:Minimum=1
@@ -1964,7 +1967,7 @@ definitions:
       subusersPerUser:
         description: |-
           SubusersPerUser is how many subusers (accounts and invites) every user may create for
-          their servers. Empty: 10. 0 = off.
+          their servers. Empty: uses 10. 0 = off.
           +optional
           +kubebuilder:validation:Minimum=0
           +kubebuilder:validation:Maximum=100
@@ -2702,6 +2705,8 @@ definitions:
         description: ImportedFrom is the URL the egg was fetched from, if any.
         type: string
       updateUrl:
+        description: 'UpdateURL is the egg file that "Update from URL" and AutoUpdate
+          download. Empty: no updates from a URL.'
         type: string
       uuid:
         description: |-
@@ -2862,7 +2867,7 @@ definitions:
           object name.'
         type: string
       eggRef:
-        description: EggRef is the name of the Egg in the same namespace.
+        description: EggRef is the name of the Egg in the panel namespace.
         type: string
       environment:
         additionalProperties:
@@ -3037,7 +3042,7 @@ definitions:
       restartRequired:
         description: |-
           RestartRequired is set while the running game pod was created with other runtime
-          settings (image, startup, variables, memory, CPU, ports) than the spec has now.
+          settings (image, startup, variables, memory, CPU, ports, the egg's config files) than now.
         type: boolean
       schedules:
         description: |-
@@ -3108,10 +3113,14 @@ definitions:
           +optional
         type: string
       clientId:
-        description: +optional
+        description: |-
+          ClientID is the client of the panel at the identity provider; its secret is kept in a Secret.
+          +optional
         type: string
       enabled:
-        description: +optional
+        description: |-
+          Enabled shows the single sign-on button on the sign-in page.
+          +optional
         type: boolean
       groupsClaim:
         description: |-
@@ -3499,6 +3508,8 @@ paths:
       - Auth
   /auth/logout:
     post:
+      description: A user who logs out very often in one session lifetime is signed
+        out everywhere instead.
       responses:
         "204":
           description: No Content
@@ -3557,7 +3568,7 @@ paths:
         /login?sso=ok&next=<page the sign-in started from>. The account is the one linked to the user of
         the identity provider, else the one with the same username, else a new one. Failures redirect to
         /login?sso=<reason> (access: in no group with access or disabled, account: the account cannot be
-        used, failed).
+        used, failed). Failed callbacks are throttled per client like failed sign-ins.
       parameters:
       - description: Authorization code
         in: query
@@ -3639,7 +3650,7 @@ paths:
       - application/json
       description: |-
         Use it as "Authorization: Bearer <token>". The value is returned only once. Only a session can
-        create tokens: a token cannot extend its own access.
+        create tokens: a token cannot extend its own access. An account has at most 50 tokens.
       parameters:
       - description: Token
         in: body
@@ -3654,6 +3665,10 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/httpapi.CreatedToken'
+        "409":
+          description: the account has the most tokens it may have
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create an API token
@@ -4085,7 +4100,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: an egg with the same name was updated
+          schema:
+            $ref: '#/definitions/v1alpha1.Egg'
+        "201":
+          description: a new egg was created
           schema:
             $ref: '#/definitions/v1alpha1.Egg'
         "422":
@@ -4250,7 +4269,7 @@ paths:
       - BearerAuth: []
       summary: Request rates
       tags:
-      - Settings
+      - System
   /servers:
     get:
       produces:
@@ -5224,8 +5243,9 @@ paths:
       - Servers
   /settings:
     get:
-      description: External domain and the storage classes and load balancer pools
-        that can be selected for servers.
+      description: |-
+        All settings for administrators. Users get only external domain, load balancer pools, server
+        notice, API docs switch and their limits for API tokens and subusers.
       produces:
       - application/json
       responses:
@@ -5372,7 +5392,7 @@ paths:
       - BearerAuth: []
       summary: Panel updates
       tags:
-      - Panel
+      - System
     post:
       consumes:
       - application/json
@@ -5401,7 +5421,7 @@ paths:
       - BearerAuth: []
       summary: Upgrade the panel
       tags:
-      - Panel
+      - System
   /users:
     get:
       description: Administrators get every account, users their subusers.

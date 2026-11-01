@@ -10,7 +10,10 @@ import { move, patchAt, removeAt, type FieldErrors, type SpecChange } from "@/fe
 import type { EggSpec, EggVariable } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** Egg variables: order, names, defaults, permissions and validation rules. */
+/**
+ * Egg variables: order, names, defaults, permissions and validation rules. One opens at a time; those with errors
+ * are open until closed.
+ */
 export function VariablesSection({
   spec,
   onChange,
@@ -21,12 +24,13 @@ export function VariablesSection({
   errors: FieldErrors
 }) {
   const vars = spec.variables ?? []
-  const [open, setOpen] = useState<number | null>(null)
+  // The variable the user opened or closed last; the others are open while they have errors.
+  const [toggled, setToggled] = useState<{ index: number; open: boolean } | null>(null)
   const set = (i: number, patch: Partial<EggVariable>) => onChange({ variables: patchAt(vars, i, patch) })
   const reorder = (i: number, by: -1 | 1) => {
-    onChange({ variables: move(vars, i, by) })
-    if (open === i) setOpen(i + by)
-    else if (open === i + by) setOpen(i)
+    onChange({ variables: move(vars, i, by) }, true)
+    if (toggled?.index === i) setToggled({ ...toggled, index: i + by })
+    else if (toggled?.index === i + by) setToggled({ ...toggled, index: i })
   }
   return (
     <div className="space-y-2">
@@ -47,14 +51,14 @@ export function VariablesSection({
       {vars.map((v, i) => {
         const p = `variables.${i}.`
         const invalid = Object.keys(errors).some((k) => k.startsWith(p))
-        const expanded = open === i || invalid
+        const expanded = toggled?.index === i ? toggled.open : invalid
         return (
           <div key={i} className={cn("rounded-xl border", invalid && "border-destructive/60")}>
             <div className="flex items-center gap-2 p-2">
               <button
                 type="button"
                 className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left"
-                onClick={() => setOpen(expanded ? null : i)}
+                onClick={() => setToggled({ index: i, open: !expanded })}
                 aria-expanded={expanded}
               >
                 <ChevronRightIcon
@@ -75,8 +79,8 @@ export function VariablesSection({
                 size="icon-sm"
                 onMove={(by) => reorder(i, by)}
                 onRemove={() => {
-                  onChange({ variables: removeAt(vars, i) })
-                  setOpen(null)
+                  onChange({ variables: removeAt(vars, i) }, true)
+                  setToggled(null)
                 }}
               />
             </div>
@@ -103,7 +107,7 @@ export function VariablesSection({
               },
             ],
           })
-          setOpen(vars.length)
+          setToggled({ index: vars.length, open: true })
         }}
       >
         <PlusIcon />

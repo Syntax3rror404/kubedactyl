@@ -39,7 +39,14 @@ export function SetupPage() {
   })
   const errors = fieldErrors(setupAdmin.error)
 
-  if (status.isLoading) return null
+  if (status.isLoading)
+    return (
+      <AuthShell wide title="Setup">
+        <CardContent className="flex justify-center py-6">
+          <Spinner className="size-6" />
+        </CardContent>
+      </AuthShell>
+    )
   if (!done && status.data && !status.data.required) return <Navigate to="/login" replace />
 
   const submit = (e: React.FormEvent) => {
@@ -87,16 +94,16 @@ export function SetupPage() {
             <NewAccountFields
               username={draft.username}
               displayName={draft.displayName}
-              onUsername={(v) => set("username", v)}
-              onDisplayName={(v) => set("displayName", v)}
+              onUsernameChange={(v) => set("username", v)}
+              onDisplayNameChange={(v) => set("displayName", v)}
               error={errors.username}
               displayPlaceholder="Administrator"
             />
             <NewPasswordFields
               password={draft.password}
               confirm={draft.confirm}
-              onPassword={(v) => set("password", v)}
-              onConfirm={(v) => set("confirm", v)}
+              onPasswordChange={(v) => set("password", v)}
+              onConfirmChange={(v) => set("confirm", v)}
               error={errors.password}
               autoFocus={!!linkToken}
             />

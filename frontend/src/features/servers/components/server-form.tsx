@@ -20,7 +20,7 @@ import { ResourceSliders } from "@/features/servers/components/resource-sliders"
 import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
-import { noLoadBalancer, poolRequest } from "@/features/servers/lib/settings-draft"
+import { NO_LOAD_BALANCER, poolRequest } from "@/features/servers/lib/settings-draft"
 import { defaultEnvironment, startupCommandOf } from "@/features/servers/lib/startup"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
@@ -56,7 +56,7 @@ export function ServerForm({
   const storageClass = f.storageClass || settings.data?.defaultStorageClass || ""
   const pool = f.pool || settings.data?.defaultLoadBalancerPool || ""
   const domain = settings.data?.externalDomain
-  const clusterOnly = pool === noLoadBalancer
+  const clusterOnly = pool === NO_LOAD_BALANCER
 
   const create = useCreateServer({
     onSuccess: (gs) => {
@@ -85,16 +85,18 @@ export function ServerForm({
 
         <FormSection step={2} title="General">
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
-            <Field>
+            <Field data-invalid={!!errors.displayName}>
               <FieldLabel htmlFor="name">Server name</FieldLabel>
               <Input
                 id="name"
                 value={f.name}
                 onChange={(e) => shared.set("name", e.target.value)}
                 placeholder={egg.spec.displayName}
+                aria-invalid={!!errors.displayName}
               />
+              <FieldError>{errors.displayName}</FieldError>
             </Field>
-            <Field>
+            <Field data-invalid={!!errors.image}>
               <FieldLabel htmlFor="image">Docker image</FieldLabel>
               <Select value={image} onValueChange={(v) => own.set("image", v)}>
                 <SelectTrigger id="image" className="w-full">
@@ -109,10 +111,12 @@ export function ServerForm({
                 </SelectContent>
               </Select>
               <FieldDescription className="truncate font-mono text-xs">{image}</FieldDescription>
+              <FieldError>{errors.image}</FieldError>
             </Field>
-            <Field>
+            <Field data-invalid={!!errors.owner}>
               <FieldLabel htmlFor="owner">Owner</FieldLabel>
               <OwnerSelect id="owner" value={f.owner} onChange={(v) => shared.set("owner", v)} />
+              <FieldError>{errors.owner}</FieldError>
             </Field>
             <Field orientation="horizontal" className="self-center">
               <Switch id="start" checked={f.start} onCheckedChange={(v) => shared.set("start", v)} />
@@ -163,7 +167,7 @@ export function ServerForm({
           }
         >
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
-            <Field data-invalid={f.ports.length === 0}>
+            <Field data-invalid={f.ports.length === 0 || !!errors.ports}>
               <FieldLabel htmlFor="ports">
                 Ports <span className="text-destructive">*</span>
               </FieldLabel>
@@ -173,6 +177,7 @@ export function ServerForm({
               ) : (
                 <FieldDescription>The first port becomes SERVER_PORT.</FieldDescription>
               )}
+              <FieldError>{errors.ports}</FieldError>
             </Field>
             <PoolField
               value={pool}
@@ -184,7 +189,7 @@ export function ServerForm({
             />
             {!clusterOnly && (
               <>
-                <Field>
+                <Field data-invalid={!!errors.loadBalancerIP}>
                   <FieldLabel htmlFor="lbip">Fixed IP (optional)</FieldLabel>
                   <Input
                     id="lbip"
@@ -192,10 +197,12 @@ export function ServerForm({
                     onChange={(e) => shared.set("lbIP", e.target.value)}
                     placeholder="assigned automatically"
                     className="font-mono"
+                    aria-invalid={!!errors.loadBalancerIP}
                   />
                   <FieldDescription>
                     Free addresses of the selected pool, one per IP family separated by a comma.
                   </FieldDescription>
+                  <FieldError>{errors.loadBalancerIP}</FieldError>
                 </Field>
                 <TrafficPolicyField value={f.trafficPolicy} onChange={(v) => shared.set("trafficPolicy", v)} />
               </>

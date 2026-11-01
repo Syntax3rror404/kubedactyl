@@ -37,25 +37,21 @@ func ValidBackupName(name string) bool {
 	return backupName.MatchString(name) && !strings.HasPrefix(name, ".")
 }
 
-// Backups lists the backup archives (newest first).
-func (m *Manager) Backups(ctx context.Context, server Ref) ([]Entry, error) {
-	if err := m.run(ctx, server, nil, nil, `inside "$(real "$1")"
-mkdir -p "$1"`, backupDirPath()); err != nil {
-		return nil, err
-	}
-	entries, err := m.List(ctx, server, "/"+BackupDir, nil)
+// ListBackups lists the backup archives (newest first); the backup folder is created first.
+func (m *Manager) ListBackups(ctx context.Context, ref Ref) ([]Entry, error) {
+	out, err := m.listing(ctx, ref, `inside "$(real "$1")"
+mkdir -p "$1" || exit 1
+`+listScript, backupDirPath())
 	if err != nil {
 		return nil, err
 	}
-	out := entries[:0]
-	for _, e := range entries {
-		if !e.IsDir && ValidBackupName(e.Name) {
-			out = append(out, e)
-		}
-	}
+	entries := parseListing(out, func(name string) bool { return !ValidBackupName(name) })
+	entries = slices.DeleteFunc(entries, func(e Entry) bool { return e.IsDir })
 	// Names start with the timestamp, so the reversed alphabetical order is newest first.
-	slices.Reverse(out)
-	return out, nil
+	slices.SortFunc(entries, func(a, b Entry) int {
+		return strings.Compare(strings.ToLower(b.Name), strings.ToLower(a.Name))
+	})
+	return entries, nil
 }
 
 // backupScript packs everything except the backup folder ("$1" root, "$2" backup folder, "$3"
@@ -75,30 +71,30 @@ find "$1" -mindepth 1 -maxdepth 1 ! -name "$2" -exec rm -rf {} +
 unpack "$2/$3" "$1"`
 
 // CreateBackup packs everything except the backup folder into a new archive.
-func (m *Manager) CreateBackup(ctx context.Context, server Ref, name string, report func(Progress)) error {
+func (m *Manager) CreateBackup(ctx context.Context, ref Ref, name string, report func(Progress)) error {
 	if !ValidBackupName(name) {
 		return ErrDenied
 	}
 	out := &progressWriter{report: report}
-	return m.run(ctx, server, nil, out, backupScript, gameserver.ServerRoot, BackupDir, name)
+	return m.run(ctx, ref, nil, out, backupScript, gameserver.ServerRoot, BackupDir, name)
 }
 
 // RestoreBackup deletes everything except the backup folder and extracts the archive.
 // The server must be stopped.
-func (m *Manager) RestoreBackup(ctx context.Context, server Ref, name string, report func(Progress)) error {
+func (m *Manager) RestoreBackup(ctx context.Context, ref Ref, name string, report func(Progress)) error {
 	if !ValidBackupName(name) {
 		return ErrNotFound
 	}
 	out := &progressWriter{report: report}
-	return m.run(ctx, server, nil, out, restoreScript, gameserver.ServerRoot, BackupDir, name)
+	return m.run(ctx, ref, nil, out, restoreScript, gameserver.ServerRoot, BackupDir, name)
 }
 
 // DeleteBackup removes one archive.
-func (m *Manager) DeleteBackup(ctx context.Context, server Ref, name string) error {
+func (m *Manager) DeleteBackup(ctx context.Context, ref Ref, name string) error {
 	if !ValidBackupName(name) {
 		return ErrNotFound
 	}
-	return m.run(ctx, server, nil, nil, `inside "$(entry "$1")"
+	return m.run(ctx, ref, nil, nil, `inside "$(entry "$1")"
 [ -f "$1" ] || exit 3
 rm -f -- "$1"`, backupDirPath()+"/"+name)
 }

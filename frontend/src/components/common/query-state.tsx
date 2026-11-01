@@ -33,7 +33,7 @@ export function QueryState<T>({
 }
 
 /** A request that failed, with its message and a retry button. */
-function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
       <CircleAlertIcon className="size-6 text-destructive" />

@@ -32,6 +32,8 @@ func TestValidate(t *testing.T) {
 		{"vanilla", "required|in:vanilla,forge", true},
 		{"paper", "required|in:vanilla,forge", false},
 		{"12345", "digits_between:3,5", true},
+		{"123456", "digits_between:3,5", false},
+		{"12345", "digits_between:a,b", true},
 		{"my_world-1", "alpha_dash", true},
 		{"my world", "alpha_dash", false},
 		{"https://example.com/a.jar", "nullable|url", true},

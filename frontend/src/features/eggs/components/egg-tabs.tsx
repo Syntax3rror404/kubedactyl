@@ -5,10 +5,12 @@ import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import { EggConfigFiles } from "@/features/eggs/components/egg-config-files"
 import { EggOverview } from "@/features/eggs/components/egg-overview"
 import { EggVariablesTable } from "@/features/eggs/components/egg-variables-table"
+import { installRuntime } from "@/features/eggs/lib/describe"
 import type { EggSpec } from "@/lib/types"
 
 /** Overview, variables, config files and install script of an egg (installed or in the library). */
 export function EggTabs({ spec: s }: { spec: EggSpec }) {
+  const { container, entrypoint } = installRuntime(s)
   return (
     <Tabs defaultValue="overview">
       <ScrollableTabsList>
@@ -33,10 +35,10 @@ export function EggTabs({ spec: s }: { spec: EggSpec }) {
       <TabsContent value="install" className="space-y-3 pt-4">
         <div className="flex flex-wrap gap-2 text-sm">
           <Badge variant="outline" className="font-mono">
-            {s.install?.container || "default installer"}
+            {container}
           </Badge>
           <Badge variant="outline" className="font-mono">
-            {s.install?.entrypoint || "bash"}
+            {entrypoint}
           </Badge>
         </div>
         <CodeEditor value={s.install?.script || "# no install script"} language="sh" readOnly height="65vh" />

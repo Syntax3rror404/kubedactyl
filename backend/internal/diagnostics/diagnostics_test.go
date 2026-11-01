@@ -19,7 +19,14 @@ func (f fakeResolver) LookupNetIP(_ context.Context, network, _ string) ([]netip
 	if ips := f[network]; len(ips) > 0 {
 		return ips, nil
 	}
-	return nil, errors.New("no such host")
+	return nil, &net.DNSError{Err: "no such host", IsNotFound: true}
+}
+
+// brokenResolver fails every lookup, like an unreachable DNS server.
+type brokenResolver struct{}
+
+func (brokenResolver) LookupNetIP(context.Context, string, string) ([]netip.Addr, error) {
+	return nil, &net.DNSError{Err: "i/o timeout", IsTimeout: true}
 }
 
 func ips(s ...string) []netip.Addr {
@@ -313,5 +320,35 @@ func TestPublicDNSDecides(t *testing.T) {
 	}
 	if !strings.Contains(byID["router-25565"].Message, "203.0.113.7") {
 		t.Errorf("the router test must use the public address: %+v", byID["router-25565"])
+	}
+}
+
+// TestLocalFallback: without a public address the local answer is used and marked, a failed
+// lookup is no missing record, and carrier-grade NAT addresses are internal.
+func TestLocalFallback(t *testing.T) {
+	cases := []struct {
+		name          string
+		public, local Resolver
+		status        checks.Status
+		contains      string
+	}{
+		{"public has none", fakeResolver{}, fakeResolver{"ip4": ips("192.168.1.52")}, checks.Error,
+			"public name servers gave no address"},
+		{"public fails", brokenResolver{}, fakeResolver{"ip4": ips("203.0.113.7")}, checks.OK,
+			"public name servers gave no address"},
+		{"nobody has one", fakeResolver{}, fakeResolver{}, checks.Error, "has no A record"},
+		{"lookups fail", brokenResolver{}, brokenResolver{}, checks.Warning, "could not be read"},
+		{"carrier-grade NAT", fakeResolver{"ip4": ips("100.64.1.1")}, nil, checks.Error, "internal address"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := &Diagnoser{Resolver: tc.local, PublicResolver: tc.public, Dial: refused}
+			in := Input{Server: server(nil), Domain: "play.example.com", ShowAddresses: true}
+			for _, c := range d.Run(context.Background(), in) {
+				if c.ID == "dns-a" && (c.Status != tc.status || !strings.Contains(c.Message, tc.contains)) {
+					t.Errorf("got %s %q, want %s containing %q", c.Status, c.Message, tc.status, tc.contains)
+				}
+			}
+		})
 	}
 }

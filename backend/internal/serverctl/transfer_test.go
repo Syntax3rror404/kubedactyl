@@ -3,6 +3,7 @@ package serverctl
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -125,5 +126,65 @@ func TestTransferRefusals(t *testing.T) {
 	unbound.Name = "other"
 	if _, err := ops.Transfer(ctx, unbound, "bob", tenancy.Namespace("bob")); !errors.Is(err, ErrNoVolume) {
 		t.Errorf("without volume: %v", err)
+	}
+	// A migration holds a second claim until it has finished.
+	for _, tc := range []struct {
+		name string
+		set  func(gs *v1alpha1.GameServer)
+	}{
+		{"migration requested", func(gs *v1alpha1.GameServer) {
+			gs.Spec.StorageClass, gs.Status.StorageClass = "fast", "slow"
+		}},
+		{"migration switching", func(gs *v1alpha1.GameServer) {
+			gs.Status.Migration = &v1alpha1.StorageMigration{Step: v1alpha1.MigrationSwitching}
+		}},
+	} {
+		migrating := gs.DeepCopy()
+		tc.set(migrating)
+		if _, err := ops.Transfer(ctx, migrating, "bob", tenancy.Namespace("bob")); !errors.Is(err, ErrMigrating) {
+			t.Errorf("%s: %v", tc.name, err)
+		}
+	}
+}
+
+func TestLocked(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		set  func(gs *v1alpha1.GameServer)
+		want error
+	}{
+		{"free", func(*v1alpha1.GameServer) {}, nil},
+		{"suspended", func(gs *v1alpha1.GameServer) { gs.Spec.Suspended = true }, ErrSuspended},
+		{"migrating", func(gs *v1alpha1.GameServer) {
+			gs.Spec.StorageClass, gs.Status.StorageClass = "fast", "slow"
+		}, ErrMigrating},
+		{"being removed", func(gs *v1alpha1.GameServer) {
+			gs.Spec.Suspended, gs.DeletionTimestamp = true, &metav1.Time{}
+		}, ErrRemoving},
+	} {
+		gs := &v1alpha1.GameServer{}
+		tc.set(gs)
+		if err := Locked(gs); !errors.Is(err, tc.want) {
+			t.Errorf("%s: %v, want %v", tc.name, err, tc.want)
+		}
+	}
+}
+
+// When the old server does not go in time, the error names the kept volume.
+func TestTransferTimeoutNamesVolume(t *testing.T) {
+	wait := transferWait
+	transferWait = 0
+	t.Cleanup(func() { transferWait = wait })
+	ops, c, gs := transferFixture(t)
+	ctx := context.Background()
+	// A finalizer that nobody removes keeps the old server.
+	patch := client.MergeFrom(gs.DeepCopy())
+	gs.Finalizers = []string{"test/keep"}
+	if err := c.Patch(ctx, gs, patch); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ops.Transfer(ctx, gs, "bob", tenancy.Namespace("bob"))
+	if err == nil || !strings.Contains(err.Error(), "volume pv-1 is kept") {
+		t.Errorf("error = %v", err)
 	}
 }

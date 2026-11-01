@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"strings"
-	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,43 +14,42 @@ import (
 	"app/internal/gameserver"
 )
 
-// stopTaskLimits remembers per pod how long a stop may wait for its tasks (lost on a panel
-// restart; then the stop is sent right away).
-var stopTaskLimits sync.Map
-
 // runStopTasks runs the "stopping" tasks of a running server before its stop is sent and
 // returns how long to wait before looking again (0: send the stop now). A stop the user typed
-// into the console is already on its way, so it does not wait.
+// into the console is already on its way, so it does not wait. After a panel restart no task
+// runs any more, so the stop is sent at once.
 func (r *Reconciler) runStopTasks(gs *v1alpha1.GameServer, pod *corev1.Pod) time.Duration {
 	if r.Events == nil || gs.Status.Phase != v1alpha1.PhaseRunning ||
 		gs.Annotations[gameserver.AnnotationStopSent] == string(pod.UID) {
 		return 0
 	}
 	if gs.Status.StopTasksStartedAt == nil {
-		limit := r.Events.StartStopping(gs)
-		if limit == 0 {
+		if r.Events.StartStopping(gs) == 0 {
 			return 0
 		}
 		r.Hub.Daemon(gs.Name, "Running the tasks before stopping...")
 		now := metav1.Now()
 		gs.Status.StopTasksStartedAt = &now
-		stopTaskLimits.Store(string(pod.UID), limit)
 		r.setPhase(gs, v1alpha1.PhaseRunning, "running the tasks before stopping")
 		return 2 * time.Second
 	}
-	limit, ok := stopTaskLimits.Load(string(pod.UID))
-	if ok && r.Events.Stopping(gs) && time.Since(gs.Status.StopTasksStartedAt.Time) < limit.(time.Duration) {
+	if r.Events.Stopping(gs) && time.Since(gs.Status.StopTasksStartedAt.Time) < r.Events.StopLimit(gs) {
 		r.setPhase(gs, v1alpha1.PhaseRunning, "running the tasks before stopping")
 		return 2 * time.Second
 	}
-	stopTaskLimits.Delete(string(pod.UID))
 	return 0
 }
 
-// stopGamePod sends the egg's stop command once and kills the pod after the stop timeout.
+// stopGamePod sends the egg's stop command once and kills the pod after the stop timeout. A pod
+// whose container never ran (e.g. its image cannot be pulled) has nothing to stop: it goes at once.
 func (r *Reconciler) stopGamePod(
 	ctx context.Context, gs *v1alpha1.GameServer, egg *v1alpha1.Egg, pod *corev1.Pod,
 ) (reconcile.Result, error) {
+	if !containerStarted(pod) {
+		r.Hub.Daemon(gs.Name, "Server marked as stopping...")
+		r.setPhase(gs, v1alpha1.PhaseStopping, "")
+		return reconcile.Result{RequeueAfter: 2 * time.Second}, r.deleteNow(ctx, pod)
+	}
 	timeout := time.Duration(stopTimeout(gs)) * time.Second
 	if gs.Status.StopRequestedAt == nil {
 		if wait := r.runStopTasks(gs, pod); wait > 0 {

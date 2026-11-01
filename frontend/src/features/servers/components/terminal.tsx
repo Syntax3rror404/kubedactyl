@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal as XTerm, type ITheme } from "@xterm/xterm"
+import { toast } from "sonner"
 
 import "@xterm/xterm/css/xterm.css"
 
@@ -53,10 +54,13 @@ const light: ITheme = {
   brightWhite: "#18181b",
 }
 
+// xterm paints its viewport black by default; the console card shows through instead.
+const transparent = `.xterm .xterm-viewport, .xterm .xterm-screen { background-color: transparent !important; }`
+
 const DAEMON = "\x1b[1;36m[Kubedactyl]\x1b[0m "
 const INSTALL = "\x1b[2m"
 
-/** Read-only xterm that renders the console events of a server. */
+/** Read-only xterm that renders the console events of a server, in the mono font of the page (--font-mono). */
 export function Terminal({
   subscribe,
 }: {
@@ -74,7 +78,8 @@ export function Terminal({
       cursorStyle: "underline",
       cursorInactiveStyle: "none",
       allowTransparency: true,
-      fontFamily: "'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace",
+      // xterm measures the font itself, so it needs the font names, not the CSS variable.
+      fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || "monospace",
       fontSize: 13,
       lineHeight: 1.35,
       scrollback: 10000,
@@ -89,7 +94,7 @@ export function Terminal({
       if (!t.hasSelection()) return true
       if (navigator.clipboard) {
         e.preventDefault()
-        navigator.clipboard.writeText(t.getSelection()).catch(() => document.execCommand("copy"))
+        navigator.clipboard.writeText(t.getSelection()).catch(() => toast.error("Could not copy the selection"))
       }
       // Without the Clipboard API (insecure context) fall through to the native copy event.
       return false
@@ -131,5 +136,11 @@ export function Terminal({
     if (term.current) term.current.options.theme = theme === "dark" ? dark : light
   }, [theme])
 
-  return <div ref={el} className="h-full w-full" />
+  return (
+    <div ref={el} className="h-full w-full">
+      <style href="terminal" precedence="default">
+        {transparent}
+      </style>
+    </div>
+  )
 }

@@ -172,6 +172,24 @@ func TestOIDCRefusesForeignCallbacks(t *testing.T) {
 	}
 }
 
+// TestOIDCCallbacksAreThrottled: failed callbacks count against the client like failed sign-ins, successful ones
+// do not.
+func TestOIDCCallbacksAreThrottled(t *testing.T) {
+	h, idp := oidcHarness(t)
+	idp.SignInAs(map[string]any{"sub": "s-carol", "preferred_username": "carol", "groups": []any{"players"}})
+	for i := range 6 {
+		if to, session := h.ssoSignIn("/"); session == nil {
+			t.Fatalf("sign-in %d led to %q", i, to)
+		}
+	}
+	for range 5 {
+		h.browse(oidcPath + "/callback?code=c&state=s")
+	}
+	if to, session := h.ssoSignIn("/"); to != "/login?sso=failed" || session != nil {
+		t.Errorf("sign-in after five failed callbacks: led to %q, session %v", to, session)
+	}
+}
+
 func TestOIDCSettingsValidation(t *testing.T) {
 	h := newHarness(t)
 	admin := h.login("admin")

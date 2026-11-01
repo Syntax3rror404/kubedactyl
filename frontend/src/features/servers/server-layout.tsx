@@ -24,15 +24,15 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsTrigger } from "@/components/ui/tabs"
 import { FilesPodLight } from "@/features/servers/components/files-pod-light"
-import { PowerControls } from "@/features/servers/components/power-controls"
-import { RestartBanner } from "@/features/servers/components/restart-banner"
-import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
 import {
   MigrationNotice,
   RemovingNotice,
   SuspendedBanner,
   SuspendedNotice,
 } from "@/features/servers/components/locked-notice"
+import { PowerControls } from "@/features/servers/components/power-controls"
+import { RestartBanner } from "@/features/servers/components/restart-banner"
+import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
 import { useAuth } from "@/hooks/use-auth"
 import {
   isMigrating,

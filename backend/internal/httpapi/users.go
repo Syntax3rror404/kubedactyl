@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -159,7 +158,7 @@ func (a *API) loadUser(c *gin.Context) (*v1alpha1.User, bool) {
 	u := &v1alpha1.User{}
 	err := a.Reader.Get(c, client.ObjectKey{Namespace: a.Opts.Namespace, Name: c.Param("user")}, u)
 	if p := principal(c); err == nil && !p.Admin() && u.Spec.Owner != p.User.Name {
-		err = apierrors.NewNotFound(userResource, u.Name)
+		err = apierrors.NewNotFound(users.UserResource, u.Name)
 	}
 	if err != nil {
 		a.fail(c, err)
@@ -167,8 +166,6 @@ func (a *API) loadUser(c *gin.Context) (*v1alpha1.User, bool) {
 	}
 	return u, true
 }
-
-var userResource = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "users"}
 
 // listUsers godoc
 //

@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -22,20 +23,27 @@ type ttlEntry[V any] struct {
 	at    time.Time
 }
 
+// LoadTimeout bounds one load. The load serves every request waiting for it, so it does not end with the request
+// that started it, and a hanging API call cannot block the key forever.
+const LoadTimeout = 30 * time.Second
+
 // NewTTLCache returns a cache that keeps each value for ttl.
 func NewTTLCache[K comparable, V any](ttl time.Duration) *TTLCache[K, V] {
 	return &TTLCache[K, V]{ttl: ttl, entries: map[K]*ttlEntry[V]{}}
 }
 
-// Get returns the value of key, calling load when it is missing or older than the TTL.
-func (c *TTLCache[K, V]) Get(key K, load func() (V, error)) (V, error) {
+// Get returns the value of key, calling load when it is missing or older than the TTL. load gets a context with
+// the values of ctx that ends after LoadTimeout, not when ctx ends.
+func (c *TTLCache[K, V]) Get(ctx context.Context, key K, load func(context.Context) (V, error)) (V, error) {
 	e := c.entry(key)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if !e.at.IsZero() && time.Since(e.at) < c.ttl {
 		return e.value, nil
 	}
-	v, err := load()
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), LoadTimeout)
+	defer cancel()
+	v, err := load(ctx)
 	if err == nil {
 		e.value, e.at = v, time.Now()
 	}

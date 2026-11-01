@@ -7,12 +7,15 @@ import { legalDocs, legalTitles, type LegalDoc } from "@/lib/legal"
 import { usePanelInfo, useLegalTexts } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
-const repositoryUrl = "https://github.com/Syntax3rror404/kubedactyl"
+const REPOSITORY_URL = "https://github.com/Syntax3rror404/kubedactyl"
 // Links with an icon in front; the icon follows the text color on hover.
 const link = "inline-flex items-center gap-1 hover:text-foreground hover:underline [&_svg]:size-3.5"
 
-// The Markdown renderer is only needed when a legal text opens; loaded then, so it stays out of every page.
-const Markdown = lazy(() => import("@/components/common/markdown").then((m) => ({ default: m.Markdown })))
+// The Markdown renderer is only needed when a legal text opens; loaded then, so it stays out of every page. A chunk
+// of an older build resolves to nothing while main.tsx reloads the page; the dialog then waits for the reload.
+const Markdown = lazy(() =>
+  import("@/components/common/markdown").then((m) => (m ? { default: m.Markdown } : new Promise<never>(() => {}))),
+)
 
 /**
  * Footer on every page: panel version, the source code and its issue tracker, the imprint and privacy policy when
@@ -37,11 +40,11 @@ export function SiteFooter({ className, children }: { className?: string; childr
           {info.data.name} v{info.data.version}
         </span>
       )}
-      <a href={repositoryUrl} target="_blank" rel="noreferrer" className={link}>
+      <a href={REPOSITORY_URL} target="_blank" rel="noreferrer" className={link}>
         <GlobeCodeIcon />
         GitHub
       </a>
-      <a href={`${repositoryUrl}/issues/new`} target="_blank" rel="noreferrer" className={link}>
+      <a href={`${REPOSITORY_URL}/issues/new`} target="_blank" rel="noreferrer" className={link}>
         <BugIcon />
         Report an issue
       </a>

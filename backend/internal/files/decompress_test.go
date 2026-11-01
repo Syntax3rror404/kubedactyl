@@ -39,9 +39,10 @@ func writeTar(t *testing.T, file string, entries [][2]string) {
 	}
 }
 
-// TestDecompressScript runs the extraction with the local bash and tar (the files pod's BusyBox sh knows
-// "set -o pipefail", the dash of Debian based systems does not): entries land in the archive's folder
-// only, existing folders are merged, and a link in the way is replaced instead of written through.
+// TestDecompressScript runs the extraction (unpack, then merge) with the local bash and tar (the
+// files pod's BusyBox sh knows "set -o pipefail", the dash of Debian based systems does not):
+// entries land in the archive's folder only, existing folders are merged, and a link in the way is
+// replaced instead of written through.
 func TestDecompressScript(t *testing.T) {
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -62,8 +63,12 @@ func TestDecompressScript(t *testing.T) {
 		{"a.txt", "new a"}, {"sub/b.txt", "b"}, {"lnk", "->" + outside},
 	})
 	extract := func(archive string) error {
-		script := strings.ReplaceAll(gameserver.PathScript, gameserver.ServerRoot, root) + decompressScript
-		return exec.Command("bash", "-c", script, "sh", filepath.Join(root, archive)).Run()
+		tmp := filepath.Join(root, ".extract-test")
+		if _, err := runScript(root, unpackScript, filepath.Join(root, archive), tmp); err != nil {
+			return err
+		}
+		_, err := runScript(root, mergeScript, tmp)
+		return err
 	}
 	if err := extract("ok.tar"); err != nil {
 		t.Fatal(err)
@@ -88,6 +93,14 @@ func TestDecompressScript(t *testing.T) {
 	if left, _ := filepath.Glob(filepath.Join(root, ".extract-*")); len(left) > 0 {
 		t.Errorf("temporary folders left: %v", left)
 	}
+}
+
+// runScript runs a files pod script with the local bash, root as the server root, and returns
+// its output.
+func runScript(root, script string, args ...string) (string, error) {
+	full := strings.ReplaceAll(gameserver.PathScript, gameserver.ServerRoot, root) + script
+	out, err := exec.Command("bash", append([]string{"-c", full, "sh"}, args...)...).Output()
+	return string(out), err
 }
 
 func mustWrite(t *testing.T, file, content string) {

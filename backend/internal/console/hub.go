@@ -50,6 +50,8 @@ type stream struct {
 	history []Event
 	subs    map[chan Event]struct{}
 	session *session
+	// done is the UID of the followed game pod once it printed its done line.
+	done types.UID
 }
 
 // Hub keeps one output stream per game server.
@@ -61,12 +63,11 @@ type Hub struct {
 
 	mu      sync.Mutex
 	streams map[string]*stream
-	done    map[types.UID]bool
 }
 
 // NewHub creates the hub of the panel (one output stream per server).
 func NewHub(k *kube.Client, log *slog.Logger) *Hub {
-	return &Hub{kube: k, log: log, streams: map[string]*stream{}, done: map[types.UID]bool{}}
+	return &Hub{kube: k, log: log, streams: map[string]*stream{}}
 }
 
 func (h *Hub) stream(server string) *stream {
@@ -124,11 +125,25 @@ func (h *Hub) Status(server, phase string) {
 	h.Publish(server, Event{Event: EventStatus, Args: []string{phase}})
 }
 
-// IsDone reports whether the pod printed its done line.
-func (h *Hub) IsDone(uid types.UID) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.done[uid]
+// IsDone reports whether the game pod with this UID, followed for the server, printed its done line.
+func (h *Hub) IsDone(server string, uid types.UID) bool {
+	s := h.stream(server)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return uid != "" && s.done == uid
+}
+
+// markDone records the done line of a game pod; first is true the first time. Output of a pod
+// that is no longer followed (its stream is still ending) is ignored.
+func (h *Hub) markDone(server string, uid types.UID) (first bool) {
+	s := h.stream(server)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.session == nil || s.session.uid != uid || s.done == uid {
+		return false
+	}
+	s.done = uid
+	return true
 }
 
 // Follow makes sure the output of pod is streamed. It is a no-op when the pod is
@@ -145,6 +160,7 @@ func (h *Hub) Follow(server string, pod *corev1.Pod, kind Kind, m *Matcher) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.session = &session{uid: pod.UID, cancel: cancel}
+	s.done = ""
 	s.mu.Unlock()
 	go h.follow(ctx, pod.Namespace, server, pod.Name, pod.UID, kind, m)
 }
@@ -163,11 +179,4 @@ func (h *Hub) Remove(server string) {
 	if s.session != nil {
 		s.session.cancel()
 	}
-}
-
-// ForgetPod releases the done state of a pod that no longer exists.
-func (h *Hub) ForgetPod(uid types.UID) {
-	h.mu.Lock()
-	delete(h.done, uid)
-	h.mu.Unlock()
 }

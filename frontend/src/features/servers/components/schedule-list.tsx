@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { ScheduleCard } from "@/features/servers/components/schedule-card"
 import { ScheduleDialog } from "@/features/servers/components/schedule-dialog"
 import { dailyRestart, emptySchedule, emptyTask, goodbyeTask } from "@/features/servers/lib/schedules"
+import { useRetained } from "@/hooks/use-retained"
 import { failed } from "@/lib/notify"
 import { useRunSchedule, useSchedules, useUpdateSchedules } from "@/lib/queries"
 import type { Schedule, ScheduleView } from "@/lib/types"
 import { fieldErrors } from "@/lib/validation"
 
-// One state for all dialogs of the page; index null = new entry (index into all schedules).
-type Dialog = { kind: "edit"; schedule: Schedule; index: number | null } | { kind: "delete"; name: string } | null
+// One state for all dialogs of the page; original is the saved name of the edited entry (null = new entry).
+type Dialog = { kind: "edit"; schedule: Schedule; original: string | null } | { kind: "delete"; name: string } | null
 
 const plain = ({ name, cron, event, enabled, onlyWhenOnline, tasks }: ScheduleView | Schedule): Schedule => ({
   name,
@@ -87,19 +88,21 @@ function Schedules({
     onError: failed(`run the ${k.noun.toLowerCase()}`),
   })
   const editing = dialog?.kind === "edit" ? dialog : null
-  const deleting = dialog?.kind === "delete" ? dialog.name : null
-  const shown = items.map((s, index) => ({ s, index })).filter(({ s }) => k.show(s))
+  const deleting = useRetained(dialog?.kind === "delete" ? dialog.name : null)
+  const shown = items.filter(k.show)
 
-  const replace = (index: number | null, s: Schedule, fromDialog = false) => {
+  // By name, not position: the list can change while the dialog is open.
+  const replace = (original: string | null, s: Schedule, fromDialog = false) => {
     const next = items.map(plain)
-    if (index === null) next.push(s)
-    else next[index] = s
-    saveList(next, index === null ? "created" : "saved", fromDialog)
+    const i = next.findIndex((x) => x.name === original)
+    if (i < 0) next.push(s)
+    else next[i] = s
+    saveList(next, original === null ? "created" : "saved", fromDialog)
   }
   const remove = (name: string) => saveList(items.filter((s) => s.name !== name).map(plain), "deleted")
-  const edit = (schedule: Schedule, index: number | null = null) => {
+  const edit = (schedule: Schedule, original: string | null = null) => {
     save.reset()
-    setDialog({ kind: "edit", schedule, index })
+    setDialog({ kind: "edit", schedule, original })
   }
 
   return (
@@ -129,15 +132,15 @@ function Schedules({
         </EmptyState>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {shown.map(({ s, index }) => (
+          {shown.map((s) => (
             <ScheduleCard
               key={s.name}
               schedule={s}
               timeZone={timeZone}
               busy={save.isPending}
-              onToggle={(enabled) => replace(index, { ...plain(s), enabled })}
+              onToggle={(enabled) => replace(s.name, { ...plain(s), enabled })}
               onRun={() => run.mutate(s.name)}
-              onEdit={() => edit(plain(s), index)}
+              onEdit={() => edit(plain(s), s.name)}
               onDelete={() => setDialog({ kind: "delete", name: s.name })}
             />
           ))}
@@ -147,18 +150,18 @@ function Schedules({
       {editing && (
         <ScheduleDialog
           initial={editing.schedule}
-          isNew={editing.index === null}
+          isNew={editing.original === null}
           timeZone={timeZone}
-          takenNames={items.filter((_, i) => i !== editing.index).map((s) => s.name)}
+          takenNames={items.filter((s) => s.name !== editing.original).map((s) => s.name)}
           saving={save.isPending}
           errors={fieldErrors(save.error)}
-          onSubmit={(s) => replace(editing.index, s, true)}
+          onSubmit={(s) => replace(editing.original, s, true)}
           onClose={() => (setDialog(null), save.reset())}
         />
       )}
 
       <ConfirmDialog
-        open={deleting !== null}
+        open={dialog?.kind === "delete"}
         onOpenChange={(o) => !o && setDialog(null)}
         title={`Delete ${k.noun.toLowerCase()} “${deleting}”?`}
         description={`The ${k.noun.toLowerCase()} stops running. A run in progress finishes its current step.`}

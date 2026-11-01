@@ -11,7 +11,8 @@ type Options struct {
 	// LoadBalancerPool is enabled in the panel settings on the first start (pool name or
 	// the value of its lb.cilium.io/pool selector label).
 	LoadBalancerPool string
-	// HelperImage runs the file manager pod and the pre-start steps.
+	// HelperImage runs the files pod (file manager and pre-start steps, also its ownership init
+	// container) and the copy pod of a storage migration.
 	HelperImage string
 	// DockerInterface is the value of {{config.docker.interface}} in egg config files.
 	DockerInterface string
@@ -37,8 +38,9 @@ const (
 	// AnnotationStopSent marks that the stop command was typed into the console of the
 	// pod with this UID, so the controller must not send it again.
 	AnnotationStopSent = "kubedactyl.io/stop-sent"
-	// AnnotationExitHandled marks a terminated game pod whose exit was processed. The pod
-	// is kept until the next start so its console output stays available.
+	// AnnotationExitHandled marks a terminated game pod whose exit was processed. The pod is
+	// deleted a few seconds after the exit, so open consoles get its last output (at once when
+	// the server starts again).
 	AnnotationExitHandled = "kubedactyl.io/exit-handled"
 	// AnnotationFixedIPs asks Cilium LB IPAM for the server's fixed IPs (comma separated).
 	AnnotationFixedIPs = "lbipam.cilium.io/ips"

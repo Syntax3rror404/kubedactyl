@@ -19,22 +19,45 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+// TestDenylist: patterns are read like a .gitignore file, a malformed one denies everything.
 func TestDenylist(t *testing.T) {
-	deny := []string{"*.jar", "config/secret.yml", "private/"}
-	for path, want := range map[string]bool{
-		"/server.jar":        true,
-		"/plugins/x.jar":     true,
-		"/config/secret.yml": true,
-		"/config/other.yml":  false,
-		"/private/key":       true,
-		"/server.properties": false,
-		"/":                  false,
-	} {
-		if got := Denied(path, deny); got != want {
-			t.Errorf("Denied(%q) = %v, want %v", path, got, want)
+	cases := []struct {
+		deny []string
+		path string
+		want bool
+	}{
+		{[]string{"*.jar"}, "/server.jar", true},
+		{[]string{"*.jar"}, "/plugins/x.jar", true},
+		{[]string{"*.jar"}, "/server.properties", false},
+		{[]string{"config/secret.yml"}, "/config/secret.yml", true},
+		{[]string{"config/secret.yml"}, "/config/other.yml", false},
+		{[]string{"config/secret.yml"}, "/x/config/secret.yml", false},
+		{[]string{"/server.jar"}, "/server.jar", true},
+		{[]string{"private/"}, "/private/key", true},
+		{[]string{"private/"}, "/sub/private/key", true},
+		{[]string{"private/"}, "/private", false},
+		{[]string{"private"}, "/private", true},
+		{[]string{"*.d"}, "/conf.d/x.conf", true},
+		{[]string{"**/secret.yml"}, "/a/b/secret.yml", true},
+		{[]string{"**/secret.yml"}, "/secret.yml", true},
+		{[]string{"config/**"}, "/config/a/b.yml", true},
+		{[]string{"config/**"}, "/config", false},
+		{[]string{"config/**/key"}, "/config/key", true},
+		{[]string{"config/**/key"}, "/config/a/b/key", true},
+		{[]string{"config/**/key"}, "/other/a/key", false},
+		{[]string{"config/*/key"}, "/config/a/b/key", false},
+		{[]string{"!server.jar", "", " "}, "/server.jar", false},
+		{[]string{"["}, "/server.properties", true},
+		{[]string{"*.jar", "a\\"}, "/world/level.dat", true},
+		{[]string{"["}, "/", false},
+		{nil, "/server.jar", false},
+	}
+	for _, c := range cases {
+		if got := denied(c.path, c.deny); got != c.want {
+			t.Errorf("denied(%q, %q) = %v, want %v", c.path, c.deny, got, c.want)
 		}
 	}
-	if _, err := Resolve("server.jar", deny); err != ErrDenied {
+	if _, err := Resolve("server.jar", []string{"*.jar"}); err != ErrDenied {
 		t.Errorf("Resolve on denied file = %v", err)
 	}
 }
@@ -63,7 +86,7 @@ func TestRealDir(t *testing.T) {
 	if err != nil || len(rels) != 2 || rels[1] != "/" {
 		t.Fatalf("checkReal = %q, %v", rels, err)
 	}
-	if got := realDir("/sl", rels); got != "/secret" || !Denied(got+"/key", []string{"secret/"}) {
+	if got := realDir("/sl", rels); got != "/secret" || !denied(got+"/key", []string{"secret/"}) {
 		t.Errorf("realDir = %q", got)
 	}
 	if got := realDir("sl/", nil); got != "/sl" {

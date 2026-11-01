@@ -5,11 +5,15 @@ package files
 // progressWriter reads:
 //   - pack OUT EXCLUDE ENTRY… packs entries ("./name") of the current folder, without the folder
 //     EXCLUDE, into the tar.gz OUT under a temporary name. It prints "total N" and every entry
-//     (tar writes the names unbuffered only while the archive goes to stdout).
+//     (tar writes the names unbuffered only while the archive goes to stdout). An existing OUT is
+//     never replaced (exit code 5).
 //   - unpack ARCHIVE DEST extracts a tar or zip archive. A tar reports the bytes read, a zip the
 //     files it unpacks.
 //   - report_reads PID SIZE prints "pos N SIZE" every second while PID runs (N: read position of fd 3).
 //   - lines and tar_names keep the "pos" lines, tar's entries and its errors apart.
+//   - sweep DIR removes what jobs in DIR left behind when their stream was lost without a signal
+//     (a panel restart): temporary files and folders unchanged for longer than jobLimit, so no
+//     running job is touched. ctime, because tar sets the mtime of extracted folders.
 const jobFuncs = `trap 'exit 143' TERM INT HUP PIPE
 set -o pipefail
 lines() { while IFS= read -r l; do echo "$l"; done; }
@@ -25,11 +29,22 @@ report_reads() {
   done
   wait "$1"
 }
+sweep() {
+  local f t now
+  now=$(date +%s)
+  for f in "$1"/.*.partial "$1"/.*.download "$1"/.*.download.log "$1"/.extract-*; do
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    t=$(stat -c %Z -- "$f" 2>/dev/null) || continue
+    [ $((now - t)) -gt 3600 ] && rm -rf -- "$f"
+  done
+  return 0
+}
 pack() {
   local out="$1" ex="$2"
   shift 2
-  # Global: the EXIT trap runs after the function has returned.
-  pack_part="$(dirname -- "$out")/.$(basename -- "$out").partial"
+  [ -e "$out" ] || [ -L "$out" ] && return 5
+  # Global: the EXIT trap runs after the function has returned. The PID keeps parallel jobs apart.
+  pack_part="$(dirname -- "$out")/.$(basename -- "$out").$$.partial"
   trap 'rm -f "$pack_part"' EXIT
   if [ -n "$ex" ]; then
     echo "total $(find "$@" -path "./$ex" -prune -o ! -type d -print | wc -l)"
@@ -39,7 +54,13 @@ pack() {
     set -- -- "$@"
   fi
   tar -czvf - "$@" 2>&1 >"$pack_part" | tar_names || return 1
-  mv "$pack_part" "$out" && trap - EXIT
+  # A link instead of mv: it fails when OUT appeared meanwhile.
+  if ! ln -- "$pack_part" "$out"; then
+    [ -e "$out" ] && return 5
+    return 1
+  fi
+  rm -f "$pack_part"
+  trap - EXIT
 }
 unpack() {
   case "$1" in

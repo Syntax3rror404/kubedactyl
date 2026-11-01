@@ -3,6 +3,12 @@ import { ApiError } from "@/lib/api"
 /** Same minimum as the panel (auth.MinPasswordLength). */
 export const MIN_PASSWORD_LENGTH = 8
 
+/** The rule for new passwords (hint of every password field that sets one). */
+export const PASSWORD_RULE = `At least ${MIN_PASSWORD_LENGTH} characters. Stored as Argon2id hash only.`
+
+/** The rule for usernames (checked by the panel: tenancy.go). */
+export const USERNAME_RULE = "3-32 lowercase letters, digits or dashes, starting with a letter."
+
 /** Whether a new password is long enough and typed the same twice. */
 export const newPasswordReady = (password: string, confirm: string) =>
   password.length >= MIN_PASSWORD_LENGTH && password === confirm

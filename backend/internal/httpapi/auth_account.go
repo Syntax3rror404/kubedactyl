@@ -25,7 +25,7 @@ type UpdatePasswordRequest struct {
 
 // CreateTokenRequest creates a personal API token.
 type CreateTokenRequest struct {
-	Name string `json:"name" binding:"required" example:"ci"`
+	Name string `json:"name" binding:"required,max=64" example:"ci"`
 	// ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
 	ExpiresInDays int `json:"expiresInDays" example:"90"`
 }
@@ -34,6 +34,19 @@ type CreateTokenRequest struct {
 type CreatedToken struct {
 	TokenView
 	Token string `json:"token" example:"kdt_1a2b3c4d5e6f_…"`
+}
+
+// getMe godoc
+//
+//	@Summary	Current user
+//	@Tags		Auth
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	UserView
+//	@Failure	401	{object}	ErrorResponse
+//	@Router		/auth/me [get]
+func (a *API) getMe(c *gin.Context) {
+	c.JSON(http.StatusOK, a.userView(c, principal(c).User))
 }
 
 // updatePassword godoc
@@ -53,7 +66,10 @@ func (a *API) updatePassword(c *gin.Context) {
 	if !a.bindJSON(c, &req) {
 		return
 	}
-	user := principal(c).User.DeepCopy()
+	user, ok := a.currentUser(c)
+	if !ok {
+		return
+	}
 	if err := a.Users.UpdatePassword(c, user, req.Current, req.New, req.RevokeTokens); err != nil {
 		a.fail(c, err)
 		return
@@ -72,7 +88,11 @@ func (a *API) updatePassword(c *gin.Context) {
 //	@Success		204
 //	@Router			/auth/logout-all [post]
 func (a *API) logoutAll(c *gin.Context) {
-	if err := a.Users.EndSessions(c, principal(c).User.DeepCopy()); err != nil {
+	user, ok := a.currentUser(c)
+	if !ok {
+		return
+	}
+	if err := a.Users.EndSessions(c, user); err != nil {
 		a.fail(c, err)
 		return
 	}
@@ -96,13 +116,14 @@ func (a *API) listTokens(c *gin.Context) {
 //
 //	@Summary		Create an API token
 //	@Description	Use it as "Authorization: Bearer <token>". The value is returned only once. Only a session can
-//	@Description	create tokens: a token cannot extend its own access.
+//	@Description	create tokens: a token cannot extend its own access. An account has at most 50 tokens.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			body	body		CreateTokenRequest	true	"Token"
 //	@Success		201		{object}	CreatedToken
+//	@Failure		409		{object}	ErrorResponse	"the account has the most tokens it may have"
 //	@Router			/auth/tokens [post]
 func (a *API) createToken(c *gin.Context) {
 	if principal(c).TokenID != "" {
@@ -129,9 +150,7 @@ func (a *API) createToken(c *gin.Context) {
 		ID: id, Name: req.Name, Hash: hash, CreatedAt: metav1.Now(),
 		ExpiresAt: &metav1.Time{Time: time.Now().AddDate(0, 0, req.ExpiresInDays)},
 	}
-	patch := client.MergeFromWithOptions(user.DeepCopy(), client.MergeFromWithOptimisticLock{})
-	user.Spec.Tokens = append(user.Spec.Tokens, t)
-	if err := a.Client.Patch(c, user, patch); err != nil {
+	if err := a.Users.AddToken(c, user, t); err != nil {
 		a.fail(c, err)
 		return
 	}

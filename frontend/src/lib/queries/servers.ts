@@ -17,12 +17,15 @@ export const useServer = (server: string) =>
     enabled: server !== "",
   })
 
-/** CPU, memory, disk and uptime of a server, polled every 3 s. */
-export const useServerStats = (server: string, enabled = true) =>
+/**
+ * CPU, memory, disk and uptime of a server, polled every interval ms (the server tabs: 3 s; the dashboard asks less
+ * often, the panel keeps the values for 10 s anyway).
+ */
+export const useServerStats = (server: string, enabled = true, interval = 3000) =>
   useQuery({
     queryKey: keys.serverStats(server),
     queryFn: () => api.servers.getStats(server),
-    refetchInterval: 3000,
+    refetchInterval: interval,
     enabled,
   })
 
@@ -33,7 +36,6 @@ export const useServerDiagnostics = (server: string) =>
     queryFn: () => api.servers.getDiagnostics(server),
     staleTime: Infinity,
     gcTime: 0,
-    refetchOnWindowFocus: false,
   })
 
 /** Reloads the job list of a server: after a job was started or cancelled. */
@@ -53,7 +55,7 @@ export const useCancelJob = (server: string, cb?: MutationCallbacks<void, string
 
 // Stored from the answer; a poll still running is cancelled first, its older state would overwrite it.
 const storeServer = (qc: QueryClient, gs: GameServer) => {
-  void qc.cancelQueries({ queryKey: keys.server(gs.metadata.name) })
+  void qc.cancelQueries({ queryKey: keys.server(gs.metadata.name), exact: true })
   qc.setQueryData(keys.server(gs.metadata.name), gs)
   refresh(qc, keys.servers)
 }
@@ -97,7 +99,7 @@ export const useDeleteServer = (server: string, cb?: MutationCallbacks<void, voi
   useApiMutation(
     () => api.servers.delete(server),
     (qc) => {
-      void qc.cancelQueries({ queryKey: keys.servers })
+      void qc.cancelQueries({ queryKey: keys.servers, exact: true })
       const deletionTimestamp = new Date().toISOString()
       qc.setQueryData<GameServer[]>(keys.servers, (list) =>
         list?.map((s) => (s.metadata.name === server ? { ...s, metadata: { ...s.metadata, deletionTimestamp } } : s)),

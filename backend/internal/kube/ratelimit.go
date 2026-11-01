@@ -30,6 +30,7 @@ type RateLimiter struct {
 	mu      sync.Mutex
 	userQPS int
 	users   map[string]*user
+	swept   time.Time
 }
 
 // user is the limit and the request count of one user.
@@ -99,15 +100,32 @@ func (r *RateLimiter) PanelRate() Rate {
 	return Rate{Rate: r.calls.rate(time.Now()), Limit: int(r.l.Limit())}
 }
 
+// sweepEvery is how often users that are idle again are forgotten.
+const sweepEvery = time.Minute
+
 func (r *RateLimiter) user(name string) *user {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if now := time.Now(); now.Sub(r.swept) >= sweepEvery {
+		r.swept = now
+		r.sweep(now)
+	}
 	u, ok := r.users[name]
 	if !ok {
 		u = &user{l: rate.NewLimiter(rate.Limit(r.userQPS), 2*r.userQPS)}
 		r.users[name] = u
 	}
 	return u
+}
+
+// sweep drops the users whose bucket is full again and who sent nothing over the averaged seconds: a new entry
+// would look the same. Guarded by mu.
+func (r *RateLimiter) sweep(now time.Time) {
+	for name, u := range r.users {
+		if u.l.TokensAt(now) >= float64(u.l.Burst()) && u.requests.idle(now) {
+			delete(r.users, name)
+		}
+	}
 }
 
 // delay is how long a new request would wait for its token.
@@ -151,6 +169,19 @@ func (m *meter) rate(now time.Time) float64 {
 		}
 	}
 	return float64(n) / meterSeconds
+}
+
+// idle reports whether nothing was counted in the averaged seconds and the current one.
+func (m *meter) idle(now time.Time) bool {
+	sec := now.Unix()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.slots {
+		if s.n > 0 && s.sec >= sec-meterSeconds {
+			return false
+		}
+	}
+	return true
 }
 
 // The methods below implement flowcontrol.RateLimiter; every call is counted for PanelRate.

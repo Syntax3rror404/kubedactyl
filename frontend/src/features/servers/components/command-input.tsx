@@ -4,8 +4,9 @@ import { toast } from "sonner"
 
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 
-/** Console command line with a history (arrow up / down). */
-export function CommandInput({ disabled, onSend }: { disabled: boolean; onSend: (cmd: string) => boolean }) {
+/** Console command line with a history (arrow up / down); `blocked` turns it off and says why. */
+export function CommandInput({ blocked, onSend }: { blocked?: string; onSend: (cmd: string) => boolean }) {
+  const disabled = blocked !== undefined
   const [value, setValue] = useState("")
   const history = useRef<string[]>([])
   const index = useRef(-1)
@@ -31,7 +32,7 @@ export function CommandInput({ disabled, onSend }: { disabled: boolean; onSend: 
         <InputGroupInput
           value={value}
           disabled={disabled}
-          placeholder={disabled ? "Server is offline" : "Type a command…"}
+          placeholder={blocked ?? "Type a command…"}
           className="font-mono text-sm"
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {

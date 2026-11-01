@@ -50,3 +50,42 @@ func TestForeignFilesPod(t *testing.T) {
 		}
 	}
 }
+
+// TestTrimJobs: only finished jobs are dropped, so a running backup still makes the server busy.
+func TestTrimJobs(t *testing.T) {
+	s := &Service{Activity: NewActivity()}
+	ref := Ref{Namespace: "ns", Name: "srv"}
+	if _, err := s.add(ref, JobBackup, "backup"); err != nil {
+		t.Fatal(err)
+	}
+	for range keptJobs + 5 {
+		j, err := s.add(ref, JobCompress, "archive")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.finish(j, nil)
+	}
+	if n := len(s.Jobs(ref)); n != keptJobs {
+		t.Errorf("%d jobs kept, want %d", n, keptJobs)
+	}
+	if !s.Busy(ref, JobBackup) {
+		t.Error("the running backup was dropped")
+	}
+	if _, err := s.add(ref, JobRestore, "restore"); !errors.Is(err, ErrBusy) {
+		t.Errorf("restore during a backup: %v", err)
+	}
+}
+
+// TestForget: a deleted server leaves no jobs and no file activity behind.
+func TestForget(t *testing.T) {
+	s := &Service{Activity: NewActivity()}
+	ref := Ref{Namespace: "ns", Name: "srv"}
+	if _, err := s.add(ref, JobBackup, "backup"); err != nil {
+		t.Fatal(err)
+	}
+	s.Activity.Touch(ref)
+	s.Forget(ref)
+	if len(s.Jobs(ref)) != 0 || s.Busy(ref, JobBackup) || s.Activity.Active(ref) {
+		t.Error("the server is still known")
+	}
+}

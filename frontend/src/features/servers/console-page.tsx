@@ -22,7 +22,11 @@ export function ConsolePage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
-      <ConsoleWindow title={`${name} console`} console={console_} canSend={active && access !== "view"} />
+      <ConsoleWindow
+        title={`${name} console`}
+        console={console_}
+        blocked={access === "view" ? "Read-only access" : active ? undefined : "Server is offline"}
+      />
       <StatsPanel server={server} />
       {egg && access === "full" && <EggFeatures server={server} egg={egg} subscribe={console_.subscribe} />}
     </div>

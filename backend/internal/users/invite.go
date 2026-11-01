@@ -19,7 +19,11 @@ import (
 	"app/internal/validation"
 )
 
-var inviteResource = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "invites"}
+// UserResource and inviteResource name the resources in not found errors.
+var (
+	UserResource   = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "users"}
+	inviteResource = schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "invites"}
+)
 
 // InviteLifetime is how long an invite link works.
 const InviteLifetime = 7 * 24 * time.Hour
@@ -103,7 +107,7 @@ func (s *Store) resetTarget(ctx context.Context, name, owner string) (*v1alpha1.
 	u := &v1alpha1.User{}
 	err := s.Reader.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: name}, u)
 	if err == nil && owner != "" && u.Spec.Owner != owner {
-		err = apierrors.NewNotFound(schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "users"}, name)
+		err = apierrors.NewNotFound(UserResource, name)
 	}
 	if err != nil {
 		return nil, err
@@ -162,14 +166,15 @@ func (s *Store) ListInvites(ctx context.Context, owner string) ([]v1alpha1.Invit
 }
 
 // RenewInvite gives an invite a new link, valid for the full lifetime again; the old link stops working. Expired
-// invites can be renewed, too. With an owner only an invite for its subusers is found.
+// invites can be renewed, too. With an owner only an invite for its subusers is found. It fails when the invite
+// changed or was used meanwhile.
 func (s *Store) RenewInvite(ctx context.Context, id, owner string) (*v1alpha1.Invite, string, error) {
 	invite, err := s.getInvite(ctx, id, owner)
 	if err != nil {
 		return nil, "", err
 	}
 	token, hash := auth.NewInviteToken(id)
-	patch := client.MergeFrom(invite.DeepCopy())
+	patch := client.MergeFromWithOptions(invite.DeepCopy(), client.MergeFromWithOptimisticLock{})
 	invite.Spec.Hash = hash
 	invite.Spec.ExpiresAt = metav1.NewTime(time.Now().Add(InviteLifetime))
 	if err := s.Client.Patch(ctx, invite, patch); err != nil {
@@ -218,46 +223,60 @@ func (s *Store) FindInvite(ctx context.Context, token string) (*v1alpha1.Invite,
 	return invite, nil
 }
 
-// AcceptInvite creates the account of an invite link and removes the invite, so the link works once.
-func (s *Store) AcceptInvite(ctx context.Context, token string, in AcceptInput) (*v1alpha1.User, error) {
+// AcceptInvite creates the account of an invite link and removes the invite, so the link works once. It returns
+// the account and the invite.
+//  1. Account: created (or, for a reset link, given the new password).
+//  2. Invite: deleted once the account exists, so the link is spent even when sharing fails.
+//  3. Shares: the servers listed in the invite.
+func (s *Store) AcceptInvite(
+	ctx context.Context, token string, in AcceptInput,
+) (*v1alpha1.User, *v1alpha1.Invite, error) {
 	// Two requests with the same link must not both create an account: the second one finds no invite.
 	s.inviteUses.Lock()
 	defer s.inviteUses.Unlock()
 	invite, err := s.FindInvite(ctx, token)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if invite.Spec.Username != "" {
 		in.Username = invite.Spec.Username
 	}
 	if invite.Spec.Reset {
-		return s.resetPassword(ctx, invite, in.Password)
+		u, err := s.resetPassword(ctx, invite, in.Password)
+		return u, invite, err
 	}
+	// 1. Account
 	owner, err := s.inviteOwner(ctx, invite)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	u, err := s.createFor(ctx, CreateInput{
 		Username: in.Username, Password: in.Password, DisplayName: in.DisplayName, Role: invite.Spec.Role,
 	}, owner)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if err := s.share(ctx, invite, u.Name); err != nil {
-		return nil, err
-	}
+	// 2. Invite
 	if err := s.Client.Delete(ctx, invite, client.Preconditions{UID: &invite.UID}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return u, nil
+	// 3. Shares
+	return u, invite, s.share(ctx, invite, u.Name)
 }
 
 // resetPassword sets the password of a reset link's account and removes the link. Like a reset by an administrator,
-// it ends every session and API token of the account.
+// it ends every session and API token of the account. Accounts linked to the identity provider, disabled ones
+// and those being deleted make the link invalid.
 func (s *Store) resetPassword(ctx context.Context, invite *v1alpha1.Invite, password string) (*v1alpha1.User, error) {
 	u := &v1alpha1.User{}
 	err := s.Reader.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: invite.Spec.Username}, u)
-	if apierrors.IsNotFound(err) {
+	if err == nil && u.Spec.OIDC != nil {
+		return nil, ErrInvalidInvite
+	}
+	if err == nil {
+		err = s.CheckActive(ctx, u)
+	}
+	if apierrors.IsNotFound(err) || errors.Is(err, ErrDisabled) {
 		return nil, ErrInvalidInvite
 	}
 	if err != nil {
@@ -274,4 +293,23 @@ func (s *Store) resetPassword(ctx context.Context, invite *v1alpha1.Invite, pass
 		return nil, err
 	}
 	return u, s.Client.Delete(ctx, invite, client.Preconditions{UID: &invite.UID})
+}
+
+// deleteResetLinks deletes the reset links of an account (it was linked to the identity provider).
+func (s *Store) deleteResetLinks(ctx context.Context, user string) error {
+	var list v1alpha1.InviteList
+	if err := s.Reader.List(ctx, &list, client.InNamespace(s.Namespace)); err != nil {
+		return err
+	}
+	for i := range list.Items {
+		invite := &list.Items[i]
+		if !invite.Spec.Reset || invite.Spec.Username != user {
+			continue
+		}
+		err := s.Client.Delete(ctx, invite, client.Preconditions{UID: &invite.UID})
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
 }
