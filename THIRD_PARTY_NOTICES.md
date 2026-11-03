@@ -456,7 +456,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | go.mongodb.org/mongo-driver/v2 | v2.5.0 | Apache-2.0 |
 | go.opentelemetry.io/proto/otlp | v1.11.0 | Apache-2.0 |
 | go.yaml.in/yaml/v2 | v2.4.4 | Apache-2.0 AND MIT |
-| go.yaml.in/yaml/v3 | v3.0.5 | Apache-2.0 AND MIT |
+| go.yaml.in/yaml/v3 | v3.0.6 | Apache-2.0 AND MIT |
 | golang.org/x/crypto | v0.58.0 | BSD-3-Clause |
 | golang.org/x/mod | v0.42.0 | BSD-3-Clause |
 | golang.org/x/net | v0.62.0 | BSD-3-Clause |
@@ -612,11 +612,11 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @radix-ui/react-use-previous | 1.1.4 | MIT |
 | @radix-ui/react-use-size | 1.1.5 | MIT |
 | @radix-ui/react-visually-hidden | 1.2.13 | MIT |
-| @reduxjs/toolkit | 2.13.0 | MIT |
+| @reduxjs/toolkit | 2.14.0 | MIT |
 | @remix-run/route-pattern | 0.22.1 | MIT |
-| @tailwindcss/vite | 4.3.3 | MIT |
-| @tanstack/query-core | 5.105.0 | MIT |
-| @tanstack/react-query | 5.105.0 | MIT |
+| @tailwindcss/vite | 4.3.4 | MIT |
+| @tanstack/query-core | 5.105.3 | MIT |
+| @tanstack/react-query | 5.105.3 | MIT |
 | @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT |
 | @uiw/react-codemirror | 4.25.12 | MIT |
 | @ungap/structured-clone | 1.4.0 | ISC |
@@ -628,20 +628,20 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | ccount | 2.0.1 | MIT |
 | class-variance-authority | 0.7.1 | Apache-2.0 |
 | clsx | 2.1.1 | MIT |
-| cn | 0.5.1 | MIT |
+| cn | 0.5.2 | MIT |
 | comma-separated-tokens | 2.0.3 | MIT |
 | cookie-es | 3.1.1 | MIT |
 | crelt | 1.0.7 | MIT |
 | cronstrue | 3.38.0 | MIT |
-| d3-array | 3.2.4 | ISC |
-| d3-color | 3.1.0 | ISC |
-| d3-format | 3.1.2 | ISC |
-| d3-interpolate | 3.0.1 | ISC |
-| d3-path | 3.1.0 | ISC |
-| d3-scale | 4.0.2 | ISC |
-| d3-shape | 3.2.0 | ISC |
-| d3-time | 3.1.0 | ISC |
-| d3-time-format | 4.1.0 | ISC |
+| d3-array | 3.2.5 | ISC |
+| d3-color | 3.1.1 | ISC |
+| d3-format | 3.1.3 | ISC |
+| d3-interpolate | 3.0.2 | ISC |
+| d3-path | 3.1.1 | ISC |
+| d3-scale | 4.0.3 | ISC |
+| d3-shape | 3.2.1 | ISC |
+| d3-time | 3.1.1 | ISC |
+| d3-time-format | 4.1.1 | ISC |
 | decimal.js-light | 2.5.1 | MIT |
 | decode-named-character-reference | 1.3.0 | MIT |
 | detect-node-es | 1.1.0 | MIT |
@@ -651,7 +651,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | estree-util-is-identifier-name | 3.0.0 | MIT |
 | eventemitter3 | 5.0.4 | MIT |
 | extend | 3.0.2 | MIT |
-| file-selector | 5.0.1 | MIT |
+| file-selector | 5.0.2 | MIT |
 | framer-motion | 14.9.0 | MIT |
 | get-nonce | 1.0.1 | MIT |
 | hast-util-to-jsx-runtime | 2.3.7 | MIT |
@@ -663,7 +663,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | internmap | 2.0.3 | ISC |
 | is-plain-obj | 4.1.0 | MIT |
 | longest-streak | 3.1.0 | MIT |
-| lucide-react | 1.65.0 | ISC |
+| lucide-react | 1.67.0 | ISC |
 | markdown-table | 3.0.4 | MIT |
 | mdast-util-find-and-replace | 3.0.4 | MIT |
 | mdast-util-from-markdown | 2.1.0 | MIT |
@@ -675,7 +675,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | mdast-util-gfm-task-list-item | 2.0.0 | MIT |
 | mdast-util-phrasing | 4.1.0 | MIT |
 | mdast-util-to-hast | 13.2.1 | MIT |
-| mdast-util-to-markdown | 2.2.1 | MIT |
+| mdast-util-to-markdown | 2.2.2 | MIT |
 | mdast-util-to-string | 4.0.0 | MIT |
 | micromark | 4.0.3 | MIT |
 | micromark-core-commonmark | 2.0.4 | MIT |
@@ -735,11 +735,11 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | space-separated-tokens | 2.0.2 | MIT |
 | style-mod | 4.1.4 | MIT |
 | style-to-object | 2.0.2 | MIT |
-| tailwindcss | 4.3.3 | MIT |
+| tailwindcss | 4.3.4 | MIT |
 | tiny-invariant | 1.3.3 | MIT |
 | trim-lines | 3.0.1 | MIT |
 | trough | 2.2.0 | MIT |
-| tslib | 2.8.1 | 0BSD |
+| tslib | 2.9.1 | 0BSD |
 | tw-animate-css | 1.4.0 | MIT |
 | unified | 11.0.5 | MIT |
 | unist-util-is | 6.0.1 | MIT |
