@@ -94,7 +94,7 @@ with the permissions the panel needs, split so a compromised panel cannot reach 
 
 The Deployment runs a single replica (non-root, read-only root filesystem, probes on
 `/api/health`). With Docker the image can also be built from the `Dockerfile`
-(Node → Go → Alpine 3.24.3 as non-root user 65532, the frontend is embedded):
+(Node → Go → Alpine 3.24.4 as non-root user 65532, the frontend is embedded):
 
 ```bash
 docker build --build-arg VERSION=$(cat VERSION) -t ghcr.io/syntax3rror404/kubedactyl:$(cat VERSION) .
@@ -118,7 +118,7 @@ Flags or environment variables:
 | `--namespace` | `KUBEDACTYL_NAMESPACE` | `kubedactyl` | panel namespace (eggs, users, settings); game servers run in `<namespace>-user-<user>` |
 | `--storage-class` | `STORAGE_CLASS` | `longhorn` | StorageClass enabled in the panel settings on the first start |
 | `--lb-pool` | `LB_POOL` | `general` | pool enabled on the first start (pool name or its `lb.cilium.io/pool` label value) |
-| `--helper-image` | `HELPER_IMAGE` | `alpine:3.24.3` | image of the file helper and hardware probe pods |
+| `--helper-image` | `HELPER_IMAGE` | `alpine:3.24.4` | image of the file helper and hardware probe pods |
 | `--docker-interface` | `DOCKER_INTERFACE` | `127.0.0.1` | value of `{{config.docker.interface}}` in egg config files |
 | `--timezone` | `TZ` | `UTC` | `TZ` passed to game servers |
 | `--listen` | `PORT` | `:8080` | HTTP listen address |

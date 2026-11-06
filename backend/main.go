@@ -152,7 +152,7 @@ func parseFlags() config {
 	)
 	// Same tag as the image base (Dockerfile, scripts/imagebuild) and the chart's panel.helperImage.
 	flag.StringVar(
-		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.3"),
+		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.4"),
 		"image of the file helper and hardware probe pods",
 	)
 	flag.StringVar(

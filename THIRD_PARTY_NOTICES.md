@@ -12,7 +12,7 @@ contains it as `/usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md`.
 
 ## Container image: Alpine Linux
 
-The image `ghcr.io/syntax3rror404/kubedactyl` is based on the unmodified `alpine:3.24.3` image. Its packages
+The image `ghcr.io/syntax3rror404/kubedactyl` is based on the unmodified `alpine:3.24.4` image. Its packages
 (musl, BusyBox, apk-tools, ca-certificates, …) keep their own licenses, among them GPL-2.0 (BusyBox). Their
 sources are published by Alpine Linux: https://gitlab.alpinelinux.org/alpine/aports (branch `3.24-stable`) and
 the source archives referenced there.
@@ -498,7 +498,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 
 | Package | Version | License |
 | --- | --- | --- |
-| @babel/runtime | 7.29.10 | MIT |
+| @babel/runtime | 7.29.13 | MIT |
 | @codemirror/autocomplete | 6.20.4 | MIT |
 | @codemirror/commands | 6.11.1 | MIT |
 | @codemirror/lang-angular | 0.1.4 | MIT |
@@ -614,9 +614,9 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @radix-ui/react-visually-hidden | 1.2.13 | MIT |
 | @reduxjs/toolkit | 2.14.0 | MIT |
 | @remix-run/route-pattern | 0.22.1 | MIT |
-| @tailwindcss/vite | 4.3.4 | MIT |
-| @tanstack/query-core | 5.105.3 | MIT |
-| @tanstack/react-query | 5.105.3 | MIT |
+| @tailwindcss/vite | 4.3.5 | MIT |
+| @tanstack/query-core | 5.107.0 | MIT |
+| @tanstack/react-query | 5.107.0 | MIT |
 | @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT |
 | @uiw/react-codemirror | 4.25.12 | MIT |
 | @ungap/structured-clone | 1.4.0 | ISC |
@@ -646,13 +646,13 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | decode-named-character-reference | 1.3.0 | MIT |
 | detect-node-es | 1.1.0 | MIT |
 | devlop | 1.1.0 | MIT |
-| es-toolkit | 1.53.1 | MIT |
+| es-toolkit | 1.53.2 | MIT |
 | escape-string-regexp | 5.0.0 | MIT |
 | estree-util-is-identifier-name | 3.0.0 | MIT |
 | eventemitter3 | 5.0.4 | MIT |
 | extend | 3.0.2 | MIT |
 | file-selector | 5.0.2 | MIT |
-| framer-motion | 14.9.0 | MIT |
+| framer-motion | 14.10.1 | MIT |
 | get-nonce | 1.0.1 | MIT |
 | hast-util-to-jsx-runtime | 2.3.7 | MIT |
 | hast-util-whitespace | 3.0.0 | MIT |
@@ -663,19 +663,19 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | internmap | 2.0.3 | ISC |
 | is-plain-obj | 4.1.0 | MIT |
 | longest-streak | 3.1.0 | MIT |
-| lucide-react | 1.67.0 | ISC |
-| markdown-table | 3.0.4 | MIT |
+| lucide-react | 1.70.0 | ISC |
+| markdown-table | 3.1.0 | MIT |
 | mdast-util-find-and-replace | 3.0.4 | MIT |
 | mdast-util-from-markdown | 2.1.0 | MIT |
 | mdast-util-gfm | 3.1.0 | MIT |
-| mdast-util-gfm-autolink-literal | 2.0.1 | MIT |
+| mdast-util-gfm-autolink-literal | 2.1.0 | MIT |
 | mdast-util-gfm-footnote | 2.1.0 | MIT |
 | mdast-util-gfm-strikethrough | 2.0.1 | MIT |
-| mdast-util-gfm-table | 2.0.0 | MIT |
-| mdast-util-gfm-task-list-item | 2.0.0 | MIT |
+| mdast-util-gfm-table | 2.0.1 | MIT |
+| mdast-util-gfm-task-list-item | 2.0.1 | MIT |
 | mdast-util-phrasing | 4.1.0 | MIT |
 | mdast-util-to-hast | 13.2.1 | MIT |
-| mdast-util-to-markdown | 2.2.2 | MIT |
+| mdast-util-to-markdown | 2.2.3 | MIT |
 | mdast-util-to-string | 4.0.0 | MIT |
 | micromark | 4.0.3 | MIT |
 | micromark-core-commonmark | 2.0.4 | MIT |
@@ -704,8 +704,8 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | micromark-util-resolve-all | 2.0.1 | MIT |
 | micromark-util-sanitize-uri | 2.0.1 | MIT |
 | micromark-util-subtokenize | 2.1.0 | MIT |
-| motion | 14.9.0 | MIT |
-| motion-dom | 14.9.0 | MIT |
+| motion | 14.10.1 | MIT |
+| motion-dom | 14.10.1 | MIT |
 | motion-utils | 14.7.0 | MIT |
 | next-themes | 0.4.6 | MIT |
 | property-information | 7.2.0 | MIT |
@@ -735,7 +735,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | space-separated-tokens | 2.0.2 | MIT |
 | style-mod | 4.1.4 | MIT |
 | style-to-object | 2.0.2 | MIT |
-| tailwindcss | 4.3.4 | MIT |
+| tailwindcss | 4.3.5 | MIT |
 | tiny-invariant | 1.3.3 | MIT |
 | trim-lines | 3.0.1 | MIT |
 | trough | 2.2.0 | MIT |
@@ -752,9 +752,9 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | use-sidecar | 1.1.3 | MIT |
 | use-sync-external-store | 1.7.0 | MIT |
 | vfile | 6.0.3 | MIT |
-| vfile-message | 4.0.3 | MIT |
+| vfile-message | 4.0.4 | MIT |
 | victory-vendor | 37.4.1 | MIT AND ISC AND BSD-3-Clause |
-| vite | 8.3.5 | MIT |
+| vite | 8.3.6 | MIT |
 | w3c-keyname | 2.2.8 | MIT |
 | zwitch | 2.0.4 | MIT |
 

@@ -30,7 +30,7 @@ func main() {
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
 	// Same tag as the Dockerfile, the --helper-image default (backend/main.go) and charts/kubedactyl/values.yaml.
-	base := fs.String("base", "alpine:3.24.3", "base image")
+	base := fs.String("base", "alpine:3.24.4", "base image")
 	bin := fs.String("bin", "", "linux/amd64 binary")
 	tag := fs.String("tag", "", "image reference")
 	out := fs.String("out", "image.tar", "output tarball")

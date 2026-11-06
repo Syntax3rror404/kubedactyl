@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.appVersion=${VERSIO
 
 # Alpine (not Debian): small, ships the CA bundle for HTTPS (egg import from URLs). Same tag as the helper image in
 # backend/main.go, scripts/imagebuild/main.go and charts/kubedactyl/values.yaml.
-FROM alpine:3.24.3
+FROM alpine:3.24.4
 RUN addgroup -S -g 65532 kubedactyl && adduser -S -D -H -u 65532 -G kubedactyl kubedactyl
 COPY --from=backend /out/kubedactyl /kubedactyl
 COPY --from=backend /src/backend/web/dist/third-party-licenses.md /usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md

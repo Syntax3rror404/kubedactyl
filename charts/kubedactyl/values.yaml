@@ -25,7 +25,7 @@ panel:
   loadBalancerPool: general
   # Image of the file manager and hardware probe pods (must be reachable by the nodes). Same tag as
   # the panel image base (Dockerfile, scripts/imagebuild) and the --helper-image default.
-  helperImage: alpine:3.24.3
+  helperImage: alpine:3.24.4
   timezone: UTC
   dockerInterface: 127.0.0.1
   # IPs/CIDRs of reverse proxies whose X-Forwarded-For is trusted, so login throttling sees the

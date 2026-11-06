@@ -40,7 +40,7 @@ func TestAttachIntegration(t *testing.T) {
 		Spec: corev1.PodSpec{
 			RestartPolicy: corev1.RestartPolicyNever,
 			Containers: []corev1.Container{{
-				Name: "server", Image: "alpine:3.24.3", Command: []string{"sh", "-c", script},
+				Name: "server", Image: "alpine:3.24.4", Command: []string{"sh", "-c", script},
 				Stdin: true, TTY: true,
 			}},
 		},
