@@ -236,7 +236,6 @@ export const api = {
     update: (server: string, body: UpdateServerRequest) => request<GameServer>("PATCH", srv(server), body),
     delete: (server: string) => request<void>("DELETE", srv(server)),
     sendPower: (server: string, signal: PowerSignal) => request<void>("POST", `${srv(server)}/power`, { signal }),
-    sendCommand: (server: string, command: string) => request<void>("POST", `${srv(server)}/command`, { command }),
     reinstall: (server: string) => request<void>("POST", `${srv(server)}/reinstall`),
     suspend: (server: string, suspended: boolean) =>
       request<GameServer>("POST", `${srv(server)}/suspend`, { suspended }),
