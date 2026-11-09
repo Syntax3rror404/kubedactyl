@@ -1,9 +1,10 @@
 import { ExternalLinkIcon } from "lucide-react"
 
-import { AlertDialogAction } from "@/components/ui/alert-dialog"
+import { buttonVariants } from "@/components/ui/button"
 import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
 import type { GameServer } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 // The device login URL printed by the Hytale downloader.
 const hytalePattern = [/https:\/\/oauth\.accounts\.hytale\.com\/oauth2\/device\/verify\?user_code=\S+/i]
@@ -27,12 +28,10 @@ export function HytaleLoginPrompt({
       title="Authentication required"
       description="Log in with your Hytale account so the server can download or update its files."
       action={
-        <AlertDialogAction asChild>
-          <a href={url} target="_blank" rel="noopener noreferrer" onClick={dismiss}>
-            <ExternalLinkIcon />
-            Log in
-          </a>
-        </AlertDialogAction>
+        <a href={url} target="_blank" rel="noopener noreferrer" onClick={dismiss} className={cn(buttonVariants())}>
+          <ExternalLinkIcon />
+          Log in
+        </a>
       }
     />
   )

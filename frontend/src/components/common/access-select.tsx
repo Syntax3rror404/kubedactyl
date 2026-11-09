@@ -21,7 +21,7 @@ export function AccessSelect({
   label: string
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as AccessChoice)}>
+    <Select items={choices} value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger className="w-32" aria-label={label}>
         <SelectValue />
       </SelectTrigger>

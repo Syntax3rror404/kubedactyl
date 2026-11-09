@@ -9,7 +9,7 @@ import { QueryState } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -22,6 +22,7 @@ import { plural } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useEgg, useServers, useUpdateEgg } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { fieldErrors } from "@/lib/validation"
 
 /** /eggs/:egg/edit (admins): the egg editor as tabs. */
@@ -70,9 +71,9 @@ function EggEditor({ egg }: { egg: Egg }) {
         description="Changes apply at the next start, the install script at the next reinstall."
         actions={
           <>
-            <Button variant="ghost" asChild>
-              <Link to={`/eggs/${name}`}>Cancel</Link>
-            </Button>
+            <Link to={`/eggs/${name}`} className={cn(buttonVariants({ variant: "ghost" }))}>
+              Cancel
+            </Link>
             <Button disabled={!dirty || save.isPending} onClick={() => save.mutate(draft)}>
               {save.isPending ? <Spinner /> : <SaveIcon />}
               Save changes

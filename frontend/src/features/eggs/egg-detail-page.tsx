@@ -4,8 +4,9 @@ import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
+import { DropdownMenuLink } from "@/components/common/dropdown-menu-link"
 import { QueryState } from "@/components/common/query-state"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ import { formatRelativeTime } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useDeleteEgg, useEgg, useUpdateEggFromUrl } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 /** /eggs/:egg (admins): the egg tabs plus edit, export, duplicate, update and delete. */
 export function EggDetailPage() {
@@ -61,18 +63,14 @@ function EggDetail({ egg }: { egg: Egg }) {
         actions={
           <>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="More actions">
-                  <EllipsisIcon />
-                </Button>
+              <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
+                <EllipsisIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link to={`/eggs/new?from=${name}`}>
-                    <CopyPlusIcon />
-                    Duplicate
-                  </Link>
-                </DropdownMenuItem>
+                <DropdownMenuLink render={<Link to={`/eggs/new?from=${name}`} />}>
+                  <CopyPlusIcon />
+                  Duplicate
+                </DropdownMenuLink>
                 <DropdownMenuItem
                   disabled={!s.source?.updateUrl || update.isPending}
                   onClick={() => setDialog({ kind: "update" })}
@@ -88,18 +86,14 @@ function EggDetail({ egg }: { egg: Egg }) {
               </DropdownMenuContent>
             </DropdownMenu>
             <EggExportDialog name={name} />
-            <Button variant="outline" asChild>
-              <Link to={`/eggs/${name}/edit`}>
-                <PencilIcon />
-                Edit
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to={`/servers/new?egg=${name}`}>
-                <PlusIcon />
-                Create server
-              </Link>
-            </Button>
+            <Link to={`/eggs/${name}/edit`} className={cn(buttonVariants({ variant: "outline" }))}>
+              <PencilIcon />
+              Edit
+            </Link>
+            <Link to={`/servers/new?egg=${name}`} className={cn(buttonVariants())}>
+              <PlusIcon />
+              Create server
+            </Link>
           </>
         }
       >

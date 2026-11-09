@@ -34,8 +34,9 @@ export function ScheduleSteps({
             <span className="pt-2 text-sm">{actionLabels.command}</span>
           ) : (
             <Select
+              items={actionLabels}
               value={t.action}
-              onValueChange={(action) => setTask(i, { action: action as ScheduleAction, payload: "" })}
+              onValueChange={(action) => action && setTask(i, { action, payload: "" })}
             >
               <SelectTrigger className="w-full" aria-label="Action">
                 <SelectValue />

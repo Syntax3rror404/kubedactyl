@@ -25,7 +25,8 @@ const presets = [7, 30, 90, 365]
 const MAX_TOKEN_NAME = 64
 
 /** Lifetimes a new token can have: the presets below the panel's limit, plus the limit itself. */
-const lifetimeOptions = (max: number) => [...presets.filter((d) => d < max), max]
+const lifetimeOptions = (max: number) =>
+  [...presets.filter((d) => d < max), max].map((d) => ({ value: String(d), label: dayLabel(d) }))
 const dayLabel = (days: number) => (days % 365 === 0 ? plural(days / 365, "year") : plural(days, "day"))
 
 /** Create and revoke API tokens (kdt_…) for scripts. */
@@ -34,6 +35,7 @@ export function TokensCard() {
   const maxDays = useSettings().data?.apiTokenMaxDays ?? 90
   const { draft, set, reset } = useDraft({ name: "", days: "" })
   const days = draft.days || String(Math.min(90, maxDays))
+  const lifetimes = lifetimeOptions(maxDays)
   const [created, setCreated] = useState<CreatedToken | null>(null)
   const create = useCreateToken({
     onSuccess: (t) => {
@@ -71,7 +73,7 @@ export function TokensCard() {
             onChange={(e) => set("name", e.target.value)}
             aria-invalid={errors.name ? true : undefined}
           />
-          <Select value={days} onValueChange={(v) => set("days", v)}>
+          <Select items={lifetimes} value={days} onValueChange={(v) => v && set("days", v)}>
             <SelectTrigger
               className="sm:w-40"
               aria-label="Lifetime"
@@ -80,9 +82,9 @@ export function TokensCard() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {lifetimeOptions(maxDays).map((d) => (
-                <SelectItem key={d} value={String(d)}>
-                  {dayLabel(d)}
+              {lifetimes.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -60,7 +60,14 @@ function LimitField({
       error={error}
     >
       {(control) => (
-        <Slider {...control} value={[value]} min={min} max={max} step={step} onValueChange={(v) => onChange(v[0])} />
+        <Slider
+          {...control}
+          value={[value]}
+          min={min}
+          max={max}
+          step={step}
+          onValueChange={(v) => onChange(typeof v === "number" ? v : v[0])}
+        />
       )}
     </SettingsField>
   )

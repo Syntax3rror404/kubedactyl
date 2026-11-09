@@ -89,7 +89,7 @@ export function ScheduleDialog({
             {isTask ? (
               <Field>
                 <FieldLabel htmlFor="task-event">When</FieldLabel>
-                <Select value={s.event} onValueChange={(event) => set("event", event as ScheduleEvent)}>
+                <Select items={eventLabels} value={s.event} onValueChange={(event) => event && set("event", event)}>
                   <SelectTrigger id="task-event" className="w-full">
                     <SelectValue />
                   </SelectTrigger>

@@ -4,11 +4,12 @@ import { Link, useSearchParams } from "react-router"
 
 import { EmptyState, QueryState } from "@/components/common/query-state"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ServerForm } from "@/features/servers/components/server-form"
 import { useSharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
 import { useEggs } from "@/lib/queries"
+import { cn } from "@/lib/utils"
 
 /** /servers/new (admins): create a server from an egg. */
 export function ServerNewPage() {
@@ -32,9 +33,9 @@ export function ServerNewPage() {
             title="Import an egg first"
             description="Servers are created from eggs (Pterodactyl / Pelican templates)."
           >
-            <Button asChild>
-              <Link to="/eggs">Go to eggs</Link>
-            </Button>
+            <Link to="/eggs" className={cn(buttonVariants())}>
+              Go to eggs
+            </Link>
           </EmptyState>
         }
       >

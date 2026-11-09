@@ -103,9 +103,7 @@ function PoolRow({
           checkbox
         ) : (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span>{checkbox}</span>
-            </TooltipTrigger>
+            <TooltipTrigger render={<span />}>{checkbox}</TooltipTrigger>
             <TooltipContent>{p.reason}</TooltipContent>
           </Tooltip>
         )}
@@ -119,10 +117,8 @@ function PoolRow({
         {ipv6Missing && usage.some((u) => u.family === "IPv6") && (
           <div className="mt-1">
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="border-amber-500/40 text-amber-500">
-                  IPv6 not available in cluster
-                </Badge>
+              <TooltipTrigger render={<Badge variant="outline" className="border-amber-500/40 text-amber-500" />}>
+                IPv6 not available in cluster
               </TooltipTrigger>
               <TooltipContent>{ipv6Missing}</TooltipContent>
             </Tooltip>

@@ -12,7 +12,7 @@ export function ScrollableTabsList({ className, ...props }: ComponentProps<typeo
   const shown = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const bar = ref.current
-    const active = bar?.querySelector<HTMLElement>("[data-state=active],[data-active]") ?? null
+    const active = bar?.querySelector<HTMLElement>("[data-active]") ?? null
     if (!bar || !active || active === shown.current) return
     shown.current = active
     bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.clientWidth) / 2

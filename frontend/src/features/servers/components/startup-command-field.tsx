@@ -20,7 +20,12 @@ export function StartupCommandField({
 }) {
   const picked = pickedCommand(egg, value)
   const custom = value.startup !== ""
-  const pick = (name: string) =>
+  const commands = [
+    ...(egg?.startupCommands ?? []).map((c) => ({ value: c.name, label: c.name })),
+    ...(isAdmin || custom ? [{ value: "custom", label: "Custom startup" }] : []),
+  ]
+  const pick = (name: string | null) =>
+    name &&
     onChange(
       name === "custom"
         ? { ...value, startup: value.startup || picked?.command || "" }
@@ -28,17 +33,21 @@ export function StartupCommandField({
     )
   return (
     <div className="space-y-3">
-      <Select value={custom ? "custom" : picked?.name} onValueChange={pick} disabled={!isAdmin && custom}>
+      <Select
+        items={commands}
+        value={custom ? "custom" : (picked?.name ?? "")}
+        onValueChange={pick}
+        disabled={!isAdmin && custom}
+      >
         <SelectTrigger className="w-full" aria-label="Startup command">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {egg?.startupCommands?.map((c) => (
-            <SelectItem key={c.name} value={c.name}>
-              {c.name}
+          {commands.map((c) => (
+            <SelectItem key={c.value} value={c.value}>
+              {c.label}
             </SelectItem>
           ))}
-          {(isAdmin || custom) && <SelectItem value="custom">Custom startup</SelectItem>}
         </SelectContent>
       </Select>
       <Textarea

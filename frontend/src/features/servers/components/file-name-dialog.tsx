@@ -34,7 +34,7 @@ export function FileNameDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       {/* The next dialog (e.g. the editor after "New file") may open right away; returning the focus
           to the trigger would count as a click outside it and close it again. */}
-      <DialogContent className="sm:max-w-md" onCloseAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-md" finalFocus={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{label}</DialogDescription>

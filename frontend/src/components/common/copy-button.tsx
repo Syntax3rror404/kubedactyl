@@ -15,31 +15,33 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
   }, [result])
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            // The clipboard API exists only on HTTPS pages (and localhost).
-            if (!navigator.clipboard) return setResult("failed")
-            navigator.clipboard.writeText(value).then(
-              () => setResult("copied"),
-              () => setResult("failed"),
-            )
-          }}
-        >
-          {result === "copied" ? (
-            <CheckIcon className="text-emerald-500" />
-          ) : result === "failed" ? (
-            <XIcon className="text-destructive" />
-          ) : (
-            <CopyIcon />
-          )}
-          <span className="sr-only">{label}</span>
-        </Button>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              // The clipboard API exists only on HTTPS pages (and localhost).
+              if (!navigator.clipboard) return setResult("failed")
+              navigator.clipboard.writeText(value).then(
+                () => setResult("copied"),
+                () => setResult("failed"),
+              )
+            }}
+          />
+        }
+      >
+        {result === "copied" ? (
+          <CheckIcon className="text-emerald-500" />
+        ) : result === "failed" ? (
+          <XIcon className="text-destructive" />
+        ) : (
+          <CopyIcon />
+        )}
+        <span className="sr-only">{label}</span>
       </TooltipTrigger>
       <TooltipContent>{result === "copied" ? "Copied" : result === "failed" ? "Could not copy" : label}</TooltipContent>
     </Tooltip>

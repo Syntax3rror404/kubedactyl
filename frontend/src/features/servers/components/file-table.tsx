@@ -11,6 +11,7 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
+import { DropdownMenuLink } from "@/components/common/dropdown-menu-link"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -156,10 +157,10 @@ function EntryIcon({ entry }: { entry: FileEntry }) {
 function RowMenu({ entry: e, actions }: { entry: FileEntry; actions: FileActions }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className="opacity-60 group-hover:opacity-100">
-          <MoreHorizontalIcon />
-        </Button>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" className="opacity-60 group-hover:opacity-100" />}
+      >
+        <MoreHorizontalIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {isEditable(e) && (
@@ -169,12 +170,10 @@ function RowMenu({ entry: e, actions }: { entry: FileEntry; actions: FileActions
           </DropdownMenuItem>
         )}
         {!e.isDirectory && (
-          <DropdownMenuItem asChild>
-            <a href={actions.downloadUrl(e)}>
-              <DownloadIcon />
-              Download
-            </a>
-          </DropdownMenuItem>
+          <DropdownMenuLink href={actions.downloadUrl(e)}>
+            <DownloadIcon />
+            Download
+          </DropdownMenuLink>
         )}
         <DropdownMenuItem onClick={() => actions.rename(e)}>
           <PencilIcon />

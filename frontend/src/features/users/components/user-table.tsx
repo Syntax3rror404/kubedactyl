@@ -154,10 +154,10 @@ function UserRow({
         <div className="flex items-center justify-end">
           <PasswordResetAction username={u.username} reset={reset} canReset={!u.oidc && u.username !== me.username} />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.username}`}>
-                <MoreHorizontalIcon />
-              </Button>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.username}`} />}
+            >
+              <MoreHorizontalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onEdit(u)}>

@@ -21,7 +21,7 @@ import { StartupCommandField } from "@/features/servers/components/startup-comma
 import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
 import { NO_LOAD_BALANCER, poolRequest } from "@/features/servers/lib/settings-draft"
-import { defaultEnvironment, startupCommandOf } from "@/features/servers/lib/startup"
+import { defaultEnvironment, imageOptions, startupCommandOf } from "@/features/servers/lib/startup"
 import { useDraft } from "@/hooks/use-draft"
 import { failed } from "@/lib/notify"
 import { useCreateServer, usePools, useSettings } from "@/lib/queries"
@@ -52,6 +52,7 @@ export function ServerForm({
     env: defaultEnvironment(egg.spec),
   })
   const { image, startup, startupName, env } = own.draft
+  const images = imageOptions(egg.spec.dockerImages)
   const displayName = f.name.trim() || egg.spec.displayName
   const storageClass = f.storageClass || settings.data?.defaultStorageClass || ""
   const pool = f.pool || settings.data?.defaultLoadBalancerPool || ""
@@ -98,14 +99,14 @@ export function ServerForm({
             </Field>
             <Field data-invalid={!!errors.image}>
               <FieldLabel htmlFor="image">Docker image</FieldLabel>
-              <Select value={image} onValueChange={(v) => own.set("image", v)}>
+              <Select items={images} value={image} onValueChange={(v) => v && own.set("image", v)}>
                 <SelectTrigger id="image" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {egg.spec.dockerImages.map((img) => (
-                    <SelectItem key={img.image} value={img.image}>
-                      {img.name}
+                  {images.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>
+                      {i.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -4,7 +4,7 @@ import { Link } from "react-router"
 import { Callout } from "@/components/common/callout"
 import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { LibraryEggCard } from "@/features/eggs/components/library-egg-card"
 import { installedAs, repositoryName } from "@/features/eggs/lib/library"
@@ -12,6 +12,7 @@ import { formatRelativeTime, matches } from "@/lib/format"
 import { failed } from "@/lib/notify"
 import { useEggs, useLibrary, useRefreshLibrary } from "@/lib/queries"
 import type { Egg, LibraryRepository } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 /** The "Library" tab of the eggs page: the eggs of the git repositories in the settings. */
 export function EggLibrary({ search }: { search: string }) {
@@ -24,9 +25,9 @@ export function EggLibrary({ search }: { search: string }) {
       skeleton={<SkeletonGrid />}
       empty={
         <EmptyState icon={<LibraryIcon />} title="No repositories" description="Add egg libraries to list here.">
-          <Button variant="outline" asChild>
-            <Link to="/settings">Open settings</Link>
-          </Button>
+          <Link to="/settings" className={cn(buttonVariants({ variant: "outline" }))}>
+            Open settings
+          </Link>
         </EmptyState>
       }
     >

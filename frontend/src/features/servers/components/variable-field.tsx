@@ -42,7 +42,7 @@ export function VariableField({
   if (inRule) {
     const options = inRule.slice(3).split(",")
     control = (
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={(v) => v && onChange(v)} disabled={disabled}>
         <SelectTrigger id={id} className="w-full">
           <SelectValue placeholder="Select…" />
         </SelectTrigger>

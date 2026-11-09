@@ -59,14 +59,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to="/">
-                <BrandMark className="aspect-square size-8" iconClassName="size-4" />
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{branding?.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{branding?.tagline}</span>
-                </div>
-              </Link>
+            <SidebarMenuButton size="lg" render={<Link to="/" />}>
+              <BrandMark className="aspect-square size-8" iconClassName="size-4" />
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">{branding?.name}</span>
+                <span className="truncate text-xs text-muted-foreground">{branding?.tagline}</span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -81,14 +79,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               return (
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton
-                    asChild
                     tooltip={badge ? `${item.label} · version ${upgrade.data?.newer[0]} available` : item.label}
                     isActive={item === dashboard ? pathname === "/" : pathname.startsWith(item.to)}
+                    render={<NavLink to={item.to} />}
                   >
-                    <NavLink to={item.to}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </NavLink>
+                    <item.icon />
+                    <span>{item.label}</span>
                   </SidebarMenuButton>
                   {badge && (
                     <>
@@ -106,11 +102,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             })}
             {settings.data && !settings.data.disableApiDocs && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="API documentation">
-                  <a href="/swagger/index.html" target="_blank" rel="noreferrer">
-                    <BookOpenIcon />
-                    <span>API docs</span>
-                  </a>
+                <SidebarMenuButton
+                  tooltip="API documentation"
+                  render={<a href="/swagger/index.html" target="_blank" rel="noreferrer" />}
+                >
+                  <BookOpenIcon />
+                  <span>API docs</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
@@ -120,11 +117,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupLabel>Servers</SidebarGroupLabel>
           {isAdmin && (
-            <SidebarGroupAction asChild title="New server">
-              <Link to="/servers/new">
-                <PlusIcon />
-                <span className="sr-only">New server</span>
-              </Link>
+            <SidebarGroupAction title="New server" render={<Link to="/servers/new" />}>
+              <PlusIcon />
+              <span className="sr-only">New server</span>
             </SidebarGroupAction>
           )}
           <SidebarMenu>
@@ -139,14 +134,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               return (
                 <SidebarMenuItem key={gs.metadata.uid}>
                   <SidebarMenuButton
-                    asChild
                     tooltip={serverName(gs)}
                     isActive={pathname === to || pathname.startsWith(`${to}/`)}
+                    render={<NavLink to={to} />}
                   >
-                    <NavLink to={to}>
-                      <ServerIcon />
-                      <span>{serverName(gs)}</span>
-                    </NavLink>
+                    <ServerIcon />
+                    <span>{serverName(gs)}</span>
                   </SidebarMenuButton>
                   <SidebarMenuBadge>
                     <StatusDot phase={phaseOf(gs)} />

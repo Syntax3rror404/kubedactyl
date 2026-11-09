@@ -31,7 +31,13 @@ export function ResourceSlider({
         </span>
         <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-sm tabular-nums">{format(value)}</span>
       </div>
-      <Slider value={[value]} min={min} max={max} step={step} onValueChange={(v) => onChange(v[0])} />
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={(v) => onChange(typeof v === "number" ? v : v[0])}
+      />
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   )

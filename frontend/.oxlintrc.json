@@ -4,7 +4,6 @@
   "ignorePatterns": [
     "src/components/ui/**",
     "src/components/theme-provider.tsx",
-    "src/components/mode-toggle.tsx",
     "src/hooks/use-mobile.ts",
     "src/lib/utils.ts"
   ],

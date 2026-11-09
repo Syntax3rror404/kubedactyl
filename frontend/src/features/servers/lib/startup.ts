@@ -9,6 +9,11 @@ export function pickedCommand(egg: EggSpec | undefined, choice: StartupChoice) {
   return commands.find((c) => c.name === choice.startupName) ?? commands[0]
 }
 
+/** Docker images as select options: the image reference is the value, its name the label. */
+export function imageOptions(images: EggSpec["dockerImages"]) {
+  return images.map((i) => ({ value: i.image, label: i.name }))
+}
+
 /** The default value of every egg variable, keyed by its environment name. */
 export function defaultEnvironment(egg: EggSpec): Record<string, string> {
   return Object.fromEntries((egg.variables ?? []).map((v) => [v.envVariable, v.defaultValue ?? ""]))

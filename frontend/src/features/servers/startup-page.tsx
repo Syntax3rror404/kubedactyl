@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { StartupCommandField } from "@/features/servers/components/startup-command-field"
 import { StartupPreview } from "@/features/servers/components/startup-preview"
 import { VariableField } from "@/features/servers/components/variable-field"
-import { defaultEnvironment, startupCommandOf } from "@/features/servers/lib/startup"
+import { defaultEnvironment, imageOptions, startupCommandOf } from "@/features/servers/lib/startup"
 import type { ServerContext } from "@/features/servers/server-layout"
 import { useAuth } from "@/hooks/use-auth"
 import { useDraft } from "@/hooks/use-draft"
@@ -40,6 +40,10 @@ export function StartupPage() {
   const { startup, startupName, image, env } = draft
 
   const knownImage = egg?.spec.dockerImages.some((i) => i.image === image)
+  const images = [
+    ...imageOptions(egg?.spec.dockerImages ?? []),
+    ...(isAdmin || !knownImage ? [{ value: "custom", label: "Custom…" }] : []),
+  ]
   // Users may only change editable variables and pick one of the egg images.
   const editable = (key: string) =>
     isAdmin || !!egg?.spec.variables?.some((v) => v.envVariable === key && v.userEditable)
@@ -100,20 +104,20 @@ export function StartupPage() {
             <Field>
               <FieldLabel>Image</FieldLabel>
               <Select
+                items={images}
                 value={knownImage ? image : "custom"}
-                onValueChange={(v) => v !== "custom" && set("image", v)}
+                onValueChange={(v) => v && v !== "custom" && set("image", v)}
                 disabled={!isAdmin && !knownImage}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {egg?.spec.dockerImages.map((i) => (
-                    <SelectItem key={i.image} value={i.image}>
-                      {i.name}
+                  {images.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>
+                      {i.label}
                     </SelectItem>
                   ))}
-                  {(isAdmin || !knownImage) && <SelectItem value="custom">Custom…</SelectItem>}
                 </SelectContent>
               </Select>
             </Field>

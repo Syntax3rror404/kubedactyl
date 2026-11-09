@@ -198,19 +198,19 @@ function PasswordFields({
   )
 }
 
-const roles: Role[] = ["user", "admin"]
+const roles = (["user", "admin"] as Role[]).map((r) => ({ value: r, label: roleLabel(r) }))
 
 /** The role picker of the user and invite dialogs. */
 export function RoleSelect({ id, value, onChange }: { id: string; value: Role; onChange: (role: Role) => void }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as Role)}>
+    <Select items={roles} value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger id={id} className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {roles.map((r) => (
-          <SelectItem key={r} value={r}>
-            {roleLabel(r)}
+          <SelectItem key={r.value} value={r.value}>
+            {r.label}
           </SelectItem>
         ))}
       </SelectContent>

@@ -1,6 +1,7 @@
 import { Link } from "react-router"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 /** Shown for unknown URLs inside the app. */
 export function NotFoundPage() {
@@ -10,9 +11,9 @@ export function NotFoundPage() {
         404
       </span>
       <p className="text-muted-foreground">This page does not exist.</p>
-      <Button asChild variant="outline">
-        <Link to="/">Back to the dashboard</Link>
-      </Button>
+      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+        Back to the dashboard
+      </Link>
     </div>
   )
 }

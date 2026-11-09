@@ -5,7 +5,7 @@ import { toast } from "sonner"
 
 import { QueryState } from "@/components/common/query-state"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,6 +16,7 @@ import { installedAs, repositoryName } from "@/features/eggs/lib/library"
 import { failed } from "@/lib/notify"
 import { useEggs, useImportEgg, useLibraryEgg } from "@/lib/queries"
 import type { LibraryEggContent } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 /** /eggs/library/egg?repository=…&path=… (admins): an egg of the library before it is installed. */
 export function LibraryEggPage() {
@@ -58,9 +59,9 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
               <Label htmlFor="auto-update">Update automatically</Label>
             </div>
             {installed && (
-              <Button variant="outline" asChild>
-                <Link to={`/eggs/${installed.metadata.name}`}>Open installed egg</Link>
-              </Button>
+              <Link to={`/eggs/${installed.metadata.name}`} className={cn(buttonVariants({ variant: "outline" }))}>
+                Open installed egg
+              </Link>
             )}
             <Button disabled={install.isPending} onClick={() => install.mutate({ url: egg.url, autoUpdate })}>
               {install.isPending ? <Spinner /> : <DownloadIcon />}

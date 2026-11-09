@@ -17,14 +17,14 @@ export function CopyFromEgg({
   const eggs = useEggs().data?.filter((e) => e.metadata.name !== exclude) ?? []
   if (eggs.length === 0) return null
   return (
-    <Select value="" onValueChange={(name) => onSelect(eggs.find((e) => e.metadata.name === name)!)}>
+    <Select value={null} onValueChange={(egg: Egg | null) => egg && onSelect(egg)}>
       <SelectTrigger size="sm" className="w-fit gap-2" aria-label={label}>
         <CopyIcon className="size-3.5" />
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
         {eggs.map((e) => (
-          <SelectItem key={e.metadata.name} value={e.metadata.name}>
+          <SelectItem key={e.metadata.name} value={e}>
             {e.spec.displayName}
           </SelectItem>
         ))}

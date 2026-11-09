@@ -1,4 +1,5 @@
-import type { ReactNode } from "react"
+import type { ReactElement, ReactNode } from "react"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 
 import {
   AlertDialog,
@@ -16,6 +17,7 @@ import {
  * The confirmation before an action. Either opened by its `trigger` (a button) or controlled
  * with `open`/`onOpenChange`; then the page keeps one dialog state for all its dialogs.
  * `children` adds content between the text and the buttons (e.g. "type the name to confirm").
+ * The confirm button is a `Close`, so confirming closes the dialog in both modes.
  */
 export function ConfirmDialog({
   trigger,
@@ -30,7 +32,7 @@ export function ConfirmDialog({
   onConfirm,
   children,
 }: {
-  trigger?: ReactNode
+  trigger?: ReactElement
   open?: boolean
   onOpenChange?: (open: boolean) => void
   title: ReactNode
@@ -42,9 +44,10 @@ export function ConfirmDialog({
   onConfirm: () => void
   children?: ReactNode
 }) {
+  // Controlled only when `open` is passed; `onOpenChange` alone just observes (e.g. to reset inputs).
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
+      {trigger && <AlertDialogTrigger render={trigger} />}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -53,9 +56,13 @@ export function ConfirmDialog({
         {children}
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction variant={destructive ? "destructive" : "default"} disabled={disabled} onClick={onConfirm}>
+          <AlertDialogPrimitive.Close
+            render={<AlertDialogAction variant={destructive ? "destructive" : "default"} />}
+            disabled={disabled}
+            onClick={onConfirm}
+          >
             {confirmLabel}
-          </AlertDialogAction>
+          </AlertDialogPrimitive.Close>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

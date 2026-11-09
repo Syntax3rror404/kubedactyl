@@ -4,7 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router"
 
 import { PasswordField } from "@/components/common/unveil-password"
 import { VerifyMark, VERIFY_FAIL_MS, VERIFY_OK_MS, type VerifyState } from "@/components/common/verify-mark"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -187,12 +187,14 @@ export function LoginPage() {
               <>
                 <FieldSeparator />
                 <Field>
-                  <Button variant="outline" className="w-full" asChild>
-                    <a href={urls.oidcStart(target)} onClick={() => flow.wait("sso")}>
-                      <KeyRoundIcon />
-                      Sign in with {sso.data.name}
-                    </a>
-                  </Button>
+                  <a
+                    href={urls.oidcStart(target)}
+                    onClick={() => flow.wait("sso")}
+                    className={cn(buttonVariants({ variant: "outline", className: "w-full" }))}
+                  >
+                    <KeyRoundIcon />
+                    Sign in with {sso.data.name}
+                  </a>
                   {flow.ssoError && <FieldError>{flow.ssoError}</FieldError>}
                 </Field>
               </>

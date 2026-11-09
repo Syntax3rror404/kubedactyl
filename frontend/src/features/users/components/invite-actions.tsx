@@ -45,16 +45,18 @@ export function InviteActions({ invite }: { invite: InviteView }) {
   return (
     <div className="flex items-center">
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Renew ${label}`}
-            disabled={renew.isPending}
-            onClick={() => renew.mutate(invite.id)}
-          >
-            <RefreshCwIcon />
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Renew ${label}`}
+              disabled={renew.isPending}
+              onClick={() => renew.mutate(invite.id)}
+            />
+          }
+        >
+          <RefreshCwIcon />
         </TooltipTrigger>
         <TooltipContent>New link, valid for 7 days</TooltipContent>
       </Tooltip>
@@ -99,16 +101,18 @@ function ResetPasswordButton({ username }: { username: string }) {
   return (
     <>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Reset the password of ${username}`}
-            disabled={create.isPending}
-            onClick={() => create.mutate({ username, reset: true })}
-          >
-            <KeyRoundIcon />
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Reset the password of ${username}`}
+              disabled={create.isPending}
+              onClick={() => create.mutate({ username, reset: true })}
+            />
+          }
+        >
+          <KeyRoundIcon />
         </TooltipTrigger>
         <TooltipContent>Password reset link</TooltipContent>
       </Tooltip>

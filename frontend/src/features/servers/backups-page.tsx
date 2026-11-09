@@ -5,7 +5,7 @@ import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { EmptyState, QueryState } from "@/components/common/query-state"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,6 +21,7 @@ import { formatBytes, formatRelativeTime, phaseOf, plural, stoppedPhases } from 
 import { failed } from "@/lib/notify"
 import { useBackups, useCreateBackup, useDeleteBackup, useRestoreBackup } from "@/lib/queries"
 import type { Backup } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 /** /servers/:server/backups: tar.gz archives of all server files in the .backups folder of the volume. */
 export function BackupsPage() {
@@ -128,11 +129,14 @@ export function BackupsPage() {
                       </TableCell>
                       <TableCell className="pr-4">
                         <div className="flex justify-end gap-1">
-                          <Button size="icon-sm" variant="ghost" asChild title="Download">
-                            <a href={urls.fileDownload(name, b.path)} download>
-                              <DownloadIcon />
-                            </a>
-                          </Button>
+                          <a
+                            href={urls.fileDownload(name, b.path)}
+                            download
+                            title="Download"
+                            className={cn(buttonVariants({ size: "icon-sm", variant: "ghost" }))}
+                          >
+                            <DownloadIcon />
+                          </a>
                           <Button
                             size="icon-sm"
                             variant="ghost"

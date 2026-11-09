@@ -13,13 +13,14 @@ import { Link } from "react-router"
 import { MetricTile } from "@/components/common/metric-tile"
 import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { ServerCard } from "@/features/dashboard/components/server-card"
 import { ServerFilter } from "@/features/dashboard/components/server-filter"
 import { filterServers, isActive, type ServerFilterState } from "@/features/dashboard/lib/server-filter"
 import { useAuth } from "@/hooks/use-auth"
 import { formatMiB, userName } from "@/lib/format"
 import { useClusterInfo, useEggs, useServers } from "@/lib/queries"
+import { cn } from "@/lib/utils"
 
 /** /: the servers the user may see as cards with live usage; search and status filter from 7 servers on. */
 export function DashboardPage() {
@@ -46,18 +47,14 @@ export function DashboardPage() {
         actions={
           isAdmin && (
             <>
-              <Button variant="outline" asChild>
-                <Link to="/eggs">
-                  <UploadIcon />
-                  Import egg
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link to="/servers/new">
-                  <PlusIcon />
-                  New server
-                </Link>
-              </Button>
+              <Link to="/eggs" className={cn(buttonVariants({ variant: "outline" }))}>
+                <UploadIcon />
+                Import egg
+              </Link>
+              <Link to="/servers/new" className={cn(buttonVariants())}>
+                <PlusIcon />
+                New server
+              </Link>
             </>
           )
         }
@@ -129,12 +126,10 @@ function EmptyServers({ hasEggs, isAdmin }: { hasEggs: boolean; isAdmin: boolean
           : "Import a Pterodactyl or Pelican egg first, then create a server from it."
       }
     >
-      <Button asChild>
-        <Link to={hasEggs ? "/servers/new" : "/eggs"}>
-          {hasEggs ? <PlusIcon /> : <UploadIcon />}
-          {hasEggs ? "Create server" : "Import an egg"}
-        </Link>
-      </Button>
+      <Link to={hasEggs ? "/servers/new" : "/eggs"} className={cn(buttonVariants())}>
+        {hasEggs ? <PlusIcon /> : <UploadIcon />}
+        {hasEggs ? "Create server" : "Import an egg"}
+      </Link>
     </EmptyState>
   )
 }

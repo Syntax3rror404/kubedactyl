@@ -20,7 +20,7 @@ import { QueryState } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsTrigger } from "@/components/ui/tabs"
 import { FilesPodLight } from "@/features/servers/components/files-pod-light"
@@ -46,6 +46,7 @@ import {
 } from "@/lib/format"
 import { useEgg, useServer, useSettings } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 export interface ServerContext {
   server: GameServer
@@ -144,12 +145,10 @@ function ServerFrame({ gs }: { gs: GameServer }) {
           (removing || !locked) && (
             <div className="flex items-center gap-1.5">
               {invite && (
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={`/account?invite=${name}`}>
-                    <TicketIcon />
-                    Invite
-                  </Link>
-                </Button>
+                <Link to={`/account?invite=${name}`} className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+                  <TicketIcon />
+                  Invite
+                </Link>
               )}
               <PowerControls server={gs} />
             </div>
@@ -189,12 +188,15 @@ function ServerFrame({ gs }: { gs: GameServer }) {
           <Tabs value={current}>
             <ScrollableTabsList>
               {(full ? tabs : tabs.slice(0, 1)).map((t) => (
-                <TabsTrigger key={t.to} value={t.to} asChild>
-                  <Link to={t.to ? `${base}/${t.to}` : base}>
-                    <t.icon />
-                    {t.label}
-                    {t.to === "files" && <FilesPodLight server={name} />}
-                  </Link>
+                <TabsTrigger
+                  key={t.to}
+                  value={t.to}
+                  nativeButton={false}
+                  render={<Link to={t.to ? `${base}/${t.to}` : base} />}
+                >
+                  <t.icon />
+                  {t.label}
+                  {t.to === "files" && <FilesPodLight server={name} />}
                 </TabsTrigger>
               ))}
             </ScrollableTabsList>

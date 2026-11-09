@@ -31,24 +31,35 @@ export function PlacementSelect({
   placeholder?: string
   onChange: (value: string) => void
 }) {
-  const items = value && !options.includes(value) && value !== extra?.value ? [value, ...options] : options
+  const names = value && !options.includes(value) && value !== extra?.value ? [value, ...options] : options
+  const choices = names.map((o) => ({
+    value: o,
+    label: (
+      <>
+        {o}
+        {o === defaultName && (
+          <Badge variant="secondary" className="ml-1 font-sans text-[10px]">
+            default
+          </Badge>
+        )}
+        {!options.includes(o) && <span className="font-sans text-xs text-muted-foreground">(no longer enabled)</span>}
+      </>
+    ),
+  }))
   return (
-    <Select value={value} onValueChange={onChange} disabled={items.length === 0 && !extra}>
+    <Select
+      items={extra ? [...choices, extra] : choices}
+      value={value}
+      onValueChange={(v) => v && onChange(v)}
+      disabled={names.length === 0 && !extra}
+    >
       <SelectTrigger id={id} className="w-full font-mono">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {items.map((o) => (
-          <SelectItem key={o} value={o} className="font-mono">
-            {o}
-            {o === defaultName && (
-              <Badge variant="secondary" className="ml-1 font-sans text-[10px]">
-                default
-              </Badge>
-            )}
-            {!options.includes(o) && (
-              <span className="font-sans text-xs text-muted-foreground">(no longer enabled)</span>
-            )}
+        {choices.map((o) => (
+          <SelectItem key={o.value} value={o.value} className="font-mono">
+            {o.label}
           </SelectItem>
         ))}
         {extra && <SelectItem value={extra.value}>{extra.label}</SelectItem>}
@@ -118,7 +129,7 @@ export function TrafficPolicyField({
   return (
     <Field>
       <FieldLabel htmlFor="traffic-policy">External traffic policy</FieldLabel>
-      <Select value={value} onValueChange={(v) => onChange(v as TrafficPolicy)}>
+      <Select value={value} onValueChange={(v) => v && onChange(v)}>
         <SelectTrigger id="traffic-policy" className="w-full font-mono">
           <SelectValue />
         </SelectTrigger>

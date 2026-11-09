@@ -4,7 +4,7 @@ import { DownloadIcon, FileDownIcon } from "lucide-react"
 import { CodeEditor } from "@/components/common/code-editor"
 import { CopyButton } from "@/components/common/copy-button"
 import { QueryState } from "@/components/common/query-state"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { urls } from "@/lib/api"
 import { useEggExport } from "@/lib/queries"
 import type { EggExportFormat } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 const formats: { id: EggExportFormat; label: string; hint: string }[] = [
   { id: "yaml", label: "YAML", hint: "Pelican format (PLCN_v3). Import into Pelican or Kubedactyl." },
@@ -36,11 +37,9 @@ export function EggExportDialog({ name }: { name: string }) {
   const text = useEggExport(name, format, open)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <FileDownIcon />
-          Export
-        </Button>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <FileDownIcon />
+        Export
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
@@ -61,12 +60,10 @@ export function EggExportDialog({ name }: { name: string }) {
         </QueryState>
         <div className="flex justify-end gap-2">
           {text.data && <CopyButton value={text.data} />}
-          <Button asChild>
-            <a href={urls.eggExport(name, format)} download>
-              <DownloadIcon />
-              Download
-            </a>
-          </Button>
+          <a href={urls.eggExport(name, format)} download className={cn(buttonVariants())}>
+            <DownloadIcon />
+            Download
+          </a>
         </div>
       </DialogContent>
     </Dialog>

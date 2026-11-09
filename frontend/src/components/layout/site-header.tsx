@@ -1,7 +1,7 @@
 import { Fragment } from "react"
 import { Link, useMatches } from "react-router"
 
-import { ModeToggle } from "@/components/mode-toggle"
+import { ModeToggle } from "@/components/common/mode-toggle"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -65,9 +65,7 @@ export function SiteHeader() {
               {i > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
                 {c.to && i < labelled.length - 1 ? (
-                  <BreadcrumbLink asChild>
-                    <Link to={c.to}>{c.label}</Link>
-                  </BreadcrumbLink>
+                  <BreadcrumbLink render={<Link to={c.to} />}>{c.label}</BreadcrumbLink>
                 ) : (
                   <BreadcrumbPage>{c.label}</BreadcrumbPage>
                 )}

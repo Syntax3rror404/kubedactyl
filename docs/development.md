@@ -78,11 +78,11 @@ Files that come from a library are **never edited by hand**, so they can be upda
 |-------|--------|--------|
 | `frontend/src/components/ui/*` (except the two below) | shadcn registry | `make ui-update` |
 | `frontend/src/components/ui/magic-card.tsx`, `light-rays.tsx`, `particles.tsx` | [Magic UI](https://magicui.design) registry (`@magicui/…`, MIT) | `make ui-update` |
-| `frontend/src/components/theme-provider.tsx`, `mode-toggle.tsx` | code blocks of the [shadcn Vite dark mode docs](https://ui.shadcn.com/docs/dark-mode/vite) | `make ui-update` |
+| `frontend/src/components/theme-provider.tsx` | code block of the [shadcn Vite dark mode docs](https://ui.shadcn.com/docs/dark-mode/vite) | `make ui-update` |
 | `frontend/src/hooks/use-mobile.ts`, `frontend/src/lib/utils.ts` | installed by shadcn together with `sidebar` / `init` | with the components |
 
 The list lives in `frontend/ui-components.json`. `make ui-update` runs `frontend/scripts/update-ui.mjs`:
-it re-adds every entry with `--overwrite` and fetches the two docs files. The files stay exactly as the
+it re-adds every entry with `--overwrite` and fetches the docs file. The files stay exactly as the
 sources deliver them (some keep a `"use client"` directive, which Vite ignores), and their dependencies get the
 versions the registry items name (`chart` pins `recharts`; a newer pin arrives with the next update). The CLI lists
 the files it updated (identical ones are skipped). Unused code inside
@@ -96,7 +96,7 @@ Running the update twice produces no diff. Earlier hand edits were replaced by w
 |-------------|-----|
 | `ui/sonner.tsx` read the theme from `next-themes` → changed to our provider | original file; `app/app-toaster.tsx` passes the theme of our `ThemeProvider` (the registry Toaster spreads props after `theme`), `next-themes` stays installed as its dependency |
 | unused imports in registry files | original files; unused-code checks moved from `tsc` to oxlint, which skips library files |
-| `mode-toggle.tsx` labels translated to German | original English labels |
+| `mode-toggle.tsx` from the dark mode docs | our own `components/common/mode-toggle.tsx`: the docs show only the Radix version |
 | `sidebar-07` block demo files (`team-switcher`, `nav-*`) | replaced by our own `components/layout/app-sidebar.tsx`; blocks are starting points, not updated |
 
 When adding a registry component: install it with the CLI (`npx shadcn@latest add <name>` or

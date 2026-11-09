@@ -36,7 +36,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider defaultTheme="system" storageKey="app-theme">
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={200}>
+        <TooltipProvider delay={200}>
           <RouterProvider router={router} />
           <AppToaster richColors position="bottom-right" />
         </TooltipProvider>

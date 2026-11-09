@@ -27,11 +27,9 @@ export function EggImportDialog() {
   const [open, setOpen] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusIcon />
-          Import egg
-        </Button>
+      <DialogTrigger render={<Button />}>
+        <PlusIcon />
+        Import egg
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         {/* Mounted on every open, so the form starts empty. */}

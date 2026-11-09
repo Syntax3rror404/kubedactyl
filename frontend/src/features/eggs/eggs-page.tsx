@@ -6,7 +6,7 @@ import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
 import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import { EggCard } from "@/features/eggs/components/egg-card"
@@ -14,6 +14,7 @@ import { EggImportDialog } from "@/features/eggs/components/egg-import-dialog"
 import { EggLibrary } from "@/features/eggs/components/egg-library"
 import { matches } from "@/lib/format"
 import { useEggs, useLibrary, useServers } from "@/lib/queries"
+import { cn } from "@/lib/utils"
 
 /**
  * /eggs (admins): the installed eggs (import from a file or URL, or create one with the wizard)
@@ -33,12 +34,10 @@ export function EggsPage() {
         description="Server templates from Pterodactyl (PTDL_v1/v2) and Pelican (PLCN_v1-v3)."
         actions={
           <>
-            <Button variant="outline" asChild>
-              <Link to="/eggs/new">
-                <PlusIcon />
-                New egg
-              </Link>
-            </Button>
+            <Link to="/eggs/new" className={cn(buttonVariants({ variant: "outline" }))}>
+              <PlusIcon />
+              New egg
+            </Link>
             <EggImportDialog />
           </>
         }
@@ -92,9 +91,9 @@ function InstalledEggs({ search }: { search: string }) {
           title="No eggs installed"
           description="Install one from the library, import a file or URL, or create your own."
         >
-          <Button variant="outline" asChild>
-            <Link to="/eggs?tab=library">Open the library</Link>
-          </Button>
+          <Link to="/eggs?tab=library" className={cn(buttonVariants({ variant: "outline" }))}>
+            Open the library
+          </Link>
           <EggImportDialog />
         </EmptyState>
       }

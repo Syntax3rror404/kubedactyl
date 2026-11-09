@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 /**
- * Dialog of an egg feature: closing it dismisses the matched console line. The confirm button keeps the dialog open
- * while its request runs; `action` replaces it (a link, for example). Without both it only explains (Close).
+ * Dialog of an egg feature: closing it dismisses the matched console line. The dialog stays open while the confirm
+ * request runs; `action` replaces the button (a link, for example). Without both it only explains (Close).
  */
 export function FeaturePrompt({
   open,
@@ -37,21 +37,13 @@ export function FeaturePrompt({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-2">{description}</div>
-          </AlertDialogDescription>
+          <AlertDialogDescription render={<div className="space-y-2" />}>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {children}
         <AlertDialogFooter>
           <AlertDialogCancel>{confirm || action ? "Cancel" : "Close"}</AlertDialogCancel>
           {confirm && (
-            <AlertDialogAction
-              disabled={confirm.pending}
-              onClick={(e) => {
-                e.preventDefault()
-                confirm.onConfirm()
-              }}
-            >
+            <AlertDialogAction disabled={confirm.pending} onClick={confirm.onConfirm}>
               {confirm.label}
             </AlertDialogAction>
           )}

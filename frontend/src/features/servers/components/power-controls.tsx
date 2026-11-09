@@ -32,22 +32,20 @@ export function PowerControls({ server, size = "default" }: { server: GameServer
     variant: "default" | "outline" | "destructive" | "secondary",
   ) => (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <Button
-            size={size === "sm" ? "icon-sm" : "sm"}
-            variant={variant}
-            disabled={!enabled || blocked}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              power.mutate(signal)
-            }}
-          >
-            {icon}
-            {size !== "sm" && <span>{label}</span>}
-          </Button>
-        </span>
+      <TooltipTrigger render={<span />}>
+        <Button
+          size={size === "sm" ? "icon-sm" : "sm"}
+          variant={variant}
+          disabled={!enabled || blocked}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            power.mutate(signal)
+          }}
+        >
+          {icon}
+          {size !== "sm" && <span>{label}</span>}
+        </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>

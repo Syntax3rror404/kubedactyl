@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
+import { imageOptions } from "@/features/servers/lib/startup"
 import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
@@ -34,6 +35,7 @@ export function JavaVersionPrompt({
 }) {
   const { open, dismiss } = useConsoleMatch(server.metadata.name, subscribe, patterns, running)
   const images = egg.spec.dockerImages.filter((i) => i.image !== server.spec.image)
+  const options = imageOptions(images)
   // Users never replace a custom image an administrator has set.
   const custom = !egg.spec.dockerImages.some((i) => i.image === server.spec.image)
   const canChange = images.length > 0 && (isAdmin || !custom)
@@ -68,14 +70,14 @@ export function JavaVersionPrompt({
       }
     >
       {canChange && (
-        <Select value={picked} onValueChange={setImage}>
+        <Select items={options} value={picked} onValueChange={(v) => v && setImage(v)}>
           <SelectTrigger className="w-full" aria-label="Docker image">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {images.map((i) => (
-              <SelectItem key={i.image} value={i.image}>
-                {i.name}
+            {options.map((i) => (
+              <SelectItem key={i.value} value={i.value}>
+                {i.label}
               </SelectItem>
             ))}
           </SelectContent>

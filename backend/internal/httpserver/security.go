@@ -10,7 +10,7 @@ import (
 )
 
 // contentSecurityPolicy allows only resources of the panel itself. Inline styles are
-// needed by xterm.js, CodeMirror and Radix positioning; scripts are never inline.
+// needed by xterm.js, CodeMirror and Base UI positioning; scripts are never inline.
 const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; " +
 	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react"
 
 import { BrandMark } from "@/components/common/brand-mark"
+import { ModeToggle } from "@/components/common/mode-toggle"
 import { SiteFooter } from "@/components/layout/site-footer"
-import { ModeToggle } from "@/components/mode-toggle"
 import { Card } from "@/components/ui/card"
 import { LightRays } from "@/components/ui/light-rays"
 import { Particles } from "@/components/ui/particles"

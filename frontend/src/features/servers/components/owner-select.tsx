@@ -20,20 +20,28 @@ export function OwnerSelect({
 }) {
   const users = useUsers()
   const namespace = users.data?.find((u) => u.username === value)?.namespace
+  const owners = (users.data ?? [])
+    .filter((u) => !u.disabled && !u.owner && u.username !== exclude)
+    .map((u) => ({
+      value: u.username,
+      label: (
+        <>
+          {userName(u)} <span className="font-mono text-xs text-muted-foreground">{u.username}</span>
+        </>
+      ),
+    }))
   return (
     <>
-      <Select value={value} onValueChange={onChange}>
+      <Select items={owners} value={value} onValueChange={(v) => v && onChange(v)}>
         <SelectTrigger id={id} className="w-full">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {users.data
-            ?.filter((u) => !u.disabled && !u.owner && u.username !== exclude)
-            .map((u) => (
-              <SelectItem key={u.username} value={u.username}>
-                {userName(u)} <span className="font-mono text-xs text-muted-foreground">{u.username}</span>
-              </SelectItem>
-            ))}
+          {owners.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       {namespace && <FieldDescription className="font-mono text-xs">namespace {namespace}</FieldDescription>}

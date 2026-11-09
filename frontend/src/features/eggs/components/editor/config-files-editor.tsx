@@ -47,7 +47,7 @@ export function ConfigFilesEditor({
                 placeholder="server.properties"
                 aria-invalid={!!errors[p + "file"]}
               />
-              <Select value={f.parser} onValueChange={(parser) => setFile(i, { parser })}>
+              <Select value={f.parser} onValueChange={(parser) => parser && setFile(i, { parser })}>
                 <SelectTrigger size="sm" className="w-32" aria-label="Parser">
                   <SelectValue />
                 </SelectTrigger>
@@ -108,8 +108,9 @@ export function ConfigFilesEditor({
                         placeholder="{{server.build.default.port}}"
                       />
                       <Select
+                        items={valueTypes}
                         value={r.valueType || "string"}
-                        onValueChange={(v) => setRow(k, { valueType: v === "string" ? "" : v })}
+                        onValueChange={(v) => v && setRow(k, { valueType: v === "string" ? "" : v })}
                       >
                         <SelectTrigger size="sm" className="w-full" aria-label="Type" aria-invalid={!!typeError}>
                           <SelectValue />
