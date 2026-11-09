@@ -7,10 +7,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { plural } from "@/lib/format"
 import type { useFilesSession } from "@/lib/queries"
+import { cn } from "@/lib/utils"
+
+// Re-attaching the volume after a stop can take over a minute; a start that runs longer likely hangs.
+const SLOW_START_SECONDS = 120
 
 /**
  * Shows its children once the file container is ready; until then a placeholder while it starts, or
- * a note after it was stopped for inactivity.
+ * a note after it was stopped for inactivity. A start that takes unusually long says so but keeps waiting.
  */
 export function FilesSessionGate({
   files,
@@ -23,6 +27,7 @@ export function FilesSessionGate({
   if (view === "ready") return children
   const seconds = session?.idleTimeoutSeconds ?? 60
   const idle = seconds % 60 === 0 ? plural(seconds / 60, "minute") : plural(seconds, "second")
+  const slow = (session?.startingSeconds ?? 0) >= SLOW_START_SECONDS
   return (
     <Card className="relative overflow-hidden py-0">
       {view === "starting" && <ProgressStripe />}
@@ -39,8 +44,17 @@ export function FilesSessionGate({
         <div className="mx-4 flex max-w-sm flex-col items-center gap-3 rounded-2xl border bg-card/90 px-6 py-5 text-center shadow-lg">
           {view === "starting" ? (
             <>
-              <Spinner className="size-6 text-sky-500" />
-              <p className="font-medium">Please wait a few seconds, your file container is spinning up…</p>
+              <Spinner className={cn("size-6", slow ? "text-amber-500" : "text-sky-500")} />
+              {slow ? (
+                <>
+                  <p className="font-medium">The file container takes longer than usual</p>
+                  <p className="text-sm text-muted-foreground">
+                    Its volume or node may not be available. If it stays like this, ask an administrator.
+                  </p>
+                </>
+              ) : (
+                <p className="font-medium">Please wait a few seconds, your file container is spinning up…</p>
+              )}
               <p className="font-mono text-xs text-muted-foreground">
                 {error ? error.message : (session?.message ?? "requesting")}
               </p>

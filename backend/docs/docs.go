@@ -4769,6 +4769,11 @@ const docTemplate = `{
                 "ready": {
                     "type": "boolean"
                 },
+                "startingSeconds": {
+                    "description": "StartingSeconds is how long a starting container exists (seconds).",
+                    "type": "integer",
+                    "example": 12
+                },
                 "state": {
                     "description": "State is Stopped, Starting, Ready or Stopping.",
                     "type": "string",

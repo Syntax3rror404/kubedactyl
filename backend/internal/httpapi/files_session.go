@@ -23,8 +23,10 @@ type FilesSession struct {
 	IdleTimeoutSeconds int `json:"idleTimeoutSeconds" example:"60"`
 	// StopsInSeconds is how long a ready container stays without further file operations
 	// (reading the session does not count as one).
-	StopsInSeconds int    `json:"stopsInSeconds,omitempty" example:"42"`
-	Error          string `json:"error,omitempty"`
+	StopsInSeconds int `json:"stopsInSeconds,omitempty" example:"42"`
+	// StartingSeconds is how long a starting container exists (seconds).
+	StartingSeconds int    `json:"startingSeconds,omitempty" example:"12"`
+	Error           string `json:"error,omitempty"`
 }
 
 // How long a file operation waits for the file container before it answers 503.
@@ -96,6 +98,7 @@ func (a *API) requireFilesPod(c *gin.Context) {
 func sessionOf(st files.PodState) FilesSession {
 	return FilesSession{
 		Ready: st.Ready, State: st.State, Message: st.Message, IdleTimeoutSeconds: int(files.IdleTimeout.Seconds()),
-		StopsInSeconds: int(st.StopsIn.Round(time.Second).Seconds()),
+		StopsInSeconds:  int(st.StopsIn.Round(time.Second).Seconds()),
+		StartingSeconds: int(st.StartingFor.Round(time.Second).Seconds()),
 	}
 }

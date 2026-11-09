@@ -1075,6 +1075,10 @@ definitions:
         type: string
       ready:
         type: boolean
+      startingSeconds:
+        description: StartingSeconds is how long a starting container exists (seconds).
+        example: 12
+        type: integer
       state:
         description: State is Stopped, Starting, Ready or Stopping.
         enum:

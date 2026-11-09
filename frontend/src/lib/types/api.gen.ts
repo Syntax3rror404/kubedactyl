@@ -556,6 +556,11 @@ export interface HttpapiFilesSession {
   message?: string;
   ready: boolean;
   /**
+   * StartingSeconds is how long a starting container exists (seconds).
+   * @example 12
+   */
+  startingSeconds?: number;
+  /**
    * State is Stopped, Starting, Ready or Stopping.
    * @example "Starting"
    */

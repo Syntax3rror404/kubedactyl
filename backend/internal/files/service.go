@@ -47,6 +47,8 @@ type PodState struct {
 	Message string
 	// StopsIn is how long a ready pod stays without further file operations.
 	StopsIn time.Duration
+	// StartingFor is how long a starting pod exists.
+	StartingFor time.Duration
 
 	foreign bool
 }
@@ -76,7 +78,9 @@ func (s *Service) PodState(ctx context.Context, ref Ref) PodState {
 		stopsIn := time.Until(StopsAt(s.Activity.Last(ref), ReadySince(pod)))
 		return PodState{Ready: true, State: "Ready", StopsIn: max(stopsIn, 0)}
 	}
-	st := PodState{State: "Starting", Message: string(pod.Status.Phase)}
+	st := PodState{
+		State: "Starting", Message: string(pod.Status.Phase), StartingFor: time.Since(pod.CreationTimestamp.Time),
+	}
 	for _, cs := range pod.Status.ContainerStatuses {
 		if cs.State.Waiting != nil {
 			st.Message = cs.State.Waiting.Reason
