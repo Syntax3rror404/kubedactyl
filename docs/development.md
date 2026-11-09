@@ -58,8 +58,17 @@ complexity above 20 (except the ported config file parsers in `internal/configfi
 (unreachable functions; `internal/testutil` is only used by tests) and the frontend checks
 `npm run format:check && npx tsc -b && npx oxlint && npx knip` (unused files, exports and dependencies; library files are
 ignored via `knip.json`). golangci-lint and deadcode run in fixed versions (`GOLANGCI`, `DEADCODE` in the `Makefile`;
-raised by hand). `make fmt` rewrites the formatting (Go: gofmt + goimports, frontend: Prettier); long lines are
+raised by Renovate). `make fmt` rewrites the formatting (Go: gofmt + goimports, frontend: Prettier); long lines are
 wrapped by hand.
+
+## Dependency updates
+
+Renovate (`.github/renovate.json5`) opens one pull request a week with every minor and patch update, one per major
+update and one that refreshes `package-lock.json`; its dependency dashboard issue lists them all. The CI checks each
+of them (tests, lint, image build); a green pull request needs nothing but the merge. The license tables in
+`THIRD_PARTY_NOTICES.md` name no versions, so updates pass; a new package fails the build until its license is
+checked and its row added. Library components are not part of it, nor `recharts`, whose version the shadcn registry
+names: both come with `make ui-update`.
 
 ## Library components and updates
 

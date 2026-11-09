@@ -3,10 +3,10 @@ import path from "node:path"
 import type { Plugin, Rolldown } from "vite"
 
 // Writes the license texts of the npm packages listed in THIRD_PARTY_NOTICES.md ("npm packages"
-// table: name, version, license, tracked by hand) to "licenses-npm.md" in the build output.
+// table: name and license, tracked by hand; versions come from the build) to "licenses-npm.md" in the build output.
 // backend/tools/licenses merges it with the Go modules into third-party-licenses.md (shown on the
 // licenses page and shipped in the image). The build fails when a package in the bundle is not
-// listed, or when a listed package is not installed in that version or under that license.
+// listed, or when a listed package is not installed any more or declares another license.
 
 const licenseFile = /^(licen[cs]e|copying|notice|copyright)([.-].*)?$/i
 
@@ -21,11 +21,11 @@ interface Pkg {
 
 const tableHeading = "### npm packages"
 
-const row = (p: Pick<Pkg, "name" | "version" | "license">) => `| ${p.name} | ${p.version} | ${p.license} |`
+const row = (p: Pick<Pkg, "name" | "license">) => `| ${p.name} | ${p.license} |`
 
-/** Rows of the npm table in THIRD_PARTY_NOTICES.md. */
-function listedPackages(root: string): Pick<Pkg, "name" | "version" | "license">[] {
-  const rows = []
+/** Rows of the npm table in THIRD_PARTY_NOTICES.md: license by package name. */
+function listedPackages(root: string): Map<string, string> {
+  const rows = new Map<string, string>()
   let inTable = false
   for (const line of fs.readFileSync(path.join(root, "../THIRD_PARTY_NOTICES.md"), "utf8").split("\n")) {
     if (line.startsWith("#")) {
@@ -37,8 +37,8 @@ function listedPackages(root: string): Pick<Pkg, "name" | "version" | "license">
       .replace(/^\||\|$/g, "")
       .split("|")
       .map((c) => c.trim())
-    if (inTable && cells.length === 3 && cells[0] !== "Package" && !cells[0].startsWith("---"))
-      rows.push({ name: cells[0], version: cells[1], license: cells[2] })
+    if (inTable && cells.length === 2 && cells[0] !== "Package" && !cells[0].startsWith("---"))
+      rows.set(cells[0], cells[1])
   }
   return rows
 }
@@ -150,19 +150,25 @@ function bundledPackages(root: string, moduleIds: Iterable<string>, bundle: Roll
   return pkgs
 }
 
-/** The listed packages as installed, and the rows that are missing, outdated or wrong. */
+/** The packages to credit (the bundle and the listed build tools), and the rows that are missing or wrong. */
 function checkListed(root: string, bundled: Map<string, Pkg>) {
   const listed = listedPackages(root)
   const problems: string[] = []
-  const pkgs: Pkg[] = []
-  for (const l of listed) {
-    const p = bundled.get(`${l.name}@${l.version}`) ?? readPkg(path.join(root, "node_modules", l.name))
-    if (!p || p.version !== l.version) problems.push(`  not installed in this version: ${row(l)}`)
-    else if (p.license !== l.license) problems.push(`  ${l.name} declares "${p.license}": ${row(l)}`)
-    else pkgs.push(p)
+  const pkgs = [...bundled.values()]
+  // Build tools write code into the bundle without being imported: listed by hand, credited as installed.
+  for (const [name, license] of listed) {
+    if (pkgs.some((p) => p.name === name)) continue
+    const p = readPkg(path.join(root, "node_modules", name))
+    if (p) pkgs.push(p)
+    else problems.push(`  not installed any more, remove: ${row({ name, license })}`)
   }
-  const names = new Set(listed.map((l) => `${l.name}@${l.version}`))
-  for (const [key, p] of bundled) if (!names.has(key)) problems.push(`  missing (add with its license): ${row(p)}`)
+  for (const p of pkgs) {
+    const license = listed.get(p.name)
+    if (license === undefined) problems.push(`  missing (add with its license): ${row(p)}`)
+    else if (license !== p.license)
+      problems.push(`  ${p.name} ${p.version} declares "${p.license}": ${row({ ...p, license })}`)
+  }
+  pkgs.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))
   return { pkgs, problems: problems.sort() }
 }
 

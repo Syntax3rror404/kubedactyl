@@ -3,9 +3,9 @@
 // and the npm section the Vite build wrote (web/dist/licenses-npm.md). The panel shows the
 // file on its licenses page (/licenses) and the image ships it under /usr/share/licenses/kubedactyl.
 //
-// The modules are tracked by hand in the "Go modules" table of THIRD_PARTY_NOTICES.md (name,
-// version, license). The command fails when the table and the modules compiled into the
-// linux/amd64 binary differ, and prints the rows to add or remove.
+// The modules are tracked by hand in the "Go modules" table of THIRD_PARTY_NOTICES.md (module and
+// license; the version comes from the build, so updates need no change). The command fails when the
+// table and the modules compiled into the linux/amd64 binary differ, and prints the rows to add or remove.
 //
 //	go run ./tools/licenses -root .. -dist web/dist
 package main
@@ -26,10 +26,10 @@ import (
 
 var licenseFile = regexp.MustCompile(`(?i)^(licen[cs]e|copying|notice|copyright)([.-].*)?$`)
 
-// module is a row of the table (path, version, license) and where its source is.
+// module is a module of the binary with the license listed for it and where its source is.
 type module struct{ path, version, license, dir string }
 
-func (m module) row() string { return "| " + m.path + " | " + m.version + " | " + m.license + " |" }
+func (m module) row() string { return "| " + m.path + " | " + m.license + " |" }
 
 const tableHeading = "### Go modules"
 
@@ -42,12 +42,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	listed := listedModules(notices)
 	built, err := goModules()
 	if err != nil {
 		log.Fatal(err)
 	}
-	if problems := compare(listed, built); len(problems) > 0 {
+	listed, problems := compare(listedModules(notices), built)
+	if len(problems) > 0 {
 		log.Fatalf("THIRD_PARTY_NOTICES.md (%s) does not match the panel binary:\n%s",
 			tableHeading, strings.Join(problems, "\n"))
 	}
@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v: run the frontend build first", err)
 	}
-	out, err := licenses(*root, notices, built, listed, npm)
+	out, err := licenses(*root, notices, listed, npm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func main() {
 
 // licenses joins the license, the notices, the texts of the listed Go modules and the npm part
 // into one Markdown document; license texts are code blocks, so they keep their line breaks.
-func licenses(root string, notices []byte, built map[string]module, listed []module, npm []byte) ([]byte, error) {
+func licenses(root string, notices []byte, listed []module, npm []byte) ([]byte, error) {
 	license, err := os.ReadFile(filepath.Join(root, "LICENSE"))
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func licenses(root string, notices []byte, built map[string]module, listed []mod
 	)
 	fmt.Fprintf(&out, "\n\n## Go modules in the panel binary (%d)", len(listed))
 	for _, m := range listed {
-		texts, err := licenseTexts(built[m.path].dir)
+		texts, err := licenseTexts(m.dir)
 		if err != nil {
 			return nil, err
 		}
@@ -141,13 +141,13 @@ func listedModules(notices []byte) []module {
 			continue
 		}
 		cells := strings.Split(strings.Trim(strings.TrimSpace(line), "|"), "|")
-		if !in || len(cells) != 3 {
+		if !in || len(cells) != 2 {
 			continue
 		}
 		for i := range cells {
 			cells[i] = strings.TrimSpace(cells[i])
 		}
-		m := module{path: cells[0], version: cells[1], license: cells[2]}
+		m := module{path: cells[0], license: cells[1]}
 		if m.path != "Module" && !strings.HasPrefix(m.path, "---") {
 			mods = append(mods, m)
 		}
@@ -155,19 +155,21 @@ func listedModules(notices []byte) []module {
 	return mods
 }
 
-// compare lists the rows that are missing, outdated or no longer used.
-func compare(listed []module, built map[string]module) []string {
+// compare returns the listed modules as built (with version and source) and the rows that are missing or
+// no longer used.
+func compare(listed []module, built map[string]module) ([]module, []string) {
+	var mods []module
 	var problems []string
 	seen := map[string]bool{}
 	for _, m := range listed {
 		seen[m.path] = true
-		switch b, ok := built[m.path]; {
-		case !ok:
+		b, ok := built[m.path]
+		if !ok {
 			problems = append(problems, "  not in the binary any more, remove: "+m.row())
-		case b.version != m.version:
-			problems = append(problems, fmt.Sprintf("  %s is now %s (check its license): %s",
-				m.path, b.version, m.row()))
+			continue
 		}
+		b.license = m.license
+		mods = append(mods, b)
 	}
 	for path, b := range built {
 		if !seen[path] {
@@ -175,7 +177,7 @@ func compare(listed []module, built map[string]module) []string {
 		}
 	}
 	slices.Sort(problems)
-	return problems
+	return mods, problems
 }
 
 // goModules lists the modules of the packages the linux/amd64 panel binary is built from.

@@ -14,7 +14,7 @@ contains it as `/usr/share/licenses/kubedactyl/THIRD_PARTY_LICENSES.md`.
 
 The image `ghcr.io/syntax3rror404/kubedactyl` is based on the unmodified `alpine:3.24.4` image. Its packages
 (musl, BusyBox, apk-tools, ca-certificates, …) keep their own licenses, among them GPL-2.0 (BusyBox). Their
-sources are published by Alpine Linux: https://gitlab.alpinelinux.org/alpine/aports (branch `3.24-stable`) and
+sources are published by Alpine Linux: https://gitlab.alpinelinux.org/alpine/aports (the `-stable` branch of that release) and
 the source archives referenced there.
 
 ## Pterodactyl Wings: configuration file parsers
@@ -327,10 +327,11 @@ The logo the panel prints when it starts (`backend/banner.go`) is set in the TOI
 ## Dependencies
 
 Every Go module compiled into the panel binary and every npm package in the web interface, with the license
-it is used under, tracked by hand, like any other code decision: when a dependency is added or updated,
-check its license (repository, license file) and change the row. The build compares the tables with what it
-actually compiles and bundles and fails with the rows to add, update or remove (`backend/tools/licenses` for
-Go, `frontend/scripts/licenses-plugin.ts` for npm).
+it is used under, tracked by hand, like any other code decision: when a dependency is added, check its license
+(repository, license file) and add the row. The versions come from the build (they are in
+`third-party-licenses.md`), so updates need no change. The build compares the tables with what it actually
+compiles and bundles and fails with the rows to add or remove, and when an npm package declares another license
+(`backend/tools/licenses` for Go, `frontend/scripts/licenses-plugin.ts` for npm).
 
 The npm table also lists the build tools whose code the build writes into the web interface: Vite (module
 preload helpers) and Rolldown (runtime helpers of the bundles), together with the Vite plugins for React and
@@ -338,425 +339,423 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 
 ### Go modules
 
-| Module | Version | License |
-| --- | --- | --- |
-| dario.cat/mergo | v1.0.1 | BSD-3-Clause |
-| github.com/BurntSushi/toml | v1.6.0 | MIT |
-| github.com/Jeffail/gabs/v2 | v2.7.0 | MIT |
-| github.com/KyleBanks/depth | v1.2.1 | MIT |
-| github.com/MakeNowJust/heredoc | v1.0.0 | MIT |
-| github.com/Masterminds/goutils | v1.1.1 | Apache-2.0 |
-| github.com/Masterminds/semver/v3 | v3.5.0 | MIT |
-| github.com/Masterminds/sprig/v3 | v3.3.0 | MIT |
-| github.com/Masterminds/squirrel | v1.5.4 | MIT |
-| github.com/ProtonMail/go-crypto | v1.4.1 | BSD-3-Clause |
-| github.com/asaskevich/govalidator | v0.0.0-20230301143203-a9d515a09cc2 | MIT |
-| github.com/beevik/etree | v1.8.1 | BSD-2-Clause |
-| github.com/beorn7/perks | v1.0.1 | MIT |
-| github.com/blang/semver/v4 | v4.0.0 | MIT |
-| github.com/cespare/xxhash/v2 | v2.3.0 | MIT |
-| github.com/chai2010/gettext-go | v1.0.2 | BSD-3-Clause |
-| github.com/cloudflare/circl | v1.6.3 | BSD-3-Clause |
-| github.com/coder/websocket | v1.8.15 | ISC |
-| github.com/coreos/go-oidc/v3 | v3.21.0 | Apache-2.0 |
-| github.com/cyphar/filepath-securejoin | v0.7.0 | BSD-3-Clause AND MPL-2.0 |
-| github.com/davecgh/go-spew | v1.1.2-0.20180830191138-d8f796af33cc | ISC |
-| github.com/dylibso/observe-sdk/go | v0.0.0-20240819160327-2d926c5d788a | Apache-2.0 |
-| github.com/emicklei/go-restful/v3 | v3.13.0 | MIT |
-| github.com/evanphx/json-patch/v5 | v5.9.11 | BSD-3-Clause |
-| github.com/exponent-io/jsonpath | v0.0.0-20210407135951-1de76d718b3f | MIT |
-| github.com/extism/go-sdk | v1.7.1 | BSD-3-Clause |
-| github.com/fatih/color | v1.19.0 | MIT |
-| github.com/fluxcd/cli-utils | v1.2.2 | Apache-2.0 |
-| github.com/fsnotify/fsnotify | v1.9.0 | BSD-3-Clause |
-| github.com/fxamacker/cbor/v2 | v2.9.1 | MIT |
-| github.com/gabriel-vasile/mimetype | v1.4.12 | MIT |
-| github.com/gin-contrib/sse | v1.1.0 | MIT |
-| github.com/gin-gonic/gin | v1.12.0 | MIT |
-| github.com/go-errors/errors | v1.5.1 | MIT |
-| github.com/go-gorp/gorp/v3 | v3.1.0 | MIT |
-| github.com/go-jose/go-jose/v4 | v4.1.5 | Apache-2.0 |
-| github.com/go-logr/logr | v1.4.4 | Apache-2.0 |
-| github.com/go-openapi/jsonpointer | v1.0.0 | Apache-2.0 |
-| github.com/go-openapi/jsonreference | v1.0.0 | Apache-2.0 |
-| github.com/go-openapi/spec | v0.20.4 | Apache-2.0 |
-| github.com/go-openapi/swag | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/cmdutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/conv | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/fileutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/jsonutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/loading | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/mangling | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/netutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/pools | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/stringutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/typeutils | v0.27.1 | Apache-2.0 |
-| github.com/go-openapi/swag/yamlutils | v0.27.1 | Apache-2.0 |
-| github.com/go-playground/locales | v0.14.1 | MIT |
-| github.com/go-playground/universal-translator | v0.18.1 | MIT |
-| github.com/go-playground/validator/v10 | v10.30.1 | MIT |
-| github.com/gobwas/glob | v0.2.3 | MIT |
-| github.com/goccy/go-yaml | v1.19.2 | MIT |
-| github.com/google/btree | v1.1.3 | Apache-2.0 |
-| github.com/google/gnostic-models | v0.7.1 | Apache-2.0 |
-| github.com/google/uuid | v1.6.0 | BSD-3-Clause |
-| github.com/gorilla/websocket | v1.5.4-0.20250319132907-e064f32e3674 | BSD-2-Clause |
-| github.com/gosuri/uitable | v0.0.4 | MIT |
-| github.com/huandu/xstrings | v1.5.0 | MIT |
-| github.com/iancoleman/strcase | v0.3.0 | MIT |
-| github.com/ianlancetaylor/demangle | v0.0.0-20240805132620-81f5be970eca | BSD-3-Clause |
-| github.com/icza/dyno | v0.0.0-20260912175837-51f8ab52fd15 | Apache-2.0 |
-| github.com/jmoiron/sqlx | v1.4.0 | MIT |
-| github.com/json-iterator/go | v1.1.12 | MIT |
-| github.com/lann/builder | v0.0.0-20180802200727-47ae307949d0 | MIT |
-| github.com/lann/ps | v0.0.0-20150810152359-62de8c46ede0 | MIT |
-| github.com/leodido/go-urn | v1.4.0 | MIT |
-| github.com/lib/pq | v1.12.3 | MIT |
-| github.com/liggitt/tabwriter | v0.0.0-20181228230101-89fcab3d43de | BSD-3-Clause |
-| github.com/magiconair/properties | v1.18.12 | BSD-2-Clause |
-| github.com/mattn/go-colorable | v0.1.14 | MIT |
-| github.com/mattn/go-isatty | v0.0.20 | MIT |
-| github.com/mattn/go-runewidth | v0.0.9 | MIT |
-| github.com/mitchellh/copystructure | v1.2.0 | MIT |
-| github.com/mitchellh/go-wordwrap | v1.0.1 | MIT |
-| github.com/mitchellh/reflectwalk | v1.0.2 | MIT |
-| github.com/moby/spdystream | v0.5.1 | Apache-2.0 |
-| github.com/moby/term | v0.5.2 | Apache-2.0 |
-| github.com/modern-go/concurrent | v0.0.0-20180306012644-bacd9c7ef1dd | Apache-2.0 |
-| github.com/modern-go/reflect2 | v1.0.3-0.20250322232337-35a7c28c31ee | Apache-2.0 |
-| github.com/monochromegane/go-gitignore | v0.0.0-20200626010858-205db1a8cc00 | MIT |
-| github.com/munnerz/goautoneg | v0.0.0-20191010083416-a7dc8b61c822 | BSD-3-Clause |
-| github.com/opencontainers/go-digest | v1.0.0 | Apache-2.0 |
-| github.com/opencontainers/image-spec | v1.1.1 | Apache-2.0 |
-| github.com/pelletier/go-toml/v2 | v2.2.4 | MIT |
-| github.com/peterbourgon/diskv | v2.0.1+incompatible | MIT |
-| github.com/pmezard/go-difflib | v1.0.1-0.20181226105442-5d4384ee4fb2 | BSD-3-Clause |
-| github.com/prometheus/client_golang | v1.24.0 | Apache-2.0 |
-| github.com/prometheus/client_model | v0.6.2 | Apache-2.0 |
-| github.com/prometheus/common | v0.70.0 | Apache-2.0 |
-| github.com/prometheus/procfs | v0.21.1 | Apache-2.0 |
-| github.com/quic-go/qpack | v0.6.0 | MIT |
-| github.com/quic-go/quic-go | v0.63.0 | MIT |
-| github.com/robfig/cron/v3 | v3.0.1 | MIT |
-| github.com/rubenv/sql-migrate | v1.8.1 | MIT |
-| github.com/russross/blackfriday/v2 | v2.1.0 | BSD-2-Clause |
-| github.com/santhosh-tekuri/jsonschema/v6 | v6.0.3 | Apache-2.0 |
-| github.com/shopspring/decimal | v1.4.0 | MIT |
-| github.com/spf13/cast | v1.7.0 | MIT |
-| github.com/spf13/cobra | v1.10.2 | Apache-2.0 |
-| github.com/spf13/pflag | v1.0.10 | BSD-3-Clause |
-| github.com/swaggo/files | v1.0.1 | MIT |
-| github.com/swaggo/gin-swagger | v1.6.1 | MIT |
-| github.com/swaggo/swag | v1.16.6 | MIT |
-| github.com/tetratelabs/wabin | v0.0.0-20230304001439-f6f874872834 | Apache-2.0 |
-| github.com/tetratelabs/wazero | v1.12.0 | Apache-2.0 |
-| github.com/ugorji/go/codec | v1.3.1 | MIT |
-| github.com/x448/float16 | v0.8.4 | MIT |
-| github.com/xlab/treeprint | v1.2.0 | MIT |
-| go.mongodb.org/mongo-driver/v2 | v2.5.0 | Apache-2.0 |
-| go.opentelemetry.io/proto/otlp | v1.11.0 | Apache-2.0 |
-| go.yaml.in/yaml/v2 | v2.4.4 | Apache-2.0 AND MIT |
-| go.yaml.in/yaml/v3 | v3.0.6 | Apache-2.0 AND MIT |
-| golang.org/x/crypto | v0.58.0 | BSD-3-Clause |
-| golang.org/x/mod | v0.42.0 | BSD-3-Clause |
-| golang.org/x/net | v0.62.0 | BSD-3-Clause |
-| golang.org/x/oauth2 | v0.37.0 | BSD-3-Clause |
-| golang.org/x/sync | v0.24.0 | BSD-3-Clause |
-| golang.org/x/sys | v0.49.0 | BSD-3-Clause |
-| golang.org/x/term | v0.47.0 | BSD-3-Clause |
-| golang.org/x/text | v0.43.0 | BSD-3-Clause |
-| golang.org/x/time | v0.16.0 | BSD-3-Clause |
-| golang.org/x/tools | v0.52.0 | BSD-3-Clause |
-| gomodules.xyz/jsonpatch/v2 | v2.4.0 | Apache-2.0 |
-| google.golang.org/protobuf | v1.36.12 | BSD-3-Clause |
-| gopkg.in/evanphx/json-patch.v4 | v4.13.0 | BSD-3-Clause |
-| gopkg.in/inf.v0 | v0.9.1 | BSD-3-Clause |
-| gopkg.in/ini.v1 | v1.67.3 | Apache-2.0 |
-| helm.sh/helm/v4 | v4.3.1 | Apache-2.0 |
-| k8s.io/api | v0.37.2 | Apache-2.0 |
-| k8s.io/apiextensions-apiserver | v0.37.2 | Apache-2.0 |
-| k8s.io/apimachinery | v0.37.2 | Apache-2.0 |
-| k8s.io/apiserver | v0.37.2 | Apache-2.0 |
-| k8s.io/cli-runtime | v0.37.2 | Apache-2.0 |
-| k8s.io/client-go | v0.37.2 | Apache-2.0 |
-| k8s.io/component-base | v0.37.2 | Apache-2.0 |
-| k8s.io/klog/v2 | v2.140.0 | Apache-2.0 |
-| k8s.io/kube-openapi | v0.0.0-20260721132016-d427ff9ee9ad | Apache-2.0 |
-| k8s.io/kubectl | v0.37.1 | Apache-2.0 |
-| k8s.io/streaming | v0.37.2 | Apache-2.0 |
-| k8s.io/utils | v0.0.0-20261023123148-ca04ba58ecab | Apache-2.0 |
-| oras.land/oras-go/v2 | v2.6.2 | Apache-2.0 |
-| sigs.k8s.io/controller-runtime | v0.25.2 | Apache-2.0 |
-| sigs.k8s.io/json | v0.0.0-20250730193827-2d320260d730 | Apache-2.0 AND BSD-3-Clause |
-| sigs.k8s.io/kustomize/api | v0.21.1 | Apache-2.0 |
-| sigs.k8s.io/kustomize/kyaml | v0.21.2 | Apache-2.0 |
-| sigs.k8s.io/randfill | v1.0.0 | Apache-2.0 |
-| sigs.k8s.io/structured-merge-diff/v6 | v6.4.2 | Apache-2.0 |
-| sigs.k8s.io/yaml | v1.6.0 | Apache-2.0 AND MIT AND BSD-3-Clause |
+| Module | License |
+| --- | --- |
+| dario.cat/mergo | BSD-3-Clause |
+| github.com/BurntSushi/toml | MIT |
+| github.com/Jeffail/gabs/v2 | MIT |
+| github.com/KyleBanks/depth | MIT |
+| github.com/MakeNowJust/heredoc | MIT |
+| github.com/Masterminds/goutils | Apache-2.0 |
+| github.com/Masterminds/semver/v3 | MIT |
+| github.com/Masterminds/sprig/v3 | MIT |
+| github.com/Masterminds/squirrel | MIT |
+| github.com/ProtonMail/go-crypto | BSD-3-Clause |
+| github.com/asaskevich/govalidator | MIT |
+| github.com/beevik/etree | BSD-2-Clause |
+| github.com/beorn7/perks | MIT |
+| github.com/blang/semver/v4 | MIT |
+| github.com/cespare/xxhash/v2 | MIT |
+| github.com/chai2010/gettext-go | BSD-3-Clause |
+| github.com/cloudflare/circl | BSD-3-Clause |
+| github.com/coder/websocket | ISC |
+| github.com/coreos/go-oidc/v3 | Apache-2.0 |
+| github.com/cyphar/filepath-securejoin | BSD-3-Clause AND MPL-2.0 |
+| github.com/davecgh/go-spew | ISC |
+| github.com/dylibso/observe-sdk/go | Apache-2.0 |
+| github.com/emicklei/go-restful/v3 | MIT |
+| github.com/evanphx/json-patch/v5 | BSD-3-Clause |
+| github.com/exponent-io/jsonpath | MIT |
+| github.com/extism/go-sdk | BSD-3-Clause |
+| github.com/fatih/color | MIT |
+| github.com/fluxcd/cli-utils | Apache-2.0 |
+| github.com/fsnotify/fsnotify | BSD-3-Clause |
+| github.com/fxamacker/cbor/v2 | MIT |
+| github.com/gabriel-vasile/mimetype | MIT |
+| github.com/gin-contrib/sse | MIT |
+| github.com/gin-gonic/gin | MIT |
+| github.com/go-errors/errors | MIT |
+| github.com/go-gorp/gorp/v3 | MIT |
+| github.com/go-jose/go-jose/v4 | Apache-2.0 |
+| github.com/go-logr/logr | Apache-2.0 |
+| github.com/go-openapi/jsonpointer | Apache-2.0 |
+| github.com/go-openapi/jsonreference | Apache-2.0 |
+| github.com/go-openapi/spec | Apache-2.0 |
+| github.com/go-openapi/swag | Apache-2.0 |
+| github.com/go-openapi/swag/cmdutils | Apache-2.0 |
+| github.com/go-openapi/swag/conv | Apache-2.0 |
+| github.com/go-openapi/swag/fileutils | Apache-2.0 |
+| github.com/go-openapi/swag/jsonutils | Apache-2.0 |
+| github.com/go-openapi/swag/loading | Apache-2.0 |
+| github.com/go-openapi/swag/mangling | Apache-2.0 |
+| github.com/go-openapi/swag/netutils | Apache-2.0 |
+| github.com/go-openapi/swag/pools | Apache-2.0 |
+| github.com/go-openapi/swag/stringutils | Apache-2.0 |
+| github.com/go-openapi/swag/typeutils | Apache-2.0 |
+| github.com/go-openapi/swag/yamlutils | Apache-2.0 |
+| github.com/go-playground/locales | MIT |
+| github.com/go-playground/universal-translator | MIT |
+| github.com/go-playground/validator/v10 | MIT |
+| github.com/gobwas/glob | MIT |
+| github.com/goccy/go-yaml | MIT |
+| github.com/google/btree | Apache-2.0 |
+| github.com/google/gnostic-models | Apache-2.0 |
+| github.com/google/uuid | BSD-3-Clause |
+| github.com/gorilla/websocket | BSD-2-Clause |
+| github.com/gosuri/uitable | MIT |
+| github.com/huandu/xstrings | MIT |
+| github.com/iancoleman/strcase | MIT |
+| github.com/ianlancetaylor/demangle | BSD-3-Clause |
+| github.com/icza/dyno | Apache-2.0 |
+| github.com/jmoiron/sqlx | MIT |
+| github.com/json-iterator/go | MIT |
+| github.com/lann/builder | MIT |
+| github.com/lann/ps | MIT |
+| github.com/leodido/go-urn | MIT |
+| github.com/lib/pq | MIT |
+| github.com/liggitt/tabwriter | BSD-3-Clause |
+| github.com/magiconair/properties | BSD-2-Clause |
+| github.com/mattn/go-colorable | MIT |
+| github.com/mattn/go-isatty | MIT |
+| github.com/mattn/go-runewidth | MIT |
+| github.com/mitchellh/copystructure | MIT |
+| github.com/mitchellh/go-wordwrap | MIT |
+| github.com/mitchellh/reflectwalk | MIT |
+| github.com/moby/spdystream | Apache-2.0 |
+| github.com/moby/term | Apache-2.0 |
+| github.com/modern-go/concurrent | Apache-2.0 |
+| github.com/modern-go/reflect2 | Apache-2.0 |
+| github.com/monochromegane/go-gitignore | MIT |
+| github.com/munnerz/goautoneg | BSD-3-Clause |
+| github.com/opencontainers/go-digest | Apache-2.0 |
+| github.com/opencontainers/image-spec | Apache-2.0 |
+| github.com/pelletier/go-toml/v2 | MIT |
+| github.com/peterbourgon/diskv | MIT |
+| github.com/pmezard/go-difflib | BSD-3-Clause |
+| github.com/prometheus/client_golang | Apache-2.0 |
+| github.com/prometheus/client_model | Apache-2.0 |
+| github.com/prometheus/common | Apache-2.0 |
+| github.com/prometheus/procfs | Apache-2.0 |
+| github.com/quic-go/qpack | MIT |
+| github.com/quic-go/quic-go | MIT |
+| github.com/robfig/cron/v3 | MIT |
+| github.com/rubenv/sql-migrate | MIT |
+| github.com/russross/blackfriday/v2 | BSD-2-Clause |
+| github.com/santhosh-tekuri/jsonschema/v6 | Apache-2.0 |
+| github.com/shopspring/decimal | MIT |
+| github.com/spf13/cast | MIT |
+| github.com/spf13/cobra | Apache-2.0 |
+| github.com/spf13/pflag | BSD-3-Clause |
+| github.com/swaggo/files | MIT |
+| github.com/swaggo/gin-swagger | MIT |
+| github.com/swaggo/swag | MIT |
+| github.com/tetratelabs/wabin | Apache-2.0 |
+| github.com/tetratelabs/wazero | Apache-2.0 |
+| github.com/ugorji/go/codec | MIT |
+| github.com/x448/float16 | MIT |
+| github.com/xlab/treeprint | MIT |
+| go.mongodb.org/mongo-driver/v2 | Apache-2.0 |
+| go.opentelemetry.io/proto/otlp | Apache-2.0 |
+| go.yaml.in/yaml/v2 | Apache-2.0 AND MIT |
+| go.yaml.in/yaml/v3 | Apache-2.0 AND MIT |
+| golang.org/x/crypto | BSD-3-Clause |
+| golang.org/x/mod | BSD-3-Clause |
+| golang.org/x/net | BSD-3-Clause |
+| golang.org/x/oauth2 | BSD-3-Clause |
+| golang.org/x/sync | BSD-3-Clause |
+| golang.org/x/sys | BSD-3-Clause |
+| golang.org/x/term | BSD-3-Clause |
+| golang.org/x/text | BSD-3-Clause |
+| golang.org/x/time | BSD-3-Clause |
+| golang.org/x/tools | BSD-3-Clause |
+| gomodules.xyz/jsonpatch/v2 | Apache-2.0 |
+| google.golang.org/protobuf | BSD-3-Clause |
+| gopkg.in/evanphx/json-patch.v4 | BSD-3-Clause |
+| gopkg.in/inf.v0 | BSD-3-Clause |
+| gopkg.in/ini.v1 | Apache-2.0 |
+| helm.sh/helm/v4 | Apache-2.0 |
+| k8s.io/api | Apache-2.0 |
+| k8s.io/apiextensions-apiserver | Apache-2.0 |
+| k8s.io/apimachinery | Apache-2.0 |
+| k8s.io/apiserver | Apache-2.0 |
+| k8s.io/cli-runtime | Apache-2.0 |
+| k8s.io/client-go | Apache-2.0 |
+| k8s.io/component-base | Apache-2.0 |
+| k8s.io/klog/v2 | Apache-2.0 |
+| k8s.io/kube-openapi | Apache-2.0 |
+| k8s.io/kubectl | Apache-2.0 |
+| k8s.io/streaming | Apache-2.0 |
+| k8s.io/utils | Apache-2.0 |
+| oras.land/oras-go/v2 | Apache-2.0 |
+| sigs.k8s.io/controller-runtime | Apache-2.0 |
+| sigs.k8s.io/json | Apache-2.0 AND BSD-3-Clause |
+| sigs.k8s.io/kustomize/api | Apache-2.0 |
+| sigs.k8s.io/kustomize/kyaml | Apache-2.0 |
+| sigs.k8s.io/randfill | Apache-2.0 |
+| sigs.k8s.io/structured-merge-diff/v6 | Apache-2.0 |
+| sigs.k8s.io/yaml | Apache-2.0 AND MIT AND BSD-3-Clause |
 
 ### npm packages
 
-| Package | Version | License |
-| --- | --- | --- |
-| @babel/runtime | 7.29.13 | MIT |
-| @codemirror/autocomplete | 6.20.4 | MIT |
-| @codemirror/commands | 6.11.1 | MIT |
-| @codemirror/lang-angular | 0.1.4 | MIT |
-| @codemirror/lang-cpp | 6.0.3 | MIT |
-| @codemirror/lang-css | 6.3.1 | MIT |
-| @codemirror/lang-go | 6.0.1 | MIT |
-| @codemirror/lang-html | 6.4.12 | MIT |
-| @codemirror/lang-java | 6.0.2 | MIT |
-| @codemirror/lang-javascript | 6.2.5 | MIT |
-| @codemirror/lang-jinja | 6.0.1 | MIT |
-| @codemirror/lang-json | 6.0.2 | MIT |
-| @codemirror/lang-less | 6.0.2 | MIT |
-| @codemirror/lang-liquid | 6.3.3 | MIT |
-| @codemirror/lang-markdown | 6.5.2 | MIT |
-| @codemirror/lang-php | 6.0.2 | MIT |
-| @codemirror/lang-python | 6.2.1 | MIT |
-| @codemirror/lang-rust | 6.0.2 | MIT |
-| @codemirror/lang-sass | 6.0.2 | MIT |
-| @codemirror/lang-sql | 6.10.0 | MIT |
-| @codemirror/lang-vue | 0.1.3 | MIT |
-| @codemirror/lang-wast | 6.0.2 | MIT |
-| @codemirror/lang-xml | 6.1.0 | MIT |
-| @codemirror/lang-yaml | 6.1.3 | MIT |
-| @codemirror/language | 6.13.1 | MIT |
-| @codemirror/language-data | 6.5.2 | MIT |
-| @codemirror/legacy-modes | 6.5.5 | MIT |
-| @codemirror/lint | 6.9.7 | MIT |
-| @codemirror/search | 6.7.2 | MIT |
-| @codemirror/state | 6.7.6 | MIT |
-| @codemirror/streamparser | 6.0.0 | MIT |
-| @codemirror/theme-one-dark | 6.1.3 | MIT |
-| @codemirror/view | 6.43.15 | MIT |
-| @floating-ui/core | 1.8.0 | MIT |
-| @floating-ui/dom | 1.8.0 | MIT |
-| @floating-ui/react-dom | 2.1.9 | MIT |
-| @floating-ui/utils | 0.2.12 | MIT |
-| @fontsource-variable/geist | 5.3.0 | OFL-1.1 |
-| @fontsource-variable/jetbrains-mono | 5.3.0 | OFL-1.1 |
-| @lezer/common | 1.5.5 | MIT |
-| @lezer/cpp | 1.1.6 | MIT |
-| @lezer/css | 1.3.9 | MIT |
-| @lezer/go | 1.0.1 | MIT |
-| @lezer/highlight | 1.2.5 | MIT |
-| @lezer/html | 1.3.13 | MIT |
-| @lezer/java | 1.1.5 | MIT |
-| @lezer/javascript | 1.5.6 | MIT |
-| @lezer/json | 1.0.3 | MIT |
-| @lezer/lr | 1.4.12 | MIT |
-| @lezer/markdown | 1.8.1 | MIT |
-| @lezer/php | 1.0.6 | MIT |
-| @lezer/python | 1.1.19 | MIT |
-| @lezer/rust | 1.0.3 | MIT |
-| @lezer/sass | 1.1.0 | MIT |
-| @lezer/xml | 1.0.6 | MIT |
-| @lezer/yaml | 1.0.4 | MIT |
-| @marijn/find-cluster-break | 1.0.4 | MIT |
-| @radix-ui/number | 1.1.3 | MIT |
-| @radix-ui/primitive | 1.2.0 | MIT |
-| @radix-ui/react-accessible-icon | 1.2.0 | MIT |
-| @radix-ui/react-accordion | 1.3.1 | MIT |
-| @radix-ui/react-alert-dialog | 1.2.1 | MIT |
-| @radix-ui/react-arrow | 1.1.17 | MIT |
-| @radix-ui/react-aspect-ratio | 1.2.0 | MIT |
-| @radix-ui/react-avatar | 1.3.1 | MIT |
-| @radix-ui/react-checkbox | 1.4.1 | MIT |
-| @radix-ui/react-collapsible | 1.2.1 | MIT |
-| @radix-ui/react-collection | 1.2.0 | MIT |
-| @radix-ui/react-compose-refs | 1.1.5 | MIT |
-| @radix-ui/react-context | 1.3.0 | MIT |
-| @radix-ui/react-context-menu | 2.4.1 | MIT |
-| @radix-ui/react-dialog | 1.3.1 | MIT |
-| @radix-ui/react-direction | 1.2.0 | MIT |
-| @radix-ui/react-dismissable-layer | 1.2.1 | MIT |
-| @radix-ui/react-dropdown-menu | 2.2.1 | MIT |
-| @radix-ui/react-focus-guards | 1.2.0 | MIT |
-| @radix-ui/react-focus-scope | 1.3.1 | MIT |
-| @radix-ui/react-form | 0.3.0 | MIT |
-| @radix-ui/react-hover-card | 1.2.1 | MIT |
-| @radix-ui/react-id | 1.1.4 | MIT |
-| @radix-ui/react-label | 2.1.17 | MIT |
-| @radix-ui/react-menu | 2.2.1 | MIT |
-| @radix-ui/react-menubar | 1.2.1 | MIT |
-| @radix-ui/react-navigation-menu | 1.4.1 | MIT |
-| @radix-ui/react-one-time-password-field | 0.2.1 | MIT |
-| @radix-ui/react-password-toggle-field | 0.2.1 | MIT |
-| @radix-ui/react-popover | 1.3.1 | MIT |
-| @radix-ui/react-popper | 1.4.0 | MIT |
-| @radix-ui/react-portal | 1.2.0 | MIT |
-| @radix-ui/react-presence | 1.1.11 | MIT |
-| @radix-ui/react-primitive | 2.2.0 | MIT |
-| @radix-ui/react-progress | 1.2.1 | MIT |
-| @radix-ui/react-radio-group | 1.5.1 | MIT |
-| @radix-ui/react-roving-focus | 1.2.1 | MIT |
-| @radix-ui/react-scroll-area | 1.4.0 | MIT |
-| @radix-ui/react-select | 2.4.1 | MIT |
-| @radix-ui/react-separator | 1.2.0 | MIT |
-| @radix-ui/react-slider | 1.6.1 | MIT |
-| @radix-ui/react-slot | 1.5.0 | MIT |
-| @radix-ui/react-switch | 1.4.1 | MIT |
-| @radix-ui/react-tabs | 1.2.1 | MIT |
-| @radix-ui/react-toast | 1.3.1 | MIT |
-| @radix-ui/react-toggle | 1.2.1 | MIT |
-| @radix-ui/react-toggle-group | 1.2.1 | MIT |
-| @radix-ui/react-toolbar | 1.2.1 | MIT |
-| @radix-ui/react-tooltip | 1.4.1 | MIT |
-| @radix-ui/react-use-callback-ref | 1.1.5 | MIT |
-| @radix-ui/react-use-controllable-state | 1.3.0 | MIT |
-| @radix-ui/react-use-effect-event | 0.0.5 | MIT |
-| @radix-ui/react-use-is-hydrated | 0.1.3 | MIT |
-| @radix-ui/react-use-layout-effect | 1.1.4 | MIT |
-| @radix-ui/react-use-previous | 1.1.4 | MIT |
-| @radix-ui/react-use-size | 1.1.5 | MIT |
-| @radix-ui/react-visually-hidden | 1.2.13 | MIT |
-| @reduxjs/toolkit | 2.14.0 | MIT |
-| @remix-run/route-pattern | 0.22.1 | MIT |
-| @tailwindcss/vite | 4.3.5 | MIT |
-| @tanstack/query-core | 5.107.0 | MIT |
-| @tanstack/react-query | 5.107.0 | MIT |
-| @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT |
-| @uiw/react-codemirror | 4.25.12 | MIT |
-| @ungap/structured-clone | 1.4.0 | ISC |
-| @xterm/addon-fit | 0.11.0 | MIT |
-| @xterm/xterm | 6.0.0 | MIT |
-| aria-hidden | 1.2.6 | MIT |
-| attr-accept | 4.0.1 | MIT |
-| bail | 2.0.2 | MIT |
-| ccount | 2.0.1 | MIT |
-| class-variance-authority | 0.7.1 | Apache-2.0 |
-| clsx | 2.1.1 | MIT |
-| cn | 0.5.2 | MIT |
-| comma-separated-tokens | 2.0.3 | MIT |
-| cookie-es | 3.1.1 | MIT |
-| crelt | 1.0.7 | MIT |
-| cronstrue | 3.38.0 | MIT |
-| d3-array | 3.2.5 | ISC |
-| d3-color | 3.1.1 | ISC |
-| d3-format | 3.1.3 | ISC |
-| d3-interpolate | 3.0.2 | ISC |
-| d3-path | 3.1.1 | ISC |
-| d3-scale | 4.0.3 | ISC |
-| d3-shape | 3.2.1 | ISC |
-| d3-time | 3.1.1 | ISC |
-| d3-time-format | 4.1.1 | ISC |
-| decimal.js-light | 2.5.1 | MIT |
-| decode-named-character-reference | 1.3.0 | MIT |
-| detect-node-es | 1.1.0 | MIT |
-| devlop | 1.1.0 | MIT |
-| es-toolkit | 1.53.2 | MIT |
-| escape-string-regexp | 5.0.0 | MIT |
-| estree-util-is-identifier-name | 3.0.0 | MIT |
-| eventemitter3 | 5.0.4 | MIT |
-| extend | 3.0.2 | MIT |
-| file-selector | 5.0.2 | MIT |
-| framer-motion | 14.10.1 | MIT |
-| get-nonce | 1.0.1 | MIT |
-| hast-util-to-jsx-runtime | 2.3.7 | MIT |
-| hast-util-whitespace | 3.0.0 | MIT |
-| html-url-attributes | 3.0.1 | MIT |
-| immer | 10.2.0 | MIT |
-| immer | 11.2.9 | MIT |
-| inline-style-parser | 0.2.9 | MIT |
-| internmap | 2.0.3 | ISC |
-| is-plain-obj | 4.1.0 | MIT |
-| longest-streak | 3.1.0 | MIT |
-| lucide-react | 1.70.0 | ISC |
-| markdown-table | 3.1.0 | MIT |
-| mdast-util-find-and-replace | 3.0.4 | MIT |
-| mdast-util-from-markdown | 2.1.0 | MIT |
-| mdast-util-gfm | 3.1.0 | MIT |
-| mdast-util-gfm-autolink-literal | 2.1.0 | MIT |
-| mdast-util-gfm-footnote | 2.1.0 | MIT |
-| mdast-util-gfm-strikethrough | 2.0.1 | MIT |
-| mdast-util-gfm-table | 2.0.1 | MIT |
-| mdast-util-gfm-task-list-item | 2.0.1 | MIT |
-| mdast-util-phrasing | 4.1.0 | MIT |
-| mdast-util-to-hast | 13.2.1 | MIT |
-| mdast-util-to-markdown | 2.2.3 | MIT |
-| mdast-util-to-string | 4.0.0 | MIT |
-| micromark | 4.0.3 | MIT |
-| micromark-core-commonmark | 2.0.4 | MIT |
-| micromark-extension-gfm | 3.0.0 | MIT |
-| micromark-extension-gfm-autolink-literal | 2.1.0 | MIT |
-| micromark-extension-gfm-footnote | 2.1.0 | MIT |
-| micromark-extension-gfm-strikethrough | 2.1.0 | MIT |
-| micromark-extension-gfm-table | 2.1.2 | MIT |
-| micromark-extension-gfm-tagfilter | 2.0.0 | MIT |
-| micromark-extension-gfm-task-list-item | 2.1.0 | MIT |
-| micromark-factory-destination | 2.0.1 | MIT |
-| micromark-factory-label | 2.0.1 | MIT |
-| micromark-factory-space | 2.1.0 | MIT |
-| micromark-factory-title | 2.0.1 | MIT |
-| micromark-factory-whitespace | 2.0.1 | MIT |
-| micromark-util-character | 2.1.1 | MIT |
-| micromark-util-chunked | 2.0.1 | MIT |
-| micromark-util-classify-character | 2.0.1 | MIT |
-| micromark-util-combine-extensions | 2.0.1 | MIT |
-| micromark-util-decode-numeric-character-reference | 2.0.2 | MIT |
-| micromark-util-decode-string | 2.0.1 | MIT |
-| micromark-util-edit-map | 1.0.0 | MIT |
-| micromark-util-encode | 2.0.1 | MIT |
-| micromark-util-html-tag-name | 2.0.1 | MIT |
-| micromark-util-normalize-identifier | 2.0.1 | MIT |
-| micromark-util-resolve-all | 2.0.1 | MIT |
-| micromark-util-sanitize-uri | 2.0.1 | MIT |
-| micromark-util-subtokenize | 2.1.0 | MIT |
-| motion | 14.10.1 | MIT |
-| motion-dom | 14.10.1 | MIT |
-| motion-utils | 14.7.0 | MIT |
-| next-themes | 0.4.6 | MIT |
-| property-information | 7.2.0 | MIT |
-| radix-ui | 1.8.1 | MIT |
-| react | 19.3.1 | MIT |
-| react-dom | 19.3.1 | MIT |
-| react-dropzone | 20.1.4 | MIT |
-| react-is | 19.3.1 | MIT |
-| react-markdown | 10.1.0 | MIT |
-| react-redux | 9.3.1 | MIT |
-| react-remove-scroll | 2.7.2 | MIT |
-| react-remove-scroll-bar | 2.3.8 | MIT |
-| react-router | 8.5.1 | MIT |
-| react-style-singleton | 2.2.3 | MIT |
-| recharts | 3.8.0 | MIT |
-| redux | 5.0.1 | MIT |
-| redux-thunk | 3.1.0 | MIT |
-| remark-gfm | 4.0.1 | MIT |
-| remark-parse | 11.0.0 | MIT |
-| remark-rehype | 11.1.2 | MIT |
-| reselect | 5.1.1 | MIT |
-| reselect | 5.3.0 | MIT |
-| rolldown | 1.2.16 | MIT |
-| scheduler | 0.28.0 | MIT |
-| shadcn | 4.23.0 | MIT |
-| sonner | 2.0.8 | MIT |
-| space-separated-tokens | 2.0.2 | MIT |
-| style-mod | 4.1.4 | MIT |
-| style-to-object | 2.0.2 | MIT |
-| tailwindcss | 4.3.5 | MIT |
-| tiny-invariant | 1.3.3 | MIT |
-| trim-lines | 3.0.1 | MIT |
-| trough | 2.2.0 | MIT |
-| tslib | 2.9.1 | 0BSD |
-| tw-animate-css | 1.4.0 | MIT |
-| unified | 11.0.5 | MIT |
-| unist-util-is | 6.0.1 | MIT |
-| unist-util-position | 5.0.0 | MIT |
-| unist-util-stringify-position | 4.0.0 | MIT |
-| unist-util-visit | 5.2.0 | MIT |
-| unist-util-visit-parents | 6.1.0 | MIT |
-| uqr | 0.1.3 | MIT |
-| use-callback-ref | 1.3.3 | MIT |
-| use-sidecar | 1.1.3 | MIT |
-| use-sync-external-store | 1.7.0 | MIT |
-| vfile | 6.0.3 | MIT |
-| vfile-message | 4.0.4 | MIT |
-| victory-vendor | 37.4.1 | MIT AND ISC AND BSD-3-Clause |
-| vite | 8.3.6 | MIT |
-| w3c-keyname | 2.2.8 | MIT |
-| zwitch | 2.0.4 | MIT |
+| Package | License |
+| --- | --- |
+| @babel/runtime | MIT |
+| @codemirror/autocomplete | MIT |
+| @codemirror/commands | MIT |
+| @codemirror/lang-angular | MIT |
+| @codemirror/lang-cpp | MIT |
+| @codemirror/lang-css | MIT |
+| @codemirror/lang-go | MIT |
+| @codemirror/lang-html | MIT |
+| @codemirror/lang-java | MIT |
+| @codemirror/lang-javascript | MIT |
+| @codemirror/lang-jinja | MIT |
+| @codemirror/lang-json | MIT |
+| @codemirror/lang-less | MIT |
+| @codemirror/lang-liquid | MIT |
+| @codemirror/lang-markdown | MIT |
+| @codemirror/lang-php | MIT |
+| @codemirror/lang-python | MIT |
+| @codemirror/lang-rust | MIT |
+| @codemirror/lang-sass | MIT |
+| @codemirror/lang-sql | MIT |
+| @codemirror/lang-vue | MIT |
+| @codemirror/lang-wast | MIT |
+| @codemirror/lang-xml | MIT |
+| @codemirror/lang-yaml | MIT |
+| @codemirror/language | MIT |
+| @codemirror/language-data | MIT |
+| @codemirror/legacy-modes | MIT |
+| @codemirror/lint | MIT |
+| @codemirror/search | MIT |
+| @codemirror/state | MIT |
+| @codemirror/streamparser | MIT |
+| @codemirror/theme-one-dark | MIT |
+| @codemirror/view | MIT |
+| @floating-ui/core | MIT |
+| @floating-ui/dom | MIT |
+| @floating-ui/react-dom | MIT |
+| @floating-ui/utils | MIT |
+| @fontsource-variable/geist | OFL-1.1 |
+| @fontsource-variable/jetbrains-mono | OFL-1.1 |
+| @lezer/common | MIT |
+| @lezer/cpp | MIT |
+| @lezer/css | MIT |
+| @lezer/go | MIT |
+| @lezer/highlight | MIT |
+| @lezer/html | MIT |
+| @lezer/java | MIT |
+| @lezer/javascript | MIT |
+| @lezer/json | MIT |
+| @lezer/lr | MIT |
+| @lezer/markdown | MIT |
+| @lezer/php | MIT |
+| @lezer/python | MIT |
+| @lezer/rust | MIT |
+| @lezer/sass | MIT |
+| @lezer/xml | MIT |
+| @lezer/yaml | MIT |
+| @marijn/find-cluster-break | MIT |
+| @radix-ui/number | MIT |
+| @radix-ui/primitive | MIT |
+| @radix-ui/react-accessible-icon | MIT |
+| @radix-ui/react-accordion | MIT |
+| @radix-ui/react-alert-dialog | MIT |
+| @radix-ui/react-arrow | MIT |
+| @radix-ui/react-aspect-ratio | MIT |
+| @radix-ui/react-avatar | MIT |
+| @radix-ui/react-checkbox | MIT |
+| @radix-ui/react-collapsible | MIT |
+| @radix-ui/react-collection | MIT |
+| @radix-ui/react-compose-refs | MIT |
+| @radix-ui/react-context | MIT |
+| @radix-ui/react-context-menu | MIT |
+| @radix-ui/react-dialog | MIT |
+| @radix-ui/react-direction | MIT |
+| @radix-ui/react-dismissable-layer | MIT |
+| @radix-ui/react-dropdown-menu | MIT |
+| @radix-ui/react-focus-guards | MIT |
+| @radix-ui/react-focus-scope | MIT |
+| @radix-ui/react-form | MIT |
+| @radix-ui/react-hover-card | MIT |
+| @radix-ui/react-id | MIT |
+| @radix-ui/react-label | MIT |
+| @radix-ui/react-menu | MIT |
+| @radix-ui/react-menubar | MIT |
+| @radix-ui/react-navigation-menu | MIT |
+| @radix-ui/react-one-time-password-field | MIT |
+| @radix-ui/react-password-toggle-field | MIT |
+| @radix-ui/react-popover | MIT |
+| @radix-ui/react-popper | MIT |
+| @radix-ui/react-portal | MIT |
+| @radix-ui/react-presence | MIT |
+| @radix-ui/react-primitive | MIT |
+| @radix-ui/react-progress | MIT |
+| @radix-ui/react-radio-group | MIT |
+| @radix-ui/react-roving-focus | MIT |
+| @radix-ui/react-scroll-area | MIT |
+| @radix-ui/react-select | MIT |
+| @radix-ui/react-separator | MIT |
+| @radix-ui/react-slider | MIT |
+| @radix-ui/react-slot | MIT |
+| @radix-ui/react-switch | MIT |
+| @radix-ui/react-tabs | MIT |
+| @radix-ui/react-toast | MIT |
+| @radix-ui/react-toggle | MIT |
+| @radix-ui/react-toggle-group | MIT |
+| @radix-ui/react-toolbar | MIT |
+| @radix-ui/react-tooltip | MIT |
+| @radix-ui/react-use-callback-ref | MIT |
+| @radix-ui/react-use-controllable-state | MIT |
+| @radix-ui/react-use-effect-event | MIT |
+| @radix-ui/react-use-is-hydrated | MIT |
+| @radix-ui/react-use-layout-effect | MIT |
+| @radix-ui/react-use-previous | MIT |
+| @radix-ui/react-use-size | MIT |
+| @radix-ui/react-visually-hidden | MIT |
+| @reduxjs/toolkit | MIT |
+| @remix-run/route-pattern | MIT |
+| @tailwindcss/vite | MIT |
+| @tanstack/query-core | MIT |
+| @tanstack/react-query | MIT |
+| @uiw/codemirror-extensions-basic-setup | MIT |
+| @uiw/react-codemirror | MIT |
+| @ungap/structured-clone | ISC |
+| @xterm/addon-fit | MIT |
+| @xterm/xterm | MIT |
+| aria-hidden | MIT |
+| attr-accept | MIT |
+| bail | MIT |
+| ccount | MIT |
+| class-variance-authority | Apache-2.0 |
+| clsx | MIT |
+| cn | MIT |
+| comma-separated-tokens | MIT |
+| cookie-es | MIT |
+| crelt | MIT |
+| cronstrue | MIT |
+| d3-array | ISC |
+| d3-color | ISC |
+| d3-format | ISC |
+| d3-interpolate | ISC |
+| d3-path | ISC |
+| d3-scale | ISC |
+| d3-shape | ISC |
+| d3-time | ISC |
+| d3-time-format | ISC |
+| decimal.js-light | MIT |
+| decode-named-character-reference | MIT |
+| detect-node-es | MIT |
+| devlop | MIT |
+| es-toolkit | MIT |
+| escape-string-regexp | MIT |
+| estree-util-is-identifier-name | MIT |
+| eventemitter3 | MIT |
+| extend | MIT |
+| file-selector | MIT |
+| framer-motion | MIT |
+| get-nonce | MIT |
+| hast-util-to-jsx-runtime | MIT |
+| hast-util-whitespace | MIT |
+| html-url-attributes | MIT |
+| immer | MIT |
+| inline-style-parser | MIT |
+| internmap | ISC |
+| is-plain-obj | MIT |
+| longest-streak | MIT |
+| lucide-react | ISC |
+| markdown-table | MIT |
+| mdast-util-find-and-replace | MIT |
+| mdast-util-from-markdown | MIT |
+| mdast-util-gfm | MIT |
+| mdast-util-gfm-autolink-literal | MIT |
+| mdast-util-gfm-footnote | MIT |
+| mdast-util-gfm-strikethrough | MIT |
+| mdast-util-gfm-table | MIT |
+| mdast-util-gfm-task-list-item | MIT |
+| mdast-util-phrasing | MIT |
+| mdast-util-to-hast | MIT |
+| mdast-util-to-markdown | MIT |
+| mdast-util-to-string | MIT |
+| micromark | MIT |
+| micromark-core-commonmark | MIT |
+| micromark-extension-gfm | MIT |
+| micromark-extension-gfm-autolink-literal | MIT |
+| micromark-extension-gfm-footnote | MIT |
+| micromark-extension-gfm-strikethrough | MIT |
+| micromark-extension-gfm-table | MIT |
+| micromark-extension-gfm-tagfilter | MIT |
+| micromark-extension-gfm-task-list-item | MIT |
+| micromark-factory-destination | MIT |
+| micromark-factory-label | MIT |
+| micromark-factory-space | MIT |
+| micromark-factory-title | MIT |
+| micromark-factory-whitespace | MIT |
+| micromark-util-character | MIT |
+| micromark-util-chunked | MIT |
+| micromark-util-classify-character | MIT |
+| micromark-util-combine-extensions | MIT |
+| micromark-util-decode-numeric-character-reference | MIT |
+| micromark-util-decode-string | MIT |
+| micromark-util-edit-map | MIT |
+| micromark-util-encode | MIT |
+| micromark-util-html-tag-name | MIT |
+| micromark-util-normalize-identifier | MIT |
+| micromark-util-resolve-all | MIT |
+| micromark-util-sanitize-uri | MIT |
+| micromark-util-subtokenize | MIT |
+| motion | MIT |
+| motion-dom | MIT |
+| motion-utils | MIT |
+| next-themes | MIT |
+| property-information | MIT |
+| radix-ui | MIT |
+| react | MIT |
+| react-dom | MIT |
+| react-dropzone | MIT |
+| react-is | MIT |
+| react-markdown | MIT |
+| react-redux | MIT |
+| react-remove-scroll | MIT |
+| react-remove-scroll-bar | MIT |
+| react-router | MIT |
+| react-style-singleton | MIT |
+| recharts | MIT |
+| redux | MIT |
+| redux-thunk | MIT |
+| remark-gfm | MIT |
+| remark-parse | MIT |
+| remark-rehype | MIT |
+| reselect | MIT |
+| rolldown | MIT |
+| scheduler | MIT |
+| shadcn | MIT |
+| sonner | MIT |
+| space-separated-tokens | MIT |
+| style-mod | MIT |
+| style-to-object | MIT |
+| tailwindcss | MIT |
+| tiny-invariant | MIT |
+| trim-lines | MIT |
+| trough | MIT |
+| tslib | 0BSD |
+| tw-animate-css | MIT |
+| unified | MIT |
+| unist-util-is | MIT |
+| unist-util-position | MIT |
+| unist-util-stringify-position | MIT |
+| unist-util-visit | MIT |
+| unist-util-visit-parents | MIT |
+| uqr | MIT |
+| use-callback-ref | MIT |
+| use-sidecar | MIT |
+| use-sync-external-store | MIT |
+| vfile | MIT |
+| vfile-message | MIT |
+| victory-vendor | MIT AND ISC AND BSD-3-Clause |
+| vite | MIT |
+| w3c-keyname | MIT |
+| zwitch | MIT |
 
 ## NOTICE files of Go modules
 
