@@ -35,7 +35,7 @@ export function StartupCommandField({
     <div className="space-y-3">
       <Select
         items={commands}
-        value={custom ? "custom" : (picked?.name ?? "")}
+        value={custom ? "custom" : (picked?.name ?? null)}
         onValueChange={pick}
         disabled={!isAdmin && custom}
       >

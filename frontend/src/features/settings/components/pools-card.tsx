@@ -92,7 +92,7 @@ function PoolRow({
     <Checkbox
       checked={on}
       disabled={!p.selectable && !on}
-      onCheckedChange={(v) => onToggle(p.name, v === true)}
+      onCheckedChange={(v) => onToggle(p.name, v)}
       aria-label={`Enable ${p.name}`}
     />
   )

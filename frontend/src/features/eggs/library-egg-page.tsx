@@ -54,7 +54,7 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
                 id="auto-update"
                 checked={autoUpdate}
                 disabled={keepsAutoUpdate}
-                onCheckedChange={(v) => setAutoUpdate(v === true)}
+                onCheckedChange={setAutoUpdate}
               />
               <Label htmlFor="auto-update">Update automatically</Label>
             </div>

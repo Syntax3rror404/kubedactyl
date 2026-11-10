@@ -53,7 +53,7 @@ export function StorageClassesCard({ draft, onChange, errors }: SettingsCardProp
                   <TableCell className="pl-6">
                     <Checkbox
                       checked={on}
-                      onCheckedChange={(v) => onToggle(sc.name, v === true)}
+                      onCheckedChange={(v) => onToggle(sc.name, v)}
                       aria-label={`Enable ${sc.name}`}
                     />
                   </TableCell>

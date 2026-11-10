@@ -92,14 +92,14 @@ export function VariableEditor({
           <label className="flex items-center gap-2">
             <Checkbox
               checked={!!v.userViewable}
-              onCheckedChange={(c) => onChange({ userViewable: !!c, userEditable: c ? v.userEditable : false })}
+              onCheckedChange={(c) => onChange({ userViewable: c, userEditable: c ? v.userEditable : false })}
             />
             view
           </label>
           <label className="flex items-center gap-2">
             <Checkbox
               checked={!!v.userEditable}
-              onCheckedChange={(c) => onChange({ userEditable: !!c, userViewable: c ? true : v.userViewable })}
+              onCheckedChange={(c) => onChange({ userEditable: c, userViewable: c ? true : v.userViewable })}
             />
             edit
           </label>

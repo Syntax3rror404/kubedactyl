@@ -120,7 +120,7 @@ export function FileTable({
             })}
           >
             <TableCell className="pl-4" onClick={(ev) => ev.stopPropagation()}>
-              <Checkbox checked={selected.has(e.name)} onCheckedChange={(c) => toggle(e.name, !!c)} />
+              <Checkbox checked={selected.has(e.name)} onCheckedChange={(c) => toggle(e.name, c)} />
             </TableCell>
             <TableCell>
               <span className="flex items-center gap-2.5">

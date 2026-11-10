@@ -46,7 +46,7 @@ export function EggExportDialog({ name }: { name: string }) {
           <DialogTitle>Export egg</DialogTitle>
           <DialogDescription>{formats.find((f) => f.id === format)!.hint}</DialogDescription>
         </DialogHeader>
-        <Tabs value={format} onValueChange={(v) => setFormat(v as EggExportFormat)}>
+        <Tabs value={format} onValueChange={setFormat}>
           <TabsList>
             {formats.map((f) => (
               <TabsTrigger key={f.id} value={f.id}>

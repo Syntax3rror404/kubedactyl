@@ -86,7 +86,7 @@ function EggEditor({ egg }: { egg: Egg }) {
           <p>Used by {plural(servers, "server")}. Servers keep their own image, startup and variables.</p>
         </Callout>
       )}
-      <Tabs value={tab} onValueChange={(v) => setTab(v as SectionId)}>
+      <Tabs value={tab} onValueChange={setTab}>
         <ScrollableTabsList>
           {sections.map((s) => {
             const count = errorCount(errors, s.id)
