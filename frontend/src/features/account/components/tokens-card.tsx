@@ -26,15 +26,15 @@ const MAX_TOKEN_NAME = 64
 
 /** Lifetimes a new token can have: the presets below the panel's limit, plus the limit itself. */
 const lifetimeOptions = (max: number) =>
-  [...presets.filter((d) => d < max), max].map((d) => ({ value: String(d), label: dayLabel(d) }))
+  [...presets.filter((d) => d < max), max].map((d) => ({ value: d, label: dayLabel(d) }))
 const dayLabel = (days: number) => (days % 365 === 0 ? plural(days / 365, "year") : plural(days, "day"))
 
 /** Create and revoke API tokens (kdt_…) for scripts. */
 export function TokensCard() {
   const tokens = useTokens()
   const maxDays = useSettings().data?.apiTokenMaxDays ?? 90
-  const { draft, set, reset } = useDraft({ name: "", days: "" })
-  const days = draft.days || String(Math.min(90, maxDays))
+  const { draft, set, reset } = useDraft({ name: "", days: 0 })
+  const days = draft.days || Math.min(90, maxDays)
   const lifetimes = lifetimeOptions(maxDays)
   const [created, setCreated] = useState<CreatedToken | null>(null)
   const create = useCreateToken({
@@ -51,7 +51,7 @@ export function TokensCard() {
   })
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    create.mutate({ name: draft.name.trim(), expiresInDays: Number(days) })
+    create.mutate({ name: draft.name.trim(), expiresInDays: days })
   }
 
   return (
