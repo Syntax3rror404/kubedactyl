@@ -28,7 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "cronstrue": "^3.39.0",
-    "lucide-react": "^1.71.0",
+    "lucide-react": "^1.72.0",
     "motion": "^14.12.0",
     "next-themes": "^0.4.6",
     "react": "^19.3.1",
@@ -48,14 +48,14 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
-    "knip": "^6.45.0",
+    "knip": "^6.45.1",
     "oxlint": "^1.93.0",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.0",
     "puppeteer-core": "^25.17.0",
     "shadcn": "^4.23.0",
     "swagger-typescript-api": "^13.14.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.7"
+    "vite": "^8.3.8"
   }
 }

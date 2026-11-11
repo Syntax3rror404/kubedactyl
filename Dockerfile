@@ -11,7 +11,7 @@ COPY THIRD_PARTY_NOTICES.md /src/
 # Writes to ../backend/web/dist (vite.config.ts)
 RUN npm run build
 
-FROM golang:1.27.3-alpine AS backend
+FROM golang:1.27.4-alpine AS backend
 # docker build --build-arg VERSION=$(cat VERSION) .
 ARG VERSION=dev
 WORKDIR /src/backend
