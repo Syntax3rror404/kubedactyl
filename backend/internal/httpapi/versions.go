@@ -8,9 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Versions are the versions of the panel, its Go runtime and its main Go modules.
+// Versions are the versions of the Go runtime and the main Go modules of the panel.
 type Versions struct {
-	Panel   string          `json:"panel"   example:"0.2.37"`
 	Go      string          `json:"go"      example:"go1.27.1"`
 	Modules []ModuleVersion `json:"modules"`
 }
@@ -38,7 +37,7 @@ var versionModules = []struct{ name, path string }{
 //	@Security	BearerAuth
 //	@Router		/versions [get]
 func (a *API) getVersions(c *gin.Context) {
-	out := Versions{Panel: a.Version, Go: runtime.Version(), Modules: []ModuleVersion{}}
+	out := Versions{Go: runtime.Version(), Modules: []ModuleVersion{}}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range versionModules {
 			for _, dep := range info.Deps {

@@ -2112,13 +2112,9 @@ definitions:
         items:
           $ref: '#/definitions/httpapi.ModuleVersion'
         type: array
-      panel:
-        example: 0.2.37
-        type: string
     required:
     - go
     - modules
-    - panel
     type: object
   httpserver.HealthResponse:
     properties:

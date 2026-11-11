@@ -1267,8 +1267,6 @@ export interface HttpapiVersions {
   /** @example "go1.27.1" */
   go: string;
   modules: HttpapiModuleVersion[];
-  /** @example "0.2.37" */
-  panel: string;
 }
 
 export interface HttpserverHealthResponse {

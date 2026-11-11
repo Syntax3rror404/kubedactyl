@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsCard } from "@/features/settings/components/settings-card"
 import { useVersions } from "@/lib/queries"
 
-/** Versions of the panel, Go and its main modules (from the server) and the frontend libraries (from the build). */
+/** Versions of Go and the main modules (from the server) and the frontend libraries (from the build). */
 export function VersionsCard() {
   const versions = useVersions()
   return (
@@ -22,7 +22,6 @@ export function VersionsCard() {
           {(v) => (
             <DetailList
               rows={[
-                ["Kubedactyl", v.panel],
                 ["Go", v.go.replace(/^go/, "")],
                 ...v.modules.map((m): [string, string] => [m.name, m.version.replace(/^v/, "")]),
               ]}

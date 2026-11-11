@@ -5942,8 +5942,7 @@
             "type": "object",
             "required": [
                 "go",
-                "modules",
-                "panel"
+                "modules"
             ],
             "properties": {
                 "go": {
@@ -5955,10 +5954,6 @@
                     "items": {
                         "$ref": "#/definitions/httpapi.ModuleVersion"
                     }
-                },
-                "panel": {
-                    "type": "string",
-                    "example": "0.2.37"
                 }
             }
         },

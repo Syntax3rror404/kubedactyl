@@ -5949,8 +5949,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "go",
-                "modules",
-                "panel"
+                "modules"
             ],
             "properties": {
                 "go": {
@@ -5962,10 +5961,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/httpapi.ModuleVersion"
                     }
-                },
-                "panel": {
-                    "type": "string",
-                    "example": "0.2.37"
                 }
             }
         },
