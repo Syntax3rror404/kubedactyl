@@ -1,6 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { SuggestionChip } from "@/features/eggs/components/editor/list-input"
 import { envFromName, type FieldErrors } from "@/features/eggs/lib/egg-draft"
@@ -89,20 +90,22 @@ export function VariableEditor({
       <Field>
         <FieldLabel>Users can</FieldLabel>
         <div className="flex h-9 items-center gap-5 text-sm">
-          <label className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Checkbox
+              id={`var-${index}-view`}
               checked={!!v.userViewable}
               onCheckedChange={(c) => onChange({ userViewable: c, userEditable: c ? v.userEditable : false })}
             />
-            view
-          </label>
-          <label className="flex items-center gap-2">
+            <Label htmlFor={`var-${index}-view`}>view</Label>
+          </div>
+          <div className="flex items-center gap-2">
             <Checkbox
+              id={`var-${index}-edit`}
               checked={!!v.userEditable}
               onCheckedChange={(c) => onChange({ userEditable: c, userViewable: c ? true : v.userViewable })}
             />
-            edit
-          </label>
+            <Label htmlFor={`var-${index}-edit`}>edit</Label>
+          </div>
         </div>
       </Field>
       <Field className="sm:col-span-2" data-invalid={!!errors[p + "rules"]}>

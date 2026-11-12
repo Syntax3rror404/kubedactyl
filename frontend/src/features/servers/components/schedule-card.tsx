@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils"
 
 function resultTone(result?: string) {
   if (!result) return ""
-  if (result === "ok") return "text-emerald-600 dark:text-emerald-400"
-  if (result.startsWith("skipped")) return "text-amber-600 dark:text-amber-400"
-  return "text-red-600 dark:text-red-400"
+  if (result === "ok") return "text-success"
+  if (result.startsWith("skipped")) return "text-warning"
+  return "text-destructive"
 }
 
 /** One schedule or task: when it runs (cron or event), its steps and the last result. */

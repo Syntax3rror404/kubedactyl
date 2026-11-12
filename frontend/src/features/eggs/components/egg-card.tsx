@@ -67,9 +67,7 @@ export function EggCardLayout({
           <p className="line-clamp-2 text-sm text-muted-foreground">{description || "No description."}</p>
           <div className="mt-auto flex flex-wrap items-center gap-1.5 text-xs">
             {children}
-            {highlight && (
-              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">{highlight}</Badge>
-            )}
+            {highlight && <Badge className="bg-success/15 text-success">{highlight}</Badge>}
           </div>
         </div>
       </GlowCard>

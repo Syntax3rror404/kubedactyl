@@ -41,8 +41,7 @@ export function FilePathBreadcrumb({
           },
         }
       : {}
-  const target = (path: string) =>
-    cn("rounded px-1", over === path && "bg-sky-500/15 text-foreground ring-1 ring-sky-500")
+  const target = (path: string) => cn("rounded px-1", over === path && "bg-info/15 text-foreground ring-1 ring-info")
   return (
     <Breadcrumb>
       <BreadcrumbList className="text-sm">

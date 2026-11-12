@@ -88,13 +88,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuButton>
                   {badge && (
                     <>
-                      <SidebarMenuBadge className="gap-1 rounded-full bg-emerald-500/15 px-1.5 text-emerald-700! ring-1 ring-emerald-500/30 dark:text-emerald-300!">
+                      <SidebarMenuBadge className="gap-1 rounded-full bg-success/15 px-1.5 text-success! ring-1 ring-success/30">
                         <ArrowUpCircleIcon className="size-3" />
                         Update
                         <span className="sr-only">: version {upgrade.data?.newer[0]} is available</span>
                       </SidebarMenuBadge>
                       {/* Collapsed sidebar: the badge is hidden, a dot on the icon remains. */}
-                      <span className="pointer-events-none absolute top-1.5 left-5 hidden size-2 rounded-full bg-emerald-500 ring-2 ring-sidebar group-data-[collapsible=icon]:block" />
+                      <span className="pointer-events-none absolute top-1.5 left-5 hidden size-2 rounded-full bg-success ring-2 ring-sidebar group-data-[collapsible=icon]:block" />
                     </>
                   )}
                 </SidebarMenuItem>

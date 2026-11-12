@@ -14,11 +14,7 @@ export function UpdateUrlBadge({ spec }: { spec: EggSpec }) {
   return (
     <Badge
       variant="outline"
-      className={
-        auto
-          ? "gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
-          : "gap-1 border-sky-500/40 text-sky-700 dark:text-sky-300"
-      }
+      className={auto ? "gap-1 border-success/40 text-success" : "gap-1 border-info/40 text-info"}
       title={auto ? `Checked every hour: ${url}` : url}
     >
       <RefreshCwIcon className="size-3" />

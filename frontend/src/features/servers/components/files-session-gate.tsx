@@ -44,7 +44,7 @@ export function FilesSessionGate({
         <div className="mx-4 flex max-w-sm flex-col items-center gap-3 rounded-2xl border bg-card/90 px-6 py-5 text-center shadow-lg">
           {view === "starting" ? (
             <>
-              <Spinner className={cn("size-6", slow ? "text-amber-500" : "text-sky-500")} />
+              <Spinner className={cn("size-6", slow ? "text-warning" : "text-info")} />
               {slow ? (
                 <>
                   <p className="font-medium">The file container takes longer than usual</p>

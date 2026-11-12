@@ -25,10 +25,10 @@ export function ConsoleWindow({
         <span
           className={cn(
             "ml-auto flex items-center gap-1.5 text-xs",
-            c.connected ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground",
+            c.connected ? "text-success" : "text-muted-foreground",
           )}
         >
-          <span className={cn("size-1.5 rounded-full", c.connected ? "bg-emerald-500" : "bg-zinc-400")} />
+          <span className={cn("size-1.5 rounded-full", c.connected ? "bg-success" : "bg-zinc-400")} />
           {c.connected ? "live" : c.ended ? "disconnected" : "connecting…"}
         </span>
       </div>

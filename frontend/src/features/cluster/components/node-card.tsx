@@ -1,8 +1,9 @@
-import { AlertTriangleIcon, CpuIcon, HardDriveIcon, LoaderCircleIcon, MemoryStickIcon, MonitorIcon } from "lucide-react"
+import { AlertTriangleIcon, CpuIcon, HardDriveIcon, MemoryStickIcon, MonitorIcon } from "lucide-react"
 
 import { GlowCard } from "@/components/common/glow-card"
 import { UsageRow } from "@/components/common/usage-row"
 import { Badge } from "@/components/ui/badge"
+import { Spinner } from "@/components/ui/spinner"
 import { formatBytes, formatCores, formatPercent, formatRelativeTime, plural } from "@/lib/format"
 import type { ClusterNode } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -91,10 +92,9 @@ export function NodeCard({ node: n }: { node: ClusterNode }) {
 
 function NodeStatusBadge({ node: n }: { node: ClusterNode }) {
   if (!n.ready) return <Badge variant="destructive">{n.status}</Badge>
-  if (n.pressure.length > 0)
-    return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">{n.pressure.join(", ")}</Badge>
+  if (n.pressure.length > 0) return <Badge className="bg-warning/15 text-warning">{n.pressure.join(", ")}</Badge>
   if (n.unschedulable) return <Badge variant="outline">Cordoned</Badge>
-  return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Ready</Badge>
+  return <Badge className="bg-success/15 text-success">Ready</Badge>
 }
 
 function Hardware({ node: n }: { node: ClusterNode }) {
@@ -139,11 +139,7 @@ function Hardware({ node: n }: { node: ClusterNode }) {
         : "No hardware data yet."
   return (
     <div className="flex items-center gap-2 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-      {n.hardwareProbing ? (
-        <LoaderCircleIcon className="size-4 animate-spin" />
-      ) : (
-        <AlertTriangleIcon className="size-4" />
-      )}
+      {n.hardwareProbing ? <Spinner /> : <AlertTriangleIcon className="size-4" />}
       {text}
     </div>
   )

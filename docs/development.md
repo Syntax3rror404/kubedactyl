@@ -104,6 +104,10 @@ When adding a registry component: install it with the CLI (`npx shadcn@latest ad
 app specific looks go into wrappers, e.g. `components/common/glow-card.tsx` (Magic UI card in the brand colors)
 and `components/common/file-dropzone.tsx` (own drop zone on `react-dropzone`).
 
+Status colors are theme tokens next to shadcn's `destructive` in `src/index.css`: `success`, `warning` and `info`
+(`text-success`, `bg-warning/10`, ...). Fixed Tailwind colors are only for decoration (brand gradient, egg icons,
+file type icons, the terminal).
+
 ## Project layout
 
 Rule of thumb: **one folder per topic**. In the backend every package under `internal/` has one job;

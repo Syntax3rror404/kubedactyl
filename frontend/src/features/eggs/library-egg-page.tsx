@@ -82,7 +82,7 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
           {repositoryName(egg.repository)}/{egg.path}
           <ExternalLinkIcon className="size-3" />
         </a>
-        {installed && <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Installed</Badge>}
+        {installed && <Badge className="bg-success/15 text-success">Installed</Badge>}
       </EggHeader>
       <p className="text-sm text-muted-foreground">
         {keepsAutoUpdate

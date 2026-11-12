@@ -94,7 +94,7 @@ function JobRow({ server, job: j }: { server: string; job: ServerJob }) {
       {j.state === "running" && <ProgressBar value={p?.total ? p.done : undefined} max={p?.total} className="h-1.5" />}
       {t && p && (
         <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground tabular-nums">
-          <Icon className="size-3.5 shrink-0 text-sky-500" />
+          <Icon className="size-3.5 shrink-0 text-info" />
           <span className="shrink-0">{t.speed}</span>
           <span className="min-w-0 flex-1 truncate text-center" title={p.file}>
             {p.file}

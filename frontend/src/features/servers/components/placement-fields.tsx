@@ -190,7 +190,7 @@ export function IPv6Field({
           {!checked ? (
             "Uses the first IP family of the cluster's service CIDRs."
           ) : warning ? (
-            <span className="inline-flex items-center gap-1 text-amber-500" title={unavailable}>
+            <span className="inline-flex items-center gap-1 text-warning" title={unavailable}>
               <AlertTriangleIcon className="size-3.5" />
               Warning: {warning}
             </span>

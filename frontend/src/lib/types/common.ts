@@ -4,7 +4,7 @@
 
 import type { HttpapiPowerRequest, V1ObjectMeta } from "@/lib/types/api.gen"
 
-export type { ChecksStatus as CheckStatus, V1Alpha1Phase as Phase } from "@/lib/types/api.gen"
+export type { ChecksCheck as Check, ChecksStatus as CheckStatus, V1Alpha1Phase as Phase } from "@/lib/types/api.gen"
 
 /**
  * Metadata of an object read from the cluster: the API server always sets name, namespace, uid and

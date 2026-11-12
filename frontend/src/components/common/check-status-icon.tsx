@@ -4,9 +4,9 @@ import type { CheckStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const icons = {
-  ok: [CheckCircle2Icon, "text-emerald-500"],
-  warning: [AlertTriangleIcon, "text-amber-500"],
-  error: [XCircleIcon, "text-red-500"],
+  ok: [CheckCircle2Icon, "text-success"],
+  warning: [AlertTriangleIcon, "text-warning"],
+  error: [XCircleIcon, "text-destructive"],
   skipped: [MinusCircleIcon, "text-muted-foreground"],
 } as const
 

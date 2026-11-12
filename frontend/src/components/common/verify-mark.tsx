@@ -59,8 +59,8 @@ export function VerifyMark({ state, label, className }: { state: VerifyState; la
       className={cn(
         "inline-flex size-20 transition-colors duration-300 motion-reduce:animate-none",
         state === "waiting" && "text-muted-foreground",
-        state === "ok" && "animate-[verify-pop_0.4s_0.55s_ease-out_both] text-emerald-500",
-        state === "fail" && "animate-[verify-shake_0.55s_0.55s_ease-in-out_both] text-red-500",
+        state === "ok" && "animate-[verify-pop_0.4s_0.55s_ease-out_both] text-success",
+        state === "fail" && "animate-[verify-shake_0.55s_0.55s_ease-in-out_both] text-destructive",
         className,
       )}
     >

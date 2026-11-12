@@ -3,14 +3,14 @@ import { cn } from "@/lib/utils"
 
 // Green and yellow in turn while the file container starts.
 const keyframes =
-  "@keyframes blink-starting { 0% { background-color: var(--color-emerald-500) } " +
-  "50%, 100% { background-color: var(--color-amber-400) } }"
+  "@keyframes blink-starting { 0% { background-color: var(--color-success) } " +
+  "50%, 100% { background-color: var(--color-warning) } }"
 
 const lights = {
-  Ready: { className: "bg-emerald-500", label: "running" },
+  Ready: { className: "bg-success", label: "running" },
   Starting: { className: "animate-[blink-starting_1s_steps(1,end)_infinite]", label: "starting" },
-  Stopping: { className: "bg-red-500", label: "stopping" },
-  Stopped: { className: "bg-red-500", label: "stopped" },
+  Stopping: { className: "bg-destructive", label: "stopping" },
+  Stopped: { className: "bg-destructive", label: "stopped" },
 } as const
 
 /**

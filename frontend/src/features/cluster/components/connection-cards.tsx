@@ -24,8 +24,7 @@ function Cert({ cert }: { cert: CertInfo }) {
   const days = Math.round((new Date(cert.notAfter).getTime() - now) / 86_400_000)
   return (
     <span title={`Issuer: ${cert.issuer}`}>
-      {cert.subject} ·{" "}
-      <span className={days < 30 ? "text-amber-600 dark:text-amber-400" : ""}>expires in {plural(days, "day")}</span>
+      {cert.subject} · <span className={days < 30 ? "text-warning" : ""}>expires in {plural(days, "day")}</span>
     </span>
   )
 }
@@ -57,7 +56,7 @@ export function ConnectionCard({ id }: { id: ClusterIdentity }) {
   rows.push([
     "TLS",
     id.tls.insecure ? (
-      <span key="tls" className="text-red-500">
+      <span key="tls" className="text-destructive">
         verification disabled
       </span>
     ) : (

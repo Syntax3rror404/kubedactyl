@@ -20,7 +20,7 @@ export function EggConfigFiles({ spec: s }: { spec: EggSpec }) {
                     {r.ifValue && <span className="text-muted-foreground"> = {r.ifValue}</span>}
                   </span>
                   <span className="text-muted-foreground">→</span>
-                  <span className="truncate text-emerald-600 dark:text-emerald-400">{r.replaceWith || '""'}</span>
+                  <span className="truncate text-success">{r.replaceWith || '""'}</span>
                 </div>
               ))}
             </CardContent>

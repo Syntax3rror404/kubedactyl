@@ -31,8 +31,8 @@ export function RemovingNotice() {
 
 function LockedNotice({ icon, title, children }: { icon: React.ReactNode; title: string; children: string }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/5 px-6 py-14 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 [&_svg]:size-6 [&_svg]:text-red-500">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-14 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 [&_svg]:size-6 [&_svg]:text-destructive">
         {icon}
       </div>
       <h2 className="text-lg font-semibold">{title}</h2>

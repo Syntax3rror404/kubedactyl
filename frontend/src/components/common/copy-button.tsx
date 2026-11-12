@@ -35,7 +35,7 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
         }
       >
         {result === "copied" ? (
-          <CheckIcon className="text-emerald-500" />
+          <CheckIcon className="text-success" />
         ) : result === "failed" ? (
           <XIcon className="text-destructive" />
         ) : (

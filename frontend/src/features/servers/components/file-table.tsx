@@ -88,7 +88,7 @@ export function FileTable({
             className={cn(
               "group cursor-pointer",
               dragging?.includes(e.name) && "opacity-50",
-              over === e.name && "bg-sky-500/10 ring-1 ring-sky-500 ring-inset",
+              over === e.name && "bg-info/10 ring-1 ring-info ring-inset",
             )}
             data-state={selected.has(e.name) ? "selected" : undefined}
             onClick={() => actions.open(e)}

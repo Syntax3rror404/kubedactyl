@@ -60,7 +60,7 @@ export function ClusterSummary({ totals: t }: { totals: ClusterTotals }) {
               <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Processors</span>
               {t.cpuModels.map((m) => (
                 <Badge key={m.model} variant="secondary" className="gap-1.5 py-1">
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">{m.count}×</span>
+                  <span className="font-mono text-success">{m.count}×</span>
                   {m.model}
                 </Badge>
               ))}
@@ -108,11 +108,11 @@ function CapacityLegend() {
   return (
     <div className="flex items-center gap-4 text-xs text-muted-foreground">
       <span className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-emerald-500" />
+        <span className="size-2 rounded-full bg-success" />
         used
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-sky-500/40" />
+        <span className="size-2 rounded-full bg-info/40" />
         requested by pods
       </span>
     </div>

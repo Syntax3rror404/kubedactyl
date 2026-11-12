@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils"
 /** Lamp color by how much of the limit is used: green below half, yellow below 90 %, red from there on. */
 function lamp({ rate, limit }: Rate) {
   const used = limit > 0 ? rate / limit : 0
-  if (used < 0.5) return "bg-emerald-500"
-  if (used < 0.9) return "bg-amber-500"
-  return "bg-red-500"
+  if (used < 0.5) return "bg-success"
+  if (used < 0.9) return "bg-warning"
+  return "bg-destructive"
 }
 
 function RateItem({ icon: Icon, label, rate, title }: { icon: LucideIcon; label?: string; rate: Rate; title: string }) {

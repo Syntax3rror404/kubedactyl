@@ -109,9 +109,7 @@ function UserRow({
               {u.username}
               {u.email && ` · ${u.email}`}
             </div>
-            {u.mustChangePassword && (
-              <div className="text-xs text-amber-600 dark:text-amber-400">New password pending</div>
-            )}
+            {u.mustChangePassword && <div className="text-xs text-warning">New password pending</div>}
             {reset && (
               <div className="text-xs">
                 <InviteState invite={reset} />

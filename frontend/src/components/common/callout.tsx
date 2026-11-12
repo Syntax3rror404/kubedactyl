@@ -1,13 +1,27 @@
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 
 const tones = {
-  info: { box: "border-sky-500/30 bg-sky-500/5", icon: "text-sky-500" },
-  warning: { box: "border-amber-500/30 bg-amber-500/5", icon: "text-amber-500" },
-  danger: { box: "border-red-500/30 bg-red-500/5", icon: "text-red-500" },
-  success: { box: "border-emerald-500/30 bg-emerald-500/5", icon: "text-emerald-500" },
+  info: "border-info/30 bg-info/5 *:[svg]:text-info",
+  warning: "border-warning/30 bg-warning/5 *:[svg]:text-warning",
+  danger: "border-destructive/30 bg-destructive/5 *:[svg]:text-destructive",
+  success: "border-success/30 bg-success/5 *:[svg]:text-success",
 }
 
-/** A colored notice: icon, optional bold title, text and an action on the right (below on phones). */
+// The action gets its own column next to the text (below it on phones) instead of the corner of the library alert.
+const actionColumn = [
+  "has-data-[slot=alert-action]:pr-2.5 sm:items-center",
+  "sm:grid-cols-[1fr_auto] sm:has-[>svg]:grid-cols-[auto_1fr_auto]",
+].join(" ")
+const actionCell = [
+  "static mt-2 group-has-[>svg]/alert:col-start-2",
+  "sm:col-start-auto! sm:-col-end-1 sm:row-start-1 sm:mt-0 sm:self-center",
+].join(" ")
+
+/**
+ * The shadcn alert in a color: icon (an svg element), optional bold title, text and an action on the right (below
+ * on phones).
+ */
 export function Callout({
   tone,
   icon,
@@ -27,29 +41,28 @@ export function Callout({
   className?: string
 }) {
   return (
-    <div
+    <Alert
       className={cn(
-        "relative flex flex-col gap-3 overflow-hidden rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center",
-        tones[tone].box,
+        "overflow-hidden",
+        action && actionColumn,
+        // The library alert keeps two rows for title and text; one line of text is centered with the icon.
+        !(title && children) && "*:[svg]:row-span-1",
+        tones[tone],
         className,
       )}
     >
       {progress && <ProgressStripe />}
-      <div className="flex min-w-0 flex-1 items-start gap-2">
-        {icon && <span className={cn("mt-0.5 shrink-0 [&_svg]:size-4", tones[tone].icon)}>{icon}</span>}
-        <div className="min-w-0 flex-1 space-y-1">
-          {title && <p className="font-medium">{title}</p>}
-          {children}
-        </div>
-      </div>
-      {action}
-    </div>
+      {icon}
+      {title && <AlertTitle>{title}</AlertTitle>}
+      {children && <AlertDescription className="group-has-[>svg]/alert:col-start-2">{children}</AlertDescription>}
+      {action && <AlertAction className={cn(actionCell, title && children && "sm:row-span-2")}>{action}</AlertAction>}
+    </Alert>
   )
 }
 
 /** Animated stripe along the top edge of a box (relative, overflow-hidden) while something runs. */
 export function ProgressStripe() {
   return (
-    <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-gradient-to-r from-transparent via-sky-500 to-transparent" />
+    <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-gradient-to-r from-transparent via-info to-transparent" />
   )
 }

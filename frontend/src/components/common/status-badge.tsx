@@ -1,43 +1,44 @@
 import { LockIcon, Trash2Icon } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import type { Phase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const styles: Record<Phase, { label: string; dot: string; ring: string; pulse?: boolean }> = {
+const styles: Record<Phase, { label: string; dot: string; badge: string; pulse?: boolean }> = {
   Running: {
     label: "Running",
-    dot: "bg-emerald-500",
-    ring: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
+    dot: "bg-success",
+    badge: "text-success bg-success/10 border-success/20",
   },
   Starting: {
     label: "Starting",
-    dot: "bg-amber-500",
-    ring: "text-amber-600 dark:text-amber-400 bg-amber-500/10 ring-amber-500/20",
+    dot: "bg-warning",
+    badge: "text-warning bg-warning/10 border-warning/20",
     pulse: true,
   },
   Stopping: {
     label: "Stopping",
     dot: "bg-orange-500",
-    ring: "text-orange-600 dark:text-orange-400 bg-orange-500/10 ring-orange-500/20",
+    badge: "text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20",
     pulse: true,
   },
   Installing: {
     label: "Installing",
-    dot: "bg-sky-500",
-    ring: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
+    dot: "bg-info",
+    badge: "text-info bg-info/10 border-info/20",
     pulse: true,
   },
   InstallFailed: {
     label: "Install failed",
-    dot: "bg-red-500",
-    ring: "text-red-600 dark:text-red-400 bg-red-500/10 ring-red-500/20",
+    dot: "bg-destructive",
+    badge: "text-destructive bg-destructive/10 border-destructive/20",
   },
   Offline: {
     label: "Offline",
     dot: "bg-zinc-400 dark:bg-zinc-500",
-    ring: "text-muted-foreground bg-muted ring-border",
+    badge: "text-muted-foreground bg-muted border-border",
   },
-  Pending: { label: "Pending", dot: "bg-zinc-400", ring: "text-muted-foreground bg-muted ring-border", pulse: true },
+  Pending: { label: "Pending", dot: "bg-zinc-400", badge: "text-muted-foreground bg-muted border-border", pulse: true },
 }
 
 /** Colored dot for a server phase (sidebar). */
@@ -63,16 +64,10 @@ export function StatusDot({ phase, className }: { phase: Phase; className?: stri
 export function StatusBadge({ phase, className }: { phase: Phase; className?: string }) {
   const s = styles[phase] ?? styles.Pending
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
-        s.ring,
-        className,
-      )}
-    >
+    <Badge variant="outline" className={cn("gap-1.5", s.badge, className)}>
       <StatusDot phase={phase} />
       {s.label}
-    </span>
+    </Badge>
   )
 }
 
@@ -96,14 +91,9 @@ export function RemovingBadge({ className }: { className?: string }) {
 
 function LockBadge({ icon, className, children }: { icon: React.ReactNode; className?: string; children: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600 ring-1 ring-red-500/20 ring-inset dark:text-red-400 [&_svg]:size-3",
-        className,
-      )}
-    >
+    <Badge variant="destructive" className={className}>
       {icon}
       {children}
-    </span>
+    </Badge>
   )
 }

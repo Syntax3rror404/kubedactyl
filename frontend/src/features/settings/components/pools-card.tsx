@@ -117,7 +117,7 @@ function PoolRow({
         {ipv6Missing && usage.some((u) => u.family === "IPv6") && (
           <div className="mt-1">
             <Tooltip>
-              <TooltipTrigger render={<Badge variant="outline" className="border-amber-500/40 text-amber-500" />}>
+              <TooltipTrigger render={<Badge variant="outline" className="border-warning/40 text-warning" />}>
                 IPv6 not available in cluster
               </TooltipTrigger>
               <TooltipContent>{ipv6Missing}</TooltipContent>

@@ -137,7 +137,7 @@ export function FilesPage() {
       <FilesSessionGate files={files}>
         <Card className="relative py-0" {...drop.handlers}>
           {drop.dropping && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-sky-500 bg-sky-500/10 text-sm font-medium text-sky-700 backdrop-blur-[1px] dark:text-sky-300">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-info bg-info/10 text-sm font-medium text-info backdrop-blur-[1px]">
               <UploadIcon className="mr-2 size-4" />
               Drop to upload into {dir}
             </div>

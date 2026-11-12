@@ -46,7 +46,7 @@ export function FileEditorDialog({
         <DialogHeader>
           <DialogTitle className="font-mono text-base">{file}</DialogTitle>
           <DialogDescription>
-            {dirty && <span className="mr-2 font-medium text-amber-600 dark:text-amber-400">● Unsaved changes ·</span>}
+            {dirty && <span className="mr-2 font-medium text-warning">● Unsaved changes ·</span>}
             Save with <Kbd>⌘</Kbd> <Kbd>S</Kbd> or <Kbd>Ctrl</Kbd> <Kbd>S</Kbd>
           </DialogDescription>
         </DialogHeader>

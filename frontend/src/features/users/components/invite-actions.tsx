@@ -27,7 +27,7 @@ export function InviteState({ invite }: { invite: InviteView }) {
   return invite.expired ? (
     <span className="text-destructive">{what}, expired</span>
   ) : (
-    <span className="text-amber-600 dark:text-amber-400">
+    <span className="text-warning">
       {what} until {formatDate(invite.expiresAt)}
     </span>
   )
