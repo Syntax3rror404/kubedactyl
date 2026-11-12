@@ -27,7 +27,7 @@ export function MetricTile({
           <span
             className={
               accent
-                ? "bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-2xl font-semibold whitespace-nowrap text-transparent sm:text-3xl"
+                ? "bg-linear-to-r from-emerald-500 to-sky-500 bg-clip-text text-2xl font-semibold whitespace-nowrap text-transparent sm:text-3xl"
                 : "text-2xl font-semibold whitespace-nowrap sm:text-3xl"
             }
           >

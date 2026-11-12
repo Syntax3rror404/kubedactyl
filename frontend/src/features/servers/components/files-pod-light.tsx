@@ -8,7 +8,10 @@ const keyframes =
 
 const lights = {
   Ready: { className: "bg-success", label: "running" },
-  Starting: { className: "animate-[blink-starting_1s_steps(1,end)_infinite]", label: "starting" },
+  Starting: {
+    className: "animate-[blink-starting_1s_steps(1,end)_infinite] motion-reduce:animate-none motion-reduce:bg-warning",
+    label: "starting",
+  },
   Stopping: { className: "bg-destructive", label: "stopping" },
   Stopped: { className: "bg-destructive", label: "stopped" },
 } as const

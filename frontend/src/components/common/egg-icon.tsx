@@ -25,7 +25,7 @@ export function EggIcon({ name, icon, className }: { name: string; icon?: string
   return (
     <div
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-semibold text-white shadow-inner",
+        "flex size-10 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-sm font-semibold text-white shadow-inner",
         gradients[hash(name) % gradients.length],
         className,
       )}

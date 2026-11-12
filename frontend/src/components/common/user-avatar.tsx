@@ -17,8 +17,8 @@ export function UserAvatar({
         className={cn(
           "rounded-lg text-xs font-semibold text-white",
           user.role === "admin"
-            ? "bg-gradient-to-br from-fuchsia-500 to-indigo-600"
-            : "bg-gradient-to-br from-emerald-500 to-sky-600",
+            ? "bg-linear-to-br from-fuchsia-500 to-indigo-600"
+            : "bg-linear-to-br from-emerald-500 to-sky-600",
         )}
       >
         {initials(user)}

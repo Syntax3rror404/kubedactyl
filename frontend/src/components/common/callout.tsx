@@ -67,6 +67,6 @@ export function Callout({
 /** Animated stripe along the top edge of a box (relative, overflow-hidden) while something runs. */
 export function ProgressStripe() {
   return (
-    <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-gradient-to-r from-transparent via-info to-transparent" />
+    <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-linear-to-r from-transparent via-info to-transparent" />
   )
 }

@@ -20,7 +20,7 @@ export function PageHeader({
         {icon}
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-3xl">
+            <h1 className="bg-linear-to-b from-foreground to-foreground/70 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-3xl">
               {title}
             </h1>
             {badges}

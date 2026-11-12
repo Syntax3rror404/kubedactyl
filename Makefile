@@ -10,6 +10,11 @@ LDFLAGS := -s -w -X main.appVersion=$(VERSION)
 -include local.mk
 export KUBE_CONTEXT
 
+# Every Go command uses the settings of the release binary: tests check what ships, and test, lint and build share
+# one compile of the dependencies instead of three.
+export CGO_ENABLED := 0
+export GOFLAGS := -trimpath
+
 .PHONY: dev dev-backend dev-frontend generate docs build frontend licenses run check-context embed-placeholder test lint fmt ui-update uninstall clean image push-image push-chart sync-version check-generated
 
 # Commands that talk to a cluster need an explicit context (never silently the current one).
@@ -60,10 +65,8 @@ run: check-context build
 embed-placeholder:
 	@test -n "$$(ls -A backend/web/dist 2>/dev/null)" || { mkdir -p backend/web/dist && echo "run make build for the web interface" > backend/web/dist/placeholder.txt; }
 
-# Same build settings as the release binary: the tests check what ships, and `make build` reuses the compiled
-# packages instead of building every dependency again.
 test: check-generated embed-placeholder
-	cd backend && CGO_ENABLED=0 go test -trimpath ./...
+	cd backend && go test ./...
 
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
 # unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.

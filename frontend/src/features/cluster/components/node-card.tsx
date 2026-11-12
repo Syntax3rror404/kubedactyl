@@ -103,7 +103,7 @@ function Hardware({ node: n }: { node: ClusterNode }) {
     return (
       <div className="rounded-xl border bg-muted/30 p-3">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-inner">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-red-500 to-orange-600 text-white shadow-inner">
             <CpuIcon className="size-4" />
           </div>
           <div className="min-w-0 space-y-0.5">

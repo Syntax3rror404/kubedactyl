@@ -19,6 +19,17 @@ const components: Components = {
   ul: (p) => <ul className="my-2 list-disc space-y-1 pl-5" {...dom(p)} />,
   ol: (p) => <ol className="my-2 list-decimal space-y-1 pl-5" {...dom(p)} />,
   a: (p) => <a className="font-medium underline underline-offset-4" target="_blank" rel="noreferrer" {...dom(p)} />,
+  // Images are shown as a link: the page never loads anything from elsewhere (and the CSP would block it).
+  img: ({ src, alt }) => (
+    <a
+      className="font-medium underline underline-offset-4"
+      href={typeof src === "string" ? src : undefined}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {alt || "Image"}
+    </a>
+  ),
   hr: (p) => <hr className="my-4 border-border" {...dom(p)} />,
   code: (p) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]" {...dom(p)} />,
   // Code blocks (license texts): wrapped instead of scrolling sideways; the code inside loses the inline style.
