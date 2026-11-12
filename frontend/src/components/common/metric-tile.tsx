@@ -16,8 +16,11 @@ export function MetricTile({
 }) {
   return (
     <div className="relative overflow-hidden rounded-xl border bg-card/60 p-4 backdrop-blur-sm">
-      <div className="flex items-center justify-between text-muted-foreground [&_svg]:size-4">
-        <span className="text-xs font-medium tracking-wide uppercase">{label}</span>
+      <div className="flex items-center justify-between gap-2 text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0">
+        {/* One line: a wrapped label would put the value lower than in the tiles next to it. */}
+        <span className="truncate text-xs font-medium tracking-wide uppercase" title={label}>
+          {label}
+        </span>
         {icon}
       </div>
       <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
