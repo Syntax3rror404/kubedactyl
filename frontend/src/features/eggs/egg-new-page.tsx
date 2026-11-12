@@ -126,7 +126,7 @@ function EggWizard({ initial, copyOf }: { initial: EggSpec; copyOf?: string }) {
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                     i < step || (i <= reached && i !== step)
-                      ? "bg-success text-white"
+                      ? "bg-success text-background"
                       : i === step
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground",

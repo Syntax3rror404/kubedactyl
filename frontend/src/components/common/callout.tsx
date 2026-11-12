@@ -10,7 +10,7 @@ const tones = {
 
 // The action gets its own column next to the text (below it on phones) instead of the corner of the library alert.
 const actionColumn = [
-  "has-data-[slot=alert-action]:pr-2.5 sm:items-center",
+  "has-data-[slot=alert-action]:pr-2.5",
   "sm:grid-cols-[1fr_auto] sm:has-[>svg]:grid-cols-[auto_1fr_auto]",
 ].join(" ")
 const actionCell = [
@@ -45,8 +45,8 @@ export function Callout({
       className={cn(
         "overflow-hidden",
         action && actionColumn,
-        // The library alert keeps two rows for title and text; one line of text is centered with the icon.
-        !(title && children) && "*:[svg]:row-span-1",
+        // The library alert keeps two rows for title and text; a single one is centered with icon and action.
+        !(title && children) && "items-center *:[svg]:row-span-1",
         tones[tone],
         className,
       )}
@@ -54,7 +54,11 @@ export function Callout({
       {progress && <ProgressStripe />}
       {icon}
       {title && <AlertTitle>{title}</AlertTitle>}
-      {children && <AlertDescription className="group-has-[>svg]/alert:col-start-2">{children}</AlertDescription>}
+      {children && (
+        <AlertDescription className="group-has-[>svg]/alert:col-start-2 [&_p:not(:last-child)]:mb-1">
+          {children}
+        </AlertDescription>
+      )}
       {action && <AlertAction className={cn(actionCell, title && children && "sm:row-span-2")}>{action}</AlertAction>}
     </Alert>
   )
