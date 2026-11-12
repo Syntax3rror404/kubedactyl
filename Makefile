@@ -60,8 +60,10 @@ run: check-context build
 embed-placeholder:
 	@test -n "$$(ls -A backend/web/dist 2>/dev/null)" || { mkdir -p backend/web/dist && echo "run make build for the web interface" > backend/web/dist/placeholder.txt; }
 
+# Same build settings as the release binary: the tests check what ships, and `make build` reuses the compiled
+# packages instead of building every dependency again.
 test: check-generated embed-placeholder
-	cd backend && go test ./...
+	cd backend && CGO_ENABLED=0 go test -trimpath ./...
 
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
 # unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.

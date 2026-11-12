@@ -3,7 +3,7 @@ import { ChevronRightIcon } from "lucide-react"
 import { Link } from "react-router"
 
 import { CheckStatusIcon } from "@/components/common/check-status-icon"
-import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useClusterInfo, useClusterHealth } from "@/lib/queries"
 import type { Check, CheckStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -15,9 +15,11 @@ const dot: Record<CheckStatus, string> = {
   skipped: "bg-muted-foreground",
 }
 
+const isProblem = (check: Check) => check.status === "warning" || check.status === "error"
+
 /**
- * Sidebar footer: the cluster the panel is connected to. Problems are always listed; hovering the card (tapping
- * it on touch devices) opens every check and the link to the cluster page.
+ * Sidebar footer: the cluster the panel is connected to. Problems are always listed; a click opens the card
+ * upwards with the passing checks and the link to the cluster page.
  */
 export function ClusterCard() {
   const cluster = useClusterInfo()
@@ -26,19 +28,26 @@ export function ClusterCard() {
   const c = cluster.data
   const status = health.data?.status ?? "ok"
   const checks = health.data?.checks ?? []
-  const problems = checks.filter((check) => check.status === "warning" || check.status === "error")
+  const problems = checks.filter(isProblem)
+  const passing = checks.filter((check) => !isProblem(check))
   return (
-    <Popover>
-      <PopoverTrigger
-        openOnHover
-        nativeButton={false}
-        render={<div />}
-        className={cn(
-          "block w-full cursor-pointer rounded-lg border bg-sidebar-accent/40 p-3 text-left text-xs transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent",
-          status === "warning" && "border-warning/40",
-          status === "error" && "border-destructive/50",
-        )}
-      >
+    <Collapsible
+      className={cn(
+        "rounded-lg border bg-sidebar-accent/40 text-xs transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent",
+        status === "warning" && "border-warning/40",
+        status === "error" && "border-destructive/50",
+      )}
+    >
+      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
+        <div className="space-y-2 border-b p-3">
+          {passing.length > 0 && <CheckList checks={passing} />}
+          <Link to="/cluster" className="flex items-center justify-end gap-1 font-medium hover:underline">
+            Cluster details
+            <ChevronRightIcon className="size-3.5" />
+          </Link>
+        </div>
+      </CollapsibleContent>
+      <CollapsibleTrigger nativeButton={false} render={<div />} className="block w-full cursor-pointer p-3 text-left">
         <div className="mb-2 flex items-center gap-2 font-medium">
           <span className="relative flex size-2">
             <span className={cn("absolute inline-flex size-full animate-ping rounded-full opacity-50", dot[status])} />
@@ -62,18 +71,8 @@ export function ClusterCard() {
             </Fragment>
           ))}
         </dl>
-      </PopoverTrigger>
-      <PopoverContent side="right" align="end" className="text-xs">
-        <PopoverHeader>
-          <PopoverTitle>Cluster health</PopoverTitle>
-        </PopoverHeader>
-        {checks.length > 0 && <CheckList checks={checks} />}
-        <Link to="/cluster" className="flex items-center justify-end gap-1 font-medium hover:underline">
-          Cluster details
-          <ChevronRightIcon className="size-3.5" />
-        </Link>
-      </PopoverContent>
-    </Popover>
+      </CollapsibleTrigger>
+    </Collapsible>
   )
 }
 

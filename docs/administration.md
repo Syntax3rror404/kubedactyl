@@ -196,7 +196,7 @@ are removed when the panel first reads the nodes.
 
 **Health checks** (`GET /api/cluster/health`, cached 30 s unless a read failed, checked again at once after a
 settings change) are shown in the sidebar cluster card above the user menu (green / amber / red; problems are
-always listed with their explanation, hovering the card (tapping it on phones) opens every check and a link to the
+always listed with their explanation, a click on the card opens it upwards with the passing checks and a link to the
 cluster page): Kubedactyl CRDs
 served, all permissions granted (a check the API server did not answer is a warning), nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools
 present with free addresses, the enabled storage classes present, and (in the cluster) the admission policy
