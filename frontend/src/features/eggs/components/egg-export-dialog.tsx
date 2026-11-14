@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { DownloadIcon, FileDownIcon } from "lucide-react"
 
-import { CodeEditor } from "@/components/common/code-editor"
-import { CopyButton } from "@/components/common/copy-button"
-import { QueryState } from "@/components/common/query-state"
+import { CodeEditor } from "@/base/components/code-editor"
+import { CopyButton } from "@/base/components/copy-button"
+import { QueryState } from "@/base/components/query-state"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Dialog,

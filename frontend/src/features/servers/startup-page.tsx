@@ -3,6 +3,10 @@ import { RotateCcwIcon, SaveIcon } from "lucide-react"
 import { useOutletContext } from "react-router"
 import { toast } from "sonner"
 
+import { useAuth } from "@/base/hooks/use-auth"
+import { useDraft } from "@/base/hooks/use-draft"
+import { failed } from "@/base/lib/queries"
+import { fieldErrors } from "@/base/lib/validation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -14,12 +18,8 @@ import { StartupPreview } from "@/features/servers/components/startup-preview"
 import { VariableField } from "@/features/servers/components/variable-field"
 import { defaultEnvironment, imageOptions, startupCommandOf } from "@/features/servers/lib/startup"
 import type { ServerContext } from "@/features/servers/server-layout"
-import { useAuth } from "@/hooks/use-auth"
-import { useDraft } from "@/hooks/use-draft"
-import { failed } from "@/lib/notify"
 import { useUpdateServer } from "@/lib/queries"
 import type { UpdateServerRequest } from "@/lib/types"
-import { fieldErrors } from "@/lib/validation"
 
 /** /servers/:server/startup: startup command preview, docker image and the egg variables. */
 export function StartupPage() {

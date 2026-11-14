@@ -12,10 +12,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
+	"app/base/validation"
+	"app/internal/appsettings"
+	"app/internal/appusers"
 	"app/internal/gameserver"
-	"app/internal/settings"
-	"app/internal/users"
-	"app/internal/validation"
 )
 
 // UpdateServerRequest changes a game server; omitted fields stay unchanged.
@@ -59,12 +60,12 @@ type UpdateServerRequest struct {
 //	@Param			server	path		string				true	"Server name"
 //	@Param			body	body		UpdateServerRequest	true	"Changes"
 //	@Success		200		{object}	v1alpha1.GameServer
-//	@Failure		422		{object}	ErrorResponse
+//	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server} [patch]
 func (a *API) updateServer(c *gin.Context) {
 	var req UpdateServerRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -75,23 +76,23 @@ func (a *API) updateServer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p := principal(c)
+	p := api.PrincipalOf(c)
 	if !p.Admin() {
 		if err := checkUserUpdate(&req, gs, e); err != nil {
-			a.fail(c, err)
+			a.Fail(c, err)
 			return
 		}
 	}
 	patch := client.MergeFrom(gs.DeepCopy())
 	if err := a.applyServerUpdate(c, &req, gs, e); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	if err := a.Client.Patch(c, gs, patch); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server updated", "server", gs.Name)
+	a.Audit(c, "server updated", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, visibleServer(p, gs, e, a.externalDomain(c)))
 }
@@ -126,7 +127,7 @@ func (a *API) applySharing(ctx context.Context, req *UpdateServerRequest, gs *v1
 	seen := map[string]bool{}
 	for _, s := range *req.SharedWith {
 		var err error
-		if s.Access, err = users.CheckAccess(s.Access); err != nil {
+		if s.Access, err = appusers.CheckAccess(s.Access); err != nil {
 			return validation.Field("sharedWith", fmt.Errorf("%s: %w", s.User, err))
 		}
 		if seen[s.User] {
@@ -137,7 +138,7 @@ func (a *API) applySharing(ctx context.Context, req *UpdateServerRequest, gs *v1
 		if client.IgnoreNotFound(err) != nil {
 			return err
 		}
-		if err != nil || !users.Subuser(u) || users.Home(u) != gs.Namespace {
+		if err != nil || !appusers.Subuser(u) || appusers.Home(u) != gs.Namespace {
 			return validation.Field("sharedWith", fmt.Errorf("%s is no subuser of the server's owner", s.User))
 		}
 		seen[s.User] = true
@@ -227,7 +228,7 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 		if *req.LoadBalancerPool == "" {
 			return validation.Field("loadBalancerPool", errors.New("select a load balancer pool"))
 		}
-		_, err = settings.Choose(*req.LoadBalancerPool, "", set.LoadBalancerPools, "load balancer pool")
+		_, err = appsettings.Choose(*req.LoadBalancerPool, "", set.LoadBalancerPools, "load balancer pool")
 		if err != nil {
 			return err
 		}
@@ -266,7 +267,7 @@ func checkServiceType(set v1alpha1.PanelSettingsSpec, typ v1alpha1.ServiceType, 
 		return nil
 	}
 	if !set.AllowClusterIP {
-		return validation.Field("serviceType", fmt.Errorf("service type ClusterIP %w", settings.ErrNotEnabled))
+		return validation.Field("serviceType", fmt.Errorf("service type ClusterIP %w", appsettings.ErrNotEnabled))
 	}
 	if ips != "" {
 		return validation.Field("loadBalancerIP", errors.New("a server without load balancer has no fixed IP"))
@@ -290,7 +291,7 @@ func (a *API) checkPoolIP(ctx context.Context, pool, ips string) error {
 	if pool == "" {
 		return nil
 	}
-	p, err := settings.GetPool(ctx, a.Reader, pool)
+	p, err := appsettings.GetPool(ctx, a.Reader, pool)
 	if err != nil {
 		return err
 	}

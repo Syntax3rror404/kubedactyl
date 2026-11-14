@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 
 	"app/api/v1alpha1"
-	"app/internal/validation"
+	"app/base/validation"
 )
 
 // FieldErrors maps a field path (e.g. "variables.2.envVariable") to a message.

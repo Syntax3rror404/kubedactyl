@@ -1,7 +1,7 @@
 import { useBlocker } from "react-router"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { useBeforeUnload } from "@/hooks/use-before-unload"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { useBeforeUnload } from "@/base/hooks/use-before-unload"
 
 /** Asks before leaving the page (in the app or by closing the tab) while there are unsaved changes. */
 export function UnsavedGuard({ when }: { when: boolean }) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"app/internal/checks"
+	"app/base/checks"
 )
 
 // records are the addresses of the domain as one resolver sees them.

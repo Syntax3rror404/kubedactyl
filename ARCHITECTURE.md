@@ -55,9 +55,9 @@ flowchart LR
 
 | Path | What it is |
 |------|-----------|
-| `backend/main.go`, `backend/wiring.go` | Start-up: flags → prepare the cluster → build controllers, services and API → serve HTTP |
+| `backend/main.go`, `backend/wiring.go` | Start-up: flags (`cli.Flags` + the app's) → prepare the cluster (`bootstrap.Run`, then the app's steps) → build controllers, services and API → serve HTTP (`httpserver`) |
 | `backend/api/v1alpha1` | The custom resource types (Go structs → CRD YAML via `make generate`) |
-| `backend/internal/httpapi` | API handlers, grouped by file prefix: `auth*`, `servers*`, `files_*`, `eggs*`, `users.go`, `settings.go`, `cluster.go`, `upgrade.go`; routes in `api.go`, permission rules in `servers_access.go` |
+| `backend/internal/httpapi` | API handlers of the app, grouped by file prefix: `servers*`, `files_*`, `eggs*`, `cluster.go`; `api.go` embeds the base API (`base/api`) and adds its routes, `users.go`/`settings.go`/`errors.go` are its parts of the base answers (`api.App`), permission rules in `servers_access.go` |
 | `backend/internal/controller` | The `GameServer` controller (`gameserver*.go`), the `User` controller (namespaces, network policy), the files pod reaper |
 | `backend/internal/gameserver` | Builds the Kubernetes objects of a server (pods, volume, service) and the pre-start steps |
 | `backend/internal/console` | Output hub: follows pod logs, keeps a history, detects the "server is running" line |
@@ -66,11 +66,12 @@ flowchart LR
 | `backend/internal/configfile` | Egg config file parsers (ported code, see THIRD_PARTY_NOTICES.md) |
 | `backend/internal/serverctl` | Power actions, console commands, reinstall and suspend, shared by the API and the scheduler |
 | `backend/internal/schedule` | Cron schedules of servers |
-| `backend/internal/diagnostics`, `checks` | Server diagnostics (why players cannot connect) and the check result type shared with the cluster health |
+| `backend/internal/diagnostics` | Server diagnostics (why players cannot connect), results of the type `base/checks` shared with the cluster health |
 | `backend/internal/egglibrary` | Egg library: eggs of GitHub repositories (archive download, in-memory cache) |
-| `backend/internal/eggstore`, `users` | Storing eggs (create, import, update from URL, delete) and user accounts (create with namespace, changes, last-admin rule, accounts of single sign-on users) |
-| `backend/internal/sso` | Single sign-on: OpenID Connect sign-in (code flow with PKCE, ID token checks) and the account a token describes; see [docs/oidc.md](docs/oidc.md) |
-| `backend/internal/settings`, `clusterinfo`, `selfupgrade`, `auth`, `tenancy`, `validation`, `bootstrap`, `kube`, `httpserver` | Panel settings, cluster page and health checks, self-upgrades, passwords/sessions/tokens, user namespaces, field validation errors, start-up, Kubernetes helpers, router and security headers |
+| `backend/internal/eggstore` | Storing eggs (create, import, update from URL, delete) |
+| `backend/internal/appusers`, `appsettings` | What Kubedactyl adds to the accounts (`users.App`: namespace per user, subusers and shared servers) and to the settings (`settings.App`: storage classes, load balancer pools, external domain, server notice, subuser limit, egg libraries) |
+| `backend/internal/clusterinfo`, `tenancy` | Cluster page and health checks, user namespaces |
+| `backend/base` | The same in every app, like `frontend/src/base`: `api` (sign-in, setup, invites, own account, users, settings, upgrades), `auth` (passwords, sessions, tokens, single sign-on, see [docs/oidc.md](docs/oidc.md)), `users` (accounts, invites, reset links, last-admin rule), `settings` (panel settings), `kube` (connection, clients, exec/attach, request limit, TTL cache), `selfupgrade`, `bootstrap` (start-up: CRDs, panel namespace, session key, first admin), `httpserver` (router, Swagger UI, embedded web UI, security headers), `validation`, `checks`, `cli` (common flags, banner, logging), `tools/licenses`; the app gives it its names in `backend/app/config.go` and its parts of the answers in `backend/app/views.go` |
 | `frontend/src/app` | Route table (`router.tsx`): which page belongs to which URL |
 | `frontend/src/features/<area>` | One folder per area (servers, eggs, users, settings, …) with its `*-page.tsx` and the components/hooks only it uses; every server tab is `features/servers/<tab>-page.tsx` (URL `/servers/:server/<tab>`) |
 | `frontend/src/lib` | API client (`api.ts`), data hooks (`queries/`, one file per area), types (`types/`: `api.gen.ts` generated from the Go structs, the other files name and refine them), formatting helpers |
@@ -153,8 +154,8 @@ pod logs itself (`console/follow.go`), so the output continues when nobody is wa
 | add a health check | `internal/clusterinfo/health_checks.go` + `evaluate` in `health.go` |
 | change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`/`StopLimit`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
 | add a server diagnostics check | `internal/diagnostics` (`Run`, a function returning `checks.Check`, a case in the test); shown by `features/servers/diagnostics-page.tsx` |
-| add a panel setting | `api/v1alpha1/settings_types.go`, `internal/settings`, settings page cards |
-| change single sign-on | `internal/sso` (flow, claims), `users/oidc.go` (which account, linking), `httpapi/auth_oidc.go` (routes, cookie), `settings/oidc.go` (validation, client secret), `features/settings/components/sso-card.tsx`, `features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
+| add a panel setting | `api/v1alpha1/settings_types.go`, `internal/appsettings` (or `base/settings` for every app), a card in `features/settings/components` listed in `app/settings.ts` (draft + card; base cards in `base/features/settings`) |
+| change single sign-on | `base/auth/oidc.go` (flow, claims), `base/users/oidc.go` (which account, linking), `base/api/auth_oidc.go` (routes, cookie), `base/settings/oidc.go` (validation, client secret), `base/features/settings/components/sso-card.tsx`, `base/features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
 
 ## Walk-through: adding a field to servers
 
@@ -187,11 +188,24 @@ tests enforce the ones marked (enforced).
   Rules and multi-step logic live in the domain packages: `serverctl` (power, reinstall, suspend), `eggstore`
   (create, import, update, delete eggs), `users` (accounts, last-admin rule), `settings`, `files`, `schedule`,
   `gameserver` (building pods, validating resources, ports and variables).
-- **Errors** (enforced by `errors_test.go`): every failure is answered with `a.fail(c, err)`. Domain packages
-  return sentinel errors (`users.ErrLastAdmin`, `eggstore.ErrInUse`, …); `domainErrors` in `httpapi/errors.go`
-  maps them to HTTP status codes in one table (add new ones there instead of wrapping them in a handler).
-  Handlers wrap only what has no domain error, that is checks of the request itself: `badRequest(err)` for unreadable
-  requests (a JSON body is read with `a.bindJSON`, which answers 400 itself), `forbidden`, `notFound`, `conflict`, `fieldError(status, field, err)`; a wrong field value is `validation.Field(field, err)` (422).
+- **Errors** (enforced by `errors_test.go`): every failure is answered with `a.Fail(c, err)` (`base/api/errors.go`).
+  Domain packages return sentinel errors (`users.ErrLastAdmin`, `eggstore.ErrInUse`, …); `domainErrors` in
+  `base/api/errors.go` (base packages) and `httpapi/errors.go` (the app's, `API.StatusOf`) map them to HTTP status
+  codes (add new ones there instead of wrapping them in a handler). Handlers wrap only what has no domain error,
+  that is checks of the request itself: `api.BadRequest(err)` for unreadable requests (a JSON body is read with
+  `a.BindJSON`, which answers 400 itself), `api.Forbidden`, `api.NotFound`, `api.Conflict`,
+  `api.FieldError(status, field, err)`; a wrong field value is `validation.Field(field, err)` (422).
+- **Base** (`backend/base/`): the shared backend packages, the same in every app and treated like a library, as
+  the frontend base: never changed for one app, this repository is its source, `make check-base` compares both
+  bases with another app. From the app they import only `app/app` (`config.go`: name, ID, label domain, environment, token
+  and cookie prefixes, logo, brand colors, version modules; `views.go`: the app's fields embedded in base answers) and
+  the CRD types `app/api/v1alpha1` (the same names in every app, other API groups; `v1alpha1.DefaultRole` is the
+  second role). App logic plugs in through small interfaces set in `wiring.go`: `api.App` (the app's API: views,
+  request rates, errors), `users.App` (`internal/appusers`) and `settings.App` (`internal/appsettings`). The app
+  embeds `*api.API` in its own API and adds its routes to the groups `api.API.Register` returns. `main.go` and
+  `wiring.go` stay the app's (like `main.tsx` and `router.tsx`): they call the base parts (`cli.Flags`,
+  `bootstrap.Run`, `selfupgrade.Setup`, `httpserver.NewRouter`) and add the app's flags, steps and services.
+  Code one app uses lives in `internal/`; base functions only one app calls are fine (deadcode skips `base/`).
 - **Validation errors** are `validation.Errors` (a map field → message; `egg.FieldErrors` for egg paths). The API
   answers them with 422 and `"fields"`, which the frontend shows next to the inputs.
 - **Logs**: slog with a `component`; the acting user is `by`, affected objects are named by kind (`user`,
@@ -248,7 +262,7 @@ tests enforce the ones marked (enforced).
      passed as callbacks (to the hook, or to `mutate(vars, { onSuccess })` when the message needs local values).
      They never import `api`, `useQuery`, `useMutation` or the query client.
 - **Showing a query**: `<QueryState query={…} skeleton={…} empty={…}>{(data) => …}</QueryState>`
-  (`components/common/query-state.tsx`): skeleton while loading, the error with a retry button, `EmptyState` when
+  (`base/components/query-state.tsx`): skeleton while loading, the error with a retry button, `EmptyState` when
   there is nothing. List pages render their `PageHeader` first and the `QueryState` below it; detail pages whose
   header shows the object wrap a `…View`/`…Detail` component in `QueryState`.
 - **Forms**: the values are one object from `useDraft(initial)` (`draft`, `set("field", value)`, `dirty`,
@@ -261,12 +275,30 @@ tests enforce the ones marked (enforced).
   dialogs mount their form fresh on every open. Egg console prompts (`features/servers/egg-features`) stay open
   while their action runs and are built on `AlertDialog` directly.
 - **Toasts**: success "<Thing> <past participle>" ("Backup deleted"); failures `onError: failed("delete the
-  backup")` (`lib/notify.ts`) → "Could not delete the backup" with the server message.
+  backup")` (`base/lib/queries/mutation.ts`) → "Could not delete the backup" with the server message.
 - **Where code goes**: `features/<area>/` holds the pages and the components/hooks/lib only that area uses; a
   feature may use another feature's components (servers uses `EggOption`). Every server tab lives in
   `features/servers` as `<tab>-page.tsx`, matching its URL, and gets the server from `server-layout`
-  (`ServerContext`). Code the app shell or most features
-  need lives in `components/common`, `components/layout`, `hooks/` and `lib/`.
+  (`ServerContext`). Code the app frame or most features
+  need lives in `base/` (the same in every app) or, when only this app has it, in `components/common`, `hooks/` and
+  `lib/`.
+- **Base** (`src/base/`: components, layout, navigation, hooks, lib, features, `types.ts`): our own UI library on top
+  of shadcn, the same in every app and treated like `components/ui`: never changed for one app. This repository is its
+  source: the base grows here, and the whole folder is copied into the other apps (`make check-base` compares it with
+  another app). It mirrors `backend/base/api`: `lib/api.ts` (`request`, `ApiError`, `baseApi`: the base calls the
+  app's `lib/api.ts` spreads into `api`), `lib/queries/` (`auth`, `users`, `settings` + `keys`, `mutation`; the
+  app's `lib/queries/keys.ts` spreads `baseKeys`), `lib/types.ts` (the base API types from the app's `api.gen.ts`),
+  `lib/format.ts` (sizes, times, names, roles) and the shared pages in `features/` (`auth`, `account`, `users`,
+  `settings`, `licenses`). It uses `components/ui`, the generated `lib/types/api.gen.ts` and the app's seams in
+  `app/`: `use-navigation.ts` (`useNavigation`: header, groups, footer, search), `config.ts` (names, brand, roles,
+  texts of shared pages, footer links, request rates, `useCrumbLabels`, the app data a settings save or deleted user
+  changes), `users.tsx` (columns and tables of the users page, delete and create texts, account cards) and
+  `settings.ts` (the app's settings draft and cards). Every app picks one center (here the
+  servers): home shows it as cards, the sidebar lists it with status under home and starts with it open (`open`); a
+  branch opens when it holds the current page and otherwise stays as the user left it. Every page is an entry of a
+  group; the pages for administrators (users, settings) and the API documentation are the group right above the user
+  menu (`footer`, "Administration" for administrators), and the user menu holds only the account. Pages and their tabs
+  stay app code.
 - **Names**: one word per action on every layer: `list`, `get`, `create`, `update`, `delete`, plus the
   domain verbs `pull` (the server fetches a URL; "download" is only the browser download), `decompress`,
   `probe`, `transfer` (a server moves to another owner), `migrate` (a server moves to another storage class), and the actions that are not data changes: `send`
@@ -282,8 +314,8 @@ tests enforce the ones marked (enforced).
 - **Style**: named exports, kebab-case files named after their main export, destructured props with inline types;
   callbacks `onSubmit` (forms), `onConfirm` (confirmations), `onSelect` (choosing), `on<Field>Change`; constants
   that name one value (number, limit, duration, URL, id) are `SCREAMING_SNAKE_CASE` (`MAX_IMAGE`), lists, maps,
-  class strings and CSS text `camelCase`; imports in the order packages · `@/components/common` · `layout` · `ui` ·
-  `@/features` · `@/hooks` · `@/lib`.
+  class strings and CSS text `camelCase`; imports in the order packages · `@/app` · `@/base` ·
+  `@/components` (`common`, `ui`) · `@/features` · `@/hooks` · `@/lib`.
 
   ```tsx
   // features/servers/components/danger-zone.tsx
@@ -302,7 +334,7 @@ tests enforce the ones marked (enforced).
 ### Everywhere
 
 - **Library components** (`frontend/src/components/ui/*`) are never edited; app specific looks go into
-  wrappers such as `components/common/glow-card.tsx` and `confirm-dialog.tsx`.
+  wrappers such as `base/components/glow-card.tsx` and `confirm-dialog.tsx`.
 - **Formatting and checks**: `make fmt` (gofmt + goimports, Prettier) and `make lint` (golangci-lint with
   `backend/.golangci.yml`, deadcode, `tsc`, oxlint, knip), plus `make test` (see `docs/development.md`, *Commands*).
 - **Size**: lines of at most 120 characters, functions of at most 60 lines / 40 statements (tests may be longer),

@@ -37,7 +37,7 @@
       managerFilePatterns: [
         '/^charts/kubedactyl/README\\.md$/',
         '/^backend/main\\.go$/',
-        '/^backend/internal/kube/attach_integration_test\\.go$/',
+        '/^backend/base/kube/attach_integration_test\\.go$/',
         '/^scripts/imagebuild/main\\.go$/',
         '/^docs/installation\\.md$/',
         '/^THIRD_PARTY_NOTICES\\.md$/',

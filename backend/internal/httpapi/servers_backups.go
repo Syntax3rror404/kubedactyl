@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/files"
 	"app/internal/serverctl"
 )
@@ -51,7 +52,7 @@ func (a *API) listBackups(c *gin.Context) {
 	}
 	entries, err := a.Files.Manager.ListBackups(c, files.RefOf(gs))
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	out := BackupList{Items: []Backup{}}
@@ -75,14 +76,14 @@ func (a *API) listBackups(c *gin.Context) {
 //	@Param			server	path		string				true	"Server name"
 //	@Param			body	body		CreateBackupRequest	false	"Label"
 //	@Success		202		{object}	files.Job
-//	@Failure		409		{object}	ErrorResponse	"a backup or restore is running"
+//	@Failure		409		{object}	api.ErrorResponse	"a backup or restore is running"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/backups [post]
 func (a *API) createBackup(c *gin.Context) {
 	var req CreateBackupRequest
 	// The body is optional (no label).
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		a.fail(c, badRequest(err))
+		a.Fail(c, api.BadRequest(err))
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -91,11 +92,11 @@ func (a *API) createBackup(c *gin.Context) {
 	}
 	job, err := a.Files.StartBackup(files.RefOf(gs), req.Label, time.Now().In(a.Schedules.Location))
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	a.Hub.Daemon(gs.Name, "Creating backup "+job.Label+"...")
-	a.audit(c, "backup started", "server", gs.Name, "backup", job.Label)
+	a.Audit(c, "backup started", "server", gs.Name, "backup", job.Label)
 	c.JSON(http.StatusAccepted, job)
 }
 
@@ -109,7 +110,7 @@ func (a *API) createBackup(c *gin.Context) {
 //	@Param			server	path		string	true	"Server name"
 //	@Param			backup	path		string	true	"Backup file name"
 //	@Success		202		{object}	files.Job
-//	@Failure		409		{object}	ErrorResponse	"server running or job in progress"
+//	@Failure		409		{object}	api.ErrorResponse	"server running or job in progress"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/backups/{backup}/restore [post]
 func (a *API) restoreBackup(c *gin.Context) {
@@ -120,21 +121,21 @@ func (a *API) restoreBackup(c *gin.Context) {
 	// Uncached: a server started a moment ago must count as running.
 	cur := &v1alpha1.GameServer{}
 	if err := a.Reader.Get(c, client.ObjectKeyFromObject(gs), cur); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	if err := serverctl.Stopped(cur); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	name := c.Param("backup")
 	job, err := a.Files.StartRestore(files.RefOf(gs), name)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	a.Hub.Daemon(gs.Name, "Restoring backup "+name+"...")
-	a.audit(c, "backup restore started", "server", gs.Name, "backup", name)
+	a.Audit(c, "backup restore started", "server", gs.Name, "backup", name)
 	c.JSON(http.StatusAccepted, job)
 }
 
@@ -154,9 +155,9 @@ func (a *API) deleteBackup(c *gin.Context) {
 	}
 	name := c.Param("backup")
 	if err := a.Files.DeleteBackup(c, files.RefOf(gs), name); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "backup deleted", "server", gs.Name, "backup", name)
+	a.Audit(c, "backup deleted", "server", gs.Name, "backup", name)
 	c.Status(http.StatusNoContent)
 }

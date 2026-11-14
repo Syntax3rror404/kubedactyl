@@ -1,8 +1,8 @@
 import { MegaphoneIcon } from "lucide-react"
 
+import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
+import { tooLong, type SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
 import { Textarea } from "@/components/ui/textarea"
-import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
-import { tooLong, type SettingsCardProps } from "@/features/settings/lib/settings-draft"
 
 const MAX_NOTICE = 2000
 

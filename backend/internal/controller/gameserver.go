@@ -26,11 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
+	"app/internal/appsettings"
 	"app/internal/console"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
-	"app/internal/settings"
 	"app/internal/tenancy"
 )
 
@@ -58,7 +58,7 @@ type Reconciler struct {
 	// file jobs of the servers.
 	Files *files.Service
 	// Pools resolves load balancer pool names to service labels.
-	Pools *settings.PoolResolver
+	Pools *appsettings.PoolResolver
 	// Events runs the tasks of a server at its start and before its stop (schedule.Runner).
 	Events ServerEvents
 	Log    *slog.Logger

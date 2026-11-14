@@ -15,11 +15,4 @@ func TestOwns(t *testing.T) {
 	if Namespace("bob") != "kubedactyl-user-bob" {
 		t.Error(Namespace("bob"))
 	}
-	for name, ok := range map[string]bool{
-		"alice": true, "a1-b": true, "Al": false, "ab": false, "-ab": false, "ab-": false, "a_b": false,
-	} {
-		if (ValidateUsername(name) == nil) != ok {
-			t.Errorf("ValidateUsername(%q) ok=%v", name, !ok)
-		}
-	}
 }

@@ -5,55 +5,41 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	// Time zone database for schedules and TZ, also in images without tzdata (Alpine).
 	_ "time/tzdata"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 
+	"app/app"
+	"app/base/bootstrap"
+	"app/base/cli"
+	"app/base/httpserver"
+	"app/base/kube"
+	"app/base/selfupgrade"
+	"app/base/settings"
 	"app/docs" // generated with: go tool swag init
 	"app/internal/gameserver"
-	"app/internal/httpserver"
-	"app/internal/kube"
-	"app/internal/selfupgrade"
-	"app/internal/settings"
 	"app/web"
 )
-
-const appName = "Kubedactyl"
 
 // appVersion is set at build time from the VERSION file: -ldflags "-X main.appVersion=…".
 var appVersion = "dev"
 
 // config is the panel configuration from flags and environment variables.
 type config struct {
-	kubeContext string
-	addr        string
-	verbose     bool
-	proxies     string
-	opts        gameserver.Options
+	cli.Flags
+	opts gameserver.Options
 
-	// From the environment only (set by the chart):
-	// http1 forces HTTP/1.1 to the API server (unless KUBE_HTTP2 is set).
-	http1 bool
-	// tenantRole, serviceAccount and admissionPolicy describe the panel's permissions in the
-	// cluster (tenant role bound per user namespace, admission policy that limits them).
+	// From the environment only (set by the chart): tenantRole, serviceAccount and admissionPolicy describe
+	// the panel's permissions in the cluster (tenant role bound per user namespace, admission policy that
+	// limits them).
 	tenantRole, serviceAccount, admissionPolicy string
-	// upgrade configures self-upgrades (enabled when every field is set).
-	upgrade selfupgrade.Config
 }
 
 // @title						Kubedactyl API
@@ -67,20 +53,23 @@ type config struct {
 // @description				"Bearer <token>": a session token from /auth/login or an API token (kdt_…). The web UI
 // @description				uses the kd_session cookie.
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	// `kubedactyl upgrade …` runs inside the self-upgrade job.
 	if len(os.Args) > 1 && os.Args[1] == "upgrade" {
-		runUpgrade(os.Args[2:])
+		log := cli.SetupLogging(false)
+		if err := selfupgrade.Main(ctx, os.Args[2:], appVersion, log); err != nil {
+			cli.Fatal(log, "upgrade failed", err)
+		}
 		return
 	}
 	cfg := parseFlags()
-	printBanner(os.Stderr, appVersion, colorTerminal(os.Stderr)) // before the log lines, on the same stream
+	cli.PrintBanner(os.Stderr, appVersion, cli.ColorTerminal(os.Stderr)) // before the log lines, on the same stream
 	// The Swagger UI shows the version of this binary, not the one at generation time.
 	docs.SwaggerInfo.Version = appVersion
-	log := setupLogging(cfg.verbose)
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	log := cli.SetupLogging(cfg.Verbose)
 	if err := run(ctx, cfg, log); err != nil {
-		fatal(log, "panel stopped", err)
+		cli.Fatal(log, "panel stopped", err)
 	}
 }
 
@@ -88,11 +77,11 @@ func main() {
 // controllers, services and API (wiring.go), then serve HTTP until ctx ends.
 func run(ctx context.Context, cfg config, log *slog.Logger) error {
 	limiter := kube.NewRateLimiter(settings.DefaultKubeAPIQPS, settings.DefaultKubeAPIUserQPS)
-	restCfg, err := kubeConfig(cfg.kubeContext, cfg.http1, limiter)
+	restCfg, err := kube.RestConfig(cfg.KubeContext, cfg.HTTP1, limiter)
 	if err != nil {
 		return err
 	}
-	scheme, err := newScheme()
+	scheme, err := bootstrap.Scheme()
 	if err != nil {
 		return err
 	}
@@ -109,152 +98,48 @@ func run(ctx context.Context, cfg config, log *slog.Logger) error {
 		return err
 	}
 	router, err := httpserver.NewRouter(httpserver.Config{
-		API: p.api, Frontend: frontend, TrustedProxies: httpserver.ParseTrustedProxies(cfg.proxies),
-		Name: appName, Version: appVersion, Log: log,
+		API: p.api, Settings: p.api.Settings, Frontend: frontend, TrustedProxies: cfg.TrustedProxies,
+		Version: appVersion, Log: log,
 	})
 	if err != nil {
 		return err
 	}
 	go func() {
 		if err := p.manager.Start(ctx); err != nil {
-			fatal(log, "controller manager stopped", err)
+			cli.Fatal(log, "controller manager stopped", err)
 		}
 	}()
-	log.Info("panel started", "name", appName, "version", appVersion, "url", localURL(cfg.addr),
-		"context", p.api.Cluster.Context, "namespace", cfg.opts.Namespace)
-	return serve(ctx, cfg.addr, router)
+	log.Info("panel started", "name", app.Name, "version", appVersion, "url", httpserver.LocalURL(cfg.Listen),
+		"context", p.api.Cluster.Context, "namespace", cfg.Namespace)
+	return httpserver.Serve(ctx, cfg.Listen, router)
 }
 
 func parseFlags() config {
 	var cfg config
-	flag.StringVar(
-		&cfg.kubeContext, "kube-context", os.Getenv("KUBE_CONTEXT"),
-		"kubeconfig context (default: current context, or in-cluster config)",
-	)
-	flag.StringVar(&cfg.addr, "listen", ":"+envOr("PORT", "8080"), "HTTP listen address")
-	flag.BoolVar(&cfg.verbose, "verbose", os.Getenv("VERBOSE") != "", "enable debug logging")
-	flag.StringVar(
-		&cfg.proxies, "trusted-proxies", os.Getenv("TRUSTED_PROXIES"),
-		"comma separated IPs/CIDRs of reverse proxies whose X-Forwarded-For is trusted",
-	)
+	cfg.Bind("panel namespace (eggs, users, settings); game servers run in <namespace>-user-<user>")
 	o := &cfg.opts
 	flag.StringVar(
-		&o.Namespace, "namespace", envOr("KUBEDACTYL_NAMESPACE", "kubedactyl"),
-		"panel namespace (eggs, users, settings); game servers run in <namespace>-user-<user>",
-	)
-	flag.StringVar(
-		&o.StorageClass, "storage-class", envOr("STORAGE_CLASS", "longhorn"),
+		&o.StorageClass, "storage-class", cli.EnvOr("STORAGE_CLASS", "longhorn"),
 		"storage class enabled in the panel settings on the first start",
 	)
 	flag.StringVar(
-		&o.LoadBalancerPool, "lb-pool", envOr("LB_POOL", "general"),
+		&o.LoadBalancerPool, "lb-pool", cli.EnvOr("LB_POOL", "general"),
 		"Cilium LB IPAM pool enabled in the panel settings on the first start (name or lb.cilium.io/pool label value)",
 	)
 	// Same tag as the image base (Dockerfile, scripts/imagebuild) and the chart's panel.helperImage.
 	flag.StringVar(
-		&o.HelperImage, "helper-image", envOr("HELPER_IMAGE", "alpine:3.24.4"),
+		&o.HelperImage, "helper-image", cli.EnvOr("HELPER_IMAGE", "alpine:3.24.4"),
 		"image of the file helper and hardware probe pods",
 	)
 	flag.StringVar(
-		&o.DockerInterface, "docker-interface", envOr("DOCKER_INTERFACE", "127.0.0.1"),
+		&o.DockerInterface, "docker-interface", cli.EnvOr("DOCKER_INTERFACE", "127.0.0.1"),
 		"value of {{config.docker.interface}} in egg config files",
 	)
-	flag.StringVar(&o.Timezone, "timezone", envOr("TZ", "UTC"), "TZ passed to game servers")
+	flag.StringVar(&o.Timezone, "timezone", cli.EnvOr("TZ", "UTC"), "TZ passed to game servers")
 	flag.Parse()
-	cfg.http1 = os.Getenv("KUBE_HTTP2") == ""
+	o.Namespace = cfg.Namespace
 	cfg.tenantRole = os.Getenv("KUBEDACTYL_TENANT_ROLE")
 	cfg.serviceAccount = os.Getenv("KUBEDACTYL_SERVICE_ACCOUNT")
 	cfg.admissionPolicy = os.Getenv("KUBEDACTYL_ADMISSION_POLICY")
-	cfg.upgrade = selfupgrade.Config{
-		Chart:          os.Getenv("KUBEDACTYL_UPGRADE_CHART"),
-		Release:        os.Getenv("KUBEDACTYL_HELM_RELEASE"),
-		ServiceAccount: os.Getenv("KUBEDACTYL_UPGRADE_SERVICE_ACCOUNT"),
-		Image:          os.Getenv("KUBEDACTYL_IMAGE"),
-		Current:        appVersion,
-	}
 	return cfg
-}
-
-// setupLogging routes slog, controller-runtime and klog through one handler.
-func setupLogging(verbose bool) *slog.Logger {
-	level := slog.LevelInfo
-	if verbose {
-		level = slog.LevelDebug
-	}
-	log := slog.New(quietHandler{slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})})
-	slog.SetDefault(log)
-	logger := logr.FromSlogHandler(log.Handler())
-	ctrl.SetLogger(logger)
-	klog.SetLogger(logger)
-	return log
-}
-
-// serve runs the HTTP server until ctx ends and then shuts it down gracefully.
-func serve(ctx context.Context, addr string, handler http.Handler) error {
-	// No ReadTimeout: uploads stream for as long as they take.
-	srv := &http.Server{
-		Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute,
-	}
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-	}()
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
-}
-
-// runUpgrade is `kubedactyl upgrade`: helm upgrade of the panel release (see selfupgrade.Run).
-func runUpgrade(args []string) {
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	opts, err := selfupgrade.ParseArgs(args)
-	if err != nil {
-		fatal(log, "upgrade arguments", err)
-	}
-	klog.SetLogger(logr.FromSlogHandler(log.Handler()))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	log.Info(
-		"upgrading the panel", "release", opts.Release, "namespace", opts.Namespace, "chart", opts.Chart, "version",
-		opts.Version, "from", appVersion,
-	)
-	if err := selfupgrade.Run(ctx, opts, log); err != nil {
-		fatal(log, "upgrade failed", err)
-	}
-}
-
-func fatal(log *slog.Logger, msg string, err error) {
-	log.Error(msg, "err", err)
-	os.Exit(1)
-}
-
-// currentContext names the kubeconfig context in use (for the cluster page).
-func currentContext(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-	raw, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
-	if err != nil || raw.CurrentContext == "" {
-		return "in-cluster"
-	}
-	return raw.CurrentContext
-}
-
-// localURL is the address of the web interface on this machine (for the log), built from the listen address.
-func localURL(addr string) string {
-	_, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "http://localhost"
-	}
-	return "http://" + net.JoinHostPort("localhost", port)
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }

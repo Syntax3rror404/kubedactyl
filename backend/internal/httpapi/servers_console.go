@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/console"
 	"app/internal/serverctl"
 )
@@ -46,7 +47,8 @@ func (a *API) openConsole(c *gin.Context) {
 	history, events, unsubscribe := a.Hub.Subscribe(gs.Name)
 	defer unsubscribe()
 	s := &consoleSession{
-		api: a, conn: conn, token: credentials(c), caller: principal(c), namespace: gs.Namespace, server: gs.Name,
+		api: a, conn: conn, token: api.Credentials(c), caller: api.PrincipalOf(c),
+		namespace: gs.Namespace, server: gs.Name,
 	}
 	if err := s.sendStart(ctx, string(gs.Status.Phase), history); err != nil {
 		return
@@ -65,7 +67,7 @@ type consoleSession struct {
 	// token is the credential the connection was opened with; it is checked again regularly.
 	token string
 	// caller opened the connection (for the audit log).
-	caller    *Principal
+	caller    *api.Principal
 	namespace string
 	server    string
 }
@@ -73,8 +75,8 @@ type consoleSession struct {
 // authorize checks the credentials of the connection again and reloads the server: a logout, "log out
 // everywhere", a password change, a disabled account, a lost admin role or a removed share ends an open
 // console (accessNone).
-func (s *consoleSession) authorize(ctx context.Context) (*Principal, *v1alpha1.GameServer, access) {
-	p, err := s.api.principalFor(ctx, s.token)
+func (s *consoleSession) authorize(ctx context.Context) (*api.Principal, *v1alpha1.GameServer, access) {
+	p, err := s.api.PrincipalFor(ctx, s.token)
 	if err != nil {
 		return nil, nil, accessNone
 	}
@@ -82,7 +84,7 @@ func (s *consoleSession) authorize(ctx context.Context) (*Principal, *v1alpha1.G
 	if !ok {
 		return nil, nil, accessNone
 	}
-	return p, gs, p.accessTo(gs)
+	return p, gs, accessTo(p, gs)
 }
 
 // end closes a connection whose credentials are no longer valid.
@@ -138,7 +140,7 @@ func (s *consoleSession) readCommands(ctx context.Context) {
 			s.daemonMessage(ctx, err.Error())
 			continue
 		}
-		if _, err := s.api.admit(s.caller); err != nil {
+		if _, err := s.api.Admit(s.caller); err != nil {
 			s.daemonMessage(ctx, err.Error())
 			continue
 		}
@@ -158,12 +160,12 @@ func (s *consoleSession) handle(ctx context.Context, gs *v1alpha1.GameServer, ms
 			s.daemonMessage(ctx, text)
 			return
 		}
-		s.api.auditAs(s.caller, "console command sent", "server", gs.Name, "command", msg.Args[0])
+		s.api.AuditAs(s.caller, "console command sent", "server", gs.Name, "command", msg.Args[0])
 	case "set state":
 		if err := s.api.Ops.Power(ctx, gs, msg.Args[0]); err != nil {
 			s.daemonMessage(ctx, err.Error())
 		} else {
-			s.api.auditAs(s.caller, "power action sent", "server", gs.Name, "signal", msg.Args[0])
+			s.api.AuditAs(s.caller, "power action sent", "server", gs.Name, "signal", msg.Args[0])
 		}
 		s.api.Trigger(gs.Namespace, gs.Name)
 	}

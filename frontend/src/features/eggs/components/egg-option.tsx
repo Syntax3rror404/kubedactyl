@@ -1,7 +1,7 @@
 import { CheckIcon } from "lucide-react"
 
+import { plural } from "@/base/lib/format"
 import { EggIcon } from "@/components/common/egg-icon"
-import { plural } from "@/lib/format"
 import type { Egg } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

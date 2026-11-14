@@ -82,7 +82,7 @@ func (a *API) requireFilesPod(c *gin.Context) {
 	defer cancel()
 	err := a.Files.EnsurePod(ctx, files.RefOf(gs))
 	if errors.Is(err, files.ErrForeignPod) {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	if err != nil {

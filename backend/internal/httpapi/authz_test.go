@@ -26,19 +26,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
-	"app/internal/auth"
+	"app/base/api"
+	"app/base/auth"
+	"app/base/kube"
+	"app/base/settings"
+	"app/base/users"
+	"app/internal/appsettings"
+	"app/internal/appusers"
 	"app/internal/console"
 	"app/internal/diagnostics"
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
 	"app/internal/schedule"
 	"app/internal/serverctl"
-	"app/internal/settings"
 	"app/internal/tenancy"
 	"app/internal/testutil"
-	"app/internal/users"
 )
 
 const sysNS = testutil.Namespace
@@ -112,29 +115,31 @@ func newHarness(t *testing.T) *harness {
 			}).
 		Build()
 	signer, _ := auth.NewSigner(bytes.Repeat([]byte("k"), 32))
-	api := &API{
-		Client:         c,
-		Reader:         c,
-		Opts:           gameserver.Options{Namespace: sysNS},
-		Log:            testutil.Logger(),
-		Settings:       &settings.Store{Client: c, Reader: c, Namespace: sysNS},
-		Users:          &users.Store{Client: c, Reader: c, Namespace: sysNS},
-		Eggs:           &eggstore.Store{Client: c, Reader: c, Namespace: sysNS},
-		Diagnostics:    &diagnostics.Diagnoser{Resolver: noDNS{}, PublicResolver: noDNS{}},
-		Files:          &files.Service{Activity: files.NewActivity(), Reader: c, Trigger: func(string, string) {}},
-		Ops:            &serverctl.Ops{Client: c, Namespace: sysNS, Hub: console.NewHub(nil, testutil.Logger())},
-		Schedules:      &schedule.Runner{Client: c, Reader: c, Location: time.UTC},
-		SetupToken:     "setup-token",
-		Hub:            console.NewHub(nil, testutil.Logger()),
-		Signer:         signer,
-		Limiter:        auth.NewLimiter(5, 60e9),
-		ClientLimiter:  auth.NewLimiter(20, 60e9),
-		AccountLimiter: auth.NewLimiter(30, 60e9),
-		Trigger:        func(string, string) {},
+	settingsStore := &settings.Store{Client: c, Reader: c, Namespace: sysNS, App: appsettings.Settings{Reader: c}}
+	handlers := &API{
+		API: &api.API{
+			Client: c, Reader: c, Namespace: sysNS, Log: testutil.Logger(), Settings: settingsStore,
+			Users: &users.Store{Client: c, Reader: c, Namespace: sysNS, App: &appusers.Accounts{
+				Client: c, Reader: c, Namespace: sysNS, Settings: settingsStore,
+			}},
+			SetupToken:     "setup-token",
+			Signer:         signer,
+			Limiter:        auth.NewLimiter(5, 60e9),
+			ClientLimiter:  auth.NewLimiter(20, 60e9),
+			AccountLimiter: auth.NewLimiter(30, 60e9),
+		},
+		Opts:        gameserver.Options{Namespace: sysNS},
+		Eggs:        &eggstore.Store{Client: c, Reader: c, Namespace: sysNS},
+		Diagnostics: &diagnostics.Diagnoser{Resolver: noDNS{}, PublicResolver: noDNS{}},
+		Files:       &files.Service{Activity: files.NewActivity(), Reader: c, Trigger: func(string, string) {}},
+		Ops:         &serverctl.Ops{Client: c, Namespace: sysNS, Hub: console.NewHub(nil, testutil.Logger())},
+		Schedules:   &schedule.Runner{Client: c, Reader: c, Location: time.UTC},
+		Hub:         console.NewHub(nil, testutil.Logger()),
+		Trigger:     func(string, string) {},
 	}
 	r := gin.New()
-	api.Register(r.Group("/api"))
-	return &harness{t: t, router: r, client: c, api: api}
+	handlers.Register(r.Group("/api"))
+	return &harness{t: t, router: r, client: c, api: handlers}
 }
 
 // do sends a request with an optional bearer token and returns status and body.
@@ -175,7 +180,7 @@ func (h *harness) loginWith(user, password string) string {
 	if code != 200 {
 		h.t.Fatalf("login %s: %d %s", user, code, body)
 	}
-	var res LoginResponse
+	var res api.LoginResponse
 	_ = json.Unmarshal([]byte(body), &res)
 	return res.Token
 }
@@ -414,7 +419,7 @@ func TestLibraryRepositoryNeedsRepositoryURL(t *testing.T) {
 	}
 }
 
-// The pool check itself is settings.Pool.Contains; without a pool only the format is checked.
+// The pool check itself is appsettings.Pool.Contains; without a pool only the format is checked.
 func TestCheckPoolIPFormat(t *testing.T) {
 	a := &API{}
 	for ips, ok := range map[string]bool{
@@ -678,7 +683,7 @@ func TestAPITokens(t *testing.T) {
 	alice := h.login("alice")
 	code, body := h.do("POST", "/api/auth/tokens", alice, map[string]any{"name": "ci", "expiresInDays": 30})
 	expect(t, "create token", code, 201, body)
-	var created CreatedToken
+	var created api.CreatedToken
 	_ = json.Unmarshal([]byte(body), &created)
 	if !strings.HasPrefix(created.Token, "kdt_") {
 		t.Fatalf("token: %s", body)
@@ -996,7 +1001,7 @@ func TestSetup(t *testing.T) {
 		},
 	)
 	expect(t, "setup", code, 201, body)
-	var res LoginResponse
+	var res api.LoginResponse
 	_ = json.Unmarshal([]byte(body), &res)
 	if res.User.Role != v1alpha1.RoleAdmin || res.Token == "" {
 		t.Errorf("setup must sign in an administrator: %s", body)
@@ -1045,7 +1050,7 @@ func TestCrossSiteCookieRequests(t *testing.T) {
 			req.Header.Set("Authorization", authorization)
 		}
 		if !strings.HasPrefix(authorization, "Bearer ") {
-			req.AddCookie(&http.Cookie{Name: SessionCookie, Value: token})
+			req.AddCookie(&http.Cookie{Name: api.SessionCookie, Value: token})
 		}
 		if site != "" {
 			req.Header.Set("Sec-Fetch-Site", site)
@@ -1084,21 +1089,24 @@ func TestDenylistFromPanelNamespace(t *testing.T) {
 	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("GET", "/", nil)
-	api := &API{Eggs: &eggstore.Store{Client: h.client, Reader: h.client, Namespace: sysNS}, Log: testutil.Logger()}
-	if got, ok := api.denylist(c, gs); !ok || len(got) != 1 || got[0] != "server.jar" {
+	eggs := &API{
+		API:  &api.API{Log: testutil.Logger()},
+		Eggs: &eggstore.Store{Client: h.client, Reader: h.client, Namespace: sysNS},
+	}
+	if got, ok := eggs.denylist(c, gs); !ok || len(got) != 1 || got[0] != "server.jar" {
 		t.Errorf("denylist = %v, %v", got, ok)
 	}
 	// A server whose egg is gone has no denylist; any other failure answers the request.
 	gone := gs.DeepCopy()
 	gone.Spec.EggRef = "gone"
-	if got, ok := api.denylist(c, gone); !ok || got != nil {
+	if got, ok := eggs.denylist(c, gone); !ok || got != nil {
 		t.Errorf("denylist of a deleted egg = %v, %v", got, ok)
 	}
-	api.Eggs = &eggstore.Store{Client: failingClient{h.client}, Reader: failingClient{h.client}, Namespace: sysNS}
+	eggs.Eggs = &eggstore.Store{Client: failingClient{h.client}, Reader: failingClient{h.client}, Namespace: sysNS}
 	rec := httptest.NewRecorder()
 	c, _ = gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest("GET", "/", nil)
-	if _, ok := api.denylist(c, gs); ok || rec.Code != 500 {
+	if _, ok := eggs.denylist(c, gs); ok || rec.Code != 500 {
 		t.Errorf("a failed egg read must fail the request: ok=%v code=%d", ok, rec.Code)
 	}
 }
@@ -1115,7 +1123,7 @@ func TestLogoutEverywhereAndNotice(t *testing.T) {
 	first, second := h.login("bob"), h.login("bob")
 	code, body := h.do("POST", "/api/auth/tokens", first, map[string]any{"name": "ci", "expiresInDays": 7})
 	expect(t, "create token", code, 201, body)
-	var created CreatedToken
+	var created api.CreatedToken
 	_ = json.Unmarshal([]byte(body), &created)
 	code, body = h.do("POST", "/api/auth/logout-all", first, nil)
 	expect(t, "logout everywhere", code, 204, body)

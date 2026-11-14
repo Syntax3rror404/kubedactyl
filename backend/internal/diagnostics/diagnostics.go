@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"app/api/v1alpha1"
-	"app/internal/checks"
+	"app/base/checks"
 	"app/internal/gameserver"
 )
 

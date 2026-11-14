@@ -10,7 +10,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"app/internal/kube"
+	"app/base/kube"
 	"app/internal/testutil"
 )
 

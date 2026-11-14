@@ -1,7 +1,7 @@
+import { userName } from "@/base/lib/format"
+import { useUsers } from "@/base/lib/queries"
 import { FieldDescription } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { userName } from "@/lib/format"
-import { useUsers } from "@/lib/queries"
 
 /** Dropdown of the enabled users who can own a server (no subusers), with the namespace of the chosen one. */
 export function OwnerSelect({

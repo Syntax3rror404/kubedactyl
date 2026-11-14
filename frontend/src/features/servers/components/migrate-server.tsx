@@ -3,15 +3,15 @@ import { ForkliftIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { failed, useSettings } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 import { DangerRow } from "@/features/servers/components/danger-zone"
 import { PlacementSelect } from "@/features/servers/components/placement-fields"
 import { serverName } from "@/lib/format"
-import { failed } from "@/lib/notify"
-import { useMigrateServer, useSettings } from "@/lib/queries"
+import { useMigrateServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 
 /** Danger zone row: moves the server files to a volume of another storage class (admins only). */

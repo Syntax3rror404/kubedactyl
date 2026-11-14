@@ -3,9 +3,7 @@ package tenancy
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -37,18 +35,6 @@ func Owns(namespace string) bool {
 // NamespacePrefix is prepended to the username to form the user namespace. main sets it
 // to "<panel namespace>-user-", so several installations in one cluster do not collide.
 var NamespacePrefix = "kubedactyl-user-"
-
-var usernameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{1,30}[a-z0-9]$`)
-
-// ValidateUsername enforces names that are valid object and namespace names.
-func ValidateUsername(name string) error {
-	if !usernameRe.MatchString(name) {
-		return errors.New(
-			"username must be 3-32 characters: lowercase letters, digits and dashes, starting with a letter",
-		)
-	}
-	return nil
-}
 
 // TenantRole is the cluster role with the panel's permissions inside user namespaces and
 // PanelServiceAccount the panel's service account (in SystemNamespace). main sets both when

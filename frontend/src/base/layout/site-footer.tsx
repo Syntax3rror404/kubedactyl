@@ -1,0 +1,71 @@
+import { lazy, Suspense, useState, type ReactNode } from "react"
+import { Link } from "react-router"
+import { ScaleIcon, TagIcon } from "lucide-react"
+
+import { footerLinks } from "@/app/config"
+import { legalDocs, legalTitles, type LegalDoc } from "@/base/lib/format"
+import { usePanelInfo, useLegalTexts } from "@/base/lib/queries"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
+
+// Links with an icon in front; the icon follows the text color on hover.
+const link = "inline-flex items-center gap-1 hover:text-foreground hover:underline [&_svg]:size-3.5"
+
+// The Markdown renderer is only needed when a legal text opens; loaded then, so it stays out of every page. A chunk
+// of an older build resolves to nothing while main.tsx reloads the page; the dialog then waits for the reload.
+const Markdown = lazy(() =>
+  import("@/base/components/markdown").then((m) => (m ? { default: m.Markdown } : new Promise<never>(() => {}))),
+)
+
+/**
+ * Footer on every page: the app's version, its links (app/config.ts), the imprint and privacy policy when set, and
+ * the licenses; children first.
+ */
+export function SiteFooter({ className, children }: { className?: string; children?: ReactNode }) {
+  const legal = useLegalTexts()
+  const info = usePanelInfo()
+  const [open, setOpen] = useState<LegalDoc | null>(null)
+  const docs = legalDocs.filter((d) => legal.data?.[d])
+  return (
+    <footer
+      className={cn(
+        "flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground",
+        className,
+      )}
+    >
+      {children}
+      {info.data && (
+        <span className="inline-flex items-center gap-1 tabular-nums [&_svg]:size-3.5">
+          <TagIcon />
+          {info.data.name} v{info.data.version}
+        </span>
+      )}
+      {footerLinks.map(({ label, href, icon: Icon }) => (
+        <a key={href} href={href} target="_blank" rel="noreferrer" className={link}>
+          <Icon />
+          {label}
+        </a>
+      ))}
+      {docs.map((d) => (
+        <button key={d} type="button" className="hover:text-foreground hover:underline" onClick={() => setOpen(d)}>
+          {legalTitles[d]}
+        </button>
+      ))}
+      {/* Written by the production build (Go modules and npm packages); not there in dev mode. */}
+      {info.data?.mode === "production" && (
+        <Link to="/licenses" target="_blank" className={link}>
+          <ScaleIcon />
+          Licenses
+        </Link>
+      )}
+      <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{open && legalTitles[open]}</DialogTitle>
+          </DialogHeader>
+          <Suspense>{open && <Markdown>{legal.data?.[open] ?? ""}</Markdown>}</Suspense>
+        </DialogContent>
+      </Dialog>
+    </footer>
+  )
+}

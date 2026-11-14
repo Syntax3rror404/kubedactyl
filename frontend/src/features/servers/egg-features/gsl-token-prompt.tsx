@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { failed } from "@/base/lib/queries"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
-import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 

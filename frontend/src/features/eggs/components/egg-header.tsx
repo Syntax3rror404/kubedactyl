@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
+import { PageHeader } from "@/base/layout/page-header"
 import { EggIcon } from "@/components/common/egg-icon"
-import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import type { EggSpec } from "@/lib/types"
 

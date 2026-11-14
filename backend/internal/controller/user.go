@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
+	"app/internal/appusers"
 	"app/internal/tenancy"
-	"app/internal/users"
 )
 
 // UserFinalizer makes sure servers, volumes and the namespace are removed with a user, and the shares of a subuser.
@@ -54,7 +54,7 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 	if err := r.Reader.Get(ctx, req.NamespacedName, user); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	if users.Subuser(user) {
+	if appusers.Subuser(user) {
 		return r.reconcileSubuser(ctx, user)
 	}
 	ns := tenancy.Namespace(user.Name)
@@ -135,7 +135,7 @@ func (r *UserReconciler) reconcileSubuser(ctx context.Context, user *v1alpha1.Us
 		return reconcile.Result{}, nil
 	}
 	var servers v1alpha1.GameServerList
-	if err := r.Reader.List(ctx, &servers, client.InNamespace(users.Home(user))); err != nil {
+	if err := r.Reader.List(ctx, &servers, client.InNamespace(appusers.Home(user))); err != nil {
 		return reconcile.Result{}, err
 	}
 	for i := range servers.Items {

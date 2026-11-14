@@ -1,26 +1,46 @@
 import { useState } from "react"
+import { useSearchParams } from "react-router"
 import { Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { EmptyState, QueryState } from "@/components/common/query-state"
-import { UserAvatar } from "@/components/common/user-avatar"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { EmptyState, QueryState } from "@/base/components/query-state"
+import { UserAvatar } from "@/base/components/user-avatar"
+import {
+  InviteActions,
+  InviteIcon,
+  InviteState,
+  PasswordResetAction,
+} from "@/base/features/users/components/invite-actions"
+import { InviteDialog, type InviteExtra } from "@/base/features/users/components/invite-dialog"
+import { inviteLabel, splitInvites } from "@/base/features/users/lib/table"
+import { useAuth } from "@/base/hooks/use-auth"
+import { formatRelativeTime, plural, userName } from "@/base/lib/format"
+import { failed, useDeleteUser, useInvites, useSettings, useUsers } from "@/base/lib/queries"
+import { type AccessChoice, AccessSelect } from "@/components/common/access-select"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FieldError, FieldLegend, FieldSet } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
-import { InviteActions, InviteIcon, InviteState, PasswordResetAction } from "@/features/users/components/invite-actions"
-import { InviteDialog } from "@/features/users/components/invite-dialog"
-import { inviteLabel, splitInvites } from "@/features/users/lib/invite"
-import { useAuth } from "@/hooks/use-auth"
-import { formatRelativeTime, plural, userName } from "@/lib/format"
-import { failed } from "@/lib/notify"
-import { useDeleteUser, useInvites, useSettings, useUsers } from "@/lib/queries"
+import { serverName, serverOwner } from "@/lib/format"
+import { useServers } from "@/lib/queries"
 
 /**
- * Accounts that see only the servers the signed-in user shares with them, and the invites for more. inviteServer
- * (the Invite button of a server) opens the invite dialog with that server picked; onInvited is called when it closes.
+ * The subusers of the signed-in user (an account card; subusers have none). ?invite=<server> (the Invite button of a
+ * server) opens the invite dialog with that server picked.
  */
-export function SubusersCard({ inviteServer, onInvited }: { inviteServer?: string; onInvited: () => void }) {
+export function SubusersCard() {
+  const { user } = useAuth()
+  const [params, setParams] = useSearchParams()
+  if (user.owner) return null
+  return <Subusers inviteServer={params.get("invite") ?? undefined} onInvited={() => setParams({})} />
+}
+
+/**
+ * Accounts that see only the servers the signed-in user shares with them, and the invites for more. onInvited is
+ * called when the invite dialog closes.
+ */
+function Subusers({ inviteServer, onInvited }: { inviteServer?: string; onInvited: () => void }) {
   const { user: me } = useAuth()
   const users = useUsers()
   const invites = useInvites()
@@ -113,7 +133,58 @@ export function SubusersCard({ inviteServer, onInvited }: { inviteServer?: strin
           }
         </QueryState>
       </CardContent>
-      <InviteDialog open={inviting || !!inviteServer} onClose={closeInvite} subuser server={inviteServer} />
+      <InviteDialog open={inviting || !!inviteServer} onClose={closeInvite} extra={subuserInvite(inviteServer)} />
     </Card>
+  )
+}
+
+/** The invite of a subuser: no role, the servers it sees instead (server is picked at the start). */
+const subuserInvite = (server?: string): InviteExtra<Record<string, AccessChoice>> => ({
+  title: "Invite a subuser",
+  description: "They see only the servers you share with them. The link works once, for 7 days.",
+  initial: server ? { [server]: "view" } : {},
+  fields: (value, onChange, errors) => (
+    <ShareFields
+      value={value}
+      onChange={onChange}
+      error={Object.entries(errors).find(([k]) => k.startsWith("shares"))?.[1]}
+    />
+  ),
+  request: (shares) => ({
+    subuser: true,
+    shares: Object.entries(shares).flatMap(([s, access]) => (access === "none" ? [] : [{ server: s, access }])),
+  }),
+})
+
+/** The own servers with the access the subuser gets to each. */
+function ShareFields({
+  value,
+  onChange,
+  error,
+}: {
+  value: Record<string, AccessChoice>
+  onChange: (value: Record<string, AccessChoice>) => void
+  error?: string
+}) {
+  const { user } = useAuth()
+  const own = useServers().data?.filter((s) => serverOwner(s) === user.username)
+  if (!own?.length) return null
+  return (
+    <FieldSet>
+      <FieldLegend variant="label">Servers</FieldLegend>
+      <div className="space-y-2">
+        {own.map((s) => (
+          <div key={s.metadata.name} className="flex items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-sm">{serverName(s)}</span>
+            <AccessSelect
+              value={value[s.metadata.name] ?? "none"}
+              onChange={(access) => onChange({ ...value, [s.metadata.name]: access })}
+              label={`Access to ${serverName(s)}`}
+            />
+          </div>
+        ))}
+      </div>
+      <FieldError>{error}</FieldError>
+    </FieldSet>
   )
 }

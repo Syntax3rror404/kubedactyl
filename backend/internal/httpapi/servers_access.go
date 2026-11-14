@@ -11,12 +11,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
+	"app/base/validation"
+	"app/internal/appusers"
 	"app/internal/egg"
 	"app/internal/gameserver"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
-	"app/internal/users"
-	"app/internal/validation"
 )
 
 // IndexServerName indexes game servers by name; names are unique across namespaces.
@@ -43,13 +44,13 @@ const (
 // accessTo returns what the caller may do on a server. Servers of another installation in the same cluster are
 // nobody's. A subuser needs a share on a server of its owner: the owner check keeps a share from working after a
 // transfer or for a later account with the same name.
-func (p *Principal) accessTo(gs *v1alpha1.GameServer) access {
+func accessTo(p *api.Principal, gs *v1alpha1.GameServer) access {
 	switch {
 	case !tenancy.Owns(gs.Namespace):
 		return accessNone
-	case p.Admin() || (p.Namespace != "" && gs.Namespace == p.Namespace):
+	case p.Admin() || (!subuser(p) && gs.Namespace == tenancy.Namespace(p.User.Name)):
 		return accessFull
-	case !p.Subuser() || gs.Namespace != p.home():
+	case !subuser(p) || gs.Namespace != home(p):
 		return accessNone
 	}
 	for _, s := range gs.Spec.SharedWith {
@@ -65,7 +66,10 @@ func (p *Principal) accessTo(gs *v1alpha1.GameServer) access {
 }
 
 // home is the namespace of the servers the caller can see: its own, for a subuser its owner's.
-func (p *Principal) home() string { return users.Home(p.User) }
+func home(p *api.Principal) string { return appusers.Home(p.User) }
+
+// subuser reports whether the caller only sees the servers its owner shares with it.
+func subuser(p *api.Principal) bool { return appusers.Subuser(p.User) }
 
 var errNoAccess = errors.New("the owner has not shared this with you")
 
@@ -76,8 +80,8 @@ func (a *API) requireAccess(least access) gin.HandlerFunc {
 		if !ok {
 			return
 		}
-		if principal(c).accessTo(gs) < least {
-			a.fail(c, forbidden(errNoAccess))
+		if accessTo(api.PrincipalOf(c), gs) < least {
+			a.Fail(c, api.Forbidden(errNoAccess))
 			return
 		}
 		c.Set(serverKey, gs)
@@ -92,9 +96,9 @@ func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, err
 	if err := a.Client.List(c, &list, client.MatchingFields{IndexServerName: name}); err != nil {
 		return nil, err
 	}
-	p := principal(c)
+	p := api.PrincipalOf(c)
 	for i := range list.Items {
-		if gs := &list.Items[i]; p.accessTo(gs) != accessNone {
+		if gs := &list.Items[i]; accessTo(p, gs) != accessNone {
 			return gs, nil
 		}
 	}
@@ -122,12 +126,12 @@ func (a *API) reloadServer(ctx context.Context, namespace, name string) (*v1alph
 
 // visibleServer strips from a server, in place, what the caller may not see (handlers pass their own copy). e is
 // the server's egg, nil when it cannot be read; domain is the external domain of the settings.
-func visibleServer(p *Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
+func visibleServer(p *api.Principal, gs *v1alpha1.GameServer, e *v1alpha1.Egg, domain string) *v1alpha1.GameServer {
 	if p.Admin() {
 		return gs
 	}
 	hideFromUser(gs, e, domain)
-	if p.Subuser() {
+	if subuser(p) {
 		hideFromSubuser(gs, p.User.Name)
 	}
 	return gs
@@ -167,7 +171,7 @@ func hideFromSubuser(gs *v1alpha1.GameServer, name string) {
 
 // visibleEgg fills in the startup commands of older eggs and, for users, strips hidden variables
 // and the install script. It changes the egg in place (handlers pass their own copy).
-func visibleEgg(p *Principal, e *v1alpha1.Egg) *v1alpha1.Egg {
+func visibleEgg(p *api.Principal, e *v1alpha1.Egg) *v1alpha1.Egg {
 	e.Spec.StartupCommands = egg.StartupCommands(&e.Spec)
 	if p.Admin() {
 		return e
@@ -190,7 +194,7 @@ func checkUserUpdate(req *UpdateServerRequest, gs *v1alpha1.GameServer, e *v1alp
 	if req.Startup != nil || req.MemoryMiB != nil || req.CPUMillis != nil || req.DiskMiB != nil || req.Ports != nil ||
 		req.LoadBalancerIP != nil || req.ExternalTrafficPolicy != nil || req.IPv6 != nil ||
 		req.StopTimeoutSeconds != nil {
-		return forbidden(errAdminOnly)
+		return api.Forbidden(errAdminOnly)
 	}
 	if req.Image != nil && *req.Image != gs.Spec.Image {
 		allowed := false
@@ -198,7 +202,7 @@ func checkUserUpdate(req *UpdateServerRequest, gs *v1alpha1.GameServer, e *v1alp
 			allowed = allowed || img.Image == *req.Image
 		}
 		if !allowed {
-			return forbidden(errors.New("only the images of the egg can be selected"))
+			return api.Forbidden(errors.New("only the images of the egg can be selected"))
 		}
 	}
 	return checkUserVariables(req.Environment, gs, e)
@@ -221,7 +225,7 @@ func checkUserVariables(env map[string]string, gs *v1alpha1.GameServer, e *v1alp
 			current = v.DefaultValue
 		}
 		if !v.UserEditable && val != current {
-			return forbidden(errors.New("variable " + k + " cannot be changed"))
+			return api.Forbidden(errors.New("variable " + k + " cannot be changed"))
 		}
 	}
 	return nil
@@ -233,8 +237,8 @@ func (a *API) notLocked(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := lockErr(principal(c), gs); err != nil {
-		a.fail(c, err)
+	if err := lockErr(api.PrincipalOf(c), gs); err != nil {
+		a.Fail(c, err)
 		return
 	}
 	c.Set(serverKey, gs)
@@ -244,7 +248,7 @@ func (a *API) notLocked(c *gin.Context) {
 // lockErr returns why the caller may only view the server: it is being removed (its finalizer still runs) or
 // its files move to another storage class (for everyone), or it is suspended (for everyone but administrators).
 // The REST routes (notLocked) and an open console share it.
-func lockErr(p *Principal, gs *v1alpha1.GameServer) error {
+func lockErr(p *api.Principal, gs *v1alpha1.GameServer) error {
 	err := serverctl.Locked(gs)
 	if errors.Is(err, serverctl.ErrSuspended) && p.Admin() {
 		return nil

@@ -1,15 +1,15 @@
 import { RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { QueryState } from "@/components/common/query-state"
-import { PageHeader } from "@/components/layout/page-header"
+import { QueryState } from "@/base/components/query-state"
+import { PageHeader } from "@/base/layout/page-header"
+import { formatRelativeTime, plural } from "@/base/lib/format"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { ClusterSummary } from "@/features/cluster/components/cluster-summary"
 import { AuthCard, ConnectionCard, PermissionsCard } from "@/features/cluster/components/connection-cards"
 import { NodeCard } from "@/features/cluster/components/node-card"
-import { formatRelativeTime, plural } from "@/lib/format"
-import { failed } from "@/lib/notify"
 import { useClusterIdentity, useClusterNodes, useProbeNodes } from "@/lib/queries"
 
 /** /cluster (admins): nodes with hardware and usage, totals, connection, identity and permissions. */

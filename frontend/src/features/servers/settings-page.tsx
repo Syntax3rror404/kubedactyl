@@ -3,6 +3,10 @@ import { SaveIcon } from "lucide-react"
 import { useOutletContext } from "react-router"
 import { toast } from "sonner"
 
+import { useAuth } from "@/base/hooks/use-auth"
+import { useDraft } from "@/base/hooks/use-draft"
+import { failed, useSettings } from "@/base/lib/queries"
+import { fieldErrors } from "@/base/lib/validation"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { DangerZone } from "@/features/servers/components/danger-zone"
@@ -13,11 +17,7 @@ import { ResourcesCard, ResourceSummary } from "@/features/servers/components/re
 import { SharingCard } from "@/features/servers/components/sharing-card"
 import { settingsChanges, settingsDraft } from "@/features/servers/lib/settings-draft"
 import type { ServerContext } from "@/features/servers/server-layout"
-import { useAuth } from "@/hooks/use-auth"
-import { useDraft } from "@/hooks/use-draft"
-import { failed } from "@/lib/notify"
-import { useSettings, useUpdateServer } from "@/lib/queries"
-import { fieldErrors } from "@/lib/validation"
+import { useUpdateServer } from "@/lib/queries"
 
 /**
  * /servers/:server/settings: the settings cards (also the subusers who see the server), one save button for all of

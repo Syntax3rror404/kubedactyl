@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/egg"
 )
 
@@ -29,14 +30,14 @@ type EggList struct {
 func (a *API) listEggs(c *gin.Context) {
 	var list v1alpha1.EggList
 	if err := a.Client.List(c, &list, client.InNamespace(a.Opts.Namespace)); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	sort.Slice(
 		list.Items,
 		func(i, j int) bool { return list.Items[i].Spec.DisplayName < list.Items[j].Spec.DisplayName },
 	)
-	p := principal(c)
+	p := api.PrincipalOf(c)
 	for i := range list.Items {
 		visibleEgg(p, &list.Items[i])
 	}
@@ -50,12 +51,12 @@ func (a *API) listEggs(c *gin.Context) {
 //	@Produce	json
 //	@Param		egg	path		string	true	"Egg name"
 //	@Success	200	{object}	v1alpha1.Egg
-//	@Failure	404	{object}	ErrorResponse
+//	@Failure	404	{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/eggs/{egg} [get]
 func (a *API) getEgg(c *gin.Context) {
 	if e, ok := a.loadEgg(c, c.Param("egg")); ok {
-		c.JSON(http.StatusOK, visibleEgg(principal(c), e))
+		c.JSON(http.StatusOK, visibleEgg(api.PrincipalOf(c), e))
 	}
 }
 
@@ -63,7 +64,7 @@ func (a *API) getEgg(c *gin.Context) {
 func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
 	e, err := a.Eggs.Get(c, name)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return nil, false
 	}
 	return e, true
@@ -102,7 +103,7 @@ func (a *API) exportEgg(c *gin.Context) {
 	format := c.DefaultQuery("format", egg.FormatYAML)
 	data, file, err := egg.Export(e.Name, &e.Spec, format, time.Now())
 	if err != nil {
-		a.fail(c, badRequest(err))
+		a.Fail(c, api.BadRequest(err))
 		return
 	}
 	ctype := "application/json; charset=utf-8"

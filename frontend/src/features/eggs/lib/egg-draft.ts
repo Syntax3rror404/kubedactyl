@@ -1,5 +1,5 @@
+import { fieldErrors } from "@/base/lib/validation"
 import type { EggSpec } from "@/lib/types"
-import { fieldErrors } from "@/lib/validation"
 
 /** Validation errors from the API, keyed by field path ("variables.2.envVariable"). */
 export type FieldErrors = Record<string, string>

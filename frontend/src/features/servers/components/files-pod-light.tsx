@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils"
 // Green and yellow in turn while the file container starts.
 const keyframes =
   "@keyframes blink-starting { 0% { background-color: var(--color-success) } " +
-  "50%, 100% { background-color: var(--color-warning) } }"
+  "50%, 100% { background-color: var(--color-pending) } }"
 
 const lights = {
   Ready: { className: "bg-success", label: "running" },
   Starting: {
-    className: "animate-[blink-starting_1s_steps(1,end)_infinite] motion-reduce:animate-none motion-reduce:bg-warning",
+    className: "animate-[blink-starting_1s_steps(1,end)_infinite] motion-reduce:animate-none motion-reduce:bg-pending",
     label: "starting",
   },
   Stopping: { className: "bg-destructive", label: "stopping" },

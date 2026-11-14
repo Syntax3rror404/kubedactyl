@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 )
 
 // GameServerList is a list of game servers.
@@ -27,7 +28,7 @@ func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
 	}
 	gs, err := a.findServer(c, c.Param("server"))
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return nil, false
 	}
 	return gs, true
@@ -43,17 +44,17 @@ func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
 //	@Router		/servers [get]
 func (a *API) listServers(c *gin.Context) {
 	var list v1alpha1.GameServerList
-	p := principal(c)
+	p := api.PrincipalOf(c)
 	var opts []client.ListOption
 	if !p.Admin() {
-		opts = append(opts, client.InNamespace(p.home()))
+		opts = append(opts, client.InNamespace(home(p)))
 	}
 	if err := a.Client.List(c, &list, opts...); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	list.Items = slices.DeleteFunc(list.Items, func(gs v1alpha1.GameServer) bool {
-		return p.accessTo(&gs) == accessNone
+		return accessTo(p, &gs) == accessNone
 	})
 	eggs := a.eggsByName(c)
 	domain := a.externalDomain(c)
@@ -73,7 +74,7 @@ func (a *API) listServers(c *gin.Context) {
 //	@Produce	json
 //	@Param		server	path		string	true	"Server name"
 //	@Success	200		{object}	v1alpha1.GameServer
-//	@Failure	404		{object}	ErrorResponse
+//	@Failure	404		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/servers/{server} [get]
 func (a *API) getServer(c *gin.Context) {
@@ -85,7 +86,7 @@ func (a *API) getServer(c *gin.Context) {
 	if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
 		e = found
 	}
-	visibleServer(principal(c), gs, e, a.externalDomain(c))
+	visibleServer(api.PrincipalOf(c), gs, e, a.externalDomain(c))
 	c.JSON(http.StatusOK, gs)
 }
 
@@ -115,9 +116,9 @@ func (a *API) deleteServer(c *gin.Context) {
 		return
 	}
 	if err := a.Client.Delete(c, gs); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server deleted", "server", gs.Name)
+	a.Audit(c, "server deleted", "server", gs.Name)
 	c.Status(http.StatusNoContent)
 }

@@ -10,6 +10,668 @@
  * ---------------------------------------------------------------
  */
 
+export interface ApiAcceptInviteRequest {
+  /** @example "Alice" */
+  displayName?: string;
+  /** @example "a-long-password" */
+  password: string;
+  token: string;
+  /**
+   * Username is ignored when the invite names one.
+   * @example "alice"
+   */
+  username?: string;
+}
+
+export interface ApiBranding {
+  favicon?: string;
+  logo?: string;
+  /** @example "Acme Panel" */
+  name: string;
+  /** @example "Run by the Acme team" */
+  tagline: string;
+}
+
+export interface ApiCreateInviteRequest {
+  /**
+   * @maxLength 200
+   * @example "Alice from the support team"
+   */
+  note?: string;
+  /** Reset creates a link that sets a new password for the existing account Username (users: accounts they own). */
+  reset?: boolean;
+  /** @example "admin" */
+  role?: V1Alpha1UserRole;
+  /** Shares are servers of the caller the subuser sees once the account exists. */
+  shares?: V1Alpha1InviteShare[];
+  /** Subuser invites a subuser of the caller (role user). Users always invite subusers. */
+  subuser?: boolean;
+  /** @example "alice" */
+  username?: string;
+}
+
+export interface ApiCreateTokenRequest {
+  /**
+   * ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
+   * @example 90
+   */
+  expiresInDays: number;
+  /**
+   * @maxLength 64
+   * @example "ci"
+   */
+  name: string;
+}
+
+export interface ApiCreateUserRequest {
+  /** @example "Alice" */
+  displayName?: string;
+  /** @example "alice@example.com" */
+  email?: string;
+  /** MustChangePassword makes the user replace the password after signing in. */
+  mustChangePassword?: boolean;
+  /** @example "a-long-password" */
+  password: string;
+  /** @example "admin" */
+  role?: V1Alpha1UserRole;
+  /** @example "alice" */
+  username: string;
+}
+
+export interface ApiCreatedInvite {
+  createdAt: string;
+  /** @example "admin" */
+  createdBy?: string;
+  /** Expired invites stay listed until they are revoked; their link no longer works. */
+  expired: boolean;
+  expiresAt: string;
+  /** @example "1a2b3c4d5e6f" */
+  id: string;
+  /** @example "Alice from the support team" */
+  note?: string;
+  /**
+   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
+   * @example "bob"
+   */
+  owner?: string;
+  /** Reset links set a new password for the existing account Username. */
+  reset: boolean;
+  /** @example "admin" */
+  role: V1Alpha1UserRole;
+  /** Shares are the servers the subuser sees once the account exists. */
+  shares: V1Alpha1InviteShare[];
+  /** @example "1a2b3c4d5e6f.…" */
+  token: string;
+  /**
+   * Username is the name the account gets; empty lets the invited person choose it.
+   * @example "alice"
+   */
+  username?: string;
+}
+
+export interface ApiCreatedToken {
+  createdAt: string;
+  /** ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel. */
+  expiresAt: string;
+  /** @example "1a2b3c4d5e6f" */
+  id: string;
+  /** @example "ci" */
+  name: string;
+  /** @example "xyz_1a2b3c4d5e6f_…" */
+  token: string;
+}
+
+export interface ApiErrorResponse {
+  /** @example "not found" */
+  error: string;
+  /** Fields holds validation errors per field or variable. */
+  fields?: Record<string, string>;
+}
+
+export interface ApiInviteDetails {
+  expiresAt: string;
+  /** Reset links set a new password for the account Username instead of creating one. */
+  reset: boolean;
+  /**
+   * Username is set when the name was chosen for the invited person; they cannot change it.
+   * @example "alice"
+   */
+  username?: string;
+}
+
+export interface ApiInviteView {
+  createdAt: string;
+  /** @example "admin" */
+  createdBy?: string;
+  /** Expired invites stay listed until they are revoked; their link no longer works. */
+  expired: boolean;
+  expiresAt: string;
+  /** @example "1a2b3c4d5e6f" */
+  id: string;
+  /** @example "Alice from the support team" */
+  note?: string;
+  /**
+   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
+   * @example "bob"
+   */
+  owner?: string;
+  /** Reset links set a new password for the existing account Username. */
+  reset: boolean;
+  /** @example "admin" */
+  role: V1Alpha1UserRole;
+  /** Shares are the servers the subuser sees once the account exists. */
+  shares: V1Alpha1InviteShare[];
+  /**
+   * Username is the name the account gets; empty lets the invited person choose it.
+   * @example "alice"
+   */
+  username?: string;
+}
+
+export interface ApiLegalTexts {
+  legalNotice: string;
+  privacyPolicy: string;
+}
+
+export interface ApiLoginRequest {
+  /**
+   * @maxLength 1024
+   * @example "secret-password"
+   */
+  password: string;
+  /**
+   * @maxLength 64
+   * @example "admin"
+   */
+  username: string;
+}
+
+export interface ApiLoginResponse {
+  expiresAt: string;
+  token: string;
+  user: ApiUserView;
+}
+
+export interface ApiModuleVersion {
+  /** @example "Gin" */
+  name: string;
+  /** @example "v1.12.0" */
+  version: string;
+}
+
+export interface ApiOIDCSignIn {
+  enabled: boolean;
+  /**
+   * Name is shown on the button: "Sign in with <name>".
+   * @example "Keycloak"
+   */
+  name: string;
+}
+
+export interface ApiRequestRates {
+  panel?: KubeRate | null;
+  user: KubeRate;
+}
+
+export interface ApiSettingsView {
+  /**
+   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+   * cluster (service type ClusterIP).
+   * +optional
+   */
+  allowClusterIP?: boolean;
+  /**
+   * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+   * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+   * policy that only allows the internet, the cluster DNS and the user's own servers.
+   * +optional
+   */
+  allowPrivateNetworks?: boolean;
+  /**
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
+   * tokens created before, counted from their creation.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=3650
+   */
+  apiTokenMaxDays?: number;
+  /**
+   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+   * Empty: uses the built-in logo.
+   * +optional
+   * +kubebuilder:validation:MaxLength=180000
+   */
+  brandLogo?: string;
+  /**
+   * BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+   * sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+   * +optional
+   * +kubebuilder:validation:MaxLength=40
+   */
+  brandName?: string;
+  /**
+   * +optional
+   * +kubebuilder:validation:MaxLength=80
+   */
+  brandTagline?: string;
+  /**
+   * DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+   * +optional
+   */
+  defaultLoadBalancerPool?: string;
+  /**
+   * DefaultStorageClass is preselected for new servers (one of StorageClasses).
+   * +optional
+   */
+  defaultStorageClass?: string;
+  /**
+   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+   * keeps working.
+   * +optional
+   */
+  disableApiDocs?: boolean;
+  /**
+   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
+   * library on the eggs page lists. The panel reads them when the library is opened and keeps
+   * nothing of them in the cluster.
+   * +optional
+   * +kubebuilder:validation:MaxItems=20
+   */
+  eggLibraries?: string[];
+  /**
+   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
+   * balancer IP. Empty: shows the IP.
+   * +optional
+   */
+  externalDomain?: string;
+  /**
+   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+   * Empty: uses the built-in icon.
+   * +optional
+   * +kubebuilder:validation:MaxLength=180000
+   */
+  favicon?: string;
+  /**
+   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+   * twice that). Empty: uses 50. It applies at once.
+   * +optional
+   * +kubebuilder:validation:Minimum=5
+   * +kubebuilder:validation:Maximum=1000
+   */
+  kubeApiQps?: number;
+  /**
+   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=200
+   */
+  kubeApiUserQps?: number;
+  /**
+   * LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+   * page, also before sign-in.
+   * +optional
+   * +kubebuilder:validation:MaxLength=20000
+   */
+  legalNotice?: string;
+  /**
+   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
+   * +optional
+   */
+  loadBalancerPools?: string[];
+  /**
+   * OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+   * secret is kept in a Secret, not here.
+   * +optional
+   */
+  oidc?: V1Alpha1OIDCSettings;
+  /** OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users). */
+  oidcClientSecretSet: boolean;
+  /**
+   * +optional
+   * +kubebuilder:validation:MaxLength=20000
+   */
+  privacyPolicy?: string;
+  /**
+   * ServerNotice is shown to users every time they open one of their servers (plain text).
+   * +optional
+   * +kubebuilder:validation:MaxLength=2000
+   */
+  serverNotice?: string;
+  /**
+   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
+   * shortening it also ends older sessions.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=720
+   */
+  sessionHours?: number;
+  /**
+   * StorageClasses are the storage classes servers may use for their volume.
+   * +optional
+   */
+  storageClasses?: string[];
+  /**
+   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
+   * their servers. Empty: uses 10. 0 = off.
+   * +optional
+   * +kubebuilder:validation:Minimum=0
+   * +kubebuilder:validation:Maximum=100
+   */
+  subusersPerUser?: number;
+}
+
+export interface ApiSetupRequest {
+  /** @example "Administrator" */
+  displayName?: string;
+  email?: string;
+  /** @example "a-long-password" */
+  password: string;
+  /** Token is the one-time setup token from the panel log (or the setup token of the environment). */
+  token: string;
+  /** @example "admin" */
+  username: string;
+}
+
+export interface ApiSetupStatus {
+  required: boolean;
+}
+
+export interface ApiStartUpgradeRequest {
+  /** @example "0.2.4" */
+  version: string;
+}
+
+export interface ApiTokenView {
+  createdAt: string;
+  /** ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel. */
+  expiresAt: string;
+  /** @example "1a2b3c4d5e6f" */
+  id: string;
+  /** @example "ci" */
+  name: string;
+}
+
+export interface ApiUpdatePasswordRequest {
+  /** @maxLength 1024 */
+  current: string;
+  /** @maxLength 1024 */
+  new: string;
+  /** RevokeTokens also revokes every API token of the user (after a leak). */
+  revokeTokens?: boolean;
+}
+
+export interface ApiUpdateSettingsRequest {
+  /**
+   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+   * cluster (service type ClusterIP).
+   * +optional
+   */
+  allowClusterIP?: boolean;
+  /**
+   * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+   * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+   * policy that only allows the internet, the cluster DNS and the user's own servers.
+   * +optional
+   */
+  allowPrivateNetworks?: boolean;
+  /**
+   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
+   * tokens created before, counted from their creation.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=3650
+   */
+  apiTokenMaxDays?: number;
+  /**
+   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+   * Empty: uses the built-in logo.
+   * +optional
+   * +kubebuilder:validation:MaxLength=180000
+   */
+  brandLogo?: string;
+  /**
+   * BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+   * sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+   * +optional
+   * +kubebuilder:validation:MaxLength=40
+   */
+  brandName?: string;
+  /**
+   * +optional
+   * +kubebuilder:validation:MaxLength=80
+   */
+  brandTagline?: string;
+  /**
+   * DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+   * +optional
+   */
+  defaultLoadBalancerPool?: string;
+  /**
+   * DefaultStorageClass is preselected for new servers (one of StorageClasses).
+   * +optional
+   */
+  defaultStorageClass?: string;
+  /**
+   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+   * keeps working.
+   * +optional
+   */
+  disableApiDocs?: boolean;
+  /**
+   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
+   * library on the eggs page lists. The panel reads them when the library is opened and keeps
+   * nothing of them in the cluster.
+   * +optional
+   * +kubebuilder:validation:MaxItems=20
+   */
+  eggLibraries?: string[];
+  /**
+   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
+   * balancer IP. Empty: shows the IP.
+   * +optional
+   */
+  externalDomain?: string;
+  /**
+   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+   * Empty: uses the built-in icon.
+   * +optional
+   * +kubebuilder:validation:MaxLength=180000
+   */
+  favicon?: string;
+  /**
+   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+   * twice that). Empty: uses 50. It applies at once.
+   * +optional
+   * +kubebuilder:validation:Minimum=5
+   * +kubebuilder:validation:Maximum=1000
+   */
+  kubeApiQps?: number;
+  /**
+   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=200
+   */
+  kubeApiUserQps?: number;
+  /**
+   * LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+   * page, also before sign-in.
+   * +optional
+   * +kubebuilder:validation:MaxLength=20000
+   */
+  legalNotice?: string;
+  /**
+   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
+   * +optional
+   */
+  loadBalancerPools?: string[];
+  /**
+   * OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+   * secret is kept in a Secret, not here.
+   * +optional
+   */
+  oidc?: V1Alpha1OIDCSettings;
+  /** OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it. */
+  oidcClientSecret?: string | null;
+  /**
+   * +optional
+   * +kubebuilder:validation:MaxLength=20000
+   */
+  privacyPolicy?: string;
+  /**
+   * ServerNotice is shown to users every time they open one of their servers (plain text).
+   * +optional
+   * +kubebuilder:validation:MaxLength=2000
+   */
+  serverNotice?: string;
+  /**
+   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
+   * shortening it also ends older sessions.
+   * +optional
+   * +kubebuilder:validation:Minimum=1
+   * +kubebuilder:validation:Maximum=720
+   */
+  sessionHours?: number;
+  /**
+   * StorageClasses are the storage classes servers may use for their volume.
+   * +optional
+   */
+  storageClasses?: string[];
+  /**
+   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
+   * their servers. Empty: uses 10. 0 = off.
+   * +optional
+   * +kubebuilder:validation:Minimum=0
+   * +kubebuilder:validation:Maximum=100
+   */
+  subusersPerUser?: number;
+}
+
+export interface ApiUpdateUserRequest {
+  disabled?: boolean;
+  displayName?: string;
+  email?: string;
+  /** MustChangePassword makes the user replace the password after the next sign-in. */
+  mustChangePassword?: boolean;
+  password?: string;
+  role?: V1Alpha1UserRole;
+}
+
+export interface ApiUpgradeStatus {
+  /** @example "oci://ghcr.io/example/charts/panel" */
+  chart?: string;
+  checkedAt?: string;
+  /** @example "0.2.3" */
+  current: string;
+  /** Enabled is false without the chart value selfUpgrade.enabled. */
+  enabled: boolean;
+  error?: string;
+  /**
+   * IntervalSeconds is how often the registry is checked.
+   * @example 600
+   */
+  intervalSeconds: number;
+  jobs: SelfupgradeJob[];
+  /** @example "0.2.4" */
+  latest?: string;
+  /** Newer lists the versions above the current one, highest first. */
+  newer: string[];
+}
+
+export interface ApiUserView {
+  createdAt: string;
+  disabled: boolean;
+  /** @example "Alice" */
+  displayName?: string;
+  /** @example "alice@example.com" */
+  email?: string;
+  /** HasPassword is false for accounts that sign in only through the identity provider. */
+  hasPassword: boolean;
+  lastLoginAt?: string;
+  /** MustChangePassword is true while the user has to replace the password set by an administrator. */
+  mustChangePassword: boolean;
+  /** @example "kubedactyl-user-alice" */
+  namespace?: string;
+  /**
+   * OIDC is the user of the identity provider the account is linked to (which sets display name, email and
+   * role); null for accounts that are not linked.
+   */
+  oidc?: V1Alpha1OIDCIdentity | null;
+  /**
+   * Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.
+   * @example "bob"
+   */
+  owner?: string;
+  /** @example "admin" */
+  role: V1Alpha1UserRole;
+  /**
+   * Servers counts the servers of the user, for a subuser the servers shared with it.
+   * @example 2
+   */
+  servers: number;
+  tokens: ApiTokenView[];
+  /** @example "alice" */
+  username: string;
+}
+
+export interface ApiVersions {
+  /** @example "go1.27.1" */
+  go: string;
+  modules: ApiModuleVersion[];
+}
+
+export interface AppsettingsPool {
+  /**
+   * Blocks are the address ranges ("10.0.0.0/24" or "10.0.0.10-10.0.0.20").
+   * @example ["192.168.1.60-192.168.1.120"]
+   */
+  blocks: string[];
+  conflict: boolean;
+  disabled: boolean;
+  /**
+   * Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
+   * together. Only the pools API and the health check fill them in.
+   */
+  families?: AppsettingsPoolFamily[];
+  ipsAvailable: number;
+  /**
+   * IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
+   * an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
+   */
+  ipsTotal: number;
+  ipsUsed: number;
+  /** @example "general-pool" */
+  name: string;
+  reason?: string;
+  /** Selectable is false when the pool cannot be targeted by service labels. */
+  selectable: boolean;
+  /** ServiceLabels are set on a server's service so that the pool selects it. */
+  serviceLabels: Record<string, string>;
+}
+
+export interface AppsettingsPoolFamily {
+  available: number;
+  family: "IPv4" | "IPv6";
+  total: number;
+  used: number;
+}
+
+export interface AppsettingsStorageClass {
+  allowVolumeExpansion: boolean;
+  /** IsDefault is true for the cluster default storage class. */
+  isDefault: boolean;
+  /** @example "longhorn" */
+  name: string;
+  /** @example "driver.longhorn.io" */
+  provisioner: string;
+  /** @example "Retain" */
+  reclaimPolicy: string;
+  /** @example "Immediate" */
+  volumeBindingMode: string;
+}
+
 export interface ChecksCheck {
   /** @example "metrics" */
   id: string;
@@ -17,10 +679,10 @@ export interface ChecksCheck {
   label: string;
   /** @example "metrics.k8s.io is not available, no CPU and memory usage" */
   message?: string;
-  status: "ok" | "warning" | "error" | "skipped";
+  status: "ok" | "warning" | "error" | "skipped" | "info";
 }
 
-export type ChecksStatus = "ok" | "warning" | "error" | "skipped";
+export type ChecksStatus = "ok" | "warning" | "error" | "skipped" | "info";
 
 export interface ClusterinfoAuth {
   authProvider?: string;
@@ -295,19 +957,6 @@ export interface FilesProgress {
   unit: "files" | "bytes";
 }
 
-export interface HttpapiAcceptInviteRequest {
-  /** @example "Alice" */
-  displayName?: string;
-  /** @example "a-long-password" */
-  password: string;
-  token: string;
-  /**
-   * Username is ignored when the invite names one.
-   * @example "alice"
-   */
-  username?: string;
-}
-
 export interface HttpapiBackup {
   createdAt: string;
   /** @example "backup-2026-09-29_040000.tar.gz" */
@@ -322,15 +971,6 @@ export interface HttpapiBackup {
 
 export interface HttpapiBackupList {
   items: HttpapiBackup[];
-}
-
-export interface HttpapiBranding {
-  favicon?: string;
-  logo?: string;
-  /** @example "Kubedactyl" */
-  name: string;
-  /** @example "Game servers on Kubernetes" */
-  tagline: string;
 }
 
 export interface HttpapiClusterInfo {
@@ -369,24 +1009,6 @@ export interface HttpapiCreateFolderRequest {
   name: string;
   /** @example "/" */
   root?: string;
-}
-
-export interface HttpapiCreateInviteRequest {
-  /**
-   * @maxLength 200
-   * @example "Alice from the Discord server"
-   */
-  note?: string;
-  /** Reset creates a link that sets a new password for the existing account Username (users: their subusers). */
-  reset?: boolean;
-  /** @example "user" */
-  role?: "admin" | "user";
-  /** Shares are servers of the caller the subuser sees once the account exists. */
-  shares?: V1Alpha1InviteShare[];
-  /** Subuser invites a subuser of the caller (role user). Users always invite subusers. */
-  subuser?: boolean;
-  /** @example "alice" */
-  username?: string;
 }
 
 export interface HttpapiCreateServerRequest {
@@ -443,77 +1065,6 @@ export interface HttpapiCreateServerRequest {
   storageClass?: string;
 }
 
-export interface HttpapiCreateTokenRequest {
-  /**
-   * ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
-   * @example 90
-   */
-  expiresInDays: number;
-  /**
-   * @maxLength 64
-   * @example "ci"
-   */
-  name: string;
-}
-
-export interface HttpapiCreateUserRequest {
-  /** @example "Alice" */
-  displayName?: string;
-  /** @example "alice@example.com" */
-  email?: string;
-  /** MustChangePassword makes the user replace the password after signing in. */
-  mustChangePassword?: boolean;
-  /** @example "a-long-password" */
-  password: string;
-  /** @example "user" */
-  role?: "admin" | "user";
-  /** @example "alice" */
-  username: string;
-}
-
-export interface HttpapiCreatedInvite {
-  createdAt: string;
-  /** @example "admin" */
-  createdBy?: string;
-  /** Expired invites stay listed until they are revoked; their link no longer works. */
-  expired: boolean;
-  expiresAt: string;
-  /** @example "1a2b3c4d5e6f" */
-  id: string;
-  /** @example "Alice from the Discord server" */
-  note?: string;
-  /**
-   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
-   * @example "bob"
-   */
-  owner?: string;
-  /** Reset links set a new password for the existing account Username. */
-  reset: boolean;
-  /** @example "user" */
-  role: "admin" | "user";
-  /** Shares are the servers the subuser sees once the account exists. */
-  shares: V1Alpha1InviteShare[];
-  /** @example "1a2b3c4d5e6f.…" */
-  token: string;
-  /**
-   * Username is the name the account gets; empty lets the invited person choose it.
-   * @example "alice"
-   */
-  username?: string;
-}
-
-export interface HttpapiCreatedToken {
-  createdAt: string;
-  /** ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel. */
-  expiresAt: string;
-  /** @example "1a2b3c4d5e6f" */
-  id: string;
-  /** @example "ci" */
-  name: string;
-  /** @example "kdt_1a2b3c4d5e6f_…" */
-  token: string;
-}
-
 export interface HttpapiDecompressFileRequest {
   /** @example "world.zip" */
   file: string;
@@ -523,13 +1074,6 @@ export interface HttpapiDecompressFileRequest {
 
 export interface HttpapiEggList {
   items: V1Alpha1Egg[];
-}
-
-export interface HttpapiErrorResponse {
-  /** @example "server not found" */
-  error: string;
-  /** Fields holds validation errors per field or variable. */
-  fields?: Record<string, string>;
 }
 
 export interface HttpapiFileList {
@@ -584,53 +1128,8 @@ export interface HttpapiImportURLRequest {
   url: string;
 }
 
-export interface HttpapiInviteDetails {
-  expiresAt: string;
-  /** Reset links set a new password for the account Username instead of creating one. */
-  reset: boolean;
-  /**
-   * Username is set when the name was chosen for the invited person; they cannot change it.
-   * @example "alice"
-   */
-  username?: string;
-}
-
-export interface HttpapiInviteView {
-  createdAt: string;
-  /** @example "admin" */
-  createdBy?: string;
-  /** Expired invites stay listed until they are revoked; their link no longer works. */
-  expired: boolean;
-  expiresAt: string;
-  /** @example "1a2b3c4d5e6f" */
-  id: string;
-  /** @example "Alice from the Discord server" */
-  note?: string;
-  /**
-   * Owner is set for an invite of a subuser: the account will see the servers this user shares.
-   * @example "bob"
-   */
-  owner?: string;
-  /** Reset links set a new password for the existing account Username. */
-  reset: boolean;
-  /** @example "user" */
-  role: "admin" | "user";
-  /** Shares are the servers the subuser sees once the account exists. */
-  shares: V1Alpha1InviteShare[];
-  /**
-   * Username is the name the account gets; empty lets the invited person choose it.
-   * @example "alice"
-   */
-  username?: string;
-}
-
 export interface HttpapiJobList {
   items: FilesJob[];
-}
-
-export interface HttpapiLegalTexts {
-  legalNotice: string;
-  privacyPolicy: string;
 }
 
 export interface HttpapiLibraryEgg {
@@ -650,25 +1149,6 @@ export interface HttpapiLibraryRepositoryCheck {
   url: string;
 }
 
-export interface HttpapiLoginRequest {
-  /**
-   * @maxLength 1024
-   * @example "secret-password"
-   */
-  password: string;
-  /**
-   * @maxLength 64
-   * @example "admin"
-   */
-  username: string;
-}
-
-export interface HttpapiLoginResponse {
-  expiresAt: string;
-  token: string;
-  user: HttpapiUserView;
-}
-
 export interface HttpapiMigrateRequest {
   /**
    * StartOnCompletion starts the server once the migration has finished (not after a failure or cancel).
@@ -677,22 +1157,6 @@ export interface HttpapiMigrateRequest {
   startOnCompletion?: boolean;
   /** @example "longhorn" */
   storageClass: string;
-}
-
-export interface HttpapiModuleVersion {
-  /** @example "Gin" */
-  name: string;
-  /** @example "v1.12.0" */
-  version: string;
-}
-
-export interface HttpapiOIDCSignIn {
-  enabled: boolean;
-  /**
-   * Name is shown on the button: "Sign in with <name>".
-   * @example "Keycloak"
-   */
-  name: string;
 }
 
 export interface HttpapiPoolList {
@@ -704,7 +1168,7 @@ export interface HttpapiPoolList {
   ipv6Missing?: string;
   /** Error is set when the pools cannot be read (e.g. Cilium LB IPAM is not installed). */
   error?: string;
-  items: SettingsPool[];
+  items: AppsettingsPool[];
 }
 
 export interface HttpapiPowerRequest {
@@ -728,11 +1192,6 @@ export interface HttpapiRenameFileRequest {
   root?: string;
   /** @example "new.txt" */
   to: string;
-}
-
-export interface HttpapiRequestRates {
-  panel?: KubeRate | null;
-  user: KubeRate;
 }
 
 export interface HttpapiScheduleList {
@@ -812,203 +1271,17 @@ export interface HttpapiServerStats {
   uptimeSeconds: number;
 }
 
-export interface HttpapiSettingsView {
-  /**
-   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
-   * cluster (service type ClusterIP).
-   * +optional
-   */
-  allowClusterIP?: boolean;
-  /**
-   * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
-   * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
-   * policy that only allows the internet, the cluster DNS and the user's own servers.
-   * +optional
-   */
-  allowPrivateNetworks?: boolean;
-  /**
-   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
-   * tokens created before, counted from their creation.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=3650
-   */
-  apiTokenMaxDays?: number;
-  /**
-   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
-   * Empty: uses the built-in logo.
-   * +optional
-   * +kubebuilder:validation:MaxLength=180000
-   */
-  brandLogo?: string;
-  /**
-   * BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
-   * sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
-   * +optional
-   * +kubebuilder:validation:MaxLength=40
-   */
-  brandName?: string;
-  /**
-   * +optional
-   * +kubebuilder:validation:MaxLength=80
-   */
-  brandTagline?: string;
-  /**
-   * DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
-   * +optional
-   */
-  defaultLoadBalancerPool?: string;
-  /**
-   * DefaultStorageClass is preselected for new servers (one of StorageClasses).
-   * +optional
-   */
-  defaultStorageClass?: string;
-  /**
-   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
-   * keeps working.
-   * +optional
-   */
-  disableApiDocs?: boolean;
-  /**
-   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
-   * library on the eggs page lists. The panel reads them when the library is opened and keeps
-   * nothing of them in the cluster.
-   * +optional
-   * +kubebuilder:validation:MaxItems=20
-   */
-  eggLibraries?: string[];
-  /**
-   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
-   * balancer IP. Empty: shows the IP.
-   * +optional
-   */
-  externalDomain?: string;
-  /**
-   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
-   * Empty: uses the built-in icon.
-   * +optional
-   * +kubebuilder:validation:MaxLength=180000
-   */
-  favicon?: string;
-  /**
-   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-   * twice that). Empty: uses 50. It applies at once.
-   * +optional
-   * +kubebuilder:validation:Minimum=5
-   * +kubebuilder:validation:Maximum=1000
-   */
-  kubeApiQps?: number;
-  /**
-   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=200
-   */
-  kubeApiUserQps?: number;
-  /**
-   * LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
-   * page, also before sign-in.
-   * +optional
-   * +kubebuilder:validation:MaxLength=20000
-   */
-  legalNotice?: string;
-  /**
-   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
-   * +optional
-   */
-  loadBalancerPools?: string[];
-  /**
-   * OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
-   * secret is kept in a Secret, not here.
-   * +optional
-   */
-  oidc?: V1Alpha1OIDCSettings;
-  /** OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users). */
-  oidcClientSecretSet: boolean;
-  /**
-   * +optional
-   * +kubebuilder:validation:MaxLength=20000
-   */
-  privacyPolicy?: string;
-  /**
-   * ServerNotice is shown to users every time they open one of their servers (plain text).
-   * +optional
-   * +kubebuilder:validation:MaxLength=2000
-   */
-  serverNotice?: string;
-  /**
-   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
-   * shortening it also ends older sessions.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=720
-   */
-  sessionHours?: number;
-  /**
-   * StorageClasses are the storage classes servers may use for their volume.
-   * +optional
-   */
-  storageClasses?: string[];
-  /**
-   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
-   * their servers. Empty: uses 10. 0 = off.
-   * +optional
-   * +kubebuilder:validation:Minimum=0
-   * +kubebuilder:validation:Maximum=100
-   */
-  subusersPerUser?: number;
-}
-
-export interface HttpapiSetupRequest {
-  /** @example "Administrator" */
-  displayName?: string;
-  email?: string;
-  /** @example "a-long-password" */
-  password: string;
-  /** Token is the one-time setup token from the panel log (or KUBEDACTYL_SETUP_TOKEN). */
-  token: string;
-  /** @example "admin" */
-  username: string;
-}
-
-export interface HttpapiSetupStatus {
-  required: boolean;
-}
-
-export interface HttpapiStartUpgradeRequest {
-  /** @example "0.2.4" */
-  version: string;
-}
-
 export interface HttpapiStorageClassList {
-  items: SettingsStorageClass[];
+  items: AppsettingsStorageClass[];
 }
 
 export interface HttpapiSuspendRequest {
   suspended: boolean;
 }
 
-export interface HttpapiTokenView {
-  createdAt: string;
-  /** ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel. */
-  expiresAt: string;
-  /** @example "1a2b3c4d5e6f" */
-  id: string;
-  /** @example "ci" */
-  name: string;
-}
-
 export interface HttpapiTransferRequest {
   /** @example "alice" */
   owner: string;
-}
-
-export interface HttpapiUpdatePasswordRequest {
-  current: string;
-  new: string;
-  /** RevokeTokens also revokes every API token of the user (after a leak). */
-  revokeTokens?: boolean;
 }
 
 export interface HttpapiUpdateSchedulesRequest {
@@ -1048,227 +1321,6 @@ export interface HttpapiUpdateServerRequest {
   stopTimeoutSeconds?: number;
 }
 
-export interface HttpapiUpdateSettingsRequest {
-  /**
-   * AllowClusterIP lets server owners publish a server without a load balancer, only inside the
-   * cluster (service type ClusterIP).
-   * +optional
-   */
-  allowClusterIP?: boolean;
-  /**
-   * AllowPrivateNetworks lets game servers reach private networks (other namespaces,
-   * nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
-   * policy that only allows the internet, the cluster DNS and the user's own servers.
-   * +optional
-   */
-  allowPrivateNetworks?: boolean;
-  /**
-   * APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
-   * tokens created before, counted from their creation.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=3650
-   */
-  apiTokenMaxDays?: number;
-  /**
-   * BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
-   * Empty: uses the built-in logo.
-   * +optional
-   * +kubebuilder:validation:MaxLength=180000
-   */
-  brandLogo?: string;
-  /**
-   * BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
-   * sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
-   * +optional
-   * +kubebuilder:validation:MaxLength=40
-   */
-  brandName?: string;
-  /**
-   * +optional
-   * +kubebuilder:validation:MaxLength=80
-   */
-  brandTagline?: string;
-  /**
-   * DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
-   * +optional
-   */
-  defaultLoadBalancerPool?: string;
-  /**
-   * DefaultStorageClass is preselected for new servers (one of StorageClasses).
-   * +optional
-   */
-  defaultStorageClass?: string;
-  /**
-   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
-   * keeps working.
-   * +optional
-   */
-  disableApiDocs?: boolean;
-  /**
-   * EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
-   * library on the eggs page lists. The panel reads them when the library is opened and keeps
-   * nothing of them in the cluster.
-   * +optional
-   * +kubebuilder:validation:MaxItems=20
-   */
-  eggLibraries?: string[];
-  /**
-   * ExternalDomain is shown to users as the server address (domain:port) instead of the load
-   * balancer IP. Empty: shows the IP.
-   * +optional
-   */
-  externalDomain?: string;
-  /**
-   * Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
-   * Empty: uses the built-in icon.
-   * +optional
-   * +kubebuilder:validation:MaxLength=180000
-   */
-  favicon?: string;
-  /**
-   * KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-   * twice that). Empty: uses 50. It applies at once.
-   * +optional
-   * +kubebuilder:validation:Minimum=5
-   * +kubebuilder:validation:Maximum=1000
-   */
-  kubeApiQps?: number;
-  /**
-   * KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-   * that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=200
-   */
-  kubeApiUserQps?: number;
-  /**
-   * LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
-   * page, also before sign-in.
-   * +optional
-   * +kubebuilder:validation:MaxLength=20000
-   */
-  legalNotice?: string;
-  /**
-   * LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
-   * +optional
-   */
-  loadBalancerPools?: string[];
-  /**
-   * OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
-   * secret is kept in a Secret, not here.
-   * +optional
-   */
-  oidc?: V1Alpha1OIDCSettings;
-  /** OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it. */
-  oidcClientSecret?: string | null;
-  /**
-   * +optional
-   * +kubebuilder:validation:MaxLength=20000
-   */
-  privacyPolicy?: string;
-  /**
-   * ServerNotice is shown to users every time they open one of their servers (plain text).
-   * +optional
-   * +kubebuilder:validation:MaxLength=2000
-   */
-  serverNotice?: string;
-  /**
-   * SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
-   * shortening it also ends older sessions.
-   * +optional
-   * +kubebuilder:validation:Minimum=1
-   * +kubebuilder:validation:Maximum=720
-   */
-  sessionHours?: number;
-  /**
-   * StorageClasses are the storage classes servers may use for their volume.
-   * +optional
-   */
-  storageClasses?: string[];
-  /**
-   * SubusersPerUser is how many subusers (accounts and invites) every user may create for
-   * their servers. Empty: uses 10. 0 = off.
-   * +optional
-   * +kubebuilder:validation:Minimum=0
-   * +kubebuilder:validation:Maximum=100
-   */
-  subusersPerUser?: number;
-}
-
-export interface HttpapiUpdateUserRequest {
-  disabled?: boolean;
-  displayName?: string;
-  email?: string;
-  /** MustChangePassword makes the user replace the password after the next sign-in. */
-  mustChangePassword?: boolean;
-  password?: string;
-  role?: "admin" | "user";
-}
-
-export interface HttpapiUpgradeStatus {
-  /** @example "oci://ghcr.io/syntax3rror404/charts/kubedactyl" */
-  chart?: string;
-  checkedAt?: string;
-  /** @example "0.2.3" */
-  current: string;
-  /** Enabled is false without the chart value selfUpgrade.enabled. */
-  enabled: boolean;
-  error?: string;
-  /**
-   * IntervalSeconds is how often the registry is checked.
-   * @example 600
-   */
-  intervalSeconds: number;
-  jobs: SelfupgradeJob[];
-  /** @example "0.2.4" */
-  latest?: string;
-  /** Newer lists the versions above the current one, highest first. */
-  newer: string[];
-}
-
-export interface HttpapiUserView {
-  createdAt: string;
-  disabled: boolean;
-  /** @example "Alice" */
-  displayName?: string;
-  /** @example "alice@example.com" */
-  email?: string;
-  /** HasPassword is false for accounts that sign in only through the identity provider. */
-  hasPassword: boolean;
-  lastLoginAt?: string;
-  /** MustChangePassword is true while the user has to replace the password set by an administrator. */
-  mustChangePassword: boolean;
-  /** @example "kubedactyl-user-alice" */
-  namespace?: string;
-  /**
-   * OIDC is the user of the identity provider the account is linked to (which sets display name, email and
-   * role); null for accounts that are not linked.
-   */
-  oidc?: V1Alpha1OIDCIdentity | null;
-  /**
-   * Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.
-   * @example "bob"
-   */
-  owner?: string;
-  /** @example "user" */
-  role: "admin" | "user";
-  /**
-   * Servers counts the servers of the user, for a subuser the servers shared with it.
-   * @example 2
-   */
-  servers: number;
-  tokens: HttpapiTokenView[];
-  /** @example "alice" */
-  username: string;
-}
-
-export interface HttpapiVersions {
-  /** @example "go1.27.1" */
-  go: string;
-  modules: HttpapiModuleVersion[];
-}
-
 export interface HttpserverHealthResponse {
   /** @example "ok" */
   status: string;
@@ -1277,7 +1329,7 @@ export interface HttpserverHealthResponse {
 export interface HttpserverInfoResponse {
   /** @example "production" */
   mode: "development" | "production";
-  /** @example "Kubedactyl" */
+  /** @example "My Panel" */
   name: string;
   /** @example "0.1.0" */
   version: string;
@@ -1303,56 +1355,6 @@ export interface SelfupgradeJob {
    */
   state: "running" | "succeeded" | "failed";
   version: string;
-}
-
-export interface SettingsPool {
-  /**
-   * Blocks are the address ranges ("10.0.0.0/24" or "10.0.0.10-10.0.0.20").
-   * @example ["192.168.1.60-192.168.1.120"]
-   */
-  blocks: string[];
-  conflict: boolean;
-  disabled: boolean;
-  /**
-   * Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
-   * together. Only the pools API and the health check fill them in.
-   */
-  families?: SettingsPoolFamily[];
-  ipsAvailable: number;
-  /**
-   * IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
-   * an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
-   */
-  ipsTotal: number;
-  ipsUsed: number;
-  /** @example "general-pool" */
-  name: string;
-  reason?: string;
-  /** Selectable is false when the pool cannot be targeted by service labels. */
-  selectable: boolean;
-  /** ServiceLabels are set on a server's service so that the pool selects it. */
-  serviceLabels: Record<string, string>;
-}
-
-export interface SettingsPoolFamily {
-  available: number;
-  family: "IPv4" | "IPv6";
-  total: number;
-  used: number;
-}
-
-export interface SettingsStorageClass {
-  allowVolumeExpansion: boolean;
-  /** IsDefault is true for the cluster default storage class. */
-  isDefault: boolean;
-  /** @example "longhorn" */
-  name: string;
-  /** @example "driver.longhorn.io" */
-  provisioner: string;
-  /** @example "Retain" */
-  reclaimPolicy: string;
-  /** @example "Immediate" */
-  volumeBindingMode: string;
 }
 
 export interface V1Alpha1ConfigFile {
@@ -1732,7 +1734,7 @@ export interface V1Alpha1OIDCIdentity {
 
 export interface V1Alpha1OIDCSettings {
   /**
-   * Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+   * Members of AdminGroup sign in as administrators, members of the user group (userGroup) as users; nobody
    * else may sign in.
    * +optional
    */

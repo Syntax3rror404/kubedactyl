@@ -1,5 +1,6 @@
 import { Fragment } from "react"
 
+import { useAuth } from "@/base/hooks/use-auth"
 import { PidLimitNotice, SteamDiskSpaceNotice } from "@/features/servers/egg-features/console-notices"
 import { EulaPrompt } from "@/features/servers/egg-features/eula-prompt"
 import { GslTokenPrompt } from "@/features/servers/egg-features/gsl-token-prompt"
@@ -7,7 +8,6 @@ import { HytaleLoginPrompt } from "@/features/servers/egg-features/hytale-login-
 import { JavaVersionPrompt } from "@/features/servers/egg-features/java-version-prompt"
 import type { Subscribe } from "@/features/servers/egg-features/use-console-match"
 import { supportedFeatures, type EggFeature } from "@/features/servers/lib/egg-features"
-import { useAuth } from "@/hooks/use-auth"
 import { activePhases, phaseOf } from "@/lib/format"
 import type { Egg, GameServer } from "@/lib/types"
 

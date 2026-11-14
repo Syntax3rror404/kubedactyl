@@ -1,8 +1,8 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query"
 
+import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/base/lib/queries/mutation"
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { CreateServerRequest, GameServer, MigrateRequest, PowerSignal, UpdateServerRequest } from "@/lib/types"
 
 /** The servers the user may see, polled every 3 s. */

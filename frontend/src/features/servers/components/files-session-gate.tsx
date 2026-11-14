@@ -1,11 +1,11 @@
 import { MoonIcon, PlayIcon } from "lucide-react"
 
-import { ProgressStripe } from "@/components/common/callout"
+import { ProgressStripe } from "@/base/components/callout"
+import { plural } from "@/base/lib/format"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-import { plural } from "@/lib/format"
 import type { useFilesSession } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react"
 import { LibraryIcon, XIcon } from "lucide-react"
 
-import { CheckStatusIcon } from "@/components/common/check-status-icon"
+import { CheckStatusIcon } from "@/base/components/status-icons"
+import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { fieldErrors } from "@/base/lib/validation"
 import { EggCountBadge } from "@/components/common/egg-count-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 import { useLibrary, useLibraryRepository } from "@/lib/queries"
 import type { LibraryRepository } from "@/lib/types"
-import { fieldErrors } from "@/lib/validation"
 
 /** The panel accepts at most this many repositories (settings.maxEggLibraries). */
 const MAX_REPOSITORIES = 20

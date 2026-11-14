@@ -34,12 +34,12 @@ func (a *API) getClusterInfo(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	clusterinfo.NodesResponse
-//	@Failure		403	{object}	ErrorResponse
+//	@Failure		403	{object}	api.ErrorResponse
 //	@Router			/cluster/nodes [get]
 func (a *API) listClusterNodes(c *gin.Context) {
 	resp, err := a.ClusterService.Nodes(c)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, resp)
@@ -58,7 +58,7 @@ func (a *API) listClusterNodes(c *gin.Context) {
 func (a *API) probeClusterNodes(c *gin.Context) {
 	resp, err := a.ClusterService.Nodes(c)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	var nodes []string
@@ -71,7 +71,7 @@ func (a *API) probeClusterNodes(c *gin.Context) {
 	defer cancel()
 	a.ClusterService.ProbeNodes(ctx, nodes)
 	if resp, err = a.ClusterService.Nodes(c); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, resp)

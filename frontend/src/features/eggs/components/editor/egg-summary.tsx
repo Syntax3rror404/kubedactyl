@@ -1,6 +1,6 @@
+import { plural } from "@/base/lib/format"
 import { DefaultBadge } from "@/features/eggs/components/egg-overview"
 import { describeStop, installRuntime } from "@/features/eggs/lib/describe"
-import { plural } from "@/lib/format"
 import type { EggSpec } from "@/lib/types"
 
 /** Overview of an egg before it is created (wizard review step). */

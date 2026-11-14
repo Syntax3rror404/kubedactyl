@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
+	"app/base/kube"
 	"app/internal/gameserver"
-	"app/internal/kube"
 	"app/internal/testutil"
 )
 

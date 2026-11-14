@@ -1,13 +1,13 @@
 import { RefreshCwIcon, StethoscopeIcon } from "lucide-react"
 import { useOutletContext } from "react-router"
 
-import { CheckStatusIcon } from "@/components/common/check-status-icon"
-import { QueryState } from "@/components/common/query-state"
+import { QueryState } from "@/base/components/query-state"
+import { CheckStatusIcon } from "@/base/components/status-icons"
+import { formatRelativeTime } from "@/base/lib/format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ServerContext } from "@/features/servers/server-layout"
-import { formatRelativeTime } from "@/lib/format"
 import { useServerDiagnostics } from "@/lib/queries"
 
 /** /servers/:server/diagnostics: the typical reasons why players cannot connect, checked one by one. */

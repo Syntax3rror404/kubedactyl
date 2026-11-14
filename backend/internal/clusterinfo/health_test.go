@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"app/api/v1alpha1"
-	"app/internal/checks"
-	"app/internal/settings"
+	"app/base/checks"
+	"app/internal/appsettings"
 )
 
 func node(name string, ready bool) corev1.Node {
@@ -39,8 +39,8 @@ func healthyInputs() healthInputs {
 			LoadBalancerPools: []string{"general-pool"},
 			OIDC:              v1alpha1.OIDCSettings{Enabled: true},
 		},
-		storageClasses: []settings.StorageClass{{Name: "longhorn"}},
-		pools:          []settings.Pool{{Name: "general-pool", IPsAvailable: 55}},
+		storageClasses: []appsettings.StorageClass{{Name: "longhorn"}},
+		pools:          []appsettings.Pool{{Name: "general-pool", IPsAvailable: 55}},
 		guarded:        true,
 		policy:         "kubedactyl-panel",
 	}
@@ -125,7 +125,7 @@ func TestHealthProblems(t *testing.T) {
 		{
 			"IPv4 of a mixed pool full",
 			func(in *healthInputs) {
-				in.pools[0].Families = []settings.PoolFamily{
+				in.pools[0].Families = []appsettings.PoolFamily{
 					{Family: "IPv4", Total: 2, Used: 2}, {Family: "IPv6", Total: 1.8e19, Available: 1.8e19},
 				}
 			},

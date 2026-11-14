@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { refresh, refreshAll, useApiMutation, type MutationCallbacks } from "@/base/lib/queries/mutation"
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, refreshAll, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import { refreshJobs } from "@/lib/queries/servers"
 import type { FilesSession, ServerJob } from "@/lib/types"
 

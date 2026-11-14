@@ -3,8 +3,10 @@ import { FolderIcon, UploadIcon } from "lucide-react"
 import { useOutletContext, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { EmptyState, QueryState } from "@/components/common/query-state"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { EmptyState, QueryState } from "@/base/components/query-state"
+import { useRetained } from "@/base/hooks/use-retained"
+import { failed } from "@/base/lib/queries"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileEditorDialog } from "@/features/servers/components/file-editor-dialog"
@@ -21,9 +23,7 @@ import { useDesktopDrop } from "@/features/servers/hooks/use-desktop-drop"
 import { useFileContainer } from "@/features/servers/hooks/use-file-container"
 import { isEditable, joinPath, uploadedText } from "@/features/servers/lib/files"
 import type { ServerContext } from "@/features/servers/server-layout"
-import { useRetained } from "@/hooks/use-retained"
 import { urls } from "@/lib/api"
-import { failed } from "@/lib/notify"
 import {
   useCompressFiles,
   useCreateFolder,

@@ -1,4 +1,4 @@
-import { DetailList } from "@/components/common/detail-list"
+import { DetailList } from "@/base/components/detail-list"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldError } from "@/components/ui/field"
 import { ResourceSliders } from "@/features/servers/components/resource-sliders"

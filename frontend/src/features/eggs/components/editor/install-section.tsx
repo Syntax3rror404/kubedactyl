@@ -1,6 +1,6 @@
 import { toast } from "sonner"
 
-import { CodeEditor } from "@/components/common/code-editor"
+import { CodeEditor } from "@/base/components/code-editor"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { CopyFromEgg } from "@/features/eggs/components/editor/copy-from-egg"

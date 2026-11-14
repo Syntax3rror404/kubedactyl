@@ -1,0 +1,58 @@
+import { useEffect } from "react"
+import { flushSync } from "react-dom"
+import { createRoot } from "react-dom/client"
+
+import { appName, BRAND_FROM, BRAND_TO, brandIcon } from "@/app/config"
+import { useBranding } from "@/base/lib/queries"
+
+/**
+ * Keeps the browser tab in sync with the branding: the title ("Files · Survival · <name>") and the
+ * favicon (the uploaded one, or the built-in icon).
+ */
+export function useBrandingHead(parts: string[]) {
+  const { data } = useBranding()
+  const name = data?.name ?? appName
+  const loaded = !!data
+  const favicon = data?.favicon
+  const title = [...parts, name].join(" · ")
+  useEffect(() => {
+    document.title = title
+  }, [title])
+  useEffect(() => {
+    // Not before the branding is there: the built-in icon would flash before an uploaded one.
+    if (!loaded) return
+    document.querySelector("link[rel=icon]")?.remove()
+    const link = document.createElement("link")
+    link.rel = "icon"
+    link.href = favicon || builtInFavicon
+    document.head.appendChild(link)
+  }, [loaded, favicon])
+}
+
+/**
+ * The built-in favicon: the app's icon on the brand gradient (like BrandMark), as an SVG data URL.
+ * Rendered once when the module loads, because flushSync does not render from inside an effect.
+ */
+const builtInFavicon = (() => {
+  const { icon: Icon, ...rest } = brandIcon
+  const iconProps: { strokeWidth?: number } = rest
+  const div = document.createElement("div")
+  const root = createRoot(div)
+  flushSync(() =>
+    root.render(
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <defs>
+          <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={BRAND_FROM} />
+            <stop offset="1" stopColor={BRAND_TO} />
+          </linearGradient>
+        </defs>
+        <rect width="32" height="32" rx="8" fill="url(#brand)" />
+        <Icon x={6} y={6} size={20} color="#fff" strokeWidth={iconProps.strokeWidth ?? 2.25} />
+      </svg>,
+    ),
+  )
+  const url = "data:image/svg+xml," + encodeURIComponent(div.innerHTML)
+  root.unmount()
+  return url
+})()

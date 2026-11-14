@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/configfile"
-	"app/internal/kube"
 )
 
 // readConfigScript prints at most "$2" bytes of the config file "$1" (exit 3: missing or outside

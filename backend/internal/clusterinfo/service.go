@@ -10,8 +10,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"app/internal/kube"
-	"app/internal/settings"
+	"app/base/kube"
+	"app/base/settings"
 )
 
 // Service gathers cluster information on demand.

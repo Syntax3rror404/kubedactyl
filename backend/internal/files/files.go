@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // Errors of file operations.

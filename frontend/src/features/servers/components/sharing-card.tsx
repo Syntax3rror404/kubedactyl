@@ -1,13 +1,14 @@
 import { Link } from "react-router"
 
+import { UserAvatar } from "@/base/components/user-avatar"
+import { useAuth } from "@/base/hooks/use-auth"
+import { userName } from "@/base/lib/format"
+import { useUsers } from "@/base/lib/queries"
 import { AccessSelect, type AccessChoice } from "@/components/common/access-select"
-import { UserAvatar } from "@/components/common/user-avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldError } from "@/components/ui/field"
 import type { SettingsCardProps } from "@/features/servers/lib/settings-draft"
-import { useAuth } from "@/hooks/use-auth"
-import { serverOwner, userName } from "@/lib/format"
-import { useUsers } from "@/lib/queries"
+import { serverOwner } from "@/lib/format"
 
 /** Settings page: which subusers of the owner see the server (view) or also start, stop and command it (control). */
 export function SharingCard({ server, draft, onChange, errors }: SettingsCardProps) {

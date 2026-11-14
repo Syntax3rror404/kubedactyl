@@ -1,5 +1,5 @@
-import { useAuth } from "@/hooks/use-auth"
-import { useDraft } from "@/hooks/use-draft"
+import { useAuth } from "@/base/hooks/use-auth"
+import { useDraft } from "@/base/hooks/use-draft"
 import type { TrafficPolicy } from "@/lib/types"
 
 /** Fields of the create form that are kept when another egg is picked (a form draft). */

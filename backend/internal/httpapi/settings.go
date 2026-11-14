@@ -1,158 +1,32 @@
 package httpapi
 
 import (
-	"cmp"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	"app/api/v1alpha1"
-	"app/internal/kube"
-	"app/internal/settings"
+	"app/app"
+	"app/base/api"
+	"app/internal/appsettings"
 )
+
+// RequestRates adds nothing: the footer of this app shows only the rates of the base.
+func (a *API) RequestRates(*api.Principal) app.RequestRates { return app.RequestRates{} }
 
 // StorageClassList lists the storage classes of the cluster.
 type StorageClassList struct {
-	Items []settings.StorageClass `json:"items"`
+	Items []appsettings.StorageClass `json:"items"`
 }
 
 // PoolList lists the load balancer IP pools of the cluster.
 type PoolList struct {
-	Items []settings.Pool `json:"items"`
+	Items []appsettings.Pool `json:"items"`
 	// Error is set when the pools cannot be read (e.g. Cilium LB IPAM is not installed).
 	Error string `json:"error,omitempty"`
 	// IPv6Missing says why servers get no IPv6 address even from a pool with an IPv6 block
 	// ("" when they can or it is unknown).
 	IPv6Missing string `json:"ipv6Missing,omitempty" example:"No IPv6 service CIDR · IPv6 off in Cilium"`
-}
-
-// RequestRates are the requests per second of the signed-in user and, for administrators, the
-// Kubernetes API calls of the whole panel, each with its limit (settings "Kube API limit").
-type RequestRates struct {
-	User  kube.Rate  `json:"user"`
-	Panel *kube.Rate `json:"panel,omitempty" extensions:"x-nullable"`
-}
-
-// getRequestRates godoc
-//
-//	@Summary		Request rates
-//	@Description	Averages over the last 5 seconds; refused requests and waiting calls count, too. This request
-//	@Description	does not count. Panel is set for administrators only.
-//	@Tags			System
-//	@Produce		json
-//	@Success		200	{object}	RequestRates
-//	@Security		BearerAuth
-//	@Router			/request-rates [get]
-func (a *API) getRequestRates(c *gin.Context) {
-	var out RequestRates
-	if a.KubeLimiter != nil {
-		p := principal(c)
-		out.User = a.KubeLimiter.UserRate(p.User.Name)
-		if p.Admin() {
-			panel := a.KubeLimiter.PanelRate()
-			out.Panel = &panel
-		}
-	}
-	c.JSON(http.StatusOK, out)
-}
-
-// SettingsView is the panel settings; the client secret of the identity provider is never sent. Users get only
-// the fields the web UI shows them, the others are empty.
-type SettingsView struct {
-	v1alpha1.PanelSettingsSpec
-	// OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).
-	OIDCClientSecretSet bool `json:"oidcClientSecretSet"`
-}
-
-// UpdateSettingsRequest is the panel settings with the client secret of the identity provider.
-type UpdateSettingsRequest struct {
-	v1alpha1.PanelSettingsSpec
-	// OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it.
-	OIDCClientSecret *string `json:"oidcClientSecret,omitempty" extensions:"x-nullable"`
-}
-
-// sendSettings answers with the settings and, for administrators (only they edit them), whether a client
-// secret is stored; users get userSettings.
-func (a *API) sendSettings(c *gin.Context, spec v1alpha1.PanelSettingsSpec) {
-	if !principal(c).Admin() {
-		c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: userSettings(spec)})
-		return
-	}
-	secret, err := a.Settings.OIDCClientSecret(c)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""})
-}
-
-// userSettings keeps the settings the web UI needs for users: the address and pools of their servers, the
-// server notice, the API docs switch and their limits for API tokens and subusers.
-func userSettings(spec v1alpha1.PanelSettingsSpec) v1alpha1.PanelSettingsSpec {
-	return v1alpha1.PanelSettingsSpec{
-		ExternalDomain:          spec.ExternalDomain,
-		LoadBalancerPools:       spec.LoadBalancerPools,
-		DefaultLoadBalancerPool: spec.DefaultLoadBalancerPool,
-		AllowClusterIP:          spec.AllowClusterIP,
-		ServerNotice:            spec.ServerNotice,
-		DisableAPIDocs:          spec.DisableAPIDocs,
-		APITokenMaxDays:         spec.APITokenMaxDays,
-		SubusersPerUser:         spec.SubusersPerUser,
-	}
-}
-
-// getSettings godoc
-//
-//	@Summary		Panel settings
-//	@Description	All settings for administrators. Users get only external domain, load balancer pools, server
-//	@Description	notice, API docs switch and their limits for API tokens and subusers.
-//	@Tags			Settings
-//	@Produce		json
-//	@Success		200	{object}	SettingsView
-//	@Security		BearerAuth
-//	@Router			/settings [get]
-func (a *API) getSettings(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.sendSettings(c, spec)
-}
-
-// updateSettings godoc
-//
-//	@Summary		Update the panel settings
-//	@Description	Every storage class and pool must exist in the cluster; pools must be selectable by service
-//	@Description	labels. Missing defaults become the first entry.
-//	@Tags			Settings
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		UpdateSettingsRequest	true	"Settings"
-//	@Success		200		{object}	SettingsView
-//	@Failure		422		{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/settings [put]
-func (a *API) updateSettings(c *gin.Context) {
-	var req UpdateSettingsRequest
-	if !a.bindJSON(c, &req) {
-		return
-	}
-	spec, err := a.Settings.Update(c, req.PanelSettingsSpec)
-	if err == nil && req.OIDCClientSecret != nil {
-		err = a.Settings.UpdateOIDCClientSecret(c, strings.TrimSpace(*req.OIDCClientSecret))
-	}
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.audit(c, "panel settings updated", "oidcClientSecret", req.OIDCClientSecret != nil)
-	a.sendSettings(c, spec)
 }
 
 // listStorageClasses godoc
@@ -164,9 +38,9 @@ func (a *API) updateSettings(c *gin.Context) {
 //	@Security	BearerAuth
 //	@Router		/settings/storage-classes [get]
 func (a *API) listStorageClasses(c *gin.Context) {
-	classes, err := settings.ListStorageClasses(c, a.Reader)
+	classes, err := appsettings.ListStorageClasses(c, a.Reader)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, StorageClassList{Items: classes})
@@ -183,89 +57,14 @@ func (a *API) listStorageClasses(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/settings/load-balancer-pools [get]
 func (a *API) listLoadBalancerPools(c *gin.Context) {
-	pools, err := settings.ListPoolsWithUsage(c, a.Reader)
-	if errors.Is(err, settings.ErrNoCilium) {
-		c.JSON(http.StatusOK, PoolList{Items: []settings.Pool{}, Error: err.Error()})
+	pools, err := appsettings.ListPoolsWithUsage(c, a.Reader)
+	if errors.Is(err, appsettings.ErrNoCilium) {
+		c.JSON(http.StatusOK, PoolList{Items: []appsettings.Pool{}, Error: err.Error()})
 		return
 	}
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PoolList{Items: pools, IPv6Missing: settings.IPv6Missing(c, a.Reader)})
-}
-
-// LegalTexts are the imprint and privacy policy shown in the footer of every page.
-type LegalTexts struct {
-	LegalNotice   string `json:"legalNotice"`
-	PrivacyPolicy string `json:"privacyPolicy"`
-}
-
-// getLegalTexts godoc
-//
-//	@Summary		Legal notice and privacy policy
-//	@Description	Public (also shown on the sign-in page). Markdown; empty when not configured.
-//	@Description	Sends an ETag: with If-None-Match it answers 304 while nothing changed.
-//	@Tags			Settings
-//	@Produce		json
-//	@Success		200	{object}	LegalTexts
-//	@Router			/legal [get]
-func (a *API) getLegalTexts(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.revalidatedJSON(c, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
-}
-
-// Branding is how the panel presents itself: name and tagline (by default Kubedactyl and "Game
-// servers on Kubernetes") and the images as data URLs (empty for the built-in logo and icon).
-type Branding struct {
-	Name    string `json:"name"              example:"Kubedactyl"`
-	Tagline string `json:"tagline"           example:"Game servers on Kubernetes"`
-	Logo    string `json:"logo,omitempty"`
-	Favicon string `json:"favicon,omitempty"`
-}
-
-// getBranding godoc
-//
-//	@Summary		Name, tagline, logo and favicon of the panel
-//	@Description	Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).
-//	@Description	Sends an ETag: with If-None-Match it answers 304 while nothing changed.
-//	@Tags			Settings
-//	@Produce		json
-//	@Success		200	{object}	Branding
-//	@Router			/branding [get]
-func (a *API) getBranding(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	a.revalidatedJSON(c, Branding{
-		Name:    cmp.Or(spec.BrandName, "Kubedactyl"),
-		Tagline: cmp.Or(spec.BrandTagline, "Game servers on Kubernetes"),
-		Logo:    spec.BrandLogo,
-		Favicon: spec.Favicon,
-	})
-}
-
-// revalidatedJSON answers public texts and images with a weak ETag: the browser keeps the answer and asks with
-// If-None-Match, so logo and favicon (up to 128 KiB each) are sent again only after they changed (304 else).
-func (a *API) revalidatedJSON(c *gin.Context, v any) {
-	body, err := json.Marshal(v)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	sum := sha256.Sum256(body)
-	etag := `W/"` + hex.EncodeToString(sum[:16]) + `"`
-	c.Header("Cache-Control", "no-cache")
-	c.Header("ETag", etag)
-	if strings.Contains(c.GetHeader("If-None-Match"), etag) {
-		c.Status(http.StatusNotModified)
-		return
-	}
-	c.Data(http.StatusOK, "application/json; charset=utf-8", body)
+	c.JSON(http.StatusOK, PoolList{Items: pools, IPv6Missing: appsettings.IPv6Missing(c, a.Reader)})
 }

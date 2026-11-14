@@ -1,9 +1,9 @@
 import { createBrowserRouter } from "react-router"
 
-import { ErrorPage } from "@/app/error-page"
-import { AppLayout } from "@/components/layout/app-layout"
-import type { CrumbHandle } from "@/components/layout/site-header"
-import { RequireAdmin, RequireAuth } from "@/features/auth/components/require-auth"
+import { RequireAdmin, RequireAuth } from "@/base/features/auth/components/require-auth"
+import { AppLayout } from "@/base/layout/app-layout"
+import { ErrorPage } from "@/base/layout/error-page"
+import type { CrumbHandle } from "@/base/layout/site-header"
 
 const crumbs = (fn: CrumbHandle["crumbs"]): CrumbHandle => ({ crumbs: fn })
 /** The handle of a page whose breadcrumb is only its own label. */
@@ -23,16 +23,16 @@ export const router = createBrowserRouter([
   {
     errorElement: <ErrorPage />,
     children: [
-      { path: "/login", lazy: page(() => import("@/features/auth/login-page"), "LoginPage") },
-      { path: "/setup", lazy: page(() => import("@/features/auth/setup-page"), "SetupPage") },
-      { path: "/invite", lazy: page(() => import("@/features/auth/invite-page"), "InvitePage") },
-      { path: "/licenses", lazy: page(() => import("@/features/licenses/licenses-page"), "LicensesPage") },
+      { path: "/login", lazy: page(() => import("@/base/features/auth/login-page"), "LoginPage") },
+      { path: "/setup", lazy: page(() => import("@/base/features/auth/setup-page"), "SetupPage") },
+      { path: "/invite", lazy: page(() => import("@/base/features/auth/invite-page"), "InvitePage") },
+      { path: "/licenses", lazy: page(() => import("@/base/features/licenses/licenses-page"), "LicensesPage") },
       {
         element: <RequireAuth />,
         children: [
           {
             path: "change-password",
-            lazy: page(() => import("@/features/auth/change-password-page"), "ChangePasswordPage"),
+            lazy: page(() => import("@/base/features/auth/change-password-page"), "ChangePasswordPage"),
           },
           {
             element: <AppLayout />,
@@ -94,7 +94,7 @@ export const router = createBrowserRouter([
               },
               {
                 path: "account",
-                lazy: page(() => import("@/features/account/account-page"), "AccountPage"),
+                lazy: page(() => import("@/base/features/account/account-page"), "AccountPage"),
                 handle: titled("Account"),
               },
               {
@@ -140,7 +140,7 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: "users",
-                    lazy: page(() => import("@/features/users/users-page"), "UsersPage"),
+                    lazy: page(() => import("@/base/features/users/users-page"), "UsersPage"),
                     handle: titled("Users"),
                   },
                   {
@@ -150,14 +150,14 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: "settings",
-                    lazy: page(() => import("@/features/settings/settings-page"), "PanelSettingsPage"),
+                    lazy: page(() => import("@/base/features/settings/settings-page"), "PanelSettingsPage"),
                     handle: titled("Settings"),
                   },
                 ],
               },
               {
                 path: "*",
-                lazy: page(() => import("@/app/not-found-page"), "NotFoundPage"),
+                lazy: page(() => import("@/base/layout/not-found-page"), "NotFoundPage"),
                 handle: titled("Not found"),
               },
             ],

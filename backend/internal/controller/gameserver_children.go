@@ -14,9 +14,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // ensurePVC creates the data volume claim or grows it and records its storage class (a different

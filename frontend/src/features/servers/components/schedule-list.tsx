@@ -2,17 +2,17 @@ import { useState } from "react"
 import { CalendarClockIcon, PlusIcon, RotateCwIcon, ZapIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { EmptyState, QueryState } from "@/components/common/query-state"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { EmptyState, QueryState } from "@/base/components/query-state"
+import { useRetained } from "@/base/hooks/use-retained"
+import { failed } from "@/base/lib/queries"
+import { fieldErrors } from "@/base/lib/validation"
 import { Button } from "@/components/ui/button"
 import { ScheduleCard } from "@/features/servers/components/schedule-card"
 import { ScheduleDialog } from "@/features/servers/components/schedule-dialog"
 import { dailyRestart, emptySchedule, emptyTask, goodbyeTask } from "@/features/servers/lib/schedules"
-import { useRetained } from "@/hooks/use-retained"
-import { failed } from "@/lib/notify"
 import { useRunSchedule, useSchedules, useUpdateSchedules } from "@/lib/queries"
 import type { Schedule, ScheduleView } from "@/lib/types"
-import { fieldErrors } from "@/lib/validation"
 
 // One state for all dialogs of the page; original is the saved name of the edited entry (null = new entry).
 type Dialog = { kind: "edit"; schedule: Schedule; original: string | null } | { kind: "delete"; name: string } | null

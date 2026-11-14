@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { FileKeyIcon, KeyRoundIcon, LinkIcon, ShieldCheckIcon, UserCheckIcon } from "lucide-react"
 
-import { CheckStatusIcon } from "@/components/common/check-status-icon"
-import { CopyButton } from "@/components/common/copy-button"
-import { DetailList } from "@/components/common/detail-list"
+import { CopyButton } from "@/base/components/copy-button"
+import { DetailList } from "@/base/components/detail-list"
+import { CheckStatusIcon } from "@/base/components/status-icons"
+import { plural } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { plural } from "@/lib/format"
 import type { CertInfo, ClusterIdentity } from "@/lib/types"
 
 const methodLabel: Record<string, string> = {

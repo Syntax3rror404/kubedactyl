@@ -35,7 +35,7 @@ type SuspendRequest struct {
 //	@Router			/servers/{server}/power [post]
 func (a *API) sendPower(c *gin.Context) {
 	var req PowerRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -43,10 +43,10 @@ func (a *API) sendPower(c *gin.Context) {
 		return
 	}
 	if err := a.Ops.Power(c, gs, req.Signal); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "power action sent", "server", gs.Name, "signal", req.Signal)
+	a.Audit(c, "power action sent", "server", gs.Name, "signal", req.Signal)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.Status(http.StatusNoContent)
 }
@@ -59,12 +59,12 @@ func (a *API) sendPower(c *gin.Context) {
 //	@Param		server	path	string			true	"Server name"
 //	@Param		body	body	CommandRequest	true	"Command"
 //	@Success	204
-//	@Failure	409	{object}	ErrorResponse	"server is not running"
+//	@Failure	409	{object}	api.ErrorResponse	"server is not running"
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/command [post]
 func (a *API) sendCommand(c *gin.Context) {
 	var req CommandRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -72,10 +72,10 @@ func (a *API) sendCommand(c *gin.Context) {
 		return
 	}
 	if err := a.Ops.Command(c, gs, req.Command); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "console command sent", "server", gs.Name, "command", req.Command)
+	a.Audit(c, "console command sent", "server", gs.Name, "command", req.Command)
 	c.Status(http.StatusNoContent)
 }
 
@@ -95,10 +95,10 @@ func (a *API) reinstallServer(c *gin.Context) {
 		return
 	}
 	if err := a.Ops.Reinstall(c, gs); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server reinstall started", "server", gs.Name)
+	a.Audit(c, "server reinstall started", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.Status(http.StatusNoContent)
 }
@@ -117,7 +117,7 @@ func (a *API) reinstallServer(c *gin.Context) {
 //	@Router			/servers/{server}/suspend [post]
 func (a *API) suspendServer(c *gin.Context) {
 	var req SuspendRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -125,10 +125,10 @@ func (a *API) suspendServer(c *gin.Context) {
 		return
 	}
 	if err := a.Ops.Suspend(c, gs, req.Suspended); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
+	a.Audit(c, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, gs)
 }

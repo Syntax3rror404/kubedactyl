@@ -6,7 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"app/internal/checks"
+	"app/base/api"
+	"app/base/checks"
 	"app/internal/diagnostics"
 )
 
@@ -26,7 +27,7 @@ type ServerDiagnostics struct {
 //	@Produce		json
 //	@Param			server	path		string	true	"Server name"
 //	@Success		200		{object}	ServerDiagnostics
-//	@Failure		404		{object}	ErrorResponse
+//	@Failure		404		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/diagnostics [get]
 func (a *API) getServerDiagnostics(c *gin.Context) {
@@ -35,7 +36,7 @@ func (a *API) getServerDiagnostics(c *gin.Context) {
 		return
 	}
 	list := a.Diagnostics.Run(c, diagnostics.Input{
-		Server: gs, Domain: a.externalDomain(c), ShowAddresses: principal(c).Admin(),
+		Server: gs, Domain: a.externalDomain(c), ShowAddresses: api.PrincipalOf(c).Admin(),
 	})
 	c.JSON(http.StatusOK, ServerDiagnostics{Checks: list, CheckedAt: time.Now()})
 }

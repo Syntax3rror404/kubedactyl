@@ -1,10 +1,10 @@
 import { BoxIcon, CpuIcon, MemoryStickIcon, ServerIcon } from "lucide-react"
 
-import { MetricTile } from "@/components/common/metric-tile"
-import { UsageBar } from "@/components/common/usage-bar"
+import { MetricTile } from "@/base/components/metric-tile"
+import { UsageBar } from "@/base/components/usage-bar"
+import { formatBytes, formatCores, formatPercent } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatBytes, formatCores, formatPercent } from "@/lib/format"
 import type { ClusterTotals } from "@/lib/types"
 
 /** Totals of all nodes: counts, capacity, usage and the CPU models in the cluster. */

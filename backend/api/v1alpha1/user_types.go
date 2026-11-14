@@ -13,6 +13,10 @@ const (
 	RoleUser  UserRole = "user"
 )
 
+// DefaultRole is the role of new accounts and of members of the OIDC member group (MemberGroup, JSON
+// "<role>Group"); the base code knows only it and RoleAdmin.
+const DefaultRole = RoleUser
+
 // APIToken is a personal access token. Only a SHA-256 hash of the token is stored.
 type APIToken struct {
 	ID        string       `json:"id"`

@@ -1,9 +1,9 @@
 import { GaugeIcon } from "lucide-react"
 
+import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
 import { FieldGroup } from "@/components/ui/field"
 import { Slider } from "@/components/ui/slider"
-import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 
 /** How many requests per second the panel sends to the Kubernetes API, and one user to the panel. */
 export function KubeApiCard({ draft, onChange, errors }: SettingsCardProps) {

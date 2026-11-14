@@ -12,9 +12,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // ServerStats are live resource usage values.

@@ -64,7 +64,7 @@ out of the box.
 - **Suspend** a server: it stops and is locked for its owner, nothing is deleted.
 - **One namespace per user:** the servers of different users are separated by namespace and NetworkPolicy.
 - **Cluster page** with nodes, hardware, live usage, the panel's identity and every permission it needs.
-- **Cluster health at a glance.** A card in the sidebar checks the CRDs, the panel's permissions, nodes,
+- **Cluster health at a glance.** The top of the sidebar checks the CRDs, the panel's permissions, nodes,
   metrics-server, Cilium, storage and the admission policy, and says what is missing.
 - **Branding:** your name, tagline, logo and favicon, plus legal notice and privacy policy pages.
 - **One-click upgrades.** The panel finds new versions by itself and upgrades from the settings page.

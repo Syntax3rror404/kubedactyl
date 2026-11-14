@@ -1,7 +1,9 @@
 import { AlertTriangleIcon, NetworkIcon } from "lucide-react"
 
-import { Callout } from "@/components/common/callout"
-import { UsageBar } from "@/components/common/usage-bar"
+import { Callout } from "@/base/components/callout"
+import { UsageBar } from "@/base/components/usage-bar"
+import { SettingsCard, SwitchField } from "@/base/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FieldError } from "@/components/ui/field"
@@ -9,13 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DefaultCell } from "@/features/settings/components/default-cell"
-import { SettingsCard, SwitchField } from "@/features/settings/components/settings-card"
-import {
-  selectionHandlers,
-  type Selection,
-  type SelectionHandlers,
-  type SettingsCardProps,
-} from "@/features/settings/lib/settings-draft"
+import { selectionHandlers, type Selection, type SelectionHandlers } from "@/features/settings/lib/selection"
 import { formatCount, formatPoolSize, poolUsage } from "@/lib/format"
 import { usePools } from "@/lib/queries"
 import type { Pool } from "@/lib/types"

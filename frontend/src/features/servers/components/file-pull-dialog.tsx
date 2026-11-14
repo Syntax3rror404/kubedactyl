@@ -2,6 +2,7 @@ import { useState } from "react"
 import { LinkIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-import { failed } from "@/lib/notify"
 import { usePullFile } from "@/lib/queries"
 
 /** Downloads a file from a URL into the current folder (runs in the file container). */

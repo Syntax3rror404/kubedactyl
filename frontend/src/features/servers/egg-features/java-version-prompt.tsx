@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { failed } from "@/base/lib/queries"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
 import { imageOptions } from "@/features/servers/lib/startup"
-import { failed } from "@/lib/notify"
 import { useUpdateAndStartServer } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 

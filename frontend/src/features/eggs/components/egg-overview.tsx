@@ -1,4 +1,4 @@
-import { CopyButton } from "@/components/common/copy-button"
+import { CopyButton } from "@/base/components/copy-button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { describeStop } from "@/features/eggs/lib/describe"

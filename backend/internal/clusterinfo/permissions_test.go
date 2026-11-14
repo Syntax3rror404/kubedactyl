@@ -11,8 +11,8 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"app/internal/kube"
-	"app/internal/settings"
+	"app/base/kube"
+	"app/internal/appsettings"
 	"app/internal/tenancy"
 	"app/internal/testutil"
 )
@@ -45,7 +45,7 @@ func TestCheckPermissions(t *testing.T) {
 		label, namespace string
 		allowed, unknown bool
 	}{
-		{"Read the Cilium config", settings.CiliumConfig.Namespace, true, false},
+		{"Read the Cilium config", appsettings.CiliumConfig.Namespace, true, false},
 		{"Read pod metrics", userNS.Name, true, false},
 		{"Start hardware probes", testutil.Namespace, true, false},
 		{"Attach to pods", userNS.Name, false, true},

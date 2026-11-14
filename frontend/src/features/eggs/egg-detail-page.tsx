@@ -3,9 +3,11 @@ import { CopyPlusIcon, EllipsisIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2
 import { Link, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { DropdownMenuLink } from "@/components/common/dropdown-menu-link"
-import { QueryState } from "@/components/common/query-state"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { DropdownMenuLink } from "@/base/components/dropdown-menu-link"
+import { QueryState } from "@/base/components/query-state"
+import { formatRelativeTime } from "@/base/lib/format"
+import { failed } from "@/base/lib/queries"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,8 +22,6 @@ import { EggHeader } from "@/features/eggs/components/egg-header"
 import { EggOrigin } from "@/features/eggs/components/egg-origin"
 import { EggTabs } from "@/features/eggs/components/egg-tabs"
 import { UpdateUrlBadge } from "@/features/eggs/components/update-url-badge"
-import { formatRelativeTime } from "@/lib/format"
-import { failed } from "@/lib/notify"
 import { useDeleteEgg, useEgg, useUpdateEggFromUrl } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
 import { cn } from "@/lib/utils"

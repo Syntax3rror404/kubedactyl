@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"app/base/api"
 	"app/internal/files"
 )
 
@@ -58,10 +59,10 @@ func (a *API) writeFile(c *gin.Context) {
 	}
 	err := a.Files.Manager.Write(c, files.RefOf(gs), c.Query("file"), c.Request.Body, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "file written", "server", gs.Name, "file", c.Query("file"))
+	a.Audit(c, "file written", "server", gs.Name, "file", c.Query("file"))
 	c.Status(http.StatusNoContent)
 }
 
@@ -77,7 +78,7 @@ func (a *API) writeFile(c *gin.Context) {
 //	@Router		/servers/{server}/files/create-folder [post]
 func (a *API) createFolder(c *gin.Context) {
 	var req CreateFolderRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -90,10 +91,10 @@ func (a *API) createFolder(c *gin.Context) {
 	}
 	folder := inRoot(req.Root, req.Name)
 	if err := a.Files.Manager.CreateFolder(c, files.RefOf(gs), folder, deny); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "folder created", "server", gs.Name, "folder", folder)
+	a.Audit(c, "folder created", "server", gs.Name, "folder", folder)
 	c.Status(http.StatusNoContent)
 }
 
@@ -109,7 +110,7 @@ func (a *API) createFolder(c *gin.Context) {
 //	@Router		/servers/{server}/files/delete [post]
 func (a *API) deleteFiles(c *gin.Context) {
 	var req FilesRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -122,10 +123,10 @@ func (a *API) deleteFiles(c *gin.Context) {
 	}
 	dir := cleanDir(req.Root)
 	if err := a.Files.Manager.Delete(c, files.RefOf(gs), dir, req.Files, deny); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "files deleted", "server", gs.Name, "folder", dir, "files", req.Files)
+	a.Audit(c, "files deleted", "server", gs.Name, "folder", dir, "files", req.Files)
 	c.Status(http.StatusNoContent)
 }
 
@@ -142,7 +143,7 @@ func (a *API) deleteFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/rename [put]
 func (a *API) renameFile(c *gin.Context) {
 	var req RenameFileRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -156,10 +157,10 @@ func (a *API) renameFile(c *gin.Context) {
 	from := inRoot(req.Root, req.From)
 	to := inRoot(req.Root, req.To)
 	if err := a.Files.Manager.Rename(c, files.RefOf(gs), from, to, deny); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "file renamed", "server", gs.Name, "from", from, "to", to)
+	a.Audit(c, "file renamed", "server", gs.Name, "from", from, "to", to)
 	c.Status(http.StatusNoContent)
 }
 
@@ -185,7 +186,7 @@ func (a *API) uploadFiles(c *gin.Context) {
 	}
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
-		a.fail(c, badRequest(err))
+		a.Fail(c, api.BadRequest(err))
 		return
 	}
 	dir := cleanDir(c.Query("directory"))
@@ -195,7 +196,7 @@ func (a *API) uploadFiles(c *gin.Context) {
 			break
 		}
 		if err != nil {
-			a.fail(c, badRequest(err))
+			a.Fail(c, api.BadRequest(err))
 			return
 		}
 		if part.FormName() != "files" {
@@ -205,7 +206,7 @@ func (a *API) uploadFiles(c *gin.Context) {
 		name := path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
 		if !files.ValidName(name) {
 			part.Close()
-			a.fail(c, files.ErrBadName)
+			a.Fail(c, files.ErrBadName)
 			return
 		}
 		// Streamed straight into the file container, nothing is buffered on disk.
@@ -213,10 +214,10 @@ func (a *API) uploadFiles(c *gin.Context) {
 		err = a.Files.Manager.Write(c, files.RefOf(gs), file, part, deny)
 		part.Close()
 		if err != nil {
-			a.fail(c, err)
+			a.Fail(c, err)
 			return
 		}
-		a.audit(c, "file uploaded", "server", gs.Name, "file", file)
+		a.Audit(c, "file uploaded", "server", gs.Name, "file", file)
 	}
 	c.Status(http.StatusNoContent)
 }
@@ -235,7 +236,7 @@ func (a *API) uploadFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/compress [post]
 func (a *API) compressFiles(c *gin.Context) {
 	var req FilesRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -249,10 +250,10 @@ func (a *API) compressFiles(c *gin.Context) {
 	dir := cleanDir(req.Root)
 	job, err := a.Files.StartCompress(files.RefOf(gs), dir, req.Files, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", job.Label)
+	a.Audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", job.Label)
 	c.JSON(http.StatusAccepted, job)
 }
 
@@ -270,7 +271,7 @@ func (a *API) compressFiles(c *gin.Context) {
 //	@Router			/servers/{server}/files/decompress [post]
 func (a *API) decompressFile(c *gin.Context) {
 	var req DecompressFileRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -284,9 +285,9 @@ func (a *API) decompressFile(c *gin.Context) {
 	archive := inRoot(req.Root, req.File)
 	job, err := a.Files.StartDecompress(files.RefOf(gs), archive, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "extraction started", "server", gs.Name, "archive", archive)
+	a.Audit(c, "extraction started", "server", gs.Name, "archive", archive)
 	c.JSON(http.StatusAccepted, job)
 }

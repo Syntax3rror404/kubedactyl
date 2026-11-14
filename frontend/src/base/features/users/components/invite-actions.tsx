@@ -1,0 +1,121 @@
+import { useState } from "react"
+import { KeyRoundIcon, RefreshCwIcon, TicketIcon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
+
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { InviteLinkDialog } from "@/base/features/users/components/invite-dialog"
+import { inviteLabel } from "@/base/features/users/lib/table"
+import { formatDate } from "@/base/lib/format"
+import { failed, useCreateInvite, useDeleteInvite, useRenewInvite } from "@/base/lib/queries"
+import type { CreatedInvite, InviteView } from "@/base/lib/types"
+import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
+/** Stands in for the avatar of an account an invite has not created yet. */
+export function InviteIcon() {
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-dashed">
+      <TicketIcon className="size-4 text-muted-foreground" />
+    </div>
+  )
+}
+
+/** State of a pending invite or reset link for the row it is shown in. */
+export function InviteState({ invite }: { invite: InviteView }) {
+  const what = invite.reset ? "Password reset pending" : "Invite pending"
+  return invite.expired ? (
+    <span className="text-destructive">{what}, expired</span>
+  ) : (
+    <span className="text-warning">
+      {what} until {formatDate(invite.expiresAt)}
+    </span>
+  )
+}
+
+/** Renew (a new 7-day link, shown once) and revoke buttons of a pending invite or reset link. */
+export function InviteActions({ invite }: { invite: InviteView }) {
+  const [renewed, setRenewed] = useState<CreatedInvite | null>(null)
+  const renew = useRenewInvite({ onSuccess: setRenewed, onError: failed("renew the link") })
+  const revoke = useDeleteInvite({
+    onSuccess: () => toast.success(invite.reset ? "Reset link revoked" : "Invite revoked"),
+    onError: failed("revoke the link"),
+  })
+  const label = invite.reset ? `reset link of ${invite.username}` : `invite ${inviteLabel(invite)}`
+  return (
+    <div className="flex items-center">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Renew ${label}`}
+              disabled={renew.isPending}
+              onClick={() => renew.mutate(invite.id)}
+            />
+          }
+        >
+          <RefreshCwIcon />
+        </TooltipTrigger>
+        <TooltipContent>New link, valid for 7 days</TooltipContent>
+      </Tooltip>
+      <ConfirmDialog
+        trigger={
+          <Button variant="ghost" size="icon-sm" aria-label={`Revoke ${label}`}>
+            <Trash2Icon />
+          </Button>
+        }
+        title={invite.reset ? "Revoke the reset link?" : "Revoke the invite?"}
+        description="The link stops working. This cannot be undone."
+        confirmLabel="Revoke"
+        destructive
+        onConfirm={() => revoke.mutate(invite.id)}
+      />
+      <InviteLinkDialog invite={renewed} onClose={() => setRenewed(null)} />
+    </div>
+  )
+}
+
+/**
+ * The password reset action of an account row: the pending reset link with renew and revoke, else (when the account
+ * can get one) the button that creates one.
+ */
+export function PasswordResetAction({
+  username,
+  reset,
+  canReset = true,
+}: {
+  username: string
+  reset?: InviteView
+  canReset?: boolean
+}) {
+  if (reset) return <InviteActions invite={reset} />
+  return canReset ? <ResetPasswordButton username={username} /> : null
+}
+
+/** Creates a link with which a local account sets a new password, and shows it once. */
+function ResetPasswordButton({ username }: { username: string }) {
+  const [created, setCreated] = useState<CreatedInvite | null>(null)
+  const create = useCreateInvite({ onSuccess: setCreated, onError: failed("create the reset link") })
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Reset the password of ${username}`}
+              disabled={create.isPending}
+              onClick={() => create.mutate({ username, reset: true })}
+            />
+          }
+        >
+          <KeyRoundIcon />
+        </TooltipTrigger>
+        <TooltipContent>Password reset link</TooltipContent>
+      </Tooltip>
+      <InviteLinkDialog invite={created} onClose={() => setCreated(null)} />
+    </>
+  )
+}

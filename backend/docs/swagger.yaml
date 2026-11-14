@@ -1,5 +1,961 @@
 basePath: /api
 definitions:
+  api.AcceptInviteRequest:
+    properties:
+      displayName:
+        example: Alice
+        type: string
+      password:
+        example: a-long-password
+        type: string
+      token:
+        type: string
+      username:
+        description: Username is ignored when the invite names one.
+        example: alice
+        type: string
+    required:
+    - password
+    - token
+    type: object
+  api.Branding:
+    properties:
+      favicon:
+        type: string
+      logo:
+        type: string
+      name:
+        example: Acme Panel
+        type: string
+      tagline:
+        example: Run by the Acme team
+        type: string
+    required:
+    - name
+    - tagline
+    type: object
+  api.CreateInviteRequest:
+    properties:
+      note:
+        example: Alice from the support team
+        maxLength: 200
+        type: string
+      reset:
+        description: 'Reset creates a link that sets a new password for the existing
+          account Username (users: accounts they own).'
+        type: boolean
+      role:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.UserRole'
+        example: admin
+      shares:
+        description: Shares are servers of the caller the subuser sees once the account
+          exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
+      subuser:
+        description: Subuser invites a subuser of the caller (role user). Users always
+          invite subusers.
+        type: boolean
+      username:
+        example: alice
+        type: string
+    type: object
+  api.CreateTokenRequest:
+    properties:
+      expiresInDays:
+        description: ExpiresInDays is the lifetime of the token (days), from 1 to
+          the longest API token lifetime of the panel.
+        example: 90
+        type: integer
+      name:
+        example: ci
+        maxLength: 64
+        type: string
+    required:
+    - expiresInDays
+    - name
+    type: object
+  api.CreateUserRequest:
+    properties:
+      displayName:
+        example: Alice
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      mustChangePassword:
+        description: MustChangePassword makes the user replace the password after
+          signing in.
+        type: boolean
+      password:
+        example: a-long-password
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.UserRole'
+        example: admin
+      username:
+        example: alice
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  api.CreatedInvite:
+    properties:
+      createdAt:
+        type: string
+      createdBy:
+        example: admin
+        type: string
+      expired:
+        description: Expired invites stay listed until they are revoked; their link
+          no longer works.
+        type: boolean
+      expiresAt:
+        type: string
+      id:
+        example: 1a2b3c4d5e6f
+        type: string
+      note:
+        example: Alice from the support team
+        type: string
+      owner:
+        description: 'Owner is set for an invite of a subuser: the account will see
+          the servers this user shares.'
+        example: bob
+        type: string
+      reset:
+        description: Reset links set a new password for the existing account Username.
+        type: boolean
+      role:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.UserRole'
+        example: admin
+      shares:
+        description: Shares are the servers the subuser sees once the account exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
+      token:
+        example: 1a2b3c4d5e6f.…
+        type: string
+      username:
+        description: Username is the name the account gets; empty lets the invited
+          person choose it.
+        example: alice
+        type: string
+    required:
+    - createdAt
+    - expired
+    - expiresAt
+    - id
+    - reset
+    - role
+    - shares
+    - token
+    type: object
+  api.CreatedToken:
+    properties:
+      createdAt:
+        type: string
+      expiresAt:
+        description: 'ExpiresAt is the end of the token: its own expiry or the longest
+          API token lifetime of the panel.'
+        type: string
+      id:
+        example: 1a2b3c4d5e6f
+        type: string
+      name:
+        example: ci
+        type: string
+      token:
+        example: xyz_1a2b3c4d5e6f_…
+        type: string
+    required:
+    - createdAt
+    - expiresAt
+    - id
+    - name
+    - token
+    type: object
+  api.ErrorResponse:
+    properties:
+      error:
+        example: not found
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        description: Fields holds validation errors per field or variable.
+        type: object
+    required:
+    - error
+    type: object
+  api.InviteDetails:
+    properties:
+      expiresAt:
+        type: string
+      reset:
+        description: Reset links set a new password for the account Username instead
+          of creating one.
+        type: boolean
+      username:
+        description: Username is set when the name was chosen for the invited person;
+          they cannot change it.
+        example: alice
+        type: string
+    required:
+    - expiresAt
+    - reset
+    type: object
+  api.InviteView:
+    properties:
+      createdAt:
+        type: string
+      createdBy:
+        example: admin
+        type: string
+      expired:
+        description: Expired invites stay listed until they are revoked; their link
+          no longer works.
+        type: boolean
+      expiresAt:
+        type: string
+      id:
+        example: 1a2b3c4d5e6f
+        type: string
+      note:
+        example: Alice from the support team
+        type: string
+      owner:
+        description: 'Owner is set for an invite of a subuser: the account will see
+          the servers this user shares.'
+        example: bob
+        type: string
+      reset:
+        description: Reset links set a new password for the existing account Username.
+        type: boolean
+      role:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.UserRole'
+        example: admin
+      shares:
+        description: Shares are the servers the subuser sees once the account exists.
+        items:
+          $ref: '#/definitions/v1alpha1.InviteShare'
+        type: array
+      username:
+        description: Username is the name the account gets; empty lets the invited
+          person choose it.
+        example: alice
+        type: string
+    required:
+    - createdAt
+    - expired
+    - expiresAt
+    - id
+    - reset
+    - role
+    - shares
+    type: object
+  api.LegalTexts:
+    properties:
+      legalNotice:
+        type: string
+      privacyPolicy:
+        type: string
+    required:
+    - legalNotice
+    - privacyPolicy
+    type: object
+  api.LoginRequest:
+    properties:
+      password:
+        example: secret-password
+        maxLength: 1024
+        type: string
+      username:
+        example: admin
+        maxLength: 64
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  api.LoginResponse:
+    properties:
+      expiresAt:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/api.UserView'
+    required:
+    - expiresAt
+    - token
+    - user
+    type: object
+  api.ModuleVersion:
+    properties:
+      name:
+        example: Gin
+        type: string
+      version:
+        example: v1.12.0
+        type: string
+    required:
+    - name
+    - version
+    type: object
+  api.OIDCSignIn:
+    properties:
+      enabled:
+        type: boolean
+      name:
+        description: 'Name is shown on the button: "Sign in with <name>".'
+        example: Keycloak
+        type: string
+    required:
+    - enabled
+    - name
+    type: object
+  api.RequestRates:
+    properties:
+      panel:
+        allOf:
+        - $ref: '#/definitions/kube.Rate'
+        x-nullable: true
+      user:
+        $ref: '#/definitions/kube.Rate'
+    required:
+    - user
+    type: object
+  api.SettingsView:
+    properties:
+      allowClusterIP:
+        description: |-
+          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+          cluster (service type ClusterIP).
+          +optional
+        type: boolean
+      allowPrivateNetworks:
+        description: |-
+          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+          policy that only allows the internet, the cluster DNS and the user's own servers.
+          +optional
+        type: boolean
+      apiTokenMaxDays:
+        description: |-
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
+          tokens created before, counted from their creation.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=3650
+        type: integer
+      brandLogo:
+        description: |-
+          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+          Empty: uses the built-in logo.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      brandName:
+        description: |-
+          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+          +optional
+          +kubebuilder:validation:MaxLength=40
+        type: string
+      brandTagline:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=80
+        type: string
+      defaultLoadBalancerPool:
+        description: |-
+          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+          +optional
+        type: string
+      defaultStorageClass:
+        description: |-
+          DefaultStorageClass is preselected for new servers (one of StorageClasses).
+          +optional
+        type: string
+      disableApiDocs:
+        description: |-
+          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          keeps working.
+          +optional
+        type: boolean
+      eggLibraries:
+        description: |-
+          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
+          library on the eggs page lists. The panel reads them when the library is opened and keeps
+          nothing of them in the cluster.
+          +optional
+          +kubebuilder:validation:MaxItems=20
+        items:
+          type: string
+        type: array
+      externalDomain:
+        description: |-
+          ExternalDomain is shown to users as the server address (domain:port) instead of the load
+          balancer IP. Empty: shows the IP.
+          +optional
+        type: string
+      favicon:
+        description: |-
+          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+          Empty: uses the built-in icon.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      kubeApiQps:
+        description: |-
+          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+          twice that). Empty: uses 50. It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=5
+          +kubebuilder:validation:Maximum=1000
+        type: integer
+      kubeApiUserQps:
+        description: |-
+          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=200
+        type: integer
+      legalNotice:
+        description: |-
+          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+          page, also before sign-in.
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      loadBalancerPools:
+        description: |-
+          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
+          +optional
+        items:
+          type: string
+        type: array
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCSettings'
+        description: |-
+          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+          secret is kept in a Secret, not here.
+          +optional
+      oidcClientSecretSet:
+        description: OIDCClientSecretSet tells administrators whether a client secret
+          is stored (always false for users).
+        type: boolean
+      privacyPolicy:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      serverNotice:
+        description: |-
+          ServerNotice is shown to users every time they open one of their servers (plain text).
+          +optional
+          +kubebuilder:validation:MaxLength=2000
+        type: string
+      sessionHours:
+        description: |-
+          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
+          shortening it also ends older sessions.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=720
+        type: integer
+      storageClasses:
+        description: |-
+          StorageClasses are the storage classes servers may use for their volume.
+          +optional
+        items:
+          type: string
+        type: array
+      subusersPerUser:
+        description: |-
+          SubusersPerUser is how many subusers (accounts and invites) every user may create for
+          their servers. Empty: uses 10. 0 = off.
+          +optional
+          +kubebuilder:validation:Minimum=0
+          +kubebuilder:validation:Maximum=100
+        type: integer
+    required:
+    - oidcClientSecretSet
+    type: object
+  api.SetupRequest:
+    properties:
+      displayName:
+        example: Administrator
+        type: string
+      email:
+        type: string
+      password:
+        example: a-long-password
+        type: string
+      token:
+        description: Token is the one-time setup token from the panel log (or the
+          setup token of the environment).
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - token
+    - username
+    type: object
+  api.SetupStatus:
+    properties:
+      required:
+        type: boolean
+    required:
+    - required
+    type: object
+  api.StartUpgradeRequest:
+    properties:
+      version:
+        example: 0.2.4
+        type: string
+    required:
+    - version
+    type: object
+  api.TokenView:
+    properties:
+      createdAt:
+        type: string
+      expiresAt:
+        description: 'ExpiresAt is the end of the token: its own expiry or the longest
+          API token lifetime of the panel.'
+        type: string
+      id:
+        example: 1a2b3c4d5e6f
+        type: string
+      name:
+        example: ci
+        type: string
+    required:
+    - createdAt
+    - expiresAt
+    - id
+    - name
+    type: object
+  api.UpdatePasswordRequest:
+    properties:
+      current:
+        maxLength: 1024
+        type: string
+      new:
+        maxLength: 1024
+        type: string
+      revokeTokens:
+        description: RevokeTokens also revokes every API token of the user (after
+          a leak).
+        type: boolean
+    required:
+    - current
+    - new
+    type: object
+  api.UpdateSettingsRequest:
+    properties:
+      allowClusterIP:
+        description: |-
+          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
+          cluster (service type ClusterIP).
+          +optional
+        type: boolean
+      allowPrivateNetworks:
+        description: |-
+          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
+          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
+          policy that only allows the internet, the cluster DNS and the user's own servers.
+          +optional
+        type: boolean
+      apiTokenMaxDays:
+        description: |-
+          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
+          tokens created before, counted from their creation.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=3650
+        type: integer
+      brandLogo:
+        description: |-
+          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
+          Empty: uses the built-in logo.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      brandName:
+        description: |-
+          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
+          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
+          +optional
+          +kubebuilder:validation:MaxLength=40
+        type: string
+      brandTagline:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=80
+        type: string
+      defaultLoadBalancerPool:
+        description: |-
+          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
+          +optional
+        type: string
+      defaultStorageClass:
+        description: |-
+          DefaultStorageClass is preselected for new servers (one of StorageClasses).
+          +optional
+        type: string
+      disableApiDocs:
+        description: |-
+          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          keeps working.
+          +optional
+        type: boolean
+      eggLibraries:
+        description: |-
+          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
+          library on the eggs page lists. The panel reads them when the library is opened and keeps
+          nothing of them in the cluster.
+          +optional
+          +kubebuilder:validation:MaxItems=20
+        items:
+          type: string
+        type: array
+      externalDomain:
+        description: |-
+          ExternalDomain is shown to users as the server address (domain:port) instead of the load
+          balancer IP. Empty: shows the IP.
+          +optional
+        type: string
+      favicon:
+        description: |-
+          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
+          Empty: uses the built-in icon.
+          +optional
+          +kubebuilder:validation:MaxLength=180000
+        type: string
+      kubeApiQps:
+        description: |-
+          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
+          twice that). Empty: uses 50. It applies at once.
+          +optional
+          +kubebuilder:validation:Minimum=5
+          +kubebuilder:validation:Maximum=1000
+        type: integer
+      kubeApiUserQps:
+        description: |-
+          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
+          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=200
+        type: integer
+      legalNotice:
+        description: |-
+          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
+          page, also before sign-in.
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      loadBalancerPools:
+        description: |-
+          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
+          +optional
+        items:
+          type: string
+        type: array
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCSettings'
+        description: |-
+          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
+          secret is kept in a Secret, not here.
+          +optional
+      oidcClientSecret:
+        description: OIDCClientSecret replaces the stored client secret (empty removes
+          it); omitted keeps it.
+        type: string
+        x-nullable: true
+      privacyPolicy:
+        description: |-
+          +optional
+          +kubebuilder:validation:MaxLength=20000
+        type: string
+      serverNotice:
+        description: |-
+          ServerNotice is shown to users every time they open one of their servers (plain text).
+          +optional
+          +kubebuilder:validation:MaxLength=2000
+        type: string
+      sessionHours:
+        description: |-
+          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
+          shortening it also ends older sessions.
+          +optional
+          +kubebuilder:validation:Minimum=1
+          +kubebuilder:validation:Maximum=720
+        type: integer
+      storageClasses:
+        description: |-
+          StorageClasses are the storage classes servers may use for their volume.
+          +optional
+        items:
+          type: string
+        type: array
+      subusersPerUser:
+        description: |-
+          SubusersPerUser is how many subusers (accounts and invites) every user may create for
+          their servers. Empty: uses 10. 0 = off.
+          +optional
+          +kubebuilder:validation:Minimum=0
+          +kubebuilder:validation:Maximum=100
+        type: integer
+    type: object
+  api.UpdateUserRequest:
+    properties:
+      disabled:
+        type: boolean
+      displayName:
+        type: string
+      email:
+        type: string
+      mustChangePassword:
+        description: MustChangePassword makes the user replace the password after
+          the next sign-in.
+        type: boolean
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/v1alpha1.UserRole'
+    type: object
+  api.UpgradeStatus:
+    properties:
+      chart:
+        example: oci://ghcr.io/example/charts/panel
+        type: string
+      checkedAt:
+        type: string
+      current:
+        example: 0.2.3
+        type: string
+      enabled:
+        description: Enabled is false without the chart value selfUpgrade.enabled.
+        type: boolean
+      error:
+        type: string
+      intervalSeconds:
+        description: IntervalSeconds is how often the registry is checked.
+        example: 600
+        type: integer
+      jobs:
+        items:
+          $ref: '#/definitions/selfupgrade.Job'
+        type: array
+      latest:
+        example: 0.2.4
+        type: string
+      newer:
+        description: Newer lists the versions above the current one, highest first.
+        items:
+          type: string
+        type: array
+    required:
+    - current
+    - enabled
+    - intervalSeconds
+    - jobs
+    - newer
+    type: object
+  api.UserView:
+    properties:
+      createdAt:
+        type: string
+      disabled:
+        type: boolean
+      displayName:
+        example: Alice
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      hasPassword:
+        description: HasPassword is false for accounts that sign in only through the
+          identity provider.
+        type: boolean
+      lastLoginAt:
+        type: string
+      mustChangePassword:
+        description: MustChangePassword is true while the user has to replace the
+          password set by an administrator.
+        type: boolean
+      namespace:
+        example: kubedactyl-user-alice
+        type: string
+      oidc:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.OIDCIdentity'
+        description: |-
+          OIDC is the user of the identity provider the account is linked to (which sets display name, email and
+          role); null for accounts that are not linked.
+        x-nullable: true
+      owner:
+        description: 'Owner is set for a subuser: the user whose shared servers it
+          sees. A subuser has no namespace.'
+        example: bob
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.UserRole'
+        example: admin
+      servers:
+        description: Servers counts the servers of the user, for a subuser the servers
+          shared with it.
+        example: 2
+        type: integer
+      tokens:
+        items:
+          $ref: '#/definitions/api.TokenView'
+        type: array
+      username:
+        example: alice
+        type: string
+    required:
+    - createdAt
+    - disabled
+    - hasPassword
+    - mustChangePassword
+    - oidc
+    - role
+    - servers
+    - tokens
+    - username
+    type: object
+  api.Versions:
+    properties:
+      go:
+        example: go1.27.1
+        type: string
+      modules:
+        items:
+          $ref: '#/definitions/api.ModuleVersion'
+        type: array
+    required:
+    - go
+    - modules
+    type: object
+  appsettings.Pool:
+    properties:
+      blocks:
+        description: Blocks are the address ranges ("10.0.0.0/24" or "10.0.0.10-10.0.0.20").
+        example:
+        - 192.168.1.60-192.168.1.120
+        items:
+          type: string
+        type: array
+      conflict:
+        type: boolean
+      disabled:
+        type: boolean
+      families:
+        description: |-
+          Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
+          together. Only the pools API and the health check fill them in.
+        items:
+          $ref: '#/definitions/appsettings.PoolFamily'
+        type: array
+      ipsAvailable:
+        type: number
+      ipsTotal:
+        description: |-
+          IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
+          an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
+        type: number
+      ipsUsed:
+        type: number
+      name:
+        example: general-pool
+        type: string
+      reason:
+        type: string
+      selectable:
+        description: Selectable is false when the pool cannot be targeted by service
+          labels.
+        type: boolean
+      serviceLabels:
+        additionalProperties:
+          type: string
+        description: ServiceLabels are set on a server's service so that the pool
+          selects it.
+        type: object
+    required:
+    - blocks
+    - conflict
+    - disabled
+    - ipsAvailable
+    - ipsTotal
+    - ipsUsed
+    - name
+    - selectable
+    - serviceLabels
+    type: object
+  appsettings.PoolFamily:
+    properties:
+      available:
+        type: number
+      family:
+        enum:
+        - IPv4
+        - IPv6
+        type: string
+      total:
+        type: number
+      used:
+        type: number
+    required:
+    - available
+    - family
+    - total
+    - used
+    type: object
+  appsettings.StorageClass:
+    properties:
+      allowVolumeExpansion:
+        type: boolean
+      isDefault:
+        description: IsDefault is true for the cluster default storage class.
+        type: boolean
+      name:
+        example: longhorn
+        type: string
+      provisioner:
+        example: driver.longhorn.io
+        type: string
+      reclaimPolicy:
+        example: Retain
+        type: string
+      volumeBindingMode:
+        example: Immediate
+        type: string
+    required:
+    - allowVolumeExpansion
+    - isDefault
+    - name
+    - provisioner
+    - reclaimPolicy
+    - volumeBindingMode
+    type: object
   checks.Check:
     properties:
       id:
@@ -19,6 +975,7 @@ definitions:
         - warning
         - error
         - skipped
+        - info
     required:
     - id
     - label
@@ -30,12 +987,14 @@ definitions:
     - warning
     - error
     - skipped
+    - info
     type: string
     x-enum-varnames:
     - OK
     - Warning
     - Error
     - Skipped
+    - Info
   clusterinfo.Auth:
     properties:
       authProvider:
@@ -638,24 +1597,6 @@ definitions:
     - total
     - unit
     type: object
-  httpapi.AcceptInviteRequest:
-    properties:
-      displayName:
-        example: Alice
-        type: string
-      password:
-        example: a-long-password
-        type: string
-      token:
-        type: string
-      username:
-        description: Username is ignored when the invite names one.
-        example: alice
-        type: string
-    required:
-    - password
-    - token
-    type: object
   httpapi.Backup:
     properties:
       createdAt:
@@ -683,22 +1624,6 @@ definitions:
         type: array
     required:
     - items
-    type: object
-  httpapi.Branding:
-    properties:
-      favicon:
-        type: string
-      logo:
-        type: string
-      name:
-        example: Kubedactyl
-        type: string
-      tagline:
-        example: Game servers on Kubernetes
-        type: string
-    required:
-    - name
-    - tagline
     type: object
   httpapi.ClusterInfo:
     properties:
@@ -755,37 +1680,6 @@ definitions:
         type: string
     required:
     - name
-    type: object
-  httpapi.CreateInviteRequest:
-    properties:
-      note:
-        example: Alice from the Discord server
-        maxLength: 200
-        type: string
-      reset:
-        description: 'Reset creates a link that sets a new password for the existing
-          account Username (users: their subusers).'
-        type: boolean
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-        example: user
-      shares:
-        description: Shares are servers of the caller the subuser sees once the account
-          exists.
-        items:
-          $ref: '#/definitions/v1alpha1.InviteShare'
-        type: array
-      subuser:
-        description: Subuser invites a subuser of the caller (role user). Users always
-          invite subusers.
-        type: boolean
-      username:
-        example: alice
-        type: string
     type: object
   httpapi.CreateServerRequest:
     properties:
@@ -875,131 +1769,6 @@ definitions:
     - memoryMiB
     - ports
     type: object
-  httpapi.CreateTokenRequest:
-    properties:
-      expiresInDays:
-        description: ExpiresInDays is the lifetime of the token (days), from 1 to
-          the longest API token lifetime of the panel.
-        example: 90
-        type: integer
-      name:
-        example: ci
-        maxLength: 64
-        type: string
-    required:
-    - expiresInDays
-    - name
-    type: object
-  httpapi.CreateUserRequest:
-    properties:
-      displayName:
-        example: Alice
-        type: string
-      email:
-        example: alice@example.com
-        type: string
-      mustChangePassword:
-        description: MustChangePassword makes the user replace the password after
-          signing in.
-        type: boolean
-      password:
-        example: a-long-password
-        type: string
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-        example: user
-      username:
-        example: alice
-        type: string
-    required:
-    - password
-    - username
-    type: object
-  httpapi.CreatedInvite:
-    properties:
-      createdAt:
-        type: string
-      createdBy:
-        example: admin
-        type: string
-      expired:
-        description: Expired invites stay listed until they are revoked; their link
-          no longer works.
-        type: boolean
-      expiresAt:
-        type: string
-      id:
-        example: 1a2b3c4d5e6f
-        type: string
-      note:
-        example: Alice from the Discord server
-        type: string
-      owner:
-        description: 'Owner is set for an invite of a subuser: the account will see
-          the servers this user shares.'
-        example: bob
-        type: string
-      reset:
-        description: Reset links set a new password for the existing account Username.
-        type: boolean
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-        example: user
-      shares:
-        description: Shares are the servers the subuser sees once the account exists.
-        items:
-          $ref: '#/definitions/v1alpha1.InviteShare'
-        type: array
-      token:
-        example: 1a2b3c4d5e6f.…
-        type: string
-      username:
-        description: Username is the name the account gets; empty lets the invited
-          person choose it.
-        example: alice
-        type: string
-    required:
-    - createdAt
-    - expired
-    - expiresAt
-    - id
-    - reset
-    - role
-    - shares
-    - token
-    type: object
-  httpapi.CreatedToken:
-    properties:
-      createdAt:
-        type: string
-      expiresAt:
-        description: 'ExpiresAt is the end of the token: its own expiry or the longest
-          API token lifetime of the panel.'
-        type: string
-      id:
-        example: 1a2b3c4d5e6f
-        type: string
-      name:
-        example: ci
-        type: string
-      token:
-        example: kdt_1a2b3c4d5e6f_…
-        type: string
-    required:
-    - createdAt
-    - expiresAt
-    - id
-    - name
-    - token
-    type: object
   httpapi.DecompressFileRequest:
     properties:
       file:
@@ -1019,19 +1788,6 @@ definitions:
         type: array
     required:
     - items
-    type: object
-  httpapi.ErrorResponse:
-    properties:
-      error:
-        example: server not found
-        type: string
-      fields:
-        additionalProperties:
-          type: string
-        description: Fields holds validation errors per field or variable.
-        type: object
-    required:
-    - error
     type: object
   httpapi.FileList:
     properties:
@@ -1120,76 +1876,6 @@ definitions:
     required:
     - url
     type: object
-  httpapi.InviteDetails:
-    properties:
-      expiresAt:
-        type: string
-      reset:
-        description: Reset links set a new password for the account Username instead
-          of creating one.
-        type: boolean
-      username:
-        description: Username is set when the name was chosen for the invited person;
-          they cannot change it.
-        example: alice
-        type: string
-    required:
-    - expiresAt
-    - reset
-    type: object
-  httpapi.InviteView:
-    properties:
-      createdAt:
-        type: string
-      createdBy:
-        example: admin
-        type: string
-      expired:
-        description: Expired invites stay listed until they are revoked; their link
-          no longer works.
-        type: boolean
-      expiresAt:
-        type: string
-      id:
-        example: 1a2b3c4d5e6f
-        type: string
-      note:
-        example: Alice from the Discord server
-        type: string
-      owner:
-        description: 'Owner is set for an invite of a subuser: the account will see
-          the servers this user shares.'
-        example: bob
-        type: string
-      reset:
-        description: Reset links set a new password for the existing account Username.
-        type: boolean
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-        example: user
-      shares:
-        description: Shares are the servers the subuser sees once the account exists.
-        items:
-          $ref: '#/definitions/v1alpha1.InviteShare'
-        type: array
-      username:
-        description: Username is the name the account gets; empty lets the invited
-          person choose it.
-        example: alice
-        type: string
-    required:
-    - createdAt
-    - expired
-    - expiresAt
-    - id
-    - reset
-    - role
-    - shares
-    type: object
   httpapi.JobList:
     properties:
       items:
@@ -1198,16 +1884,6 @@ definitions:
         type: array
     required:
     - items
-    type: object
-  httpapi.LegalTexts:
-    properties:
-      legalNotice:
-        type: string
-      privacyPolicy:
-        type: string
-    required:
-    - legalNotice
-    - privacyPolicy
     type: object
   httpapi.LibraryEgg:
     properties:
@@ -1242,33 +1918,6 @@ definitions:
     - eggs
     - url
     type: object
-  httpapi.LoginRequest:
-    properties:
-      password:
-        example: secret-password
-        maxLength: 1024
-        type: string
-      username:
-        example: admin
-        maxLength: 64
-        type: string
-    required:
-    - password
-    - username
-    type: object
-  httpapi.LoginResponse:
-    properties:
-      expiresAt:
-        type: string
-      token:
-        type: string
-      user:
-        $ref: '#/definitions/httpapi.UserView'
-    required:
-    - expiresAt
-    - token
-    - user
-    type: object
   httpapi.MigrateRequest:
     properties:
       startOnCompletion:
@@ -1281,30 +1930,6 @@ definitions:
         type: string
     required:
     - storageClass
-    type: object
-  httpapi.ModuleVersion:
-    properties:
-      name:
-        example: Gin
-        type: string
-      version:
-        example: v1.12.0
-        type: string
-    required:
-    - name
-    - version
-    type: object
-  httpapi.OIDCSignIn:
-    properties:
-      enabled:
-        type: boolean
-      name:
-        description: 'Name is shown on the button: "Sign in with <name>".'
-        example: Keycloak
-        type: string
-    required:
-    - enabled
-    - name
     type: object
   httpapi.PoolList:
     properties:
@@ -1320,7 +1945,7 @@ definitions:
         type: string
       items:
         items:
-          $ref: '#/definitions/settings.Pool'
+          $ref: '#/definitions/appsettings.Pool'
         type: array
     required:
     - items
@@ -1366,17 +1991,6 @@ definitions:
     required:
     - from
     - to
-    type: object
-  httpapi.RequestRates:
-    properties:
-      panel:
-        allOf:
-        - $ref: '#/definitions/kube.Rate'
-        x-nullable: true
-      user:
-        $ref: '#/definitions/kube.Rate'
-    required:
-    - user
     type: object
   httpapi.ScheduleList:
     properties:
@@ -1491,206 +2105,11 @@ definitions:
     - phase
     - uptimeSeconds
     type: object
-  httpapi.SettingsView:
-    properties:
-      allowClusterIP:
-        description: |-
-          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
-          cluster (service type ClusterIP).
-          +optional
-        type: boolean
-      allowPrivateNetworks:
-        description: |-
-          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
-          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
-          policy that only allows the internet, the cluster DNS and the user's own servers.
-          +optional
-        type: boolean
-      apiTokenMaxDays:
-        description: |-
-          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
-          tokens created before, counted from their creation.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=3650
-        type: integer
-      brandLogo:
-        description: |-
-          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
-          Empty: uses the built-in logo.
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      brandName:
-        description: |-
-          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
-          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
-          +optional
-          +kubebuilder:validation:MaxLength=40
-        type: string
-      brandTagline:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=80
-        type: string
-      defaultLoadBalancerPool:
-        description: |-
-          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
-          +optional
-        type: string
-      defaultStorageClass:
-        description: |-
-          DefaultStorageClass is preselected for new servers (one of StorageClasses).
-          +optional
-        type: string
-      disableApiDocs:
-        description: |-
-          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
-          keeps working.
-          +optional
-        type: boolean
-      eggLibraries:
-        description: |-
-          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
-          library on the eggs page lists. The panel reads them when the library is opened and keeps
-          nothing of them in the cluster.
-          +optional
-          +kubebuilder:validation:MaxItems=20
-        items:
-          type: string
-        type: array
-      externalDomain:
-        description: |-
-          ExternalDomain is shown to users as the server address (domain:port) instead of the load
-          balancer IP. Empty: shows the IP.
-          +optional
-        type: string
-      favicon:
-        description: |-
-          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
-          Empty: uses the built-in icon.
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      kubeApiQps:
-        description: |-
-          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-          twice that). Empty: uses 50. It applies at once.
-          +optional
-          +kubebuilder:validation:Minimum=5
-          +kubebuilder:validation:Maximum=1000
-        type: integer
-      kubeApiUserQps:
-        description: |-
-          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=200
-        type: integer
-      legalNotice:
-        description: |-
-          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
-          page, also before sign-in.
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      loadBalancerPools:
-        description: |-
-          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
-          +optional
-        items:
-          type: string
-        type: array
-      oidc:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.OIDCSettings'
-        description: |-
-          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
-          secret is kept in a Secret, not here.
-          +optional
-      oidcClientSecretSet:
-        description: OIDCClientSecretSet tells administrators whether a client secret
-          is stored (always false for users).
-        type: boolean
-      privacyPolicy:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      serverNotice:
-        description: |-
-          ServerNotice is shown to users every time they open one of their servers (plain text).
-          +optional
-          +kubebuilder:validation:MaxLength=2000
-        type: string
-      sessionHours:
-        description: |-
-          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
-          shortening it also ends older sessions.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=720
-        type: integer
-      storageClasses:
-        description: |-
-          StorageClasses are the storage classes servers may use for their volume.
-          +optional
-        items:
-          type: string
-        type: array
-      subusersPerUser:
-        description: |-
-          SubusersPerUser is how many subusers (accounts and invites) every user may create for
-          their servers. Empty: uses 10. 0 = off.
-          +optional
-          +kubebuilder:validation:Minimum=0
-          +kubebuilder:validation:Maximum=100
-        type: integer
-    required:
-    - oidcClientSecretSet
-    type: object
-  httpapi.SetupRequest:
-    properties:
-      displayName:
-        example: Administrator
-        type: string
-      email:
-        type: string
-      password:
-        example: a-long-password
-        type: string
-      token:
-        description: Token is the one-time setup token from the panel log (or KUBEDACTYL_SETUP_TOKEN).
-        type: string
-      username:
-        example: admin
-        type: string
-    required:
-    - password
-    - token
-    - username
-    type: object
-  httpapi.SetupStatus:
-    properties:
-      required:
-        type: boolean
-    required:
-    - required
-    type: object
-  httpapi.StartUpgradeRequest:
-    properties:
-      version:
-        example: 0.2.4
-        type: string
-    required:
-    - version
-    type: object
   httpapi.StorageClassList:
     properties:
       items:
         items:
-          $ref: '#/definitions/settings.StorageClass'
+          $ref: '#/definitions/appsettings.StorageClass'
         type: array
     required:
     - items
@@ -1702,26 +2121,6 @@ definitions:
     required:
     - suspended
     type: object
-  httpapi.TokenView:
-    properties:
-      createdAt:
-        type: string
-      expiresAt:
-        description: 'ExpiresAt is the end of the token: its own expiry or the longest
-          API token lifetime of the panel.'
-        type: string
-      id:
-        example: 1a2b3c4d5e6f
-        type: string
-      name:
-        example: ci
-        type: string
-    required:
-    - createdAt
-    - expiresAt
-    - id
-    - name
-    type: object
   httpapi.TransferRequest:
     properties:
       owner:
@@ -1729,20 +2128,6 @@ definitions:
         type: string
     required:
     - owner
-    type: object
-  httpapi.UpdatePasswordRequest:
-    properties:
-      current:
-        type: string
-      new:
-        type: string
-      revokeTokens:
-        description: RevokeTokens also revokes every API token of the user (after
-          a leak).
-        type: boolean
-    required:
-    - current
-    - new
     type: object
   httpapi.UpdateSchedulesRequest:
     properties:
@@ -1819,303 +2204,6 @@ definitions:
       stopTimeoutSeconds:
         type: integer
     type: object
-  httpapi.UpdateSettingsRequest:
-    properties:
-      allowClusterIP:
-        description: |-
-          AllowClusterIP lets server owners publish a server without a load balancer, only inside the
-          cluster (service type ClusterIP).
-          +optional
-        type: boolean
-      allowPrivateNetworks:
-        description: |-
-          AllowPrivateNetworks lets game servers reach private networks (other namespaces,
-          nodes, the Kubernetes API, the LAN). By default every user namespace gets a network
-          policy that only allows the internet, the cluster DNS and the user's own servers.
-          +optional
-        type: boolean
-      apiTokenMaxDays:
-        description: |-
-          APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the
-          tokens created before, counted from their creation.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=3650
-        type: integer
-      brandLogo:
-        description: |-
-          BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).
-          Empty: uses the built-in logo.
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      brandName:
-        description: |-
-          BrandName and BrandTagline replace "Kubedactyl" and "Game servers on Kubernetes" in the
-          sidebar, on the sign-in page and in the browser title (the footer keeps the software name).
-          +optional
-          +kubebuilder:validation:MaxLength=40
-        type: string
-      brandTagline:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=80
-        type: string
-      defaultLoadBalancerPool:
-        description: |-
-          DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).
-          +optional
-        type: string
-      defaultStorageClass:
-        description: |-
-          DefaultStorageClass is preselected for new servers (one of StorageClasses).
-          +optional
-        type: string
-      disableApiDocs:
-        description: |-
-          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
-          keeps working.
-          +optional
-        type: boolean
-      eggLibraries:
-        description: |-
-          EggLibraries are git repositories (https://<host>/<owner>/<repo>) whose eggs the egg
-          library on the eggs page lists. The panel reads them when the library is opened and keeps
-          nothing of them in the cluster.
-          +optional
-          +kubebuilder:validation:MaxItems=20
-        items:
-          type: string
-        type: array
-      externalDomain:
-        description: |-
-          ExternalDomain is shown to users as the server address (domain:port) instead of the load
-          balancer IP. Empty: shows the IP.
-          +optional
-        type: string
-      favicon:
-        description: |-
-          Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).
-          Empty: uses the built-in icon.
-          +optional
-          +kubebuilder:validation:MaxLength=180000
-        type: string
-      kubeApiQps:
-        description: |-
-          KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of
-          twice that). Empty: uses 50. It applies at once.
-          +optional
-          +kubebuilder:validation:Minimum=5
-          +kubebuilder:validation:Maximum=1000
-        type: integer
-      kubeApiUserQps:
-        description: |-
-          KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice
-          that). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=200
-        type: integer
-      legalNotice:
-        description: |-
-          LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every
-          page, also before sign-in.
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      loadBalancerPools:
-        description: |-
-          LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.
-          +optional
-        items:
-          type: string
-        type: array
-      oidc:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.OIDCSettings'
-        description: |-
-          OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client
-          secret is kept in a Secret, not here.
-          +optional
-      oidcClientSecret:
-        description: OIDCClientSecret replaces the stored client secret (empty removes
-          it); omitted keeps it.
-        type: string
-        x-nullable: true
-      privacyPolicy:
-        description: |-
-          +optional
-          +kubebuilder:validation:MaxLength=20000
-        type: string
-      serverNotice:
-        description: |-
-          ServerNotice is shown to users every time they open one of their servers (plain text).
-          +optional
-          +kubebuilder:validation:MaxLength=2000
-        type: string
-      sessionHours:
-        description: |-
-          SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so
-          shortening it also ends older sessions.
-          +optional
-          +kubebuilder:validation:Minimum=1
-          +kubebuilder:validation:Maximum=720
-        type: integer
-      storageClasses:
-        description: |-
-          StorageClasses are the storage classes servers may use for their volume.
-          +optional
-        items:
-          type: string
-        type: array
-      subusersPerUser:
-        description: |-
-          SubusersPerUser is how many subusers (accounts and invites) every user may create for
-          their servers. Empty: uses 10. 0 = off.
-          +optional
-          +kubebuilder:validation:Minimum=0
-          +kubebuilder:validation:Maximum=100
-        type: integer
-    type: object
-  httpapi.UpdateUserRequest:
-    properties:
-      disabled:
-        type: boolean
-      displayName:
-        type: string
-      email:
-        type: string
-      mustChangePassword:
-        description: MustChangePassword makes the user replace the password after
-          the next sign-in.
-        type: boolean
-      password:
-        type: string
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-    type: object
-  httpapi.UpgradeStatus:
-    properties:
-      chart:
-        example: oci://ghcr.io/syntax3rror404/charts/kubedactyl
-        type: string
-      checkedAt:
-        type: string
-      current:
-        example: 0.2.3
-        type: string
-      enabled:
-        description: Enabled is false without the chart value selfUpgrade.enabled.
-        type: boolean
-      error:
-        type: string
-      intervalSeconds:
-        description: IntervalSeconds is how often the registry is checked.
-        example: 600
-        type: integer
-      jobs:
-        items:
-          $ref: '#/definitions/selfupgrade.Job'
-        type: array
-      latest:
-        example: 0.2.4
-        type: string
-      newer:
-        description: Newer lists the versions above the current one, highest first.
-        items:
-          type: string
-        type: array
-    required:
-    - current
-    - enabled
-    - intervalSeconds
-    - jobs
-    - newer
-    type: object
-  httpapi.UserView:
-    properties:
-      createdAt:
-        type: string
-      disabled:
-        type: boolean
-      displayName:
-        example: Alice
-        type: string
-      email:
-        example: alice@example.com
-        type: string
-      hasPassword:
-        description: HasPassword is false for accounts that sign in only through the
-          identity provider.
-        type: boolean
-      lastLoginAt:
-        type: string
-      mustChangePassword:
-        description: MustChangePassword is true while the user has to replace the
-          password set by an administrator.
-        type: boolean
-      namespace:
-        example: kubedactyl-user-alice
-        type: string
-      oidc:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.OIDCIdentity'
-        description: |-
-          OIDC is the user of the identity provider the account is linked to (which sets display name, email and
-          role); null for accounts that are not linked.
-        x-nullable: true
-      owner:
-        description: 'Owner is set for a subuser: the user whose shared servers it
-          sees. A subuser has no namespace.'
-        example: bob
-        type: string
-      role:
-        allOf:
-        - $ref: '#/definitions/v1alpha1.UserRole'
-        enum:
-        - admin
-        - user
-        example: user
-      servers:
-        description: Servers counts the servers of the user, for a subuser the servers
-          shared with it.
-        example: 2
-        type: integer
-      tokens:
-        items:
-          $ref: '#/definitions/httpapi.TokenView'
-        type: array
-      username:
-        example: alice
-        type: string
-    required:
-    - createdAt
-    - disabled
-    - hasPassword
-    - mustChangePassword
-    - oidc
-    - role
-    - servers
-    - tokens
-    - username
-    type: object
-  httpapi.Versions:
-    properties:
-      go:
-        example: go1.27.1
-        type: string
-      modules:
-        items:
-          $ref: '#/definitions/httpapi.ModuleVersion'
-        type: array
-    required:
-    - go
-    - modules
-    type: object
   httpserver.HealthResponse:
     properties:
       status:
@@ -2133,7 +2221,7 @@ definitions:
         example: production
         type: string
       name:
-        example: Kubedactyl
+        example: My Panel
         type: string
       version:
         example: 0.1.0
@@ -2184,107 +2272,6 @@ definitions:
     - startedAt
     - state
     - version
-    type: object
-  settings.Pool:
-    properties:
-      blocks:
-        description: Blocks are the address ranges ("10.0.0.0/24" or "10.0.0.10-10.0.0.20").
-        example:
-        - 192.168.1.60-192.168.1.120
-        items:
-          type: string
-        type: array
-      conflict:
-        type: boolean
-      disabled:
-        type: boolean
-      families:
-        description: |-
-          Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both
-          together. Only the pools API and the health check fill them in.
-        items:
-          $ref: '#/definitions/settings.PoolFamily'
-        type: array
-      ipsAvailable:
-        type: number
-      ipsTotal:
-        description: |-
-          IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:
-          an IPv6 block holds more addresses than an int64 (a /64 has 2^64).
-        type: number
-      ipsUsed:
-        type: number
-      name:
-        example: general-pool
-        type: string
-      reason:
-        type: string
-      selectable:
-        description: Selectable is false when the pool cannot be targeted by service
-          labels.
-        type: boolean
-      serviceLabels:
-        additionalProperties:
-          type: string
-        description: ServiceLabels are set on a server's service so that the pool
-          selects it.
-        type: object
-    required:
-    - blocks
-    - conflict
-    - disabled
-    - ipsAvailable
-    - ipsTotal
-    - ipsUsed
-    - name
-    - selectable
-    - serviceLabels
-    type: object
-  settings.PoolFamily:
-    properties:
-      available:
-        type: number
-      family:
-        enum:
-        - IPv4
-        - IPv6
-        type: string
-      total:
-        type: number
-      used:
-        type: number
-    required:
-    - available
-    - family
-    - total
-    - used
-    type: object
-  settings.StorageClass:
-    properties:
-      allowVolumeExpansion:
-        type: boolean
-      isDefault:
-        description: IsDefault is true for the cluster default storage class.
-        type: boolean
-      name:
-        example: longhorn
-        type: string
-      provisioner:
-        example: driver.longhorn.io
-        type: string
-      reclaimPolicy:
-        example: Retain
-        type: string
-      volumeBindingMode:
-        example: Immediate
-        type: string
-    required:
-    - allowVolumeExpansion
-    - isDefault
-    - name
-    - provisioner
-    - reclaimPolicy
-    - volumeBindingMode
     type: object
   v1.FieldsV1:
     type: object
@@ -3108,7 +3095,7 @@ definitions:
     properties:
       adminGroup:
         description: |-
-          Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+          Members of AdminGroup sign in as administrators, members of the user group (userGroup) as users; nobody
           else may sign in.
           +optional
         type: string
@@ -3401,10 +3388,12 @@ definitions:
     enum:
     - admin
     - user
+    - user
     type: string
     x-enum-varnames:
     - RoleAdmin
     - RoleUser
+    - DefaultRole
 info:
   contact: {}
   description: Game server panel for Kubernetes that runs Pterodactyl and Pelican
@@ -3428,15 +3417,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.InviteDetails'
+            $ref: '#/definitions/api.InviteDetails'
         "404":
           description: unknown, used or expired link
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Check an invite link
       tags:
       - Auth
@@ -3452,26 +3441,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.AcceptInviteRequest'
+          $ref: '#/definitions/api.AcceptInviteRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/httpapi.LoginResponse'
+            $ref: '#/definitions/api.LoginResponse'
         "404":
           description: unknown, used or expired link
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Accept an invite
       tags:
       - Auth
@@ -3487,22 +3476,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.LoginRequest'
+          $ref: '#/definitions/api.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.LoginResponse'
+            $ref: '#/definitions/api.LoginResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Log in
       tags:
       - Auth
@@ -3537,11 +3526,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.UserView'
+            $ref: '#/definitions/api.UserView'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Current user
@@ -3557,7 +3546,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.OIDCSignIn'
+            $ref: '#/definitions/api.OIDCSignIn'
       summary: Single sign-on of the sign-in page
       tags:
       - Auth
@@ -3612,18 +3601,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.UpdatePasswordRequest'
+          $ref: '#/definitions/api.UpdatePasswordRequest'
       responses:
         "204":
           description: No Content
         "409":
           description: the account signs in through single sign-on only
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "422":
           description: current password is wrong or the new one is too weak
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Change the own password
@@ -3638,7 +3627,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/httpapi.TokenView'
+              $ref: '#/definitions/api.TokenView'
             type: array
       security:
       - BearerAuth: []
@@ -3657,18 +3646,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.CreateTokenRequest'
+          $ref: '#/definitions/api.CreateTokenRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/httpapi.CreatedToken'
+            $ref: '#/definitions/api.CreatedToken'
         "409":
           description: the account has the most tokens it may have
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create an API token
@@ -3688,7 +3677,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Revoke an API token
@@ -3697,7 +3686,7 @@ paths:
   /branding:
     get:
       description: |-
-        Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).
+        Public (also shown on the sign-in page). The footer always names the software.
         Sends an ETag: with If-None-Match it answers 304 while nothing changed.
       produces:
       - application/json
@@ -3705,7 +3694,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.Branding'
+            $ref: '#/definitions/api.Branding'
       summary: Name, tagline, logo and favicon of the panel
       tags:
       - Settings
@@ -3773,7 +3762,7 @@ paths:
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Cluster nodes
@@ -3841,7 +3830,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get an egg of the egg library
@@ -3868,7 +3857,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Check a repository of the egg library
@@ -3911,7 +3900,7 @@ paths:
         "422":
           description: validation errors per field
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create an egg
@@ -3931,7 +3920,7 @@ paths:
         "409":
           description: egg is used by servers
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete an egg
@@ -3954,7 +3943,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get an egg
@@ -3988,7 +3977,7 @@ paths:
         "422":
           description: validation errors per field
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update an egg
@@ -4046,7 +4035,7 @@ paths:
         "409":
           description: the egg has no update URL
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update an egg from its update URL
@@ -4079,7 +4068,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Import an egg file
@@ -4110,7 +4099,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Import an egg from a URL
@@ -4145,7 +4134,7 @@ paths:
   /invites:
     get:
       description: |-
-        Open and expired invites, newest first: administrators get all, users those of their subusers.
+        Open and expired invites, newest first: administrators get all, other users the ones they own.
         The links themselves are not stored.
       produces:
       - application/json
@@ -4154,7 +4143,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/httpapi.InviteView'
+              $ref: '#/definitions/api.InviteView'
             type: array
       security:
       - BearerAuth: []
@@ -4166,26 +4155,25 @@ paths:
       - application/json
       description: |-
         The link (/invite?token=<token>) lets someone create an account once within 7 days, or with
-        reset set a new password for an existing one. The token is returned only once. Invites of
-        subusers count against the subuser limit of the settings.
+        reset set a new password for an existing one. The token is returned only once.
       parameters:
       - description: Invite
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.CreateInviteRequest'
+          $ref: '#/definitions/api.CreateInviteRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/httpapi.CreatedInvite'
+            $ref: '#/definitions/api.CreatedInvite'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create an invite link
@@ -4205,7 +4193,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Revoke an invite
@@ -4228,11 +4216,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.CreatedInvite'
+            $ref: '#/definitions/api.CreatedInvite'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Renew an invite link
@@ -4249,7 +4237,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.LegalTexts'
+            $ref: '#/definitions/api.LegalTexts'
       summary: Legal notice and privacy policy
       tags:
       - Settings
@@ -4257,14 +4245,14 @@ paths:
     get:
       description: |-
         Averages over the last 5 seconds; refused requests and waiting calls count, too. This request
-        does not count. Panel is set for administrators only.
+        does not count. Panel and the rates of the app are set for administrators only.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.RequestRates'
+            $ref: '#/definitions/api.RequestRates'
       security:
       - BearerAuth: []
       summary: Request rates
@@ -4306,7 +4294,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create a game server
@@ -4346,7 +4334,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get a game server
@@ -4378,7 +4366,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update a game server
@@ -4432,7 +4420,7 @@ paths:
         "409":
           description: a backup or restore is running
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create a backup
@@ -4485,7 +4473,7 @@ paths:
         "409":
           description: server running or job in progress
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Restore a backup
@@ -4513,7 +4501,7 @@ paths:
         "409":
           description: server is not running
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Send a console command
@@ -4541,7 +4529,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Diagnostics of a server
@@ -4600,7 +4588,7 @@ paths:
         "413":
           description: Request Entity Too Large
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Read a file (max. 5 MiB)
@@ -4761,7 +4749,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Download a file from a URL
@@ -4964,13 +4952,13 @@ paths:
           schema:
             $ref: '#/definitions/v1alpha1.GameServer'
         "409":
-          description: a job or the install runs, or it is the current class
+          description: a job or the install runs, or it is the current one
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "422":
           description: the storage class is not enabled
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Move a server to another storage class
@@ -4997,7 +4985,7 @@ paths:
         "409":
           description: no migration is running or it is switching already
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Cancel a storage migration
@@ -5097,7 +5085,7 @@ paths:
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Replace the schedules of a server
@@ -5123,11 +5111,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: already running
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Run a schedule now
@@ -5215,7 +5203,7 @@ paths:
         "409":
           description: the server is running or already belongs to the user
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Transfer a server to another user
@@ -5244,15 +5232,15 @@ paths:
   /settings:
     get:
       description: |-
-        All settings for administrators. Users get only external domain, load balancer pools, server
-        notice, API docs switch and their limits for API tokens and subusers.
+        All settings for administrators (single sign-on without its client secret). Other users get only
+        the API docs switch, their limit for API tokens and the fields of the app the web UI shows them.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.SettingsView'
+            $ref: '#/definitions/api.SettingsView'
       security:
       - BearerAuth: []
       summary: Panel settings
@@ -5262,26 +5250,26 @@ paths:
       consumes:
       - application/json
       description: |-
-        Every storage class and pool must exist in the cluster; pools must be selectable by service
-        labels. Missing defaults become the first entry.
+        Every wrong field is reported at once (422 with the fields). While single sign-on is on, the
+        identity provider must answer.
       parameters:
       - description: Settings
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.UpdateSettingsRequest'
+          $ref: '#/definitions/api.UpdateSettingsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.SettingsView'
+            $ref: '#/definitions/api.SettingsView'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update the panel settings
@@ -5328,7 +5316,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.SetupStatus'
+            $ref: '#/definitions/api.SetupStatus'
       summary: Setup state
       tags:
       - Auth
@@ -5344,30 +5332,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.SetupRequest'
+          $ref: '#/definitions/api.SetupRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/httpapi.LoginResponse'
+            $ref: '#/definitions/api.LoginResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Create the first administrator
       tags:
       - Auth
@@ -5387,7 +5375,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.UpgradeStatus'
+            $ref: '#/definitions/api.UpgradeStatus'
       security:
       - BearerAuth: []
       summary: Panel updates
@@ -5405,7 +5393,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.StartUpgradeRequest'
+          $ref: '#/definitions/api.StartUpgradeRequest'
       produces:
       - application/json
       responses:
@@ -5416,7 +5404,7 @@ paths:
         "409":
           description: disabled, unknown version or an upgrade is running
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Upgrade the panel
@@ -5424,7 +5412,8 @@ paths:
       - System
   /users:
     get:
-      description: Administrators get every account, users their subusers.
+      description: Administrators get every account, other users the accounts they
+        own.
       produces:
       - application/json
       responses:
@@ -5432,12 +5421,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/httpapi.UserView'
+              $ref: '#/definitions/api.UserView'
             type: array
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List users
@@ -5446,31 +5435,30 @@ paths:
     post:
       consumes:
       - application/json
-      description: |-
-        Creates the user and its namespace (kubedactyl-user-<username>). The password is stored as
-        Argon2id hash.
+      description: The password is stored as Argon2id hash; the app may add to the
+        account (users.App.Created).
       parameters:
       - description: User
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.CreateUserRequest'
+          $ref: '#/definitions/api.CreateUserRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/httpapi.UserView'
+            $ref: '#/definitions/api.UserView'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create a user
@@ -5479,8 +5467,8 @@ paths:
   /users/{user}:
     delete:
       description: |-
-        Deletes the user, all its game servers, their data, the user namespace and its subusers. Users
-        may delete their subusers.
+        Deletes the user and the accounts it owns; its sessions and API tokens stop working at once.
+        Users may delete the accounts they own.
       parameters:
       - description: Username
         in: path
@@ -5493,7 +5481,7 @@ paths:
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete a user
@@ -5512,7 +5500,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.UserView'
+            $ref: '#/definitions/api.UserView'
       security:
       - BearerAuth: []
       summary: Get a user
@@ -5532,18 +5520,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/httpapi.UpdateUserRequest'
+          $ref: '#/definitions/api.UpdateUserRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.UserView'
+            $ref: '#/definitions/api.UserView'
         "409":
           description: last administrator, or managed by the identity provider
           schema:
-            $ref: '#/definitions/httpapi.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update a user
@@ -5557,7 +5545,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httpapi.Versions'
+            $ref: '#/definitions/api.Versions'
       security:
       - BearerAuth: []
       summary: Software versions

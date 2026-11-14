@@ -1,8 +1,8 @@
 import { toast } from "sonner"
 
+import { failed } from "@/base/lib/queries"
 import { FeaturePrompt } from "@/features/servers/egg-features/feature-prompt"
 import { useConsoleMatch, type Subscribe } from "@/features/servers/egg-features/use-console-match"
-import { failed } from "@/lib/notify"
 import { useAcceptEula } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 

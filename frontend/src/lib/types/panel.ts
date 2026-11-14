@@ -1,17 +1,8 @@
-// The panel itself: name and version, legal texts, settings and self-upgrades.
+// The panel settings of this app: storage classes and load balancer pools to pick from. The base types (users,
+// settings, upgrades) are in base/lib/types.ts.
 
 export type {
-  HttpapiBranding as Branding,
-  HttpapiLegalTexts as LegalTexts,
   HttpapiPoolList as PoolList,
-  HttpapiRequestRates as RequestRates,
-  HttpapiSettingsView as PanelSettings,
   HttpapiStorageClassList as StorageClassList,
-  HttpapiUpdateSettingsRequest as UpdateSettingsRequest,
-  HttpapiUpgradeStatus as UpgradeStatus,
-  HttpapiVersions as Versions,
-  HttpserverInfoResponse as PanelInfo,
-  KubeRate as Rate,
-  SelfupgradeJob as UpgradeJob,
-  SettingsPool as Pool,
+  AppsettingsPool as Pool,
 } from "@/lib/types/api.gen"

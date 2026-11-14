@@ -1,12 +1,12 @@
 import { CalendarClockIcon, PencilIcon, PlayIcon, Trash2Icon, ZapIcon } from "lucide-react"
 
+import { formatRelativeTime } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { actionLabels, describeCron, eventLabels } from "@/features/servers/lib/schedules"
-import { formatRelativeTime } from "@/lib/format"
 import type { ScheduleView } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

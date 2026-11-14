@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/eggstore"
 )
 
@@ -28,7 +29,7 @@ type ImportURLRequest struct {
 //	@Param			file	formData	file			false	"Egg file"
 //	@Success		200		{object}	v1alpha1.Egg	"an egg with the same name was updated"
 //	@Success		201		{object}	v1alpha1.Egg	"a new egg was created"
-//	@Failure		422		{object}	ErrorResponse
+//	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/eggs/import [post]
 func (a *API) importEgg(c *gin.Context) {
@@ -37,7 +38,7 @@ func (a *API) importEgg(c *gin.Context) {
 	if fh, ferr := c.FormFile("file"); ferr == nil {
 		f, oerr := fh.Open()
 		if oerr != nil {
-			a.fail(c, badRequest(oerr))
+			a.Fail(c, api.BadRequest(oerr))
 			return
 		}
 		defer f.Close()
@@ -46,10 +47,10 @@ func (a *API) importEgg(c *gin.Context) {
 		data, err = eggstore.ReadFile(c.Request.Body)
 	}
 	if err != nil && !errors.Is(err, eggstore.ErrTooLarge) {
-		err = badRequest(err)
+		err = api.BadRequest(err)
 	}
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	a.saveImport(c, data, "", false)
@@ -64,17 +65,17 @@ func (a *API) importEgg(c *gin.Context) {
 //	@Param		body	body		ImportURLRequest	true	"Egg URL"
 //	@Success	200		{object}	v1alpha1.Egg		"an egg with the same name was updated"
 //	@Success	201		{object}	v1alpha1.Egg		"a new egg was created"
-//	@Failure	422		{object}	ErrorResponse
+//	@Failure	422		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/eggs/import-url [post]
 func (a *API) importEggURL(c *gin.Context) {
 	var req ImportURLRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	data, err := eggstore.Download(c, req.URL)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	a.saveImport(c, data, req.URL, req.AutoUpdate)
@@ -84,10 +85,10 @@ func (a *API) importEggURL(c *gin.Context) {
 func (a *API) saveImport(c *gin.Context, data []byte, source string, autoUpdate bool) {
 	e, created, err := a.Eggs.Import(c, data, source, autoUpdate)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "egg imported", "egg", e.Name, "source", source)
+	a.Audit(c, "egg imported", "egg", e.Name, "source", source)
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
@@ -101,15 +102,15 @@ func (a *API) saveImport(c *gin.Context, data []byte, source string, autoUpdate 
 //	@Tags		Eggs
 //	@Param		egg	path	string	true	"Egg name"
 //	@Success	204
-//	@Failure	409	{object}	ErrorResponse	"egg is used by servers"
+//	@Failure	409	{object}	api.ErrorResponse	"egg is used by servers"
 //	@Security	BearerAuth
 //	@Router		/eggs/{egg} [delete]
 func (a *API) deleteEgg(c *gin.Context) {
 	if err := a.Eggs.Delete(c, c.Param("egg")); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "egg deleted", "egg", c.Param("egg"))
+	a.Audit(c, "egg deleted", "egg", c.Param("egg"))
 	c.Status(http.StatusNoContent)
 }
 
@@ -123,20 +124,20 @@ func (a *API) deleteEgg(c *gin.Context) {
 //	@Produce		json
 //	@Param			body	body		v1alpha1.EggSpec	true	"Egg"
 //	@Success		201		{object}	v1alpha1.Egg
-//	@Failure		422		{object}	ErrorResponse	"validation errors per field"
+//	@Failure		422		{object}	api.ErrorResponse	"validation errors per field"
 //	@Security		BearerAuth
 //	@Router			/eggs [post]
 func (a *API) createEgg(c *gin.Context) {
 	spec := &v1alpha1.EggSpec{}
-	if !a.bindJSON(c, spec) {
+	if !a.BindJSON(c, spec) {
 		return
 	}
 	e, err := a.Eggs.Create(c, spec)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "egg created", "egg", e.Name)
+	a.Audit(c, "egg created", "egg", e.Name)
 	c.JSON(http.StatusCreated, e)
 }
 
@@ -151,20 +152,20 @@ func (a *API) createEgg(c *gin.Context) {
 //	@Param			egg		path		string				true	"Egg name"
 //	@Param			body	body		v1alpha1.EggSpec	true	"Egg"
 //	@Success		200		{object}	v1alpha1.Egg
-//	@Failure		422		{object}	ErrorResponse	"validation errors per field"
+//	@Failure		422		{object}	api.ErrorResponse	"validation errors per field"
 //	@Security		BearerAuth
 //	@Router			/eggs/{egg} [put]
 func (a *API) updateEgg(c *gin.Context) {
 	spec := &v1alpha1.EggSpec{}
-	if !a.bindJSON(c, spec) {
+	if !a.BindJSON(c, spec) {
 		return
 	}
 	e, err := a.Eggs.Update(c, c.Param("egg"), spec)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "egg updated", "egg", e.Name)
+	a.Audit(c, "egg updated", "egg", e.Name)
 	c.JSON(http.StatusOK, e)
 }
 
@@ -177,15 +178,15 @@ func (a *API) updateEgg(c *gin.Context) {
 //	@Produce		json
 //	@Param			egg	path		string	true	"Egg name"
 //	@Success		200	{object}	v1alpha1.Egg
-//	@Failure		409	{object}	ErrorResponse	"the egg has no update URL"
+//	@Failure		409	{object}	api.ErrorResponse	"the egg has no update URL"
 //	@Security		BearerAuth
 //	@Router			/eggs/{egg}/update-from-url [post]
 func (a *API) updateEggFromURL(c *gin.Context) {
 	e, err := a.Eggs.UpdateFromURL(c, c.Param("egg"))
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "egg updated from its URL", "egg", e.Name, "url", e.Spec.Source.UpdateURL)
+	a.Audit(c, "egg updated from its URL", "egg", e.Name, "url", e.Spec.Source.UpdateURL)
 	c.JSON(http.StatusOK, e)
 }

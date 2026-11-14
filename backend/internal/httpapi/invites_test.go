@@ -11,14 +11,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 )
 
 // invite creates an invite as admin and returns the token of its link.
-func (h *harness) invite(admin string, req map[string]string) CreatedInvite {
+func (h *harness) invite(admin string, req map[string]string) api.CreatedInvite {
 	h.t.Helper()
 	code, body := h.do("POST", "/api/invites", admin, req)
 	expect(h.t, "create invite", code, 201, body)
-	var created CreatedInvite
+	var created api.CreatedInvite
 	_ = json.Unmarshal([]byte(body), &created)
 	return created
 }
@@ -36,7 +37,7 @@ func TestInviteCreatesAccountOnce(t *testing.T) {
 	accept["password"] = "erin-password"
 	code, body = h.do("POST", "/api/auth/invite", "", accept)
 	expect(t, "accept invite", code, 201, body)
-	var res LoginResponse
+	var res api.LoginResponse
 	_ = json.Unmarshal([]byte(body), &res)
 	if res.User.Username != "erin" || res.User.Role != v1alpha1.RoleUser {
 		t.Errorf("account: %+v", res.User)
@@ -93,7 +94,7 @@ func TestInvalidInvites(t *testing.T) {
 	expect(t, "expired", code, 404, body)
 	code, body = h.do("POST", "/api/invites/"+created.ID+"/renew", admin, nil)
 	expect(t, "renew", code, 200, body)
-	var renewed CreatedInvite
+	var renewed api.CreatedInvite
 	_ = json.Unmarshal([]byte(body), &renewed)
 	if renewed.Expired || renewed.Token == created.Token || !renewed.ExpiresAt.After(time.Now().Add(6*24*time.Hour)) {
 		t.Errorf("renewed: %+v", renewed)
@@ -137,7 +138,7 @@ func TestMustChangePassword(t *testing.T) {
 		"username": "gina", "password": "gina-own-password",
 	})
 	expect(t, "login", code, 200, body)
-	var res LoginResponse
+	var res api.LoginResponse
 	_ = json.Unmarshal([]byte(body), &res)
 	code, body = h.do("GET", "/api/servers", res.Token, nil)
 	expect(t, "servers after the change", code, 200, body)

@@ -1,13 +1,13 @@
 import { ForkliftIcon, LockIcon, LockOpenIcon, Trash2Icon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { Callout } from "@/components/common/callout"
-import { ProgressBar } from "@/components/common/progress-bar"
+import { Callout } from "@/base/components/callout"
+import { ProgressBar } from "@/base/components/progress-bar"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { suspendFeedback } from "@/features/servers/lib/feedback"
 import { formatNumber } from "@/lib/format"
-import { failed } from "@/lib/notify"
 import { useCancelMigration, useSuspendServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 

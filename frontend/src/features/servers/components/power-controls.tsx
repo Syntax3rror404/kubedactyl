@@ -1,9 +1,9 @@
 import { PlayIcon, RotateCwIcon, SkullIcon, SquareIcon } from "lucide-react"
 
+import { useAuth } from "@/base/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { powerFeedback } from "@/features/servers/lib/feedback"
-import { useAuth } from "@/hooks/use-auth"
 import { activePhases, isRemoving, phaseOf, serverAccess, stoppedPhases } from "@/lib/format"
 import { useSendPower } from "@/lib/queries"
 import type { GameServer, PowerSignal } from "@/lib/types"

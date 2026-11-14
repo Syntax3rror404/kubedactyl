@@ -1,8 +1,8 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query"
 
+import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/base/lib/queries/mutation"
 import { api } from "@/lib/api"
 import { keys } from "@/lib/queries/keys"
-import { refresh, refreshes, useApiMutation, type MutationCallbacks } from "@/lib/queries/mutation"
 import type { Egg, EggExportFormat, EggSpec, LibraryRepository } from "@/lib/types"
 
 /** All eggs. */

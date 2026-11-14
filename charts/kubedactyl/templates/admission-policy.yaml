@@ -8,7 +8,7 @@
 # namespaces (always with the Pod Security "baseline" level), their volumes and role bindings
 # to its tenant role, its own CRDs, pods without service account tokens or host access (in its
 # own namespace also without volumes, added capabilities or an unconfined seccomp profile),
-# services without external IPs and (with self-upgrades) exactly the upgrade job. Checked by
+# services without external IPs, its own two secrets and (with self-upgrades) exactly the upgrade job. Checked by
 # the API server; keep in sync with the panel code (tenancy, gameserver pods, the hardware
 # probe pod in clusterinfo/hardware.go, selfupgrade.JobFor).
 apiVersion: admissionregistration.k8s.io/v1
@@ -29,6 +29,10 @@ spec:
         apiVersions: ["*"]
         resources: [services]
         operations: [CREATE, UPDATE]
+      - apiGroups: [""]
+        apiVersions: ["*"]
+        resources: [secrets]
+        operations: [CREATE]
       - apiGroups: [rbac.authorization.k8s.io]
         apiVersions: ["*"]
         resources: [rolebindings]
@@ -62,8 +66,10 @@ spec:
         (!has(object.spec.template.spec.volumes) || object.spec.template.spec.volumes.all(v, has(v.emptyDir))) &&
         object.spec.template.spec.containers.all(c,
           c.image == "{{ include "kubedactyl.image" . }}" && !has(c.command) && !has(c.envFrom) &&
-          (!has(c.env) || c.env.all(e, e.name == 'HOME')) &&
-          (!has(c.securityContext) || !has(c.securityContext.privileged) || !c.securityContext.privileged) &&
+          (!has(c.env) || c.env.all(e, e.name == 'HOME' && !has(e.valueFrom))) &&
+          !has(c.lifecycle) && !has(c.livenessProbe) && !has(c.readinessProbe) && !has(c.startupProbe) &&
+          (!has(c.securityContext) || ((!has(c.securityContext.privileged) || !c.securityContext.privileged) &&
+           (!has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.add)))) &&
           c.args.size() == 9 && c.args[0] == 'upgrade' &&
           c.args[1] == '--release' && c.args[2] == "{{ .Release.Name }}" &&
           c.args[3] == '--release-namespace' && c.args[4] == "{{ $ns }}" &&
@@ -116,6 +122,18 @@ spec:
           (!has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.add)) &&
           !(has(c.securityContext.seccompProfile) && c.securityContext.seccompProfile.type == 'Unconfined'))))
       message: pods in the panel namespace may not mount volumes, add capabilities or run without seccomp
+    # Environment from secrets would hand any secret of the namespace to a pod whose log the panel reads.
+    - expression: >-
+        !variables.panelPod || (
+        object.spec.containers.all(c, !has(c.envFrom) && (!has(c.env) || c.env.all(e, !has(e.valueFrom)))) &&
+        (!has(object.spec.initContainers) ||
+         object.spec.initContainers.all(c, !has(c.envFrom) && (!has(c.env) || c.env.all(e, !has(e.valueFrom))))))
+      message: pods in the panel namespace may not read secrets or other values into their environment
+    # The panel creates only its session key and the identity provider's client secret (never a token secret).
+    - expression: >-
+        variables.resource != 'secrets' || (request.name in ['kubedactyl-auth', 'kubedactyl-oidc'] &&
+        (!has(object.type) || object.type == 'Opaque'))
+      message: the panel may only create its own opaque secrets
     - expression: >-
         variables.resource != 'services' || (request.namespace.startsWith('{{ $prefix }}') &&
         (!has(object.spec.externalIPs) || object.spec.externalIPs.size() == 0))

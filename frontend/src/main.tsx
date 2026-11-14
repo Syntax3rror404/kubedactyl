@@ -1,14 +1,14 @@
+import "@/index.css"
 import { StrictMode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router"
 
-import { AppToaster } from "@/app/app-toaster"
 import { router } from "@/app/router"
+import { AppToaster } from "@/base/components/app-toaster"
+import { ApiError } from "@/base/lib/api"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import "@/index.css"
-import { ApiError } from "@/lib/api"
 
 // Queries retry once, but not answers that would not change (4xx); 429 means "try again later".
 const retry = (failures: number, err: Error) =>

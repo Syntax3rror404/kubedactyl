@@ -46,7 +46,7 @@ grant access and the role; see [Single sign-on](oidc.md).
 
 **Authentication**
 - Web UI: `POST /api/auth/login` sets the HttpOnly, SameSite=Strict cookie `kd_session`
-  (HMAC-signed). The signing key lives in the secret `kubedactyl-auth`.
+  (HMAC-signed; over HTTPS `__Host-kd_session`, which no other host can set). The signing key lives in the secret `kubedactyl-auth`.
 - API clients: `Authorization: Bearer <token>` with the session token from the login response or a
   personal **API token** (`kdt_…`, created under *Account*, only a SHA-256 hash is stored, shown once; at most
   50 per account).
@@ -195,9 +195,8 @@ Kubernetes does not know the CPU model or the machine. The panel reads it with a
 are removed when the panel first reads the nodes.
 
 **Health checks** (`GET /api/cluster/health`, cached 30 s unless a read failed, checked again at once after a
-settings change) are shown in the sidebar cluster card above the user menu (green / amber / red; problems are
-always listed with their explanation, a click on the card opens it upwards with the passing checks and a link to the
-cluster page): Kubedactyl CRDs
+settings change) are shown at the top of the sidebar (green / amber / red; problems are always listed with their
+explanation, a click opens the passing checks and a link to the cluster page): Kubedactyl CRDs
 served, all permissions granted (a check the API server did not answer is a warning), nodes ready, metrics-server available, Cilium LB IPAM installed and the enabled pools
 present with free addresses, the enabled storage classes present, and (in the cluster) the admission policy
 that limits the panel's permissions ("Permission guard").

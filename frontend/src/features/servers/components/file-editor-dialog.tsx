@@ -2,9 +2,11 @@ import { useEffect, useState } from "react"
 import { SaveIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { CodeEditor } from "@/components/common/code-editor"
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
-import { QueryState } from "@/components/common/query-state"
+import { CodeEditor } from "@/base/components/code-editor"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { QueryState } from "@/base/components/query-state"
+import { useBeforeUnload } from "@/base/hooks/use-before-unload"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,8 +20,6 @@ import { Kbd } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { languageFor } from "@/features/servers/lib/languages"
-import { useBeforeUnload } from "@/hooks/use-before-unload"
-import { failed } from "@/lib/notify"
 import { useFileContent, useWriteFile } from "@/lib/queries"
 
 /** Opens a file in CodeMirror; the editor mounts once the content has loaded. */

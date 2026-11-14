@@ -26,6 +26,11 @@
             "message": "Components use the data hooks of @/lib/queries; only lib/queries calls the API."
           },
           {
+            "name": "@/base/lib/api",
+            "importNames": ["baseApi", "request"],
+            "message": "Components use the data hooks of @/base/lib/queries; only the query folders and lib/api.ts call the API."
+          },
+          {
             "name": "@tanstack/react-query",
             "importNames": ["useQuery", "useMutation", "useQueryClient"],
             "message": "Queries, mutations and cache updates live in @/lib/queries."
@@ -36,7 +41,7 @@
   },
   "overrides": [
     {
-      "files": ["src/lib/queries/**", "src/main.tsx"],
+      "files": ["src/lib/queries/**", "src/base/lib/queries/**", "src/lib/api.ts", "src/main.tsx"],
       "rules": {
         "no-restricted-imports": "off"
       }

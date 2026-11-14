@@ -2,13 +2,10 @@
 package httpapi
 
 import (
-	"log/slog"
-	"sync"
-
 	"github.com/gin-gonic/gin"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"app/internal/auth"
+	"app/base/api"
+	"app/base/kube"
 	"app/internal/clusterinfo"
 	"app/internal/console"
 	"app/internal/diagnostics"
@@ -16,28 +13,20 @@ import (
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
 	"app/internal/schedule"
-	"app/internal/selfupgrade"
 	"app/internal/serverctl"
-	"app/internal/settings"
-	"app/internal/sso"
-	"app/internal/users"
 )
 
-// API holds the dependencies of all handlers.
+// API holds the dependencies of all handlers: the base API (sign-in, accounts, settings, upgrades) and the
+// services of the servers, eggs and the cluster.
 type API struct {
-	Client client.Client
-	// Reader reads directly from the API server, for objects that may have been created
-	// a moment ago and are not in the cache yet (e.g. a user right before a server for it).
-	Reader client.Reader
-	Kube   *kube.Client
-	Hub    *console.Hub
+	*api.API
+	Kube *kube.Client
+	Hub  *console.Hub
 	// Files starts the file container on demand, runs file operations (Manager) and the
 	// backups, restores and downloads.
 	Files   *files.Service
 	Opts    gameserver.Options
-	Log     *slog.Logger
 	Cluster ClusterInfo
 	// ClusterService gathers node, hardware and identity details for the admin cluster page.
 	ClusterService *clusterinfo.Service
@@ -47,38 +36,14 @@ type API struct {
 	Ops *serverctl.Ops
 	// Trigger requests an immediate reconcile of a server.
 	Trigger func(namespace, server string)
-	// Settings reads and saves the panel settings.
-	Settings *settings.Store
-	// Users creates and changes accounts; Eggs stores eggs (create, import, update, delete).
-	Users *users.Store
-	Eggs  *eggstore.Store
+	// Eggs stores eggs (create, import, update, delete).
+	Eggs *eggstore.Store
 	// Library lists the eggs of the git repositories in the settings (kept in memory only).
 	Library *egglibrary.Library
 	// Diagnostics checks why players may not reach a server.
 	Diagnostics *diagnostics.Diagnoser
-	// SetupToken must accompany the setup request (generated on start while no admin exists).
-	SetupToken string
-	// DevMode allows websocket connections from the Vite dev server (other port).
-	DevMode bool
-	// Version is the panel version; UpgradeChecker and Upgrader are nil without self-upgrades.
-	Version        string
-	UpgradeChecker *selfupgrade.Checker
-	Upgrader       *selfupgrade.Upgrader
-	// Signer signs session tokens; Limiter throttles failed logins.
-	Signer  *auth.Signer
-	Limiter *auth.Limiter
-	// ClientLimiter throttles failed logins per client across all usernames (password spraying).
-	ClientLimiter *auth.Limiter
-	// AccountLimiter throttles failed logins per username from all clients (more generous).
-	AccountLimiter *auth.Limiter
-	// KubeLimiter admits the requests of each user (limitRequests); nil admits every request.
-	KubeLimiter *kube.RateLimiter
 
 	stats *statsCache
-	// oidc signs users in through the identity provider of the settings.
-	oidc sso.Client
-	// setupMu serializes setup requests, so only one first administrator can be created.
-	setupMu sync.Mutex
 }
 
 // ClusterInfo describes the cluster the panel is connected to.
@@ -92,71 +57,22 @@ type ClusterInfo struct {
 	LoadBalancerPool string `json:"loadBalancerPool" example:"general-pool"`
 }
 
-// ErrorResponse is returned for failed requests.
-type ErrorResponse struct {
-	Error string `json:"error" example:"server not found"`
-	// Fields holds validation errors per field or variable.
-	Fields map[string]string `json:"fields,omitempty"`
-}
-
-// Register adds all routes to the router group (mounted at /api).
+// Register adds all routes to the router group (mounted at /api): the base routes, then the servers, eggs and
+// the cluster.
 func (a *API) Register(r *gin.RouterGroup) {
 	a.stats = newStatsCache()
 	// Files changed by a background job (backup, restore, download, also scheduled ones) are measured again.
 	if a.Files != nil {
 		a.Files.Changed = a.stats.disk.Forget
 	}
-
-	// Public
-	r.POST("/auth/login", a.sameOrigin, a.login)
-	r.POST("/auth/logout", a.logout)
-	// First start: create the first administrator (only while none exists).
-	r.GET("/setup", a.getSetupStatus)
-	r.POST("/setup", a.sameOrigin, a.runSetup)
-	// Imprint and privacy policy must be readable without an account.
-	r.GET("/legal", a.getLegalTexts)
-	// Name, logo and favicon: the sign-in page shows them, too.
-	r.GET("/branding", a.getBranding)
-	// Invite links create an account.
-	r.GET("/auth/invite", a.getInvite)
-	r.POST("/auth/invite", a.sameOrigin, a.acceptInvite)
-	// Single sign-on through an OpenID Connect identity provider (start and callback are browser redirects).
-	r.GET("/auth/oidc", a.getOIDCSignIn)
-	r.GET("/auth/oidc/start", a.startOIDC)
-	r.GET("/auth/oidc/callback", a.finishOIDC)
-
-	// Every other route needs a session or an API token. The footer polls the request rates: they
-	// do not count themselves.
-	r.GET("/request-rates", a.authenticate, a.getRequestRates)
-	u := r.Group("", a.authenticate, a.limitRequests)
-	u.GET("/auth/me", a.getMe)
-	u.PUT("/auth/password", a.updatePassword)
-	u.POST("/auth/logout-all", a.logoutAll)
-
-	// Everything else waits until a user with a password set by an administrator has chosen their own.
-	o := u.Group("", a.requireOwnPassword)
-	o.GET("/auth/tokens", a.listTokens)
-	o.POST("/auth/tokens", a.createToken)
-	o.DELETE("/auth/tokens/:id", a.deleteToken)
-
-	o.GET("/settings", a.getSettings)
-
-	o.GET("/eggs", a.listEggs)
-	o.GET("/eggs/:egg", a.getEgg)
-
-	a.registerServers(o)
-	a.registerAccounts(o.Group("", a.requireNoSubuser))
-	a.registerAdmin(o.Group("", a.requireAdmin))
-}
-
-// registerAccounts adds the routes of accounts and invites: administrators manage all, users their subusers.
-func (a *API) registerAccounts(m *gin.RouterGroup) {
-	m.GET("/users", a.listUsers)
-	m.DELETE("/users/:user", a.deleteUser)
-	m.GET("/invites", a.listInvites)
-	m.POST("/invites", a.createInvite)
-	m.POST("/invites/:invite/renew", a.renewInvite)
-	m.DELETE("/invites/:invite", a.deleteInvite)
+	a.API.App = a
+	g := a.API.Register(r)
+	g.Signed.GET("/eggs", a.listEggs)
+	g.Signed.GET("/eggs/:egg", a.getEgg)
+	a.registerServers(g.Signed)
+	// Administrators manage all accounts and invites, users their subusers.
+	a.RegisterAccounts(g.Signed.Group("", a.requireNoSubuser))
+	a.registerAdmin(g.Admin)
 }
 
 // registerServers adds the routes of the servers.
@@ -211,10 +127,6 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.POST("/cluster/nodes/probe", a.probeClusterNodes)
 	adm.GET("/cluster/identity", a.getClusterIdentity)
 	adm.GET("/cluster/health", a.getClusterHealth)
-	adm.PUT("/settings", a.updateSettings)
-	adm.GET("/upgrade", a.getUpgradeStatus)
-	adm.POST("/upgrade", a.startUpgrade)
-	adm.GET("/versions", a.getVersions)
 	adm.GET("/settings/storage-classes", a.listStorageClasses)
 	adm.GET("/settings/load-balancer-pools", a.listLoadBalancerPools)
 	adm.GET("/egg-library", a.listLibraryEggs)
@@ -233,22 +145,4 @@ func (a *API) registerAdmin(adm *gin.RouterGroup) {
 	adm.POST("/servers/:server/transfer", a.notLocked, a.transferServer)
 	adm.POST("/servers/:server/migrate", a.notLocked, a.migrateServer)
 	adm.POST("/servers/:server/migrate/cancel", a.cancelMigration)
-	adm.POST("/users", a.createUser)
-	adm.GET("/users/:user", a.getUser)
-	adm.PATCH("/users/:user", a.updateUser)
-}
-
-// audit logs what a user did through the API together with the user ("by") and, for requests
-// with an API token, its ID ("token").
-func (a *API) audit(c *gin.Context, msg string, args ...any) {
-	a.auditAs(principal(c), msg, args...)
-}
-
-// auditAs is audit for a caller outside of a request handler (an open console).
-func (a *API) auditAs(p *Principal, msg string, args ...any) {
-	head := []any{"by", p.User.Name}
-	if p.TokenID != "" {
-		head = append(head, "token", p.TokenID)
-	}
-	a.Log.Info(msg, append(head, args...)...)
 }

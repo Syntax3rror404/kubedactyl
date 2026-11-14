@@ -1,3 +1,4 @@
+import { useSettings } from "@/base/lib/queries"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -5,7 +6,7 @@ import { IPv6Field, PoolField, TrafficPolicyField } from "@/features/servers/com
 import { PortEditor } from "@/features/servers/components/port-editor"
 import { NO_LOAD_BALANCER, poolValue, type SettingsCardProps } from "@/features/servers/lib/settings-draft"
 import { serverAddress, serverIPs } from "@/lib/format"
-import { usePools, useSettings } from "@/lib/queries"
+import { usePools } from "@/lib/queries"
 
 /**
  * Settings page: the load balancer pool (or none); administrators also set the ports, fixed IPs,

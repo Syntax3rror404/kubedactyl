@@ -1,28 +1,15 @@
+import { baseKeys } from "@/base/lib/queries/keys"
+
 /**
- * React Query cache keys. refresh() matches a key exactly, so reloading a list never reloads the details below it
- * (stats, jobs, file listings, diagnostics); refreshAll() reloads a group (keys.allFiles).
+ * React Query cache keys: the base ones and this app's. refresh() matches a key exactly, so reloading a list never
+ * reloads the details below it (stats, jobs, file listings, diagnostics); refreshAll() reloads a group (keys.allFiles).
  */
 export const keys = {
-  me: ["me"] as const,
-  setup: ["setup"] as const,
-  oidcSignIn: ["oidc-sign-in"] as const,
-  legal: ["legal"] as const,
-  branding: ["branding"] as const,
-  licenses: ["licenses"] as const,
-  info: ["info"] as const,
-  liveInfo: ["info", "live"] as const,
-  tokens: ["me", "tokens"] as const,
-  users: ["users"] as const,
-  invites: ["invites"] as const,
-  invite: (token: string) => ["invite", token] as const,
+  ...baseKeys,
   cluster: ["cluster"] as const,
   clusterNodes: ["cluster", "nodes"] as const,
   clusterIdentity: ["cluster", "identity"] as const,
   clusterHealth: ["cluster", "health"] as const,
-  settings: ["settings"] as const,
-  upgrade: ["upgrade"] as const,
-  versions: ["versions"] as const,
-  requestRates: ["request-rates"] as const,
   storageClasses: ["settings", "storage-classes"] as const,
   pools: ["settings", "pools"] as const,
   eggs: ["eggs"] as const,

@@ -15,10 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/console"
 	"app/internal/files"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // Errors of the actions on game servers.

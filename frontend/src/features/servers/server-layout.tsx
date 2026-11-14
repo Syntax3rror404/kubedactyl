@@ -13,13 +13,15 @@ import {
 } from "lucide-react"
 import { Link, Navigate, Outlet, useLocation, useParams } from "react-router"
 
-import { Callout } from "@/components/common/callout"
-import { CopyButton } from "@/components/common/copy-button"
+import { Callout } from "@/base/components/callout"
+import { CopyButton } from "@/base/components/copy-button"
+import { QueryState } from "@/base/components/query-state"
+import { ScrollableTabsList } from "@/base/components/scrollable-tabs-list"
+import { useAuth } from "@/base/hooks/use-auth"
+import { PageHeader } from "@/base/layout/page-header"
+import { useSettings } from "@/base/lib/queries"
 import { EggIcon } from "@/components/common/egg-icon"
-import { QueryState } from "@/components/common/query-state"
-import { ScrollableTabsList } from "@/components/common/scrollable-tabs-list"
 import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
-import { PageHeader } from "@/components/layout/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsTrigger } from "@/components/ui/tabs"
@@ -33,7 +35,6 @@ import {
 import { PowerControls } from "@/features/servers/components/power-controls"
 import { RestartBanner } from "@/features/servers/components/restart-banner"
 import { ServerNoticeDialog } from "@/features/servers/components/server-notice-dialog"
-import { useAuth } from "@/hooks/use-auth"
 import {
   isMigrating,
   isRemoving,
@@ -44,7 +45,7 @@ import {
   serverName,
   serverOwner,
 } from "@/lib/format"
-import { useEgg, useServer, useSettings } from "@/lib/queries"
+import { useEgg, useServer } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

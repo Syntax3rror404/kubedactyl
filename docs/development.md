@@ -48,7 +48,7 @@ KUBE_CONTEXT := my-cluster
 
 The e2e test signs in through the login page: `E2E_USER=… E2E_PASSWORD=… npm run e2e`.
 `E2E_SERVER=<name>` additionally starts the server, sends a command, creates and deletes a
-folder and stops it again. Cluster integration test: `KUBE_IT_CONTEXT=<context> go test ./internal/kube/ -run Attach -v`
+folder and stops it again. Cluster integration test: `KUBE_IT_CONTEXT=<context> go test ./base/kube/ -run Attach -v`
 (creates and deletes the namespace `kubedactyl-attachtest`).
 
 Code hygiene (no warnings expected): `make lint` runs
@@ -94,18 +94,19 @@ Running the update twice produces no diff. Earlier hand edits were replaced by w
 
 | Former edit | Now |
 |-------------|-----|
-| `ui/sonner.tsx` read the theme from `next-themes` → changed to our provider | original file; `app/app-toaster.tsx` passes the theme of our `ThemeProvider` (the registry Toaster spreads props after `theme`), `next-themes` stays installed as its dependency |
+| `ui/sonner.tsx` read the theme from `next-themes` → changed to our provider | original file; `base/components/app-toaster.tsx` passes the theme of our `ThemeProvider` (the registry Toaster spreads props after `theme`), `next-themes` stays installed as its dependency |
 | unused imports in registry files | original files; unused-code checks moved from `tsc` to oxlint, which skips library files |
-| `mode-toggle.tsx` from the dark mode docs | our own `components/common/mode-toggle.tsx`: the docs show only the Radix version |
-| `sidebar-07` block demo files (`team-switcher`, `nav-*`) | replaced by our own `components/layout/app-sidebar.tsx`; blocks are starting points, not updated |
+| `mode-toggle.tsx` from the dark mode docs | our own `base/components/mode-toggle.tsx`: the docs show only the Radix version |
+| `sidebar-07` block demo files (`team-switcher`, `nav-*`) | built after in `base/navigation/` (the same in every app; each app fills `app/use-navigation.ts`); blocks are starting points, not updated |
 
 When adding a registry component: install it with the CLI (`npx shadcn@latest add <name>` or
 `@magicui/<name>`) **and** add it to `ui-components.json`. Only these two registries are used (both MIT);
-app specific looks go into wrappers, e.g. `components/common/glow-card.tsx` (Magic UI card in the brand colors)
-and `components/common/file-dropzone.tsx` (own drop zone on `react-dropzone`).
+app specific looks go into wrappers, e.g. `base/components/glow-card.tsx` (Magic UI card in the brand colors)
+and `base/components/file-dropzone.tsx` (own drop zone on `react-dropzone`).
 
-Status colors are theme tokens next to shadcn's `destructive` in `src/index.css`: `success`, `warning` and `info`
-(`text-success`, `bg-warning/10`, ...). Fixed Tailwind colors are only for decoration (brand gradient, egg icons,
+Status colors are theme tokens next to shadcn's `destructive` in `src/index.css`: `success`, `warning`, `pending`
+(something is changing, like a server starting) and `info` (`text-success`, `bg-pending/10`, ...). The server phases
+have one table, `phaseStatus` in `lib/format.ts`, for the badge and the sidebar. Fixed Tailwind colors are only for decoration (brand gradient, egg icons,
 file type icons, the terminal).
 
 ## Project layout
@@ -113,71 +114,112 @@ file type icons, the terminal).
 Rule of thumb: **one folder per topic**. In the backend every package under `internal/` has one job;
 file name prefixes group the files of a package (`servers_*.go`, `files_*.go`, `gameserver_*.go`).
 In the frontend every feature has its own folder with its pages (`*-page.tsx`) and the components,
-hooks and helpers only it uses; shared pieces live in `components/` and `lib/`.
+hooks and helpers only it uses; shared pieces live in `components/` and `lib/`, the pieces of every app in `base/`.
 
 ```
 backend/
-  main.go · wiring.go     start-up: flags, logging, prepare the cluster · build controllers, services and API, HTTP server
-  logging.go              quiet slog handler for client-go noise
-  banner.go               start-up logo (colored on a terminal only)
+  main.go · wiring.go     start-up with the base parts: flags, logging, prepare the cluster · build controllers,
+                          services and API, HTTP server (main_test.go: the Swagger doc matches the routes)
+  app/                    the app's side of the base: config.go (name, ID, prefixes, logo, brand colors, version
+                          modules) · views.go (the app's fields in base answers)
+  base/                   the same in every app, treated like a library (change it here, copy the folder):
+    api/                  HTTP API of every app: api.go (API, App, base routes) · errors.go (a.Fail, status mapping)
+                            · auth*.go (middleware, login, account, setup, single sign-on) · users.go · invites.go
+                            · settings.go (settings, legal texts, branding, request rates) · upgrade.go (and versions)
+    auth/                 passwords, sessions, device cookie, signed values, API tokens, login limiter, single sign-on
+    users/ · settings/    accounts, invites, reset links, last-admin rule · panel settings (the app adds fields: App)
+    bootstrap/            start-up: scheme, CRDs, panel namespace, session key, first admin / setup token
+    httpserver/           router (API, Swagger UI, SPA), security headers/CSP, body limit, trusted proxies, health/info
+    kube/                 connection, clients, exec / attach, request limit, TTL cache, CreateOrPatch, volume helpers
+    selfupgrade/          panel updates: registry check, upgrade job, `<app> upgrade` (Helm SDK)
+    validation/ · checks/ field validation errors (422 with messages per field) · check results (health, diagnostics)
+    cli/                  flags of every panel, start-up logo (colored on a terminal only), slog handler without
+                          client-go noise
+    tools/licenses/       build step: third-party-licenses.md
   api/v1alpha1/           CRD types: Egg, GameServer, User, PanelSettings (kubebuilder markers)
   config/crd/             generated CRD manifests (make generate), embedded and applied on start
   docs/                   generated Swagger (make docs)
   web/                    embedded frontend build
   internal/
-    bootstrap/            start-up: CRDs, panel namespace, session key, first admin / setup token, cache config
-    httpserver/           router (API, Swagger UI, SPA), security headers/CSP, body limit, trusted proxies, health/info
-    httpapi/              REST + websocket handlers, grouped by prefix:
-                            api.go (routes) · errors.go (a.fail, status mapping) · auth*.go (login, account, setup) · users.go
+    httpapi/              REST + websocket handlers of the app (embeds base/api), grouped by prefix:
+                            api.go (routes) · errors.go (the app's errors) · users.go · settings.go (the app's parts of
+                            base answers, storage classes, pools)
                             servers*.go (list/get/delete, create, update, access rules, power/reinstall/suspend, console websocket, stats, backups)
-                            files_*.go (read, write, session) · eggs.go · settings.go · cluster.go · upgrade.go
+                            files_*.go (read, write, session) · eggs.go · cluster.go
+    appusers/ · appsettings/  what this app adds to accounts (namespaces, subusers) and settings (storage, pools, ...)
     controller/           reconcilers: gameserver*.go (entry, children, install, game, cleanup of finished pods)
                             · files_reaper.go (idle files pods) · user*.go (user namespaces, network policy)
     gameserver/           Kubernetes objects of a server (pods, PVC, service, placement, resources), validation, pre-start steps
     serverctl/            power actions, console commands, reinstall, suspend, transfer, migrate (shared by API and schedules)
     schedule/             cron schedules of servers
-    eggstore/ · users/    storing eggs (create, import, update from URL, delete) · accounts (create, change, last-admin rule)
-    validation/           field validation errors (422 with messages per field)
+    eggstore/             storing eggs (create, import, update from URL, delete)
     console/              output hub (history, subscribers), log following, "done" detection
     files/                file manager via exec in the files pod, activity tracker, background jobs, backups, URL downloads
-    settings/             panel settings, storage classes, Cilium pools
     clusterinfo/          cluster page: nodes, hardware probes, identity, permission checks
-    selfupgrade/          panel updates: registry check, upgrade job, `kubedactyl upgrade` (Helm SDK)
     egg/ · configfile/    egg parsing, validation, export (PLCN_v3 / PTDL_v2) · config file parsers of eggs
-    auth/ · tenancy/      passwords, sessions, API tokens · user namespaces, installation scoping
-    kube/                 exec / attach helpers
+    tenancy/              user namespaces, installation scoping
 frontend/
   ui-components.json      library component manifest (make ui-update)
   scripts/ · e2e/         UI update scripts · browser smoke test (npm run e2e)
   public/theme-init.js    theme before first paint (external because of the CSP)
   src/
     main.tsx              entry: providers
-    app/                  router (URL → page), toaster, 404 page, error page (error-page.tsx)
+    app/                  router (URL → page); the app's side of the base: use-navigation.ts (sidebar content),
+                          config.ts (names, brand, roles, footer links, request rates, breadcrumb names),
+                          users.tsx (user table columns, account cards), settings.ts (the app's settings and cards)
+    base/                 the same in every app, treated like a library (change it in one app, copy the folder):
+      components/         callout, confirm dialog, copy button, status icons, usage bar, metric tile, code editor,
+                          glow card (Magic UI), file drop zone, query state (loading/error/empty), brand mark, ...
+      layout/             app layout (a route handle `wide: true` gives a page the whole width), header with
+                          breadcrumbs, footer with request rates, page header, error pages
+      navigation/         sidebar, its header (short diagnosis), search (⌘K), user menu
+      hooks/              use-auth, use-draft (form state), use-throttle, use-retained, use-branding-head ...
+      lib/                api.ts (request, ApiError, the base calls) · queries/ (auth, users, settings, keys,
+                          mutation) · types.ts (base API types) · format, notify, validation, legal
+      features/           the pages of backend/base/api: auth (login, setup, invite, change password), account,
+                          users, settings (base cards), licenses
+      types.ts            what an app gives the base, the states its components show
     features/
-      auth/               login-page, setup-page · require-auth, auth-shell
-      dashboard/          dashboard-page · server-card, server-filter
+      dashboard/          dashboard-page · server-card
       servers/            server-layout, server-new-page and one page per server tab (URL /servers/:server/<tab> →
                           <tab>-page.tsx): console, files, startup, schedules, backups, settings
                             · components (server form, power, console, stats, resources, ports, placement, file-* for
                               the file manager, …) · hooks · egg-features (eula, java_version, …) · lib
       eggs/               list, detail, edit (tabs) and new (wizard) pages; components/editor = shared form sections
-      users/ account/ cluster/ settings/   one page each plus its components
+      cluster/            cluster page plus its components
+      account/ settings/  the app's cards on the base pages (subusers; notice, address, pools, egg libraries, ...)
     components/
       ui/                 library components (shadcn, Magic UI), never edit
-      layout/             app shell: sidebar, header, page header, cluster card
-      common/             small shared pieces: copy button, status badge, usage bar, metric tile, code editor, egg icon, job list,
-                          glow card (Magic UI), file drop zone, query state (loading/error/empty), confirm dialog,
-                          user avatar
-    lib/                  api.ts (HTTP client), queries/ (every query and mutation hook, one file per area),
-                          types/ (api.gen.ts generated from the Go structs by make docs; one file per area on top),
-                          formatting, notify (toasts), validation (form errors)
-    hooks/                use-mobile (library), use-resolved-theme, use-auth, use-draft (form state), use-before-unload,
-                          use-branding-head, use-throttle (refused requests), use-retained (closing dialogs)
+      common/             pieces only this app has: egg icon, server status badge, access select, effects
+    lib/                  api.ts (the app's calls on top of baseApi), queries/ (the app's query and mutation hooks,
+                          one file per area), types/ (api.gen.ts generated from the Go structs by make docs; one file
+                          per area on top), format (servers, pools, phases)
+    hooks/                use-mobile (library)
 scripts/uninstall.sh      cluster cleanup
 charts/kubedactyl/        Helm chart (published as OCI artifact); Dockerfile and VERSION in the root
 scripts/imagebuild/       daemonless image build and push (make image / push-image)
 .github/workflows/        GitHub Actions build (make test lint image; run by hand: raise VERSION, push-image push-chart, release)
 ```
+
+## Starting a new app from the base
+
+The simplest start is a copy of an existing app with its features removed: everything the base expects is then
+already in place. The base needs these parts from the app:
+
+- **Backend:** the Go module is named `app` (the base imports `app/app` and `app/api/v1alpha1`).
+  `app/config.go` (names, prefixes, brand) and `app/views.go` (the app's fields in base answers).
+  The CRD types `User`, `Invite` and `PanelSettings` in `api/v1alpha1` with the fields the base reads (roles and the
+  app's own settings may differ), then `make generate`. `main.go` + `wiring.go` start the panel with `base/cli`,
+  `base/bootstrap` and `base/httpserver`; the app's `httpapi.API` embeds `base/api.API`, implements `api.App` and
+  adds its routes to the `Signed` and `Admin` groups that `API.Register` returns.
+- **Frontend:** `app/config.ts`, `app/use-navigation.ts`, `app/users.tsx`, `app/settings.ts` and `app/router.tsx`;
+  the library components in `ui-components.json` (`make ui-update`), `components/theme-provider.tsx` and
+  `lib/utils.ts`; the color tokens and fonts in `src/index.css`; `vite.config.ts` (`__FRONTEND_VERSIONS__`, the
+  licenses plugin from `scripts/licenses-plugin.ts`).
+- **Build and chart:** the Makefile targets (`docs`, `licenses`, `check-base`), `THIRD_PARTY_NOTICES.md` and the
+  chart templates `rbac.yaml`, `admission-policy.yaml` and `self-upgrade.yaml` (names from `app.ID`).
+
+Then set `BASE_PEER` in `local.mk` to this repository and check with `make check-base` that both base folders match.
 
 ## Comment style
 
@@ -252,7 +294,7 @@ and repeated explanations. Existing code follows this style when it is changed a
 
 ## API
 
-Swagger UI: **http://localhost:8080/swagger/** (also linked in the sidebar; administrators can turn it off in
+Swagger UI: **http://localhost:8080/swagger/** (also linked at the bottom of the sidebar; administrators can turn it off in
 *Settings → Security*; `/swagger/` then answers 404, the API keeps working). Websocket
 `/api/servers/{name}/ws` uses JSON events: `{"event":"console output","args":["…"]}`,
 send `{"event":"send command","args":["say hi"]}` or `{"event":"set state","args":["restart"]}`.

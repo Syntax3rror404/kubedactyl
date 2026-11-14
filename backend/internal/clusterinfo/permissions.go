@@ -12,7 +12,8 @@ import (
 	authzv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"app/internal/settings"
+	"app/base/settings"
+	"app/internal/appsettings"
 	"app/internal/tenancy"
 )
 
@@ -86,8 +87,8 @@ func (s *Service) permissionChecks() []permissionCheck {
 		{label: "List services", verb: "list", resource: "services"},
 		// Whether servers can get IPv6 addresses.
 		{label: "List service CIDRs", verb: "list", group: "networking.k8s.io", resource: "servicecidrs"},
-		{label: "Read the Cilium config", verb: "get", resource: "configmaps", name: settings.CiliumConfig.Name,
-			namespace: settings.CiliumConfig.Namespace},
+		{label: "Read the Cilium config", verb: "get", resource: "configmaps", name: appsettings.CiliumConfig.Name,
+			namespace: appsettings.CiliumConfig.Namespace},
 		{label: "Manage secrets", verb: "create", resource: "secrets", scope: "panel"},
 		{label: "Store the OIDC client secret", verb: "patch", resource: "secrets", name: settings.OIDCSecret,
 			scope: "panel"},

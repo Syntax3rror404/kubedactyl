@@ -3,7 +3,9 @@ import { LinkIcon, PlusIcon, UploadIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { FileDropzone } from "@/components/common/file-dropzone"
+import { FileDropzone } from "@/base/components/file-dropzone"
+import { useDraft } from "@/base/hooks/use-draft"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,8 +20,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useDraft } from "@/hooks/use-draft"
-import { failed } from "@/lib/notify"
 import { useImportEgg } from "@/lib/queries"
 
 /** Imports an egg from a file or a URL. */

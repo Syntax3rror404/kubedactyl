@@ -1,5 +1,5 @@
+import { formatDate } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
-import { formatDate } from "@/lib/format"
 import type { EggSpec } from "@/lib/types"
 
 /**

@@ -1,0 +1,30 @@
+// Shapes of the base API (backend/base/api): sign-in, setup, the own account, users, invites, the panel settings and
+// upgrades. Generated into the app's lib/types/api.gen.ts with the app's parts flattened in (backend/app/views.go).
+
+export type {
+  ApiAcceptInviteRequest as AcceptInviteRequest,
+  ApiBranding as Branding,
+  ApiCreatedInvite as CreatedInvite,
+  ApiCreateInviteRequest as CreateInviteRequest,
+  ApiCreatedToken as CreatedToken,
+  ApiCreateUserRequest as CreateUserRequest,
+  ApiInviteDetails as InviteDetails,
+  ApiInviteView as InviteView,
+  ApiLegalTexts as LegalTexts,
+  ApiLoginResponse as LoginResponse,
+  ApiOIDCSignIn as OIDCSignIn,
+  ApiRequestRates as RequestRates,
+  ApiSettingsView as PanelSettings,
+  ApiSetupRequest as SetupRequest,
+  ApiSetupStatus as SetupStatus,
+  ApiTokenView as TokenView,
+  ApiUpdateSettingsRequest as UpdateSettingsRequest,
+  ApiUpdateUserRequest as UpdateUserRequest,
+  ApiUpgradeStatus as UpgradeStatus,
+  ApiUserView as UserView,
+  ApiVersions as Versions,
+  HttpserverInfoResponse as PanelInfo,
+  KubeRate as Rate,
+  SelfupgradeJob as UpgradeJob,
+  V1Alpha1UserRole as Role,
+} from "@/lib/types/api.gen"

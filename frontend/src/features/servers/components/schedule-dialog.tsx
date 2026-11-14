@@ -1,5 +1,6 @@
 import { SaveIcon } from "lucide-react"
 
+import { useDraft } from "@/base/hooks/use-draft"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,7 +17,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { ScheduleSteps } from "@/features/servers/components/schedule-steps"
 import { cronPresets, describeCron, eventLabels, MAX_STOP_DELAY } from "@/features/servers/lib/schedules"
-import { useDraft } from "@/hooks/use-draft"
 import type { Schedule, ScheduleEvent } from "@/lib/types"
 
 /**

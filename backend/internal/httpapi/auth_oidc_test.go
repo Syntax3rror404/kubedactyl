@@ -9,19 +9,24 @@ import (
 	"strings"
 	"testing"
 
-	"app/internal/testutil"
+	"app/app"
+	"app/base/api"
+	"app/base/auth/authtest"
 )
 
+// flowCookie keeps a started sign-in over HTTPS.
+const flowCookie = "__Host-" + app.CookiePrefix + "oidc"
+
 // oidcHarness turns single sign-on on with a test identity provider (users in "players", admins in "admins").
-func oidcHarness(t *testing.T) (*harness, *testutil.IdP) {
+func oidcHarness(t *testing.T) (*harness, *authtest.IdP) {
 	t.Helper()
-	h, idp := newHarness(t), testutil.NewIdP(t)
+	h, idp := newHarness(t), authtest.NewIdP(t)
 	h.enableOIDC(idp, nil)
 	return h, idp
 }
 
 // enableOIDC saves the single sign-on settings of the test identity provider with the changes.
-func (h *harness) enableOIDC(idp *testutil.IdP, changes map[string]any) {
+func (h *harness) enableOIDC(idp *authtest.IdP, changes map[string]any) {
 	h.t.Helper()
 	oidc := map[string]any{
 		"enabled": true, "issuerUrl": idp.URL, "clientId": idp.ClientID, "adminGroup": "admins",
@@ -49,6 +54,9 @@ func (h *harness) browse(target string, cookies ...*http.Cookie) *httptest.Respo
 	return w
 }
 
+// secureSession is the session cookie over HTTPS.
+const secureSession = "__Host-" + api.SessionCookie
+
 func cookie(w *httptest.ResponseRecorder, name string) *http.Cookie {
 	for _, c := range w.Result().Cookies() {
 		if c.Name == name && c.MaxAge >= 0 {
@@ -63,24 +71,24 @@ func cookie(w *httptest.ResponseRecorder, name string) *http.Cookie {
 func (h *harness) ssoSignIn(next string) (string, *http.Cookie) {
 	h.t.Helper()
 	start := h.browse("/api/auth/oidc/start?next=" + url.QueryEscape(next))
-	flow := cookie(start, oidcSecureCookie)
+	flow := cookie(start, flowCookie)
 	if start.Code != http.StatusFound || flow == nil {
 		h.t.Fatalf("start: %d %v", start.Code, start.Header())
 	}
 	if flow.SameSite != http.SameSiteLaxMode || !flow.HttpOnly || !flow.Secure || flow.Path != "/" {
 		h.t.Errorf("flow cookie: %+v", flow)
 	}
-	res, err := testutil.NoRedirects.Get(start.Header().Get("Location"))
+	res, err := authtest.NoRedirects.Get(start.Header().Get("Location"))
 	if err != nil {
 		h.t.Fatal(err)
 	}
 	_ = res.Body.Close()
 	back, _ := url.Parse(res.Header.Get("Location"))
-	if back.Host != "panel.test" || back.Path != oidcPath+"/callback" {
+	if back.Host != "panel.test" || back.Path != "/api/auth/oidc"+"/callback" {
 		h.t.Fatalf("identity provider redirected to %s", back)
 	}
 	done := h.browse(back.RequestURI(), flow)
-	return done.Header().Get("Location"), cookie(done, SessionCookie)
+	return done.Header().Get("Location"), cookie(done, secureSession)
 }
 
 func TestOIDCSignIn(t *testing.T) {
@@ -92,10 +100,10 @@ func TestOIDCSignIn(t *testing.T) {
 	// A new user of the user group gets an account without password and returns to the page they wanted.
 	idp.SignInAs(map[string]any{"sub": "s-carol", "preferred_username": "carol", "groups": []any{"players"}})
 	to, session := h.ssoSignIn("/servers/x?tab=files")
-	if to != "/login?next=%2Fservers%2Fx%3Ftab%3Dfiles&sso=ok" || session == nil {
+	if to != "/login?next=%2Fservers%2Fx%3Ftab%3Dfiles&sso=ok" || session == nil || !session.Secure {
 		t.Fatalf("sign-in led to %q, session %v", to, session)
 	}
-	var me UserView
+	var me api.UserView
 	code, body := h.do("GET", "/api/auth/me", session.Value, nil)
 	_ = json.Unmarshal([]byte(body), &me)
 	if code != 200 || me.Username != "carol" || me.Role != "user" || me.OIDC == nil || me.OIDC.Subject != "s-carol" ||
@@ -145,14 +153,14 @@ func TestOIDCRefusesForeignCallbacks(t *testing.T) {
 	h, idp := oidcHarness(t)
 	idp.SignInAs(map[string]any{"sub": "s-carol", "preferred_username": "carol", "groups": []any{"players"}})
 	start := h.browse("/api/auth/oidc/start")
-	forged := &http.Cookie{Name: oidcSecureCookie, Value: "e30.forged"}
+	forged := &http.Cookie{Name: flowCookie, Value: "e30.forged"}
 	for label, w := range map[string]*httptest.ResponseRecorder{
-		"no flow":           h.browse(oidcPath + "/callback?code=c&state=s"),
-		"forged flow":       h.browse(oidcPath+"/callback?code=c&state=s", forged),
-		"wrong state":       h.browse(oidcPath+"/callback?code=c&state=s", cookie(start, oidcSecureCookie)),
-		"provider declined": h.browse(oidcPath+"/callback?error=access_denied", cookie(start, oidcSecureCookie)),
+		"no flow":           h.browse("/api/auth/oidc/callback?code=c&state=s"),
+		"forged flow":       h.browse("/api/auth/oidc/callback?code=c&state=s", forged),
+		"wrong state":       h.browse("/api/auth/oidc/callback?code=c&state=s", cookie(start, flowCookie)),
+		"provider declined": h.browse("/api/auth/oidc/callback?error=access_denied", cookie(start, flowCookie)),
 	} {
-		if loc := w.Header().Get("Location"); loc != "/login?sso=failed" || cookie(w, SessionCookie) != nil {
+		if loc := w.Header().Get("Location"); loc != "/login?sso=failed" || cookie(w, secureSession) != nil {
 			t.Errorf("%s: led to %q", label, loc)
 		}
 	}
@@ -183,7 +191,7 @@ func TestOIDCCallbacksAreThrottled(t *testing.T) {
 		}
 	}
 	for range 5 {
-		h.browse(oidcPath + "/callback?code=c&state=s")
+		h.browse("/api/auth/oidc/callback?code=c&state=s")
 	}
 	if to, session := h.ssoSignIn("/"); to != "/login?sso=failed" || session != nil {
 		t.Errorf("sign-in after five failed callbacks: led to %q, session %v", to, session)
@@ -212,23 +220,6 @@ func TestOIDCSettingsValidation(t *testing.T) {
 		code, body := h.do("PUT", "/api/settings", admin, settings)
 		if code != 422 || !strings.Contains(body, `"oidc.`) {
 			t.Errorf("%s: %d %s", label, code, body)
-		}
-	}
-}
-
-func TestLocalPath(t *testing.T) {
-	for next, want := range map[string]string{
-		"/servers/a?tab=files":                 "/servers/a?tab=files",
-		"":                                     "/",
-		"//evil.example.com":                   "/",
-		"/\\evil.example.com":                  "/",
-		"https://evil.example":                 "/",
-		"/api/servers/a/files/download?file=x": "/",
-		"servers":                              "/",
-		"/a\nb":                                "/",
-	} {
-		if got := localPath(next); got != want {
-			t.Errorf("localPath(%q) = %q, want %q", next, got, want)
 		}
 	}
 }

@@ -1,7 +1,7 @@
 import { EggIcon } from "lucide-react"
 
+import { plural } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
-import { plural } from "@/lib/format"
 
 /** The number of eggs in a repository: settings (egg library) and the Library tab of the eggs page. */
 export function EggCountBadge({ count }: { count: number }) {

@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"app/internal/kube"
+	"app/base/kube"
 )
 
 // Event is a websocket message: an event name and its arguments.

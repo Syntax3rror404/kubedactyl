@@ -1,7 +1,7 @@
 import { toast } from "sonner"
 
-import { failed } from "@/lib/notify"
-import type { MutationCallbacks } from "@/lib/queries"
+import { failed } from "@/base/lib/queries"
+import type { MutationCallbacks } from "@/base/lib/queries"
 import type { GameServer, PowerSignal } from "@/lib/types"
 
 /** What the user sees after a power action, which several components offer. */

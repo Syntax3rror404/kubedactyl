@@ -15,7 +15,7 @@ export KUBE_CONTEXT
 export CGO_ENABLED := 0
 export GOFLAGS := -trimpath
 
-.PHONY: dev dev-backend dev-frontend generate docs build frontend licenses run check-context embed-placeholder test lint fmt ui-update uninstall clean image push-image push-chart sync-version check-generated
+.PHONY: dev dev-backend dev-frontend generate docs build frontend licenses run check-context embed-placeholder test lint fmt ui-update uninstall clean image push-image push-chart sync-version check-generated check-base
 
 # Commands that talk to a cluster need an explicit context (never silently the current one).
 check-context:
@@ -53,7 +53,7 @@ frontend:
 # third-party-licenses.md (licenses page of the panel, shipped in the image): license texts of the dependencies
 # listed in THIRD_PARTY_NOTICES.md; fails when the list and the build differ
 licenses:
-	cd backend && go run ./tools/licenses -root .. -dist web/dist
+	cd backend && go run ./base/tools/licenses -root .. -dist web/dist
 
 build: generate docs frontend licenses
 	cd backend && CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o ../$(BIN) .
@@ -69,12 +69,13 @@ test: check-generated embed-placeholder
 	cd backend && go test ./...
 
 # Code rules: backend/.golangci.yml (line and function length, complexity, staticcheck, imports),
-# unused code (deadcode; internal/testutil is only used by tests), and the frontend checks.
+# unused code (deadcode; internal/testutil is only used by tests, base/ is a library whose parts not every app
+# uses), and the frontend checks.
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.52.0
 lint: embed-placeholder
 	cd backend && $(GOLANGCI) run ./...
-	@cd backend && dead="$$($(DEADCODE) ./... | grep -v internal/testutil/)"; \
+	@cd backend && dead="$$($(DEADCODE) ./... | grep -v -e '^internal/testutil/' -e '^base/')"; \
 		test -z "$$dead" || { echo "unused code:"; echo "$$dead"; exit 1; }
 	cd frontend && npm run format:check && npx tsc -b && npx oxlint && npx knip
 
@@ -82,6 +83,13 @@ lint: embed-placeholder
 fmt:
 	cd backend && $(GOLANGCI) fmt ./...
 	cd frontend && npm run format
+
+# The base (frontend/src/base, backend/base) is the same in every app: compares it with another app's copy.
+# BASE_PEER is that app's directory, set in local.mk (e.g. BASE_PEER := ../other-app).
+check-base:
+	@test -n "$(BASE_PEER)" || { echo "BASE_PEER is not set: put e.g. 'BASE_PEER := ../other-app' into local.mk"; exit 1; }
+	@diff -r frontend/src/base $(BASE_PEER)/frontend/src/base && echo "frontend/src/base is the same as in $(BASE_PEER)"
+	@diff -r backend/base $(BASE_PEER)/backend/base && echo "backend/base is the same as in $(BASE_PEER)"
 
 # Generated files (CRDs, deepcopy, Swagger, frontend API types) must match the code they come from.
 check-generated:

@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
+import { useDraft } from "@/base/hooks/use-draft"
+import { failed, useSettings } from "@/base/lib/queries"
+import { fieldErrors } from "@/base/lib/validation"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,11 +25,8 @@ import { VariableField } from "@/features/servers/components/variable-field"
 import type { SharedServerFields } from "@/features/servers/hooks/use-shared-server-fields"
 import { NO_LOAD_BALANCER, poolRequest } from "@/features/servers/lib/settings-draft"
 import { defaultEnvironment, imageOptions, startupCommandOf } from "@/features/servers/lib/startup"
-import { useDraft } from "@/hooks/use-draft"
-import { failed } from "@/lib/notify"
-import { useCreateServer, usePools, useSettings } from "@/lib/queries"
+import { useCreateServer, usePools } from "@/lib/queries"
 import type { Egg } from "@/lib/types"
-import { fieldErrors } from "@/lib/validation"
 
 /** The create form for one egg: image, startup command, variables, resources, ports, placement and owner. */
 export function ServerForm({

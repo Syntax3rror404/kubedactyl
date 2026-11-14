@@ -13,8 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // How often a storage migration is checked while it waits or copies (pod events come in between),

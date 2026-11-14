@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
-	"app/internal/kube"
+	"app/base/kube"
 	"app/internal/tenancy"
 )
 

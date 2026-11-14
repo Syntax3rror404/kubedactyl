@@ -138,12 +138,12 @@ type OIDCSettings struct {
 	// GroupsClaim holds the groups of the user. Empty: groups.
 	// +optional
 	GroupsClaim string `json:"groupsClaim,omitempty"`
-	// Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+	// Members of AdminGroup sign in as administrators, members of the user group (userGroup) as users; nobody
 	// else may sign in.
 	// +optional
 	AdminGroup string `json:"adminGroup,omitempty"`
 	// +optional
-	UserGroup string `json:"userGroup,omitempty"`
+	MemberGroup string `json:"userGroup,omitempty"`
 	// LinkByUsername links an existing account that is not linked yet to the user of the identity
 	// provider with the same username (to bootstrap). Off: such a sign-in is refused, so nobody
 	// can take over an account by choosing its name at the identity provider.

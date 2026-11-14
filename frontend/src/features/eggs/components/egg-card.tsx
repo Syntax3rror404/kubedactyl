@@ -1,12 +1,12 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router"
 
+import { GlowCard } from "@/base/components/glow-card"
+import { plural } from "@/base/lib/format"
 import { EggIcon } from "@/components/common/egg-icon"
-import { GlowCard } from "@/components/common/glow-card"
 import { Badge } from "@/components/ui/badge"
 import { EggOrigin } from "@/features/eggs/components/egg-origin"
 import { UpdateUrlBadge } from "@/features/eggs/components/update-url-badge"
-import { plural } from "@/lib/format"
 import type { Egg } from "@/lib/types"
 
 /** Card of an egg on the eggs page. */

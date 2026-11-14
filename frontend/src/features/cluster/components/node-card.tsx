@@ -1,10 +1,10 @@
 import { AlertTriangleIcon, CpuIcon, HardDriveIcon, MemoryStickIcon, MonitorIcon } from "lucide-react"
 
-import { GlowCard } from "@/components/common/glow-card"
-import { UsageRow } from "@/components/common/usage-row"
+import { GlowCard } from "@/base/components/glow-card"
+import { UsageRow } from "@/base/components/usage-bar"
+import { formatBytes, formatCores, formatPercent, formatRelativeTime, plural } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
-import { formatBytes, formatCores, formatPercent, formatRelativeTime, plural } from "@/lib/format"
 import type { ClusterNode } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

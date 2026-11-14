@@ -1,0 +1,234 @@
+// Package kube holds what the panel shares around the Kubernetes API: the connection, the clients,
+// the streaming calls (exec, attach), the request limit, a TTL cache for polled values,
+// CreateOrPatch with an uncached read and volume helpers.
+package kube
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
+	utilexec "k8s.io/client-go/util/exec"
+	"k8s.io/streaming/pkg/httpstream"
+	clientconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+)
+
+// Client bundles the REST config and a typed clientset.
+type Client struct {
+	Config    *rest.Config
+	Clientset kubernetes.Interface
+}
+
+// RestConfig loads the kubeconfig context ("": the current one, or the in-cluster service account); every client
+// made from it shares the limiter. http1 keeps the connections to the API server on HTTP/1.1.
+func RestConfig(kubeContext string, http1 bool, limiter *RateLimiter) (*rest.Config, error) {
+	cfg, err := clientconfig.GetConfigWithContext(kubeContext)
+	if err != nil {
+		return nil, fmt.Errorf("loading kubeconfig: %w", err)
+	}
+	cfg.RateLimiter = limiter
+	if http1 {
+		// Proxies in front of the API server often cut long-running HTTP/2 streams with
+		// a stream error, which client-go treats as a failure and answers with backoff.
+		// Over HTTP/1.1 the same cut is a clean end of the watch and it reconnects at once.
+		cfg.TLSClientConfig.NextProtos = []string{"http/1.1"}
+	}
+	return cfg, nil
+}
+
+// CurrentContext names the kubeconfig context in use (for the cluster page).
+func CurrentContext(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	raw, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
+	if err != nil || raw.CurrentContext == "" {
+		return "in-cluster"
+	}
+	return raw.CurrentContext
+}
+
+// New creates a Client from a REST config.
+func New(cfg *rest.Config) (*Client, error) {
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{Config: cfg, Clientset: cs}, nil
+}
+
+// Executor runs an exec request: over WebSocket, or SPDY for API servers without it.
+func Executor(cfg *rest.Config, req *rest.Request) (remotecommand.Executor, error) {
+	ws, err := remotecommand.NewWebSocketExecutor(cfg, http.MethodGet, req.URL().String())
+	if err != nil {
+		return nil, err
+	}
+	spdy, err := remotecommand.NewSPDYExecutor(cfg, http.MethodPost, req.URL())
+	if err != nil {
+		return nil, err
+	}
+	return remotecommand.NewFallbackExecutor(ws, spdy, func(err error) bool {
+		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+	})
+}
+
+// ExitError is returned by Exec when the command exits with a non-zero code.
+type ExitError struct {
+	Code   int
+	Stderr string
+}
+
+func (e *ExitError) Error() string {
+	if e.Stderr != "" {
+		return fmt.Sprintf("command exited with code %d: %s", e.Code, e.Stderr)
+	}
+	return fmt.Sprintf("command exited with code %d", e.Code)
+}
+
+// ErrOutputTooLarge is returned by a LimitedBuffer that would grow beyond its limit, and by ExecOutput when it
+// cut the output.
+var ErrOutputTooLarge = errors.New("the output of the command is too large")
+
+// LimitedBuffer is a buffer for command output that holds at most Max bytes. A write beyond it fails and sets
+// Full; the command keeps running and the rest of its output is dropped, so callers check Full.
+type LimitedBuffer struct {
+	bytes.Buffer
+	Max  int
+	Full bool
+}
+
+func (b *LimitedBuffer) Write(p []byte) (int, error) {
+	if b.Len()+len(p) > b.Max {
+		b.Full = true
+		return 0, ErrOutputTooLarge
+	}
+	return b.Buffer.Write(p)
+}
+
+// maxStderr limits the stderr an ExitError keeps; maxOutput the stdout ExecOutput returns.
+const (
+	maxStderr = 64 << 10
+	maxOutput = 1 << 20
+)
+
+// Exec runs cmd in a container; its stderr (up to 64 KiB) ends up in the ExitError.
+func (k *Client) Exec(
+	ctx context.Context, ns, pod, container string, cmd []string, stdin io.Reader, stdout io.Writer,
+) error {
+	req := k.Clientset.CoreV1().RESTClient().Post().
+		Resource("pods").Namespace(ns).Name(pod).SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: container,
+			Command:   cmd,
+			Stdin:     stdin != nil,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+	exec, err := Executor(k.Config, req)
+	if err != nil {
+		return err
+	}
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	stderr := LimitedBuffer{Max: maxStderr}
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdin: stdin, Stdout: stdout, Stderr: &stderr})
+	var codeErr utilexec.CodeExitError
+	if errors.As(err, &codeErr) {
+		return &ExitError{Code: codeErr.Code, Stderr: stderr.String()}
+	}
+	return err
+}
+
+// ExecOutput runs cmd and returns its stdout; ErrOutputTooLarge (with the first 1 MiB) when there was more.
+func (k *Client) ExecOutput(
+	ctx context.Context, ns, pod, container string, cmd []string, stdin io.Reader,
+) ([]byte, error) {
+	out := LimitedBuffer{Max: maxOutput}
+	err := k.Exec(ctx, ns, pod, container, cmd, stdin, &out)
+	if err == nil && out.Full {
+		err = ErrOutputTooLarge
+	}
+	return out.Bytes(), err
+}
+
+// AttachWrite writes data to the stdin (TTY) of a running container.
+func (k *Client) AttachWrite(ctx context.Context, ns, pod, container string, data []byte) error {
+	req := k.Clientset.CoreV1().RESTClient().Post().
+		Resource("pods").Namespace(ns).Name(pod).SubResource("attach").
+		VersionedParams(&corev1.PodAttachOptions{
+			Container: container,
+			Stdin:     true,
+			Stdout:    true,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+	exec, err := Executor(k.Config, req)
+	if err != nil {
+		return err
+	}
+	// The attach stream only ends when the container exits: it is closed shortly after stdin
+	// was delivered.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	in := &onceReader{data: data, sent: make(chan struct{}), ctx: ctx}
+	var streamErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		streamErr = exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdin: in, Stdout: io.Discard, Tty: true})
+	}()
+	select {
+	case <-done:
+		if streamErr == nil {
+			return errors.New("attach stream closed before the input was sent")
+		}
+		return streamErr
+	case <-in.sent:
+		// Give the stream a moment to flush the frame before closing it. Its own error does not
+		// matter any more: the input was delivered.
+		select {
+		case <-done:
+			// The container exited (e.g. after ^C).
+		case <-time.After(300 * time.Millisecond):
+			cancel()
+			<-done
+		}
+		return nil
+	case <-ctx.Done():
+		<-done
+		return fmt.Errorf("attach: %w", ctx.Err())
+	}
+}
+
+// onceReader returns data once and then blocks until ctx is done, so the stdin of
+// the attach session is not closed while the data is still in flight.
+type onceReader struct {
+	data []byte
+	sent chan struct{}
+	ctx  context.Context
+	done bool
+}
+
+func (r *onceReader) Read(p []byte) (int, error) {
+	if len(r.data) > 0 {
+		n := copy(p, r.data)
+		r.data = r.data[n:]
+		return n, nil
+	}
+	if !r.done {
+		r.done = true
+		close(r.sent)
+	}
+	<-r.ctx.Done()
+	return 0, io.EOF
+}

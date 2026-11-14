@@ -29,7 +29,7 @@ func (a *API) denylist(c *gin.Context, gs *v1alpha1.GameServer) ([]string, bool)
 	case apierrors.IsNotFound(err):
 		return nil, true
 	case err != nil:
-		a.fail(c, err)
+		a.Fail(c, err)
 		return nil, false
 	}
 	return e.Spec.FileDenylist, true
@@ -63,7 +63,7 @@ func (a *API) listFiles(c *gin.Context) {
 	dir := cleanDir(c.Query("directory"))
 	items, err := a.Files.Manager.List(c, files.RefOf(gs), dir, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	if items == nil {
@@ -80,7 +80,7 @@ func (a *API) listFiles(c *gin.Context) {
 //	@Param		server	path		string	true	"Server name"
 //	@Param		file	query		string	true	"File path"
 //	@Success	200		{string}	string
-//	@Failure	413		{object}	ErrorResponse
+//	@Failure	413		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/contents [get]
 func (a *API) readFile(c *gin.Context) {
@@ -94,10 +94,10 @@ func (a *API) readFile(c *gin.Context) {
 	}
 	data, err := a.Files.Manager.Read(c, files.RefOf(gs), c.Query("file"), maxEditableSize, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "file read", "server", gs.Name, "file", c.Query("file"))
+	a.Audit(c, "file read", "server", gs.Name, "file", c.Query("file"))
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", data)
 }
 
@@ -128,11 +128,11 @@ func (a *API) downloadFile(c *gin.Context) {
 	err := a.Files.Manager.Download(c.Request.Context(), files.RefOf(gs), file, c.Writer, deny)
 	switch {
 	case err == nil:
-		a.audit(c, "file downloaded", "server", gs.Name, "file", file)
+		a.Audit(c, "file downloaded", "server", gs.Name, "file", file)
 	case !c.Writer.Written():
 		// The error is JSON, not the file the browser would otherwise save.
 		c.Writer.Header().Del("Content-Disposition")
 		c.Writer.Header().Del("Content-Type")
-		a.fail(c, err)
+		a.Fail(c, err)
 	}
 }

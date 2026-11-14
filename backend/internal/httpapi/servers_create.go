@@ -13,11 +13,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
+	"app/base/validation"
+	"app/internal/appsettings"
+	"app/internal/appusers"
 	"app/internal/gameserver"
-	"app/internal/settings"
 	"app/internal/tenancy"
-	"app/internal/users"
-	"app/internal/validation"
 )
 
 // CreateServerRequest creates a game server from an egg.
@@ -62,12 +63,12 @@ type CreateServerRequest struct {
 //	@Produce		json
 //	@Param			body	body		CreateServerRequest	true	"Server"
 //	@Success		201		{object}	v1alpha1.GameServer
-//	@Failure		422		{object}	ErrorResponse
+//	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers [post]
 func (a *API) createServer(c *gin.Context) {
 	var req CreateServerRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	e, ok := a.loadEgg(c, req.Egg)
@@ -75,19 +76,19 @@ func (a *API) createServer(c *gin.Context) {
 		return
 	}
 	if req.Owner == "" {
-		req.Owner = principal(c).User.Name
+		req.Owner = api.PrincipalOf(c).User.Name
 	}
 	gs, err := a.newGameServer(c, &req, e)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	if err := a.Client.Create(c, gs); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	a.Trigger(gs.Namespace, gs.Name)
-	a.audit(c, "server created", "server", gs.Name, "egg", gs.Spec.EggRef, "namespace", gs.Namespace)
+	a.Audit(c, "server created", "server", gs.Name, "egg", gs.Spec.EggRef, "namespace", gs.Namespace)
 	c.JSON(http.StatusCreated, gs)
 }
 
@@ -180,14 +181,16 @@ func (a *API) choosePlacement(ctx context.Context, req *CreateServerRequest) (st
 	if err != nil {
 		return "", "", err
 	}
-	storageClass, err = settings.Choose(req.StorageClass, set.DefaultStorageClass, set.StorageClasses, "storage class")
+	storageClass, err = appsettings.Choose(
+		req.StorageClass, set.DefaultStorageClass, set.StorageClasses, "storage class",
+	)
 	if err == nil && storageClass == "" {
-		err = settings.ErrNotConfigured
+		err = appsettings.ErrNotConfigured
 	}
 	if err != nil {
 		return "", "", err
 	}
-	pool, err = settings.Choose(
+	pool, err = appsettings.Choose(
 		req.LoadBalancerPool, set.DefaultLoadBalancerPool, set.LoadBalancerPools, "load balancer pool",
 	)
 	if err != nil {
@@ -225,8 +228,8 @@ func (a *API) ownerNamespace(ctx context.Context, owner string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	if users.Subuser(u) {
-		return "", validation.Field("owner", users.ErrSubuser)
+	if appusers.Subuser(u) {
+		return "", validation.Field("owner", appusers.ErrSubuser)
 	}
 	return tenancy.EnsureNamespace(ctx, a.Client, owner)
 }
@@ -244,5 +247,5 @@ func (a *API) freeServerName(ctx context.Context, displayName string) (string, e
 			return candidate, nil
 		}
 	}
-	return "", conflict(errors.New("could not find a free server name, try again"))
+	return "", api.Conflict(errors.New("could not find a free server name, try again"))
 }

@@ -1,6 +1,6 @@
 import { RefreshCwIcon } from "lucide-react"
 
-import { Callout } from "@/components/common/callout"
+import { Callout } from "@/base/components/callout"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { powerFeedback } from "@/features/servers/lib/feedback"

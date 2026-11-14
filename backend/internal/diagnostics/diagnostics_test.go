@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"app/api/v1alpha1"
-	"app/internal/checks"
+	"app/base/checks"
 )
 
 type fakeResolver map[string][]netip.Addr // key: network ("ip4"/"ip6")

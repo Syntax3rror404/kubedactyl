@@ -3,8 +3,11 @@ import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PlusIcon } from "lucide-react
 import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
-import { QueryState } from "@/components/common/query-state"
-import { PageHeader } from "@/components/layout/page-header"
+import { QueryState } from "@/base/components/query-state"
+import { useDraft } from "@/base/hooks/use-draft"
+import { PageHeader } from "@/base/layout/page-header"
+import { failed } from "@/base/lib/queries"
+import { fieldErrors } from "@/base/lib/validation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,12 +23,9 @@ import {
   sections,
   type FieldErrors,
 } from "@/features/eggs/lib/egg-draft"
-import { useDraft } from "@/hooks/use-draft"
-import { failed } from "@/lib/notify"
 import { useCreateEgg, useEgg } from "@/lib/queries"
 import type { EggSpec } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { fieldErrors } from "@/lib/validation"
 
 const steps = [...sections, { id: "review" as const, title: "Review", description: "Check the egg and create it." }]
 

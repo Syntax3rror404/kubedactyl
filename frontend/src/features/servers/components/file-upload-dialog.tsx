@@ -2,7 +2,8 @@ import { useState } from "react"
 import { UploadIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { FileDropzone } from "@/components/common/file-dropzone"
+import { FileDropzone } from "@/base/components/file-dropzone"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { uploadedText } from "@/features/servers/lib/files"
-import { failed } from "@/lib/notify"
 import { useUploadFiles } from "@/lib/queries"
 
 /** Upload files into the current directory (several files at once); the dialog stays open while they upload. */

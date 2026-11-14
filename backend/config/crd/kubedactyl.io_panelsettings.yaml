@@ -155,7 +155,7 @@ spec:
                 properties:
                   adminGroup:
                     description: |-
-                      Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody
+                      Members of AdminGroup sign in as administrators, members of the user group (userGroup) as users; nobody
                       else may sign in.
                     type: string
                   clientId:

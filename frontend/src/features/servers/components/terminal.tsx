@@ -1,12 +1,11 @@
+import "@xterm/xterm/css/xterm.css"
 import { useEffect, useRef } from "react"
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal as XTerm, type ITheme } from "@xterm/xterm"
 import { toast } from "sonner"
 
-import "@xterm/xterm/css/xterm.css"
-
+import { useResolvedTheme } from "@/base/hooks/use-resolved-theme"
 import type { ConsoleEvent } from "@/features/servers/hooks/use-console"
-import { useResolvedTheme } from "@/hooks/use-resolved-theme"
 
 const dark: ITheme = {
   background: "#00000000",

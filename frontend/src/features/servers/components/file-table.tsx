@@ -11,7 +11,8 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
-import { DropdownMenuLink } from "@/components/common/dropdown-menu-link"
+import { DropdownMenuLink } from "@/base/components/dropdown-menu-link"
+import { formatBytes, formatRelativeTime } from "@/base/lib/format"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -24,7 +25,6 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DRAG_TYPE, draggedNames, isArchive, isEditable, isFileDrag, joinPath } from "@/features/servers/lib/files"
 import { languageFor } from "@/features/servers/lib/languages"
-import { formatBytes, formatRelativeTime } from "@/lib/format"
 import type { FileEntry } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"app/internal/settings"
+	"app/internal/appsettings"
 )
 
 // MigrateRequest names the storage class the server files move to.
@@ -28,13 +28,13 @@ type MigrateRequest struct {
 //	@Param			server	path		string			true	"Server name"
 //	@Param			body	body		MigrateRequest	true	"Storage class"
 //	@Success		200		{object}	v1alpha1.GameServer
-//	@Failure		409		{object}	ErrorResponse	"a job or the install runs, or it is the current class"
-//	@Failure		422		{object}	ErrorResponse	"the storage class is not enabled"
+//	@Failure		409		{object}	api.ErrorResponse	"a job or the install runs, or it is the current one"
+//	@Failure		422		{object}	api.ErrorResponse	"the storage class is not enabled"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/migrate [post]
 func (a *API) migrateServer(c *gin.Context) {
 	var req MigrateRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -43,16 +43,16 @@ func (a *API) migrateServer(c *gin.Context) {
 	}
 	set, err := a.Settings.Current(c)
 	if err == nil {
-		_, err = settings.Choose(req.StorageClass, "", set.StorageClasses, "storage class")
+		_, err = appsettings.Choose(req.StorageClass, "", set.StorageClasses, "storage class")
 	}
 	if err == nil {
 		err = a.Ops.Migrate(c, gs, req.StorageClass, req.StartOnCompletion)
 	}
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server storage migration started", "server", gs.Name, "from", gs.Status.StorageClass,
+	a.Audit(c, "server storage migration started", "server", gs.Name, "from", gs.Status.StorageClass,
 		"to", req.StorageClass)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, gs)
@@ -67,7 +67,7 @@ func (a *API) migrateServer(c *gin.Context) {
 //	@Produce		json
 //	@Param			server	path		string	true	"Server name"
 //	@Success		200		{object}	v1alpha1.GameServer
-//	@Failure		409		{object}	ErrorResponse	"no migration is running or it is switching already"
+//	@Failure		409		{object}	api.ErrorResponse	"no migration is running or it is switching already"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/migrate/cancel [post]
 func (a *API) cancelMigration(c *gin.Context) {
@@ -76,10 +76,10 @@ func (a *API) cancelMigration(c *gin.Context) {
 		return
 	}
 	if err := a.Ops.CancelMigration(c, gs); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "server storage migration cancelled", "server", gs.Name)
+	a.Audit(c, "server storage migration cancelled", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
 	c.JSON(http.StatusOK, gs)
 }

@@ -1,17 +1,19 @@
 import { FolderGit2Icon, LibraryIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
 import { Link } from "react-router"
 
-import { Callout } from "@/components/common/callout"
+import { Callout } from "@/base/components/callout"
+import { EmptyState, QueryState, SkeletonGrid } from "@/base/components/query-state"
+import { formatRelativeTime } from "@/base/lib/format"
+import { failed } from "@/base/lib/queries"
 import { EggCountBadge } from "@/components/common/egg-count-badge"
-import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { LibraryEggCard } from "@/features/eggs/components/library-egg-card"
-import { installedAs, repositoryName } from "@/features/eggs/lib/library"
-import { formatRelativeTime, matches } from "@/lib/format"
-import { failed } from "@/lib/notify"
+import { EggCardLayout } from "@/features/eggs/components/egg-card"
+import { folderOf, installedAs, libraryEggPath, repositoryName } from "@/features/eggs/lib/library"
+import { matches } from "@/lib/format"
 import { useEggs, useLibrary, useRefreshLibrary } from "@/lib/queries"
-import type { Egg, LibraryRepository } from "@/lib/types"
+import type { Egg, LibraryEgg, LibraryRepository } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 /** The "Library" tab of the eggs page: the eggs of the git repositories in the settings. */
@@ -87,5 +89,26 @@ function RepositorySection({
         </div>
       )}
     </section>
+  )
+}
+
+/** Card of an egg in the library (laid out like the cards of installed eggs). */
+function LibraryEggCard({ egg, installed }: { egg: LibraryEgg; installed: boolean }) {
+  return (
+    <EggCardLayout
+      to={libraryEggPath(egg)}
+      name={egg.name}
+      icon={egg.icon}
+      author={egg.author}
+      description={egg.description}
+      tag={
+        <Badge variant="outline" className="font-mono text-[10px]">
+          {egg.format}
+        </Badge>
+      }
+      highlight={installed ? "Installed" : undefined}
+    >
+      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{folderOf(egg.path)}</span>
+    </EggCardLayout>
   )
 }

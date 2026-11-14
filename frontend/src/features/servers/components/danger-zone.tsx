@@ -3,7 +3,8 @@ import { LockIcon, LockOpenIcon, RefreshCcwIcon, Trash2Icon } from "lucide-react
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog"
+import { ConfirmDialog } from "@/base/components/confirm-dialog"
+import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,7 +12,6 @@ import { MigrateServer } from "@/features/servers/components/migrate-server"
 import { TransferServer } from "@/features/servers/components/transfer-server"
 import { suspendFeedback } from "@/features/servers/lib/feedback"
 import { serverName } from "@/lib/format"
-import { failed } from "@/lib/notify"
 import { useDeleteServer, useReinstallServer, useSuspendServer } from "@/lib/queries"
 import type { GameServer } from "@/lib/types"
 

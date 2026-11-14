@@ -1,0 +1,250 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"app/api/v1alpha1"
+	"app/app"
+	"app/base/users"
+)
+
+// InviteView describes an invite without the token of its link.
+type InviteView struct {
+	ID string `json:"id" example:"1a2b3c4d5e6f"`
+	// Username is the name the account gets; empty lets the invited person choose it.
+	Username  string            `json:"username,omitempty"  example:"alice"`
+	Role      v1alpha1.UserRole `json:"role"                example:"admin"`
+	Note      string            `json:"note,omitempty"      example:"Alice from the support team"`
+	CreatedBy string            `json:"createdBy,omitempty" example:"admin"`
+	CreatedAt time.Time         `json:"createdAt"`
+	ExpiresAt time.Time         `json:"expiresAt"`
+	// Reset links set a new password for the existing account Username.
+	Reset bool `json:"reset"`
+	// Expired invites stay listed until they are revoked; their link no longer works.
+	Expired bool `json:"expired"`
+	app.InviteView
+}
+
+// CreatedInvite contains the token of the invite link, which is shown only once.
+type CreatedInvite struct {
+	InviteView
+	Token string `json:"token" example:"1a2b3c4d5e6f.…"`
+}
+
+// CreateInviteRequest creates an invite link; an empty username lets the invited person choose it.
+type CreateInviteRequest struct {
+	Username string            `json:"username,omitempty" example:"alice"`
+	Role     v1alpha1.UserRole `json:"role,omitempty"     example:"admin"`
+	Note     string            `json:"note,omitempty"     binding:"max=200"                       example:"Alice from the support team"`
+	// Reset creates a link that sets a new password for the existing account Username (users: accounts they own).
+	Reset bool `json:"reset,omitempty"`
+	app.InviteRequest
+}
+
+// InviteDetails is what the invite page needs before the account is created.
+type InviteDetails struct {
+	// Username is set when the name was chosen for the invited person; they cannot change it.
+	Username  string    `json:"username,omitempty" example:"alice"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	// Reset links set a new password for the account Username instead of creating one.
+	Reset bool `json:"reset"`
+}
+
+// AcceptInviteRequest creates the account of an invite link.
+type AcceptInviteRequest struct {
+	Token string `json:"token" binding:"required"`
+	// Username is ignored when the invite names one.
+	Username    string `json:"username,omitempty"    example:"alice"`
+	DisplayName string `json:"displayName,omitempty" example:"Alice"`
+	Password    string `json:"password"              binding:"required" example:"a-long-password"`
+}
+
+func (a *API) inviteView(i *v1alpha1.Invite) InviteView {
+	v := InviteView{
+		ID: i.Name, Username: i.Spec.Username, Role: i.Spec.Role, Note: i.Spec.Note, CreatedBy: i.Spec.CreatedBy,
+		Reset: i.Spec.Reset, CreatedAt: i.CreationTimestamp.Time, ExpiresAt: i.Spec.ExpiresAt.Time,
+		Expired: !time.Now().Before(i.Spec.ExpiresAt.Time),
+	}
+	if a.App != nil {
+		v.InviteView = a.App.InviteView(i)
+	}
+	return v
+}
+
+// listInvites godoc
+//
+//	@Summary		List invites
+//	@Description	Open and expired invites, newest first: administrators get all, other users the ones they own.
+//	@Description	The links themselves are not stored.
+//	@Tags			Users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}	InviteView
+//	@Router			/invites [get]
+func (a *API) listInvites(c *gin.Context) {
+	list, err := a.Users.ListInvites(c, PrincipalOf(c).User)
+	if err != nil {
+		a.Fail(c, err)
+		return
+	}
+	out := []InviteView{}
+	for i := range list {
+		out = append(out, a.inviteView(&list[i]))
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// createInvite godoc
+//
+//	@Summary		Create an invite link
+//	@Description	The link (/invite?token=<token>) lets someone create an account once within 7 days, or with
+//	@Description	reset set a new password for an existing one. The token is returned only once.
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		CreateInviteRequest	true	"Invite"
+//	@Success		201		{object}	CreatedInvite
+//	@Failure		422		{object}	ErrorResponse
+//	@Router			/invites [post]
+func (a *API) createInvite(c *gin.Context) {
+	var req CreateInviteRequest
+	if !a.BindJSON(c, &req) {
+		return
+	}
+	in := users.InviteInput{
+		Username: req.Username, Role: req.Role, Note: req.Note, Reset: req.Reset, InviteRequest: req.InviteRequest,
+	}
+	invite, token, err := a.Users.CreateInvite(c, in, PrincipalOf(c).User)
+	if err != nil {
+		a.Fail(c, err)
+		return
+	}
+	a.Audit(c, "invite created", "invite", invite.Name, "username", invite.Spec.Username, "role", invite.Spec.Role,
+		"reset", invite.Spec.Reset)
+	c.JSON(http.StatusCreated, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
+}
+
+// renewInvite godoc
+//
+//	@Summary		Renew an invite link
+//	@Description	Replaces the link of an invite (the old one stops working) and makes it valid for 7 days again,
+//	@Description	also after it expired. The new token is returned only once.
+//	@Tags			Users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			invite	path		string	true	"Invite id"
+//	@Success		200		{object}	CreatedInvite
+//	@Failure		404		{object}	ErrorResponse
+//	@Router			/invites/{invite}/renew [post]
+func (a *API) renewInvite(c *gin.Context) {
+	invite, token, err := a.Users.RenewInvite(c, c.Param("invite"), PrincipalOf(c).User)
+	if err != nil {
+		a.Fail(c, err)
+		return
+	}
+	a.Audit(c, "invite renewed", "invite", invite.Name)
+	c.JSON(http.StatusOK, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
+}
+
+// deleteInvite godoc
+//
+//	@Summary	Revoke an invite
+//	@Tags		Users
+//	@Security	BearerAuth
+//	@Param		invite	path	string	true	"Invite id"
+//	@Success	204
+//	@Failure	404	{object}	ErrorResponse
+//	@Router		/invites/{invite} [delete]
+func (a *API) deleteInvite(c *gin.Context) {
+	if err := a.Users.DeleteInvite(c, c.Param("invite"), PrincipalOf(c).User); err != nil {
+		a.Fail(c, err)
+		return
+	}
+	a.Audit(c, "invite revoked", "invite", c.Param("invite"))
+	c.Status(http.StatusNoContent)
+}
+
+// useInviteLink runs use, which looks up an invite link. Invalid links count against the client like failed
+// sign-ins, so nobody can make the panel look up invites without end.
+func (a *API) useInviteLink(c *gin.Context, use func() error) bool {
+	now := time.Now()
+	key, err := a.takeClientAttempt(c, "invite", now)
+	if err == nil {
+		if err = use(); !errors.Is(err, users.ErrInvalidInvite) {
+			a.Limiter.Forgive(key, now)
+		}
+	}
+	if err != nil {
+		a.Fail(c, err)
+		return false
+	}
+	return true
+}
+
+// getInvite godoc
+//
+//	@Summary		Check an invite link
+//	@Description	Public: tells the invite page whether the link works and whether the username is fixed.
+//	@Tags			Auth
+//	@Produce		json
+//	@Param			token	query		string	true	"Token of the invite link"
+//	@Success		200		{object}	InviteDetails
+//	@Failure		404		{object}	ErrorResponse	"unknown, used or expired link"
+//	@Failure		429		{object}	ErrorResponse
+//	@Router			/auth/invite [get]
+func (a *API) getInvite(c *gin.Context) {
+	var invite *v1alpha1.Invite
+	find := func() (err error) {
+		invite, err = a.Users.FindInvite(c, strings.TrimSpace(c.Query("token")))
+		return err
+	}
+	if a.useInviteLink(c, find) {
+		c.JSON(http.StatusOK, InviteDetails{
+			Username: invite.Spec.Username, ExpiresAt: invite.Spec.ExpiresAt.Time, Reset: invite.Spec.Reset,
+		})
+	}
+}
+
+// acceptInvite godoc
+//
+//	@Summary		Accept an invite
+//	@Description	Public: creates the account of an invite link, or sets the new password of a reset link (the
+//	@Description	link works once), and signs it in.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		AcceptInviteRequest	true	"Account"
+//	@Success		201		{object}	LoginResponse
+//	@Failure		404		{object}	ErrorResponse	"unknown, used or expired link"
+//	@Failure		422		{object}	ErrorResponse
+//	@Failure		429		{object}	ErrorResponse
+//	@Router			/auth/invite [post]
+func (a *API) acceptInvite(c *gin.Context) {
+	var req AcceptInviteRequest
+	if !a.BindJSON(c, &req) {
+		return
+	}
+	var u *v1alpha1.User
+	var invite *v1alpha1.Invite
+	accept := func() (err error) {
+		u, invite, err = a.Users.AcceptInvite(c, strings.TrimSpace(req.Token), users.AcceptInput{
+			Username: req.Username, DisplayName: req.DisplayName, Password: req.Password,
+		})
+		return err
+	}
+	if !a.useInviteLink(c, accept) {
+		return
+	}
+	msg := "account created through an invite"
+	if invite.Spec.Reset {
+		msg = "password set through a reset link"
+	}
+	a.Log.Info(msg, "user", u.Name, "invite", invite.Name, "invitedBy", invite.Spec.CreatedBy)
+	a.sendSession(c, http.StatusCreated, u)
+}

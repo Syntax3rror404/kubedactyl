@@ -305,7 +305,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ## Small Block font: start-up logo
 
-The logo the panel prints when it starts (`backend/banner.go`) is set in the TOIlet font "Small Block"
+The logo the panel prints when it starts (`backend/app/config.go`) is set in the TOIlet font "Small Block"
 (`smblock.tlf`, https://github.com/cacalabs/toilet) by Sam Hocevar, licensed under WTFPL-2.0.
 
 ```
@@ -331,7 +331,7 @@ it is used under, tracked by hand, like any other code decision: when a dependen
 (repository, license file) and add the row. The versions come from the build (they are in
 `third-party-licenses.md`), so updates need no change. The build compares the tables with what it actually
 compiles and bundles and fails with the rows to add or remove, and when an npm package declares another license
-(`backend/tools/licenses` for Go, `frontend/scripts/licenses-plugin.ts` for npm).
+(`backend/base/tools/licenses` for Go, `frontend/scripts/licenses-plugin.ts` for npm).
 
 The npm table also lists the build tools whose code the build writes into the web interface: Vite (module
 preload helpers) and Rolldown (runtime helpers of the bundles), together with the Vite plugins for React and

@@ -1,8 +1,8 @@
 import { ArrowRightIcon, GlobeIcon } from "lucide-react"
 
+import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
 import { Input } from "@/components/ui/input"
-import { SettingsCard, SettingsField } from "@/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/features/settings/lib/settings-draft"
 import { useServers } from "@/lib/queries"
 
 /** External domain that users see instead of the load balancer IP. */

@@ -5,7 +5,7 @@ What the panel does to be safe on the internet. To report a vulnerability, see [
 Measures for exposing the panel to the internet:
 
 - **Setup token** (see [Users and permissions](administration.md#users-and-permissions)), Argon2id passwords, HMAC session cookie (HttpOnly, SameSite=Strict,
-  `Secure` over HTTPS), API tokens stored as SHA-256, login throttling per client IP + username, per client
+  over HTTPS `Secure` with the `__Host-` prefix), API tokens stored as SHA-256, login throttling per client IP + username, per client
   IP across usernames and per username across clients (the throttle forgets expired entries and remembers at
   most 10 000 keys; usernames over 64 and passwords over 1024 characters are refused before they reach it).
   The password of a disabled user (also a subuser of a disabled owner or an account being deleted) is checked

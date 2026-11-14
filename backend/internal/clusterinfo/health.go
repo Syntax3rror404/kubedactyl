@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"app/api/v1alpha1"
-	"app/internal/checks"
-	"app/internal/settings"
-	"app/internal/sso"
+	"app/base/auth"
+	"app/base/checks"
+	"app/internal/appsettings"
 	"app/internal/tenancy"
 )
 
@@ -36,9 +36,9 @@ type healthInputs struct {
 	cilium         bool
 	settings       v1alpha1.PanelSettingsSpec
 	settingsErr    error
-	storageClasses []settings.StorageClass
+	storageClasses []appsettings.StorageClass
 	storageErr     error
-	pools          []settings.Pool
+	pools          []appsettings.Pool
 	poolsErr       error
 	oidcErr        error // why the identity provider of single sign-on does not answer
 	// guarded is true when the panel runs with its tenant role (in the cluster). policy limits its
@@ -106,10 +106,10 @@ func (s *Service) gatherHealth(ctx context.Context) healthInputs {
 	if s.Settings != nil {
 		wg.Go(func() {
 			if in.settings, in.settingsErr = s.Settings.Current(ctx); in.settings.OIDC.Enabled {
-				in.oidcErr = sso.Discover(ctx, in.settings.OIDC.IssuerURL)
+				in.oidcErr = auth.DiscoverOIDC(ctx, in.settings.OIDC.IssuerURL)
 			}
 		})
-		wg.Go(func() { in.storageClasses, in.storageErr = settings.ListStorageClasses(ctx, s.Reader) })
+		wg.Go(func() { in.storageClasses, in.storageErr = appsettings.ListStorageClasses(ctx, s.Reader) })
 	}
 	wg.Wait()
 	return in
@@ -134,7 +134,7 @@ func (s *Service) readAPIGroups(ctx context.Context, in *healthInputs) {
 		})
 	})
 	if in.cilium && s.Settings != nil {
-		in.pools, in.poolsErr = settings.ListPoolsWithUsage(ctx, s.Reader)
+		in.pools, in.poolsErr = appsettings.ListPoolsWithUsage(ctx, s.Reader)
 	}
 }
 

@@ -77,12 +77,12 @@ func (a *API) listSchedules(c *gin.Context) {
 //	@Param			server	path		string					true	"Server name"
 //	@Param			body	body		UpdateSchedulesRequest	true	"Schedules"
 //	@Success		200		{object}	ScheduleList
-//	@Failure		422		{object}	ErrorResponse
+//	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/schedules [put]
 func (a *API) updateSchedules(c *gin.Context) {
 	var req UpdateSchedulesRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -91,16 +91,16 @@ func (a *API) updateSchedules(c *gin.Context) {
 	}
 	list, err := schedule.Validate(req.Items)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
 	patch := client.MergeFrom(gs.DeepCopy())
 	gs.Spec.Schedules = list
 	if err := a.Client.Patch(c, gs, patch); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "schedules updated", "server", gs.Name, "count", len(list))
+	a.Audit(c, "schedules updated", "server", gs.Name, "count", len(list))
 	c.JSON(http.StatusOK, a.scheduleList(gs))
 }
 
@@ -112,8 +112,8 @@ func (a *API) updateSchedules(c *gin.Context) {
 //	@Param			server		path	string	true	"Server name"
 //	@Param			schedule	path	string	true	"Schedule name"
 //	@Success		202
-//	@Failure		404	{object}	ErrorResponse
-//	@Failure		409	{object}	ErrorResponse	"already running"
+//	@Failure		404	{object}	api.ErrorResponse
+//	@Failure		409	{object}	api.ErrorResponse	"already running"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/schedules/{schedule}/run [post]
 func (a *API) runSchedule(c *gin.Context) {
@@ -122,9 +122,9 @@ func (a *API) runSchedule(c *gin.Context) {
 		return
 	}
 	if err := a.Schedules.RunNow(c, gs, c.Param("schedule")); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "schedule started", "server", gs.Name, "schedule", c.Param("schedule"))
+	a.Audit(c, "schedule started", "server", gs.Name, "schedule", c.Param("schedule"))
 	c.Status(http.StatusAccepted)
 }

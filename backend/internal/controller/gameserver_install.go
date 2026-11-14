@@ -15,9 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/console"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // reconcileInstall runs the egg install script for a new install revision once the game has

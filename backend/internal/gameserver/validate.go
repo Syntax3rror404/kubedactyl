@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"app/api/v1alpha1"
+	"app/base/validation"
 	"app/internal/egg"
-	"app/internal/validation"
 )
 
 // ValidateVariables checks the variables of a server against the rules of its egg; missing

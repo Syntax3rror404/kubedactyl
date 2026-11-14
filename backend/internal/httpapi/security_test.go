@@ -14,8 +14,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
-	"app/internal/auth"
-	"app/internal/users"
+	"app/base/api"
+	"app/base/auth"
+	"app/base/users"
 )
 
 // createToken creates an API token with a session and returns its value and ID.
@@ -23,7 +24,7 @@ func (h *harness) createToken(session, name string) (string, string) {
 	h.t.Helper()
 	code, body := h.do("POST", "/api/auth/tokens", session, map[string]any{"name": name, "expiresInDays": 30})
 	expect(h.t, "create token "+name, code, 201, body)
-	var created CreatedToken
+	var created api.CreatedToken
 	_ = json.Unmarshal([]byte(body), &created)
 	return created.Token, created.ID
 }
@@ -81,7 +82,7 @@ func TestLoginThrottlingPerAccount(t *testing.T) {
 	}
 	var device *http.Cookie
 	for _, c := range login("10.3.0.1", "bob-password").Result().Cookies() {
-		if c.Name == DeviceCookie {
+		if c.Name == api.DeviceCookie {
 			device = c
 		}
 	}
@@ -99,7 +100,7 @@ func TestLoginThrottlingPerAccount(t *testing.T) {
 	if w := login("10.3.0.1", "bob-password", device); w.Code != 200 {
 		t.Errorf("a known browser must still sign in: %d", w.Code)
 	}
-	forged := &http.Cookie{Name: DeviceCookie, Value: "9999999999.forged"}
+	forged := &http.Cookie{Name: api.DeviceCookie, Value: "9999999999.forged"}
 	if w := login("10.4.0.1", "bob-password", forged); w.Code != http.StatusTooManyRequests {
 		t.Errorf("a forged device cookie must not help: %d", w.Code)
 	}

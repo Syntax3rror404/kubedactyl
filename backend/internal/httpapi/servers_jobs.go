@@ -45,9 +45,9 @@ func (a *API) cancelJob(c *gin.Context) {
 		return
 	}
 	if err := a.Files.Cancel(c, files.RefOf(gs), c.Param("job")); err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "job cancelled", "server", gs.Name, "job", c.Param("job"))
+	a.Audit(c, "job cancelled", "server", gs.Name, "job", c.Param("job"))
 	c.Status(http.StatusNoContent)
 }

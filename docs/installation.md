@@ -23,7 +23,7 @@ the image with `scripts/imagebuild` (go-containerregistry: alpine base + `/kubed
 same as the last Dockerfile stage) and pushes `ghcr.io/syntax3rror404/kubedactyl:<appVersion>` and
 `:latest`; `make push-chart` writes the version into `Chart.yaml` and pushes the chart. Every build also writes
 `third-party-licenses.md` (`make licenses`: the dependencies tracked by hand in the tables of
-`THIRD_PARTY_NOTICES.md`; the Vite plugin `frontend/scripts/licenses-plugin.ts` and `backend/tools/licenses` fail
+`THIRD_PARTY_NOTICES.md`; the Vite plugin `frontend/scripts/licenses-plugin.ts` and `backend/base/tools/licenses` fail
 the build when the tables and the bundled npm packages / the Go modules of the linux/amd64 binary differ). It is shown as
 Markdown on the public page `/licenses` ("Licenses" in the footer) and stored in the image under
 `/usr/share/licenses/kubedactyl/`. Both use `gh auth token`
@@ -90,7 +90,7 @@ with the permissions the panel needs, split so a compromised panel cannot reach 
   panel's service account outside its user namespaces (namespaces, role bindings, volumes, services), foreign
   CRDs, pods with a service account token, host namespaces, host paths or privileged containers, pods in the
   release namespace with volumes, added capabilities or an unconfined seccomp profile, services with external
-  IPs, and every job except the upgrade job. The sidebar health card warns when it is missing.
+  IPs, and every job except the upgrade job. The health checks at the top of the sidebar warn when it is missing.
 
 The Deployment runs a single replica (non-root, read-only root filesystem, probes on
 `/api/health`). With Docker the image can also be built from the `Dockerfile`

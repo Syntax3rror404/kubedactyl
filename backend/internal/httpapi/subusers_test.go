@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/tenancy"
 )
 
@@ -18,7 +19,7 @@ func (h *harness) addSubuser(alice string) string {
 	if code != 201 {
 		h.t.Fatalf("invite: %d %s", code, body)
 	}
-	var invite CreatedInvite
+	var invite api.CreatedInvite
 	_ = json.Unmarshal([]byte(body), &invite)
 	if invite.Owner != "alice" || invite.Role != v1alpha1.RoleUser {
 		h.t.Errorf("a user invites subusers with role user: %s", body)
@@ -130,7 +131,7 @@ func TestInviteSharesServersAndResetsPasswords(t *testing.T) {
 	code, body = h.do("POST", "/api/invites", alice, map[string]any{
 		"username": "dave", "shares": []map[string]string{{"server": "alice-srv", "access": "control"}},
 	})
-	var invite CreatedInvite
+	var invite api.CreatedInvite
 	_ = json.Unmarshal([]byte(body), &invite)
 	h.do("POST", "/api/auth/invite", "", map[string]string{"token": invite.Token, "password": "dave-password"})
 	dave := h.login("dave")
@@ -144,6 +145,9 @@ func TestInviteSharesServersAndResetsPasswords(t *testing.T) {
 	code, body = h.do("POST", "/api/invites", alice, map[string]any{"username": "dave", "reset": true})
 	expect(t, "reset link of an own subuser", code, 201, body)
 	_ = json.Unmarshal([]byte(body), &invite)
+	if _, list := h.do("GET", "/api/invites", alice, nil); !strings.Contains(list, invite.ID) {
+		t.Errorf("the owner lists the reset link of its subuser: %s", list)
+	}
 	code, body = h.do("POST", "/api/auth/invite", "",
 		map[string]string{"token": invite.Token, "password": "new-password"})
 	expect(t, "set the new password", code, 201, body)

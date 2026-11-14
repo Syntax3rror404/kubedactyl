@@ -10,9 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 
+	"app/base/checks"
 	"app/config/crd"
-	"app/internal/checks"
-	"app/internal/settings"
+	"app/internal/appsettings"
 )
 
 // ownResources are the resources of the CRDs the panel installs on start (config/crd).
@@ -139,7 +139,7 @@ func checkLoadBalancer(in healthInputs) checks.Check {
 	}
 	var gone, full []string
 	for _, name := range in.settings.LoadBalancerPools {
-		i := slices.IndexFunc(in.pools, func(p settings.Pool) bool { return p.Name == name })
+		i := slices.IndexFunc(in.pools, func(p appsettings.Pool) bool { return p.Name == name })
 		switch {
 		case i < 0:
 			gone = append(gone, name)
@@ -175,7 +175,7 @@ func checkStorage(in healthInputs) checks.Check {
 		return checks.New(id, label, checks.Error, "no storage class is enabled, servers cannot be created")
 	}
 	gone := missing(in.settings.StorageClasses, func(name string) bool {
-		return slices.ContainsFunc(in.storageClasses, func(c settings.StorageClass) bool { return c.Name == name })
+		return slices.ContainsFunc(in.storageClasses, func(c appsettings.StorageClass) bool { return c.Name == name })
 	})
 	if len(gone) > 0 {
 		return checks.New(id, label, checks.Error, "enabled but missing in the cluster: "+strings.Join(gone, ", "))

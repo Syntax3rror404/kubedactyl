@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"app/base/kube"
 	"app/internal/gameserver"
-	"app/internal/kube"
 )
 
 // ValidName reports whether n can be the name of a file inside a folder (no path).

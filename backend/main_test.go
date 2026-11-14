@@ -1,17 +1,85 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"regexp"
+	"strings"
+	"testing"
 
-func TestLocalURL(t *testing.T) {
-	cases := []struct{ addr, want string }{
-		{":8080", "http://localhost:8080"},
-		{"127.0.0.1:18090", "http://localhost:18090"},
-		{"[::1]:8080", "http://localhost:8080"},
-		{"no-port", "http://localhost"},
+	"github.com/swaggo/swag"
+
+	"app/base/api"
+	"app/base/httpserver"
+	"app/base/settings"
+	"app/internal/httpapi"
+	"app/internal/testutil"
+)
+
+// apiDoc is the generated API documentation (docs, registered by main.go's import).
+type apiDoc struct {
+	Info struct {
+		Title string `json:"title"`
+	} `json:"info"`
+	BasePath    string                                `json:"basePath"`
+	Paths       map[string]map[string]json.RawMessage `json:"paths"`
+	Definitions map[string]struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	} `json:"definitions"`
+}
+
+// readDoc guards against swag silently serving the raw template: when the template cannot be executed (e.g.
+// "{{...}}" in a description) ReadDoc returns it unrendered.
+func readDoc(t *testing.T) apiDoc {
+	t.Helper()
+	doc, err := swag.ReadDoc()
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, c := range cases {
-		if got := localURL(c.addr); got != c.want {
-			t.Errorf("localURL(%q) = %q, want %q", c.addr, got, c.want)
+	var spec apiDoc
+	if err := json.Unmarshal([]byte(doc), &spec); err != nil {
+		t.Fatalf("swagger doc is not valid JSON (template not rendered?): %v", err)
+	}
+	return spec
+}
+
+func TestSwaggerDocRenders(t *testing.T) {
+	spec := readDoc(t)
+	if spec.Info.Title != "Kubedactyl API" || spec.BasePath != "/api" {
+		t.Errorf("info not rendered: title=%q basePath=%q", spec.Info.Title, spec.BasePath)
+	}
+	if len(spec.Paths) < 20 {
+		t.Errorf("only %d paths documented", len(spec.Paths))
+	}
+	for _, name := range []string{"v1alpha1.GameServer", "v1alpha1.Egg", "httpapi.CreateServerRequest"} {
+		if len(spec.Definitions[name].Properties) == 0 {
+			t.Errorf("schema %s has no properties", name)
+		}
+	}
+}
+
+// TestDocumentedRoutesExist guards the @Router annotations: every path in the API
+// documentation must be a registered route (a renamed handler once renamed its path, too).
+func TestDocumentedRoutesExist(t *testing.T) {
+	c := testutil.Builder(t).Build()
+	store := &settings.Store{Client: c, Reader: c}
+	r, err := httpserver.NewRouter(httpserver.Config{
+		API: &httpapi.API{API: &api.API{Settings: store}}, Settings: store, Log: testutil.Logger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := map[string]bool{}
+	for _, route := range r.Routes() {
+		registered[route.Method+" "+route.Path] = true
+	}
+	spec := readDoc(t)
+	param := regexp.MustCompile(`\{(\w+)\}`)
+	for path, ops := range spec.Paths {
+		for method := range ops {
+			key := strings.ToUpper(method) + " " + spec.BasePath + param.ReplaceAllString(path, ":$1")
+			if !registered[key] {
+				t.Errorf("documented route %s is not registered", key)
+			}
 		}
 	}
 }

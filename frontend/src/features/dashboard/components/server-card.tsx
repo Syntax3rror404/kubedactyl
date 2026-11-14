@@ -1,16 +1,17 @@
 import { CpuIcon, HardDriveIcon, MemoryStickIcon, UserIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 
-import { CopyButton } from "@/components/common/copy-button"
+import { CopyButton } from "@/base/components/copy-button"
+import { GlowCard } from "@/base/components/glow-card"
+import { UsageRow } from "@/base/components/usage-bar"
+import { useAuth } from "@/base/hooks/use-auth"
+import { formatBytes } from "@/base/lib/format"
+import { useSettings } from "@/base/lib/queries"
 import { EggIcon } from "@/components/common/egg-icon"
-import { GlowCard } from "@/components/common/glow-card"
 import { RemovingBadge, StatusBadge, SuspendedBadge } from "@/components/common/status-badge"
-import { UsageRow } from "@/components/common/usage-row"
 import { PowerControls } from "@/features/servers/components/power-controls"
-import { useAuth } from "@/hooks/use-auth"
 import {
   activePhases,
-  formatBytes,
   formatCpuPercent,
   formatMiB,
   isRemoving,
@@ -20,7 +21,7 @@ import {
   serverName,
   serverOwner,
 } from "@/lib/format"
-import { useSettings, useServerStats } from "@/lib/queries"
+import { useServerStats } from "@/lib/queries"
 import type { Egg, GameServer } from "@/lib/types"
 
 /** Dashboard card of a server with live usage and power buttons (glowing border on hover). */

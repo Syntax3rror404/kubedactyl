@@ -4,7 +4,7 @@ import type { Plugin, Rolldown } from "vite"
 
 // Writes the license texts of the npm packages listed in THIRD_PARTY_NOTICES.md ("npm packages"
 // table: name and license, tracked by hand; versions come from the build) to "licenses-npm.md" in the build output.
-// backend/tools/licenses merges it with the Go modules into third-party-licenses.md (shown on the
+// backend/base/tools/licenses merges it with the Go modules into third-party-licenses.md (shown on the
 // licenses page and shipped in the image). The build fails when a package in the bundle is not
 // listed, or when a listed package is not installed any more or declares another license.
 

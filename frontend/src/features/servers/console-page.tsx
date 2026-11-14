@@ -1,11 +1,11 @@
 import { useOutletContext } from "react-router"
 
+import { useAuth } from "@/base/hooks/use-auth"
 import { ConsoleWindow } from "@/features/servers/components/console-window"
 import { StatsPanel } from "@/features/servers/components/stats-panel"
 import { EggFeatures } from "@/features/servers/egg-features/egg-features"
 import { useConsole } from "@/features/servers/hooks/use-console"
 import type { ServerContext } from "@/features/servers/server-layout"
-import { useAuth } from "@/hooks/use-auth"
 import { activePhases, phaseOf, serverAccess } from "@/lib/format"
 
 /**

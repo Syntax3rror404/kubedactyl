@@ -38,19 +38,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.InviteDetails"
+                            "$ref": "#/definitions/api.InviteDetails"
                         }
                     },
                     "404": {
                         "description": "unknown, used or expired link",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -74,7 +74,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.AcceptInviteRequest"
+                            "$ref": "#/definitions/api.AcceptInviteRequest"
                         }
                     }
                 ],
@@ -82,25 +82,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.LoginResponse"
+                            "$ref": "#/definitions/api.LoginResponse"
                         }
                     },
                     "404": {
                         "description": "unknown, used or expired link",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -126,7 +126,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.LoginRequest"
+                            "$ref": "#/definitions/api.LoginRequest"
                         }
                     }
                 ],
@@ -134,19 +134,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.LoginResponse"
+                            "$ref": "#/definitions/api.LoginResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -203,13 +203,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UserView"
+                            "$ref": "#/definitions/api.UserView"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -229,7 +229,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.OIDCSignIn"
+                            "$ref": "#/definitions/api.OIDCSignIn"
                         }
                     }
                 }
@@ -307,7 +307,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UpdatePasswordRequest"
+                            "$ref": "#/definitions/api.UpdatePasswordRequest"
                         }
                     }
                 ],
@@ -318,13 +318,13 @@ const docTemplate = `{
                     "409": {
                         "description": "the account signs in through single sign-on only",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "422": {
                         "description": "current password is wrong or the new one is too weak",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -350,7 +350,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/httpapi.TokenView"
+                                "$ref": "#/definitions/api.TokenView"
                             }
                         }
                     }
@@ -380,7 +380,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreateTokenRequest"
+                            "$ref": "#/definitions/api.CreateTokenRequest"
                         }
                     }
                 ],
@@ -388,13 +388,13 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreatedToken"
+                            "$ref": "#/definitions/api.CreatedToken"
                         }
                     },
                     "409": {
                         "description": "the account has the most tokens it may have",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -427,7 +427,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -435,7 +435,7 @@ const docTemplate = `{
         },
         "/branding": {
             "get": {
-                "description": "Public (also shown on the sign-in page). The footer always names the software (Kubedactyl).\nSends an ETag: with If-None-Match it answers 304 while nothing changed.",
+                "description": "Public (also shown on the sign-in page). The footer always names the software.\nSends an ETag: with If-None-Match it answers 304 while nothing changed.",
                 "produces": [
                     "application/json"
                 ],
@@ -447,7 +447,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.Branding"
+                            "$ref": "#/definitions/api.Branding"
                         }
                     }
                 }
@@ -552,7 +552,7 @@ const docTemplate = `{
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -656,7 +656,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -696,7 +696,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -763,7 +763,7 @@ const docTemplate = `{
                     "422": {
                         "description": "validation errors per field",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -812,7 +812,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -862,7 +862,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -901,7 +901,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -951,7 +951,7 @@ const docTemplate = `{
                     "422": {
                         "description": "validation errors per field",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -982,7 +982,7 @@ const docTemplate = `{
                     "409": {
                         "description": "egg is used by servers",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1068,7 +1068,7 @@ const docTemplate = `{
                     "409": {
                         "description": "the egg has no update URL",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1121,7 +1121,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Open and expired invites, newest first: administrators get all, users those of their subusers.\nThe links themselves are not stored.",
+                "description": "Open and expired invites, newest first: administrators get all, other users the ones they own.\nThe links themselves are not stored.",
                 "produces": [
                     "application/json"
                 ],
@@ -1135,7 +1135,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/httpapi.InviteView"
+                                "$ref": "#/definitions/api.InviteView"
                             }
                         }
                     }
@@ -1147,7 +1147,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "The link (/invite?token=\u003ctoken\u003e) lets someone create an account once within 7 days, or with\nreset set a new password for an existing one. The token is returned only once. Invites of\nsubusers count against the subuser limit of the settings.",
+                "description": "The link (/invite?token=\u003ctoken\u003e) lets someone create an account once within 7 days, or with\nreset set a new password for an existing one. The token is returned only once.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1165,7 +1165,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreateInviteRequest"
+                            "$ref": "#/definitions/api.CreateInviteRequest"
                         }
                     }
                 ],
@@ -1173,13 +1173,13 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreatedInvite"
+                            "$ref": "#/definitions/api.CreatedInvite"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1212,7 +1212,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1246,13 +1246,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreatedInvite"
+                            "$ref": "#/definitions/api.CreatedInvite"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1272,7 +1272,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.LegalTexts"
+                            "$ref": "#/definitions/api.LegalTexts"
                         }
                     }
                 }
@@ -1285,7 +1285,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Averages over the last 5 seconds; refused requests and waiting calls count, too. This request\ndoes not count. Panel is set for administrators only.",
+                "description": "Averages over the last 5 seconds; refused requests and waiting calls count, too. This request\ndoes not count. Panel and the rates of the app are set for administrators only.",
                 "produces": [
                     "application/json"
                 ],
@@ -1297,7 +1297,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.RequestRates"
+                            "$ref": "#/definitions/api.RequestRates"
                         }
                     }
                 }
@@ -1364,7 +1364,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1403,7 +1403,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1479,7 +1479,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1562,7 +1562,7 @@ const docTemplate = `{
                     "409": {
                         "description": "a backup or restore is running",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1643,7 +1643,7 @@ const docTemplate = `{
                     "409": {
                         "description": "server running or job in progress",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1688,7 +1688,7 @@ const docTemplate = `{
                     "409": {
                         "description": "server is not running",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1728,7 +1728,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1820,7 +1820,7 @@ const docTemplate = `{
                     "413": {
                         "description": "Request Entity Too Large",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2073,7 +2073,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2387,15 +2387,15 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "a job or the install runs, or it is the current class",
+                        "description": "a job or the install runs, or it is the current one",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "422": {
                         "description": "the storage class is not enabled",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2435,7 +2435,7 @@ const docTemplate = `{
                     "409": {
                         "description": "no migration is running or it is switching already",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2586,7 +2586,7 @@ const docTemplate = `{
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2627,13 +2627,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "already running",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2765,7 +2765,7 @@ const docTemplate = `{
                     "409": {
                         "description": "the server is running or already belongs to the user",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2806,7 +2806,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "All settings for administrators. Users get only external domain, load balancer pools, server\nnotice, API docs switch and their limits for API tokens and subusers.",
+                "description": "All settings for administrators (single sign-on without its client secret). Other users get only\nthe API docs switch, their limit for API tokens and the fields of the app the web UI shows them.",
                 "produces": [
                     "application/json"
                 ],
@@ -2818,7 +2818,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.SettingsView"
+                            "$ref": "#/definitions/api.SettingsView"
                         }
                     }
                 }
@@ -2829,7 +2829,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Every storage class and pool must exist in the cluster; pools must be selectable by service\nlabels. Missing defaults become the first entry.",
+                "description": "Every wrong field is reported at once (422 with the fields). While single sign-on is on, the\nidentity provider must answer.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2847,7 +2847,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UpdateSettingsRequest"
+                            "$ref": "#/definitions/api.UpdateSettingsRequest"
                         }
                     }
                 ],
@@ -2855,13 +2855,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.SettingsView"
+                            "$ref": "#/definitions/api.SettingsView"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2930,7 +2930,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.SetupStatus"
+                            "$ref": "#/definitions/api.SetupStatus"
                         }
                     }
                 }
@@ -2954,7 +2954,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.SetupRequest"
+                            "$ref": "#/definitions/api.SetupRequest"
                         }
                     }
                 ],
@@ -2962,31 +2962,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.LoginResponse"
+                            "$ref": "#/definitions/api.LoginResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3019,7 +3019,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UpgradeStatus"
+                            "$ref": "#/definitions/api.UpgradeStatus"
                         }
                     }
                 }
@@ -3048,7 +3048,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.StartUpgradeRequest"
+                            "$ref": "#/definitions/api.StartUpgradeRequest"
                         }
                     }
                 ],
@@ -3062,7 +3062,7 @@ const docTemplate = `{
                     "409": {
                         "description": "disabled, unknown version or an upgrade is running",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3075,7 +3075,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Administrators get every account, users their subusers.",
+                "description": "Administrators get every account, other users the accounts they own.",
                 "produces": [
                     "application/json"
                 ],
@@ -3089,14 +3089,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/httpapi.UserView"
+                                "$ref": "#/definitions/api.UserView"
                             }
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3107,7 +3107,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates the user and its namespace (kubedactyl-user-\u003cusername\u003e). The password is stored as\nArgon2id hash.",
+                "description": "The password is stored as Argon2id hash; the app may add to the account (users.App.Created).",
                 "consumes": [
                     "application/json"
                 ],
@@ -3125,7 +3125,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.CreateUserRequest"
+                            "$ref": "#/definitions/api.CreateUserRequest"
                         }
                     }
                 ],
@@ -3133,19 +3133,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UserView"
+                            "$ref": "#/definitions/api.UserView"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3178,7 +3178,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UserView"
+                            "$ref": "#/definitions/api.UserView"
                         }
                     }
                 }
@@ -3189,7 +3189,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deletes the user, all its game servers, their data, the user namespace and its subusers. Users\nmay delete their subusers.",
+                "description": "Deletes the user and the accounts it owns; its sessions and API tokens stop working at once.\nUsers may delete the accounts they own.",
                 "tags": [
                     "Users"
                 ],
@@ -3210,7 +3210,7 @@ const docTemplate = `{
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3245,7 +3245,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UpdateUserRequest"
+                            "$ref": "#/definitions/api.UpdateUserRequest"
                         }
                     }
                 ],
@@ -3253,13 +3253,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.UserView"
+                            "$ref": "#/definitions/api.UserView"
                         }
                     },
                     "409": {
                         "description": "last administrator, or managed by the identity provider",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3283,7 +3283,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httpapi.Versions"
+                            "$ref": "#/definitions/api.Versions"
                         }
                     }
                 }
@@ -3291,6 +3291,1089 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.AcceptInviteRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "token"
+            ],
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "a-long-password"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is ignored when the invite names one.",
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.Branding": {
+            "type": "object",
+            "required": [
+                "name",
+                "tagline"
+            ],
+            "properties": {
+                "favicon": {
+                    "type": "string"
+                },
+                "logo": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Acme Panel"
+                },
+                "tagline": {
+                    "type": "string",
+                    "example": "Run by the Acme team"
+                }
+            }
+        },
+        "api.CreateInviteRequest": {
+            "type": "object",
+            "properties": {
+                "note": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Alice from the support team"
+                },
+                "reset": {
+                    "description": "Reset creates a link that sets a new password for the existing account Username (users: accounts they own).",
+                    "type": "boolean"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "shares": {
+                    "description": "Shares are servers of the caller the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
+                },
+                "subuser": {
+                    "description": "Subuser invites a subuser of the caller (role user). Users always invite subusers.",
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.CreateTokenRequest": {
+            "type": "object",
+            "required": [
+                "expiresInDays",
+                "name"
+            ],
+            "properties": {
+                "expiresInDays": {
+                    "description": "ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.",
+                    "type": "integer",
+                    "example": 90
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "ci"
+                }
+            }
+        },
+        "api.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "alice@example.com"
+                },
+                "mustChangePassword": {
+                    "description": "MustChangePassword makes the user replace the password after signing in.",
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "a-long-password"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.CreatedInvite": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "expired",
+                "expiresAt",
+                "id",
+                "reset",
+                "role",
+                "shares",
+                "token"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "expired": {
+                    "description": "Expired invites stay listed until they are revoked; their link no longer works.",
+                    "type": "boolean"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1a2b3c4d5e6f"
+                },
+                "note": {
+                    "type": "string",
+                    "example": "Alice from the support team"
+                },
+                "owner": {
+                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
+                    "type": "string",
+                    "example": "bob"
+                },
+                "reset": {
+                    "description": "Reset links set a new password for the existing account Username.",
+                    "type": "boolean"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "shares": {
+                    "description": "Shares are the servers the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
+                },
+                "token": {
+                    "type": "string",
+                    "example": "1a2b3c4d5e6f.…"
+                },
+                "username": {
+                    "description": "Username is the name the account gets; empty lets the invited person choose it.",
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.CreatedToken": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "expiresAt",
+                "id",
+                "name",
+                "token"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "expiresAt": {
+                    "description": "ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1a2b3c4d5e6f"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ci"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "xyz_1a2b3c4d5e6f_…"
+                }
+            }
+        },
+        "api.ErrorResponse": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "not found"
+                },
+                "fields": {
+                    "description": "Fields holds validation errors per field or variable.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.InviteDetails": {
+            "type": "object",
+            "required": [
+                "expiresAt",
+                "reset"
+            ],
+            "properties": {
+                "expiresAt": {
+                    "type": "string"
+                },
+                "reset": {
+                    "description": "Reset links set a new password for the account Username instead of creating one.",
+                    "type": "boolean"
+                },
+                "username": {
+                    "description": "Username is set when the name was chosen for the invited person; they cannot change it.",
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.InviteView": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "expired",
+                "expiresAt",
+                "id",
+                "reset",
+                "role",
+                "shares"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "expired": {
+                    "description": "Expired invites stay listed until they are revoked; their link no longer works.",
+                    "type": "boolean"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1a2b3c4d5e6f"
+                },
+                "note": {
+                    "type": "string",
+                    "example": "Alice from the support team"
+                },
+                "owner": {
+                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
+                    "type": "string",
+                    "example": "bob"
+                },
+                "reset": {
+                    "description": "Reset links set a new password for the existing account Username.",
+                    "type": "boolean"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "shares": {
+                    "description": "Shares are the servers the subuser sees once the account exists.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1alpha1.InviteShare"
+                    }
+                },
+                "username": {
+                    "description": "Username is the name the account gets; empty lets the invited person choose it.",
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.LegalTexts": {
+            "type": "object",
+            "required": [
+                "legalNotice",
+                "privacyPolicy"
+            ],
+            "properties": {
+                "legalNotice": {
+                    "type": "string"
+                },
+                "privacyPolicy": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "example": "secret-password"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "admin"
+                }
+            }
+        },
+        "api.LoginResponse": {
+            "type": "object",
+            "required": [
+                "expiresAt",
+                "token",
+                "user"
+            ],
+            "properties": {
+                "expiresAt": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/api.UserView"
+                }
+            }
+        },
+        "api.ModuleVersion": {
+            "type": "object",
+            "required": [
+                "name",
+                "version"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Gin"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "v1.12.0"
+                }
+            }
+        },
+        "api.OIDCSignIn": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "name"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "Name is shown on the button: \"Sign in with \u003cname\u003e\".",
+                    "type": "string",
+                    "example": "Keycloak"
+                }
+            }
+        },
+        "api.RequestRates": {
+            "type": "object",
+            "required": [
+                "user"
+            ],
+            "properties": {
+                "panel": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/kube.Rate"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "user": {
+                    "$ref": "#/definitions/kube.Rate"
+                }
+            }
+        },
+        "api.SettingsView": {
+            "type": "object",
+            "required": [
+                "oidcClientSecretSet"
+            ],
+            "properties": {
+                "allowClusterIP": {
+                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
+                    "type": "boolean"
+                },
+                "allowPrivateNetworks": {
+                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
+                    "type": "boolean"
+                },
+                "apiTokenMaxDays": {
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "type": "integer"
+                },
+                "brandLogo": {
+                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "brandName": {
+                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
+                    "type": "string"
+                },
+                "brandTagline": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
+                    "type": "string"
+                },
+                "defaultLoadBalancerPool": {
+                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
+                    "type": "string"
+                },
+                "defaultStorageClass": {
+                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
+                    "type": "string"
+                },
+                "disableApiDocs": {
+                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "type": "boolean"
+                },
+                "eggLibraries": {
+                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "externalDomain": {
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
+                    "type": "string"
+                },
+                "favicon": {
+                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "kubeApiQps": {
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "type": "integer"
+                },
+                "kubeApiUserQps": {
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "type": "integer"
+                },
+                "legalNotice": {
+                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "loadBalancerPools": {
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "oidc": {
+                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
+                        }
+                    ]
+                },
+                "oidcClientSecretSet": {
+                    "description": "OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).",
+                    "type": "boolean"
+                },
+                "privacyPolicy": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "serverNotice": {
+                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
+                    "type": "string"
+                },
+                "sessionHours": {
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "type": "integer"
+                },
+                "storageClasses": {
+                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subusersPerUser": {
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "type": "integer"
+                }
+            }
+        },
+        "api.SetupRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "token",
+                "username"
+            ],
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Administrator"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "a-long-password"
+                },
+                "token": {
+                    "description": "Token is the one-time setup token from the panel log (or the setup token of the environment).",
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "api.SetupStatus": {
+            "type": "object",
+            "required": [
+                "required"
+            ],
+            "properties": {
+                "required": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.StartUpgradeRequest": {
+            "type": "object",
+            "required": [
+                "version"
+            ],
+            "properties": {
+                "version": {
+                    "type": "string",
+                    "example": "0.2.4"
+                }
+            }
+        },
+        "api.TokenView": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "expiresAt",
+                "id",
+                "name"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "expiresAt": {
+                    "description": "ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1a2b3c4d5e6f"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ci"
+                }
+            }
+        },
+        "api.UpdatePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current",
+                "new"
+            ],
+            "properties": {
+                "current": {
+                    "type": "string",
+                    "maxLength": 1024
+                },
+                "new": {
+                    "type": "string",
+                    "maxLength": 1024
+                },
+                "revokeTokens": {
+                    "description": "RevokeTokens also revokes every API token of the user (after a leak).",
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.UpdateSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "allowClusterIP": {
+                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
+                    "type": "boolean"
+                },
+                "allowPrivateNetworks": {
+                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
+                    "type": "boolean"
+                },
+                "apiTokenMaxDays": {
+                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
+                    "type": "integer"
+                },
+                "brandLogo": {
+                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "brandName": {
+                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
+                    "type": "string"
+                },
+                "brandTagline": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
+                    "type": "string"
+                },
+                "defaultLoadBalancerPool": {
+                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
+                    "type": "string"
+                },
+                "defaultStorageClass": {
+                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
+                    "type": "string"
+                },
+                "disableApiDocs": {
+                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "type": "boolean"
+                },
+                "eggLibraries": {
+                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "externalDomain": {
+                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
+                    "type": "string"
+                },
+                "favicon": {
+                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
+                    "type": "string"
+                },
+                "kubeApiQps": {
+                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
+                    "type": "integer"
+                },
+                "kubeApiUserQps": {
+                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
+                    "type": "integer"
+                },
+                "legalNotice": {
+                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "loadBalancerPools": {
+                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "oidc": {
+                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
+                        }
+                    ]
+                },
+                "oidcClientSecret": {
+                    "description": "OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it.",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "privacyPolicy": {
+                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
+                    "type": "string"
+                },
+                "serverNotice": {
+                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
+                    "type": "string"
+                },
+                "sessionHours": {
+                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
+                    "type": "integer"
+                },
+                "storageClasses": {
+                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subusersPerUser": {
+                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
+                    "type": "integer"
+                }
+            }
+        },
+        "api.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "mustChangePassword": {
+                    "description": "MustChangePassword makes the user replace the password after the next sign-in.",
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/v1alpha1.UserRole"
+                }
+            }
+        },
+        "api.UpgradeStatus": {
+            "type": "object",
+            "required": [
+                "current",
+                "enabled",
+                "intervalSeconds",
+                "jobs",
+                "newer"
+            ],
+            "properties": {
+                "chart": {
+                    "type": "string",
+                    "example": "oci://ghcr.io/example/charts/panel"
+                },
+                "checkedAt": {
+                    "type": "string"
+                },
+                "current": {
+                    "type": "string",
+                    "example": "0.2.3"
+                },
+                "enabled": {
+                    "description": "Enabled is false without the chart value selfUpgrade.enabled.",
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "intervalSeconds": {
+                    "description": "IntervalSeconds is how often the registry is checked.",
+                    "type": "integer",
+                    "example": 600
+                },
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/selfupgrade.Job"
+                    }
+                },
+                "latest": {
+                    "type": "string",
+                    "example": "0.2.4"
+                },
+                "newer": {
+                    "description": "Newer lists the versions above the current one, highest first.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.UserView": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "disabled",
+                "hasPassword",
+                "mustChangePassword",
+                "oidc",
+                "role",
+                "servers",
+                "tokens",
+                "username"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "disabled": {
+                    "type": "boolean"
+                },
+                "displayName": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "alice@example.com"
+                },
+                "hasPassword": {
+                    "description": "HasPassword is false for accounts that sign in only through the identity provider.",
+                    "type": "boolean"
+                },
+                "lastLoginAt": {
+                    "type": "string"
+                },
+                "mustChangePassword": {
+                    "description": "MustChangePassword is true while the user has to replace the password set by an administrator.",
+                    "type": "boolean"
+                },
+                "namespace": {
+                    "type": "string",
+                    "example": "kubedactyl-user-alice"
+                },
+                "oidc": {
+                    "description": "OIDC is the user of the identity provider the account is linked to (which sets display name, email and\nrole); null for accounts that are not linked.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.OIDCIdentity"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "owner": {
+                    "description": "Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.",
+                    "type": "string",
+                    "example": "bob"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "servers": {
+                    "description": "Servers counts the servers of the user, for a subuser the servers shared with it.",
+                    "type": "integer",
+                    "example": 2
+                },
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.TokenView"
+                    }
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "api.Versions": {
+            "type": "object",
+            "required": [
+                "go",
+                "modules"
+            ],
+            "properties": {
+                "go": {
+                    "type": "string",
+                    "example": "go1.27.1"
+                },
+                "modules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ModuleVersion"
+                    }
+                }
+            }
+        },
+        "appsettings.Pool": {
+            "type": "object",
+            "required": [
+                "blocks",
+                "conflict",
+                "disabled",
+                "ipsAvailable",
+                "ipsTotal",
+                "ipsUsed",
+                "name",
+                "selectable",
+                "serviceLabels"
+            ],
+            "properties": {
+                "blocks": {
+                    "description": "Blocks are the address ranges (\"10.0.0.0/24\" or \"10.0.0.10-10.0.0.20\").",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "192.168.1.60-192.168.1.120"
+                    ]
+                },
+                "conflict": {
+                    "type": "boolean"
+                },
+                "disabled": {
+                    "type": "boolean"
+                },
+                "families": {
+                    "description": "Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both\ntogether. Only the pools API and the health check fill them in.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/appsettings.PoolFamily"
+                    }
+                },
+                "ipsAvailable": {
+                    "type": "number"
+                },
+                "ipsTotal": {
+                    "description": "IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:\nan IPv6 block holds more addresses than an int64 (a /64 has 2^64).",
+                    "type": "number"
+                },
+                "ipsUsed": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "general-pool"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "selectable": {
+                    "description": "Selectable is false when the pool cannot be targeted by service labels.",
+                    "type": "boolean"
+                },
+                "serviceLabels": {
+                    "description": "ServiceLabels are set on a server's service so that the pool selects it.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "appsettings.PoolFamily": {
+            "type": "object",
+            "required": [
+                "available",
+                "family",
+                "total",
+                "used"
+            ],
+            "properties": {
+                "available": {
+                    "type": "number"
+                },
+                "family": {
+                    "type": "string",
+                    "enum": [
+                        "IPv4",
+                        "IPv6"
+                    ]
+                },
+                "total": {
+                    "type": "number"
+                },
+                "used": {
+                    "type": "number"
+                }
+            }
+        },
+        "appsettings.StorageClass": {
+            "type": "object",
+            "required": [
+                "allowVolumeExpansion",
+                "isDefault",
+                "name",
+                "provisioner",
+                "reclaimPolicy",
+                "volumeBindingMode"
+            ],
+            "properties": {
+                "allowVolumeExpansion": {
+                    "type": "boolean"
+                },
+                "isDefault": {
+                    "description": "IsDefault is true for the cluster default storage class.",
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "longhorn"
+                },
+                "provisioner": {
+                    "type": "string",
+                    "example": "driver.longhorn.io"
+                },
+                "reclaimPolicy": {
+                    "type": "string",
+                    "example": "Retain"
+                },
+                "volumeBindingMode": {
+                    "type": "string",
+                    "example": "Immediate"
+                }
+            }
+        },
         "checks.Check": {
             "type": "object",
             "required": [
@@ -3316,7 +4399,8 @@ const docTemplate = `{
                         "ok",
                         "warning",
                         "error",
-                        "skipped"
+                        "skipped",
+                        "info"
                     ],
                     "allOf": [
                         {
@@ -3332,13 +4416,15 @@ const docTemplate = `{
                 "ok",
                 "warning",
                 "error",
-                "skipped"
+                "skipped",
+                "info"
             ],
             "x-enum-varnames": [
                 "OK",
                 "Warning",
                 "Error",
-                "Skipped"
+                "Skipped",
+                "Info"
             ]
         },
         "clusterinfo.Auth": {
@@ -4171,31 +5257,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.AcceptInviteRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "token"
-            ],
-            "properties": {
-                "displayName": {
-                    "type": "string",
-                    "example": "Alice"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "a-long-password"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "username": {
-                    "description": "Username is ignored when the invite names one.",
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
         "httpapi.Backup": {
             "type": "object",
             "required": [
@@ -4233,29 +5294,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/httpapi.Backup"
                     }
-                }
-            }
-        },
-        "httpapi.Branding": {
-            "type": "object",
-            "required": [
-                "name",
-                "tagline"
-            ],
-            "properties": {
-                "favicon": {
-                    "type": "string"
-                },
-                "logo": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Kubedactyl"
-                },
-                "tagline": {
-                    "type": "string",
-                    "example": "Game servers on Kubernetes"
                 }
             }
         },
@@ -4332,47 +5370,6 @@ const docTemplate = `{
                 "root": {
                     "type": "string",
                     "example": "/"
-                }
-            }
-        },
-        "httpapi.CreateInviteRequest": {
-            "type": "object",
-            "properties": {
-                "note": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "example": "Alice from the Discord server"
-                },
-                "reset": {
-                    "description": "Reset creates a link that sets a new password for the existing account Username (users: their subusers).",
-                    "type": "boolean"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ],
-                    "example": "user"
-                },
-                "shares": {
-                    "description": "Shares are servers of the caller the subuser sees once the account exists.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1alpha1.InviteShare"
-                    }
-                },
-                "subuser": {
-                    "description": "Subuser invites a subuser of the caller (role user). Users always invite subusers.",
-                    "type": "boolean"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "alice"
                 }
             }
         },
@@ -4491,171 +5488,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.CreateTokenRequest": {
-            "type": "object",
-            "required": [
-                "expiresInDays",
-                "name"
-            ],
-            "properties": {
-                "expiresInDays": {
-                    "description": "ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.",
-                    "type": "integer",
-                    "example": 90
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 64,
-                    "example": "ci"
-                }
-            }
-        },
-        "httpapi.CreateUserRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "username"
-            ],
-            "properties": {
-                "displayName": {
-                    "type": "string",
-                    "example": "Alice"
-                },
-                "email": {
-                    "type": "string",
-                    "example": "alice@example.com"
-                },
-                "mustChangePassword": {
-                    "description": "MustChangePassword makes the user replace the password after signing in.",
-                    "type": "boolean"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "a-long-password"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ],
-                    "example": "user"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
-        "httpapi.CreatedInvite": {
-            "type": "object",
-            "required": [
-                "createdAt",
-                "expired",
-                "expiresAt",
-                "id",
-                "reset",
-                "role",
-                "shares",
-                "token"
-            ],
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "createdBy": {
-                    "type": "string",
-                    "example": "admin"
-                },
-                "expired": {
-                    "description": "Expired invites stay listed until they are revoked; their link no longer works.",
-                    "type": "boolean"
-                },
-                "expiresAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "1a2b3c4d5e6f"
-                },
-                "note": {
-                    "type": "string",
-                    "example": "Alice from the Discord server"
-                },
-                "owner": {
-                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
-                    "type": "string",
-                    "example": "bob"
-                },
-                "reset": {
-                    "description": "Reset links set a new password for the existing account Username.",
-                    "type": "boolean"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ],
-                    "example": "user"
-                },
-                "shares": {
-                    "description": "Shares are the servers the subuser sees once the account exists.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1alpha1.InviteShare"
-                    }
-                },
-                "token": {
-                    "type": "string",
-                    "example": "1a2b3c4d5e6f.…"
-                },
-                "username": {
-                    "description": "Username is the name the account gets; empty lets the invited person choose it.",
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
-        "httpapi.CreatedToken": {
-            "type": "object",
-            "required": [
-                "createdAt",
-                "expiresAt",
-                "id",
-                "name",
-                "token"
-            ],
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "expiresAt": {
-                    "description": "ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel.",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "1a2b3c4d5e6f"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "ci"
-                },
-                "token": {
-                    "type": "string",
-                    "example": "kdt_1a2b3c4d5e6f_…"
-                }
-            }
-        },
         "httpapi.DecompressFileRequest": {
             "type": "object",
             "required": [
@@ -4682,25 +5514,6 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/v1alpha1.Egg"
-                    }
-                }
-            }
-        },
-        "httpapi.ErrorResponse": {
-            "type": "object",
-            "required": [
-                "error"
-            ],
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "server not found"
-                },
-                "fields": {
-                    "description": "Fields holds validation errors per field or variable.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
                     }
                 }
             }
@@ -4822,96 +5635,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.InviteDetails": {
-            "type": "object",
-            "required": [
-                "expiresAt",
-                "reset"
-            ],
-            "properties": {
-                "expiresAt": {
-                    "type": "string"
-                },
-                "reset": {
-                    "description": "Reset links set a new password for the account Username instead of creating one.",
-                    "type": "boolean"
-                },
-                "username": {
-                    "description": "Username is set when the name was chosen for the invited person; they cannot change it.",
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
-        "httpapi.InviteView": {
-            "type": "object",
-            "required": [
-                "createdAt",
-                "expired",
-                "expiresAt",
-                "id",
-                "reset",
-                "role",
-                "shares"
-            ],
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "createdBy": {
-                    "type": "string",
-                    "example": "admin"
-                },
-                "expired": {
-                    "description": "Expired invites stay listed until they are revoked; their link no longer works.",
-                    "type": "boolean"
-                },
-                "expiresAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "1a2b3c4d5e6f"
-                },
-                "note": {
-                    "type": "string",
-                    "example": "Alice from the Discord server"
-                },
-                "owner": {
-                    "description": "Owner is set for an invite of a subuser: the account will see the servers this user shares.",
-                    "type": "string",
-                    "example": "bob"
-                },
-                "reset": {
-                    "description": "Reset links set a new password for the existing account Username.",
-                    "type": "boolean"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ],
-                    "example": "user"
-                },
-                "shares": {
-                    "description": "Shares are the servers the subuser sees once the account exists.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1alpha1.InviteShare"
-                    }
-                },
-                "username": {
-                    "description": "Username is the name the account gets; empty lets the invited person choose it.",
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
         "httpapi.JobList": {
             "type": "object",
             "required": [
@@ -4923,21 +5646,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/files.Job"
                     }
-                }
-            }
-        },
-        "httpapi.LegalTexts": {
-            "type": "object",
-            "required": [
-                "legalNotice",
-                "privacyPolicy"
-            ],
-            "properties": {
-                "legalNotice": {
-                    "type": "string"
-                },
-                "privacyPolicy": {
-                    "type": "string"
                 }
             }
         },
@@ -4990,44 +5698,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.LoginRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "username"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string",
-                    "maxLength": 1024,
-                    "example": "secret-password"
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 64,
-                    "example": "admin"
-                }
-            }
-        },
-        "httpapi.LoginResponse": {
-            "type": "object",
-            "required": [
-                "expiresAt",
-                "token",
-                "user"
-            ],
-            "properties": {
-                "expiresAt": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/httpapi.UserView"
-                }
-            }
-        },
         "httpapi.MigrateRequest": {
             "type": "object",
             "required": [
@@ -5042,40 +5712,6 @@ const docTemplate = `{
                 "storageClass": {
                     "type": "string",
                     "example": "longhorn"
-                }
-            }
-        },
-        "httpapi.ModuleVersion": {
-            "type": "object",
-            "required": [
-                "name",
-                "version"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "example": "Gin"
-                },
-                "version": {
-                    "type": "string",
-                    "example": "v1.12.0"
-                }
-            }
-        },
-        "httpapi.OIDCSignIn": {
-            "type": "object",
-            "required": [
-                "enabled",
-                "name"
-            ],
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "description": "Name is shown on the button: \"Sign in with \u003cname\u003e\".",
-                    "type": "string",
-                    "example": "Keycloak"
                 }
             }
         },
@@ -5097,7 +5733,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/settings.Pool"
+                        "$ref": "#/definitions/appsettings.Pool"
                     }
                 }
             }
@@ -5158,25 +5794,6 @@ const docTemplate = `{
                 "to": {
                     "type": "string",
                     "example": "new.txt"
-                }
-            }
-        },
-        "httpapi.RequestRates": {
-            "type": "object",
-            "required": [
-                "user"
-            ],
-            "properties": {
-                "panel": {
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/kube.Rate"
-                        }
-                    ],
-                    "x-nullable": true
-                },
-                "user": {
-                    "$ref": "#/definitions/kube.Rate"
                 }
             }
         },
@@ -5315,171 +5932,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.SettingsView": {
-            "type": "object",
-            "required": [
-                "oidcClientSecretSet"
-            ],
-            "properties": {
-                "allowClusterIP": {
-                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
-                    "type": "boolean"
-                },
-                "allowPrivateNetworks": {
-                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
-                    "type": "boolean"
-                },
-                "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
-                    "type": "integer"
-                },
-                "brandLogo": {
-                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
-                    "type": "string"
-                },
-                "brandName": {
-                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
-                    "type": "string"
-                },
-                "brandTagline": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
-                    "type": "string"
-                },
-                "defaultLoadBalancerPool": {
-                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
-                    "type": "string"
-                },
-                "defaultStorageClass": {
-                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
-                    "type": "string"
-                },
-                "disableApiDocs": {
-                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
-                    "type": "boolean"
-                },
-                "eggLibraries": {
-                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "externalDomain": {
-                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
-                    "type": "string"
-                },
-                "favicon": {
-                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
-                    "type": "string"
-                },
-                "kubeApiQps": {
-                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
-                    "type": "integer"
-                },
-                "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
-                    "type": "integer"
-                },
-                "legalNotice": {
-                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
-                    "type": "string"
-                },
-                "loadBalancerPools": {
-                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "oidc": {
-                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
-                        }
-                    ]
-                },
-                "oidcClientSecretSet": {
-                    "description": "OIDCClientSecretSet tells administrators whether a client secret is stored (always false for users).",
-                    "type": "boolean"
-                },
-                "privacyPolicy": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
-                    "type": "string"
-                },
-                "serverNotice": {
-                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
-                    "type": "string"
-                },
-                "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
-                    "type": "integer"
-                },
-                "storageClasses": {
-                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "subusersPerUser": {
-                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
-                    "type": "integer"
-                }
-            }
-        },
-        "httpapi.SetupRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "token",
-                "username"
-            ],
-            "properties": {
-                "displayName": {
-                    "type": "string",
-                    "example": "Administrator"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "a-long-password"
-                },
-                "token": {
-                    "description": "Token is the one-time setup token from the panel log (or KUBEDACTYL_SETUP_TOKEN).",
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "admin"
-                }
-            }
-        },
-        "httpapi.SetupStatus": {
-            "type": "object",
-            "required": [
-                "required"
-            ],
-            "properties": {
-                "required": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "httpapi.StartUpgradeRequest": {
-            "type": "object",
-            "required": [
-                "version"
-            ],
-            "properties": {
-                "version": {
-                    "type": "string",
-                    "example": "0.2.4"
-                }
-            }
-        },
         "httpapi.StorageClassList": {
             "type": "object",
             "required": [
@@ -5489,7 +5941,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/settings.StorageClass"
+                        "$ref": "#/definitions/appsettings.StorageClass"
                     }
                 }
             }
@@ -5505,32 +5957,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.TokenView": {
-            "type": "object",
-            "required": [
-                "createdAt",
-                "expiresAt",
-                "id",
-                "name"
-            ],
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "expiresAt": {
-                    "description": "ExpiresAt is the end of the token: its own expiry or the longest API token lifetime of the panel.",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "1a2b3c4d5e6f"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "ci"
-                }
-            }
-        },
         "httpapi.TransferRequest": {
             "type": "object",
             "required": [
@@ -5540,25 +5966,6 @@ const docTemplate = `{
                 "owner": {
                     "type": "string",
                     "example": "alice"
-                }
-            }
-        },
-        "httpapi.UpdatePasswordRequest": {
-            "type": "object",
-            "required": [
-                "current",
-                "new"
-            ],
-            "properties": {
-                "current": {
-                    "type": "string"
-                },
-                "new": {
-                    "type": "string"
-                },
-                "revokeTokens": {
-                    "description": "RevokeTokens also revokes every API token of the user (after a leak).",
-                    "type": "boolean"
                 }
             }
         },
@@ -5664,306 +6071,6 @@ const docTemplate = `{
                 }
             }
         },
-        "httpapi.UpdateSettingsRequest": {
-            "type": "object",
-            "properties": {
-                "allowClusterIP": {
-                    "description": "AllowClusterIP lets server owners publish a server without a load balancer, only inside the\ncluster (service type ClusterIP).\n+optional",
-                    "type": "boolean"
-                },
-                "allowPrivateNetworks": {
-                    "description": "AllowPrivateNetworks lets game servers reach private networks (other namespaces,\nnodes, the Kubernetes API, the LAN). By default every user namespace gets a network\npolicy that only allows the internet, the cluster DNS and the user's own servers.\n+optional",
-                    "type": "boolean"
-                },
-                "apiTokenMaxDays": {
-                    "description": "APITokenMaxDays is the longest lifetime of an API token (days). Empty: uses 90. It also limits the\ntokens created before, counted from their creation.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=3650",
-                    "type": "integer"
-                },
-                "brandLogo": {
-                    "description": "BrandLogo is the logo as a data URL (PNG, JPEG, GIF, WebP, SVG or ICO, at most 128 KiB).\nEmpty: uses the built-in logo.\n+optional\n+kubebuilder:validation:MaxLength=180000",
-                    "type": "string"
-                },
-                "brandName": {
-                    "description": "BrandName and BrandTagline replace \"Kubedactyl\" and \"Game servers on Kubernetes\" in the\nsidebar, on the sign-in page and in the browser title (the footer keeps the software name).\n+optional\n+kubebuilder:validation:MaxLength=40",
-                    "type": "string"
-                },
-                "brandTagline": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=80",
-                    "type": "string"
-                },
-                "defaultLoadBalancerPool": {
-                    "description": "DefaultLoadBalancerPool is preselected for new servers (one of LoadBalancerPools).\n+optional",
-                    "type": "string"
-                },
-                "defaultStorageClass": {
-                    "description": "DefaultStorageClass is preselected for new servers (one of StorageClasses).\n+optional",
-                    "type": "string"
-                },
-                "disableApiDocs": {
-                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
-                    "type": "boolean"
-                },
-                "eggLibraries": {
-                    "description": "EggLibraries are git repositories (https://\u003chost\u003e/\u003cowner\u003e/\u003crepo\u003e) whose eggs the egg\nlibrary on the eggs page lists. The panel reads them when the library is opened and keeps\nnothing of them in the cluster.\n+optional\n+kubebuilder:validation:MaxItems=20",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "externalDomain": {
-                    "description": "ExternalDomain is shown to users as the server address (domain:port) instead of the load\nbalancer IP. Empty: shows the IP.\n+optional",
-                    "type": "string"
-                },
-                "favicon": {
-                    "description": "Favicon is the icon of the browser tab as a data URL (same formats and limit as the logo).\nEmpty: uses the built-in icon.\n+optional\n+kubebuilder:validation:MaxLength=180000",
-                    "type": "string"
-                },
-                "kubeApiQps": {
-                    "description": "KubeAPIQPS limits the requests the panel sends to the Kubernetes API (per second, bursts of\ntwice that). Empty: uses 50. It applies at once.\n+optional\n+kubebuilder:validation:Minimum=5\n+kubebuilder:validation:Maximum=1000",
-                    "type": "integer"
-                },
-                "kubeApiUserQps": {
-                    "description": "KubeAPIUserQPS limits the requests one user may send to the panel (per second, bursts of twice\nthat). Empty: uses 10. More are refused with 429, so one user cannot use up KubeAPIQPS for everybody.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=200",
-                    "type": "integer"
-                },
-                "legalNotice": {
-                    "description": "LegalNotice (imprint) and PrivacyPolicy are Markdown texts linked in the footer of every\npage, also before sign-in.\n+optional\n+kubebuilder:validation:MaxLength=20000",
-                    "type": "string"
-                },
-                "loadBalancerPools": {
-                    "description": "LoadBalancerPools are the Cilium LB IPAM pools servers may take their address from.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "oidc": {
-                    "description": "OIDC signs users in through an OpenID Connect identity provider (single sign-on). The client\nsecret is kept in a Secret, not here.\n+optional",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.OIDCSettings"
-                        }
-                    ]
-                },
-                "oidcClientSecret": {
-                    "description": "OIDCClientSecret replaces the stored client secret (empty removes it); omitted keeps it.",
-                    "type": "string",
-                    "x-nullable": true
-                },
-                "privacyPolicy": {
-                    "description": "+optional\n+kubebuilder:validation:MaxLength=20000",
-                    "type": "string"
-                },
-                "serverNotice": {
-                    "description": "ServerNotice is shown to users every time they open one of their servers (plain text).\n+optional\n+kubebuilder:validation:MaxLength=2000",
-                    "type": "string"
-                },
-                "sessionHours": {
-                    "description": "SessionHours is how long a sign-in lasts (hours). Empty: uses 12. It applies to every session, so\nshortening it also ends older sessions.\n+optional\n+kubebuilder:validation:Minimum=1\n+kubebuilder:validation:Maximum=720",
-                    "type": "integer"
-                },
-                "storageClasses": {
-                    "description": "StorageClasses are the storage classes servers may use for their volume.\n+optional",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "subusersPerUser": {
-                    "description": "SubusersPerUser is how many subusers (accounts and invites) every user may create for\ntheir servers. Empty: uses 10. 0 = off.\n+optional\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=100",
-                    "type": "integer"
-                }
-            }
-        },
-        "httpapi.UpdateUserRequest": {
-            "type": "object",
-            "properties": {
-                "disabled": {
-                    "type": "boolean"
-                },
-                "displayName": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "mustChangePassword": {
-                    "description": "MustChangePassword makes the user replace the password after the next sign-in.",
-                    "type": "boolean"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ]
-                }
-            }
-        },
-        "httpapi.UpgradeStatus": {
-            "type": "object",
-            "required": [
-                "current",
-                "enabled",
-                "intervalSeconds",
-                "jobs",
-                "newer"
-            ],
-            "properties": {
-                "chart": {
-                    "type": "string",
-                    "example": "oci://ghcr.io/syntax3rror404/charts/kubedactyl"
-                },
-                "checkedAt": {
-                    "type": "string"
-                },
-                "current": {
-                    "type": "string",
-                    "example": "0.2.3"
-                },
-                "enabled": {
-                    "description": "Enabled is false without the chart value selfUpgrade.enabled.",
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "intervalSeconds": {
-                    "description": "IntervalSeconds is how often the registry is checked.",
-                    "type": "integer",
-                    "example": 600
-                },
-                "jobs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/selfupgrade.Job"
-                    }
-                },
-                "latest": {
-                    "type": "string",
-                    "example": "0.2.4"
-                },
-                "newer": {
-                    "description": "Newer lists the versions above the current one, highest first.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "httpapi.UserView": {
-            "type": "object",
-            "required": [
-                "createdAt",
-                "disabled",
-                "hasPassword",
-                "mustChangePassword",
-                "oidc",
-                "role",
-                "servers",
-                "tokens",
-                "username"
-            ],
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "disabled": {
-                    "type": "boolean"
-                },
-                "displayName": {
-                    "type": "string",
-                    "example": "Alice"
-                },
-                "email": {
-                    "type": "string",
-                    "example": "alice@example.com"
-                },
-                "hasPassword": {
-                    "description": "HasPassword is false for accounts that sign in only through the identity provider.",
-                    "type": "boolean"
-                },
-                "lastLoginAt": {
-                    "type": "string"
-                },
-                "mustChangePassword": {
-                    "description": "MustChangePassword is true while the user has to replace the password set by an administrator.",
-                    "type": "boolean"
-                },
-                "namespace": {
-                    "type": "string",
-                    "example": "kubedactyl-user-alice"
-                },
-                "oidc": {
-                    "description": "OIDC is the user of the identity provider the account is linked to (which sets display name, email and\nrole); null for accounts that are not linked.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.OIDCIdentity"
-                        }
-                    ],
-                    "x-nullable": true
-                },
-                "owner": {
-                    "description": "Owner is set for a subuser: the user whose shared servers it sees. A subuser has no namespace.",
-                    "type": "string",
-                    "example": "bob"
-                },
-                "role": {
-                    "enum": [
-                        "admin",
-                        "user"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1alpha1.UserRole"
-                        }
-                    ],
-                    "example": "user"
-                },
-                "servers": {
-                    "description": "Servers counts the servers of the user, for a subuser the servers shared with it.",
-                    "type": "integer",
-                    "example": 2
-                },
-                "tokens": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/httpapi.TokenView"
-                    }
-                },
-                "username": {
-                    "type": "string",
-                    "example": "alice"
-                }
-            }
-        },
-        "httpapi.Versions": {
-            "type": "object",
-            "required": [
-                "go",
-                "modules"
-            ],
-            "properties": {
-                "go": {
-                    "type": "string",
-                    "example": "go1.27.1"
-                },
-                "modules": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/httpapi.ModuleVersion"
-                    }
-                }
-            }
-        },
         "httpserver.HealthResponse": {
             "type": "object",
             "required": [
@@ -5994,7 +6101,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "Kubedactyl"
+                    "example": "My Panel"
                 },
                 "version": {
                     "type": "string",
@@ -6057,136 +6164,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
-                }
-            }
-        },
-        "settings.Pool": {
-            "type": "object",
-            "required": [
-                "blocks",
-                "conflict",
-                "disabled",
-                "ipsAvailable",
-                "ipsTotal",
-                "ipsUsed",
-                "name",
-                "selectable",
-                "serviceLabels"
-            ],
-            "properties": {
-                "blocks": {
-                    "description": "Blocks are the address ranges (\"10.0.0.0/24\" or \"10.0.0.10-10.0.0.20\").",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "192.168.1.60-192.168.1.120"
-                    ]
-                },
-                "conflict": {
-                    "type": "boolean"
-                },
-                "disabled": {
-                    "type": "boolean"
-                },
-                "families": {
-                    "description": "Families split the addresses by IP family (IPv4 first), counted by the panel: Cilium counts both\ntogether. Only the pools API and the health check fill them in.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/settings.PoolFamily"
-                    }
-                },
-                "ipsAvailable": {
-                    "type": "number"
-                },
-                "ipsTotal": {
-                    "description": "IPs as reported by Cilium in the pool status (-1 when unknown). Numbers, not integers:\nan IPv6 block holds more addresses than an int64 (a /64 has 2^64).",
-                    "type": "number"
-                },
-                "ipsUsed": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "general-pool"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "selectable": {
-                    "description": "Selectable is false when the pool cannot be targeted by service labels.",
-                    "type": "boolean"
-                },
-                "serviceLabels": {
-                    "description": "ServiceLabels are set on a server's service so that the pool selects it.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "settings.PoolFamily": {
-            "type": "object",
-            "required": [
-                "available",
-                "family",
-                "total",
-                "used"
-            ],
-            "properties": {
-                "available": {
-                    "type": "number"
-                },
-                "family": {
-                    "type": "string",
-                    "enum": [
-                        "IPv4",
-                        "IPv6"
-                    ]
-                },
-                "total": {
-                    "type": "number"
-                },
-                "used": {
-                    "type": "number"
-                }
-            }
-        },
-        "settings.StorageClass": {
-            "type": "object",
-            "required": [
-                "allowVolumeExpansion",
-                "isDefault",
-                "name",
-                "provisioner",
-                "reclaimPolicy",
-                "volumeBindingMode"
-            ],
-            "properties": {
-                "allowVolumeExpansion": {
-                    "type": "boolean"
-                },
-                "isDefault": {
-                    "description": "IsDefault is true for the cluster default storage class.",
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "longhorn"
-                },
-                "provisioner": {
-                    "type": "string",
-                    "example": "driver.longhorn.io"
-                },
-                "reclaimPolicy": {
-                    "type": "string",
-                    "example": "Retain"
-                },
-                "volumeBindingMode": {
-                    "type": "string",
-                    "example": "Immediate"
                 }
             }
         },
@@ -6919,7 +6896,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "adminGroup": {
-                    "description": "Members of AdminGroup sign in as administrators, members of UserGroup as users; nobody\nelse may sign in.\n+optional",
+                    "description": "Members of AdminGroup sign in as administrators, members of the user group (userGroup) as users; nobody\nelse may sign in.\n+optional",
                     "type": "string"
                 },
                 "clientId": {
@@ -7228,11 +7205,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "admin",
+                "user",
                 "user"
             ],
             "x-enum-varnames": [
                 "RoleAdmin",
-                "RoleUser"
+                "RoleUser",
+                "DefaultRole"
             ]
         }
     },

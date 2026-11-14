@@ -27,12 +27,12 @@ type PullFileRequest struct {
 //	@Param			server	path		string			true	"Server name"
 //	@Param			body	body		PullFileRequest	true	"URL"
 //	@Success		202		{object}	files.Job
-//	@Failure		422		{object}	ErrorResponse
+//	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/pull [post]
 func (a *API) pullFile(c *gin.Context) {
 	var req PullFileRequest
-	if !a.bindJSON(c, &req) {
+	if !a.BindJSON(c, &req) {
 		return
 	}
 	gs, ok := a.loadServer(c)
@@ -45,9 +45,9 @@ func (a *API) pullFile(c *gin.Context) {
 	}
 	job, err := a.Files.StartPull(files.RefOf(gs), req.URL, cleanDir(req.Directory), req.Filename, deny)
 	if err != nil {
-		a.fail(c, err)
+		a.Fail(c, err)
 		return
 	}
-	a.audit(c, "download started", "server", gs.Name, "url", req.URL, "file", job.Label)
+	a.Audit(c, "download started", "server", gs.Name, "url", req.URL, "file", job.Label)
 	c.JSON(http.StatusAccepted, job)
 }

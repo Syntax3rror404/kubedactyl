@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"app/api/v1alpha1"
-	"app/internal/checks"
+	"app/base/checks"
 )
 
 // routerChecks tests each port through the public address (NAT loopback) while the server runs.

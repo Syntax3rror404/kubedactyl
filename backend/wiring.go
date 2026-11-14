@@ -6,18 +6,30 @@ import (
 	"log/slog"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	clientconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"app/api/v1alpha1"
-	"app/internal/auth"
-	"app/internal/bootstrap"
+	"app/base/api"
+	"app/base/auth"
+	"app/base/bootstrap"
+	"app/base/httpserver"
+	"app/base/kube"
+	"app/base/selfupgrade"
+	"app/base/settings"
+	"app/base/users"
+	"app/config/crd"
+	"app/internal/appsettings"
+	"app/internal/appusers"
 	"app/internal/clusterinfo"
 	"app/internal/console"
 	"app/internal/controller"
@@ -26,96 +38,39 @@ import (
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/httpapi"
-	"app/internal/kube"
 	"app/internal/schedule"
-	"app/internal/selfupgrade"
 	"app/internal/serverctl"
-	"app/internal/settings"
 	"app/internal/tenancy"
-	"app/internal/users"
 )
 
-// kubeConfig loads the kubeconfig context (or the in-cluster service account); every client
-// made from it shares the limiter.
-func kubeConfig(kubeContext string, http1 bool, limiter *kube.RateLimiter) (*rest.Config, error) {
-	restCfg, err := clientconfig.GetConfigWithContext(kubeContext)
-	if err != nil {
-		return nil, fmt.Errorf("loading kubeconfig: %w", err)
-	}
-	restCfg.RateLimiter = limiter
-	if http1 {
-		// Proxies in front of the API server often cut long-running HTTP/2 streams with
-		// a stream error, which client-go treats as a failure and answers with backoff.
-		// Over HTTP/1.1 the same cut is a clean end of the watch and it reconnects at once.
-		restCfg.TLSClientConfig.NextProtos = []string{"http/1.1"}
-	}
-	return restCfg, nil
-}
-
-func newScheme() (*runtime.Scheme, error) {
-	scheme := runtime.NewScheme()
-	adders := []func(*runtime.Scheme) error{
-		clientgoscheme.AddToScheme,
-		v1alpha1.AddToScheme,
-		apiextensionsv1.AddToScheme,
-	}
-	for _, add := range adders {
-		if err := add(scheme); err != nil {
-			return nil, fmt.Errorf("building scheme: %w", err)
-		}
-	}
-	return scheme, nil
-}
-
-// bootResult is what the start-up steps produce for the API.
-type bootResult struct {
-	signer     *auth.Signer
-	setupToken string // "" once an administrator exists
-}
-
-// prepareCluster runs the start-up steps with a direct client (the cache does not run yet):
-//  1. CRDs: installed or updated, so the types below exist.
-//  2. Namespace: the panel namespace, which also scopes this installation to its user namespaces.
-//  3. Session key: loaded or created, so sessions survive restarts.
-//  4. First admin: created from the environment, or a setup token when there is none.
-//  5. Settings: created with the storage class and pool of the flags on the first start.
+// prepareCluster runs the start-up steps with a direct client (the cache does not run yet): the base steps (CRDs,
+// namespace, session key, first admin), then the user namespaces of this installation and the settings, created
+// with the storage class and pool of the flags on the first start.
 func prepareCluster(
 	ctx context.Context, restCfg *rest.Config, scheme *runtime.Scheme, cfg config, log *slog.Logger,
-) (*bootResult, error) {
-	ns := cfg.opts.Namespace
+) (*bootstrap.Result, error) {
+	ns := cfg.Namespace
 	direct, err := client.New(restCfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("creating client: %w", err)
 	}
-	// 1. CRDs
-	if err := bootstrap.InstallCRDs(ctx, direct); err != nil {
-		return nil, fmt.Errorf("installing CRDs: %w", err)
+	boot, err := bootstrap.Run(
+		ctx, direct, crd.Files, ns, httpserver.LocalURL(cfg.Listen), log.With("component", "bootstrap"),
+	)
+	if err != nil {
+		return nil, err
 	}
-	// 2. Namespace
-	if err := bootstrap.EnsureNamespace(ctx, direct, ns); err != nil {
-		return nil, fmt.Errorf("creating namespace: %w", err)
-	}
+	// The panel namespace also scopes this installation to its user namespaces. In the cluster the panel may
+	// only write in user namespaces through its tenant role.
 	tenancy.SystemNamespace = ns
 	tenancy.NamespacePrefix = ns + "-user-"
-	// In the cluster the panel may only write in user namespaces through its tenant role.
 	tenancy.TenantRole, tenancy.PanelServiceAccount = cfg.tenantRole, cfg.serviceAccount
-	// 3. Session key
-	signer, err := bootstrap.LoadSessionSigner(ctx, direct, ns)
-	if err != nil {
-		return nil, fmt.Errorf("loading session key: %w", err)
-	}
-	// 4. First admin
-	setupToken, err := bootstrap.Admin(ctx, direct, ns, localURL(cfg.addr), log.With("component", "bootstrap"))
-	if err != nil {
-		return nil, fmt.Errorf("creating initial admin: %w", err)
-	}
-	// 5. Settings
-	if err := settings.Bootstrap(
+	if err := appsettings.Bootstrap(
 		ctx, direct, ns, cfg.opts.StorageClass, cfg.opts.LoadBalancerPool, log.With("component", "settings"),
 	); err != nil {
 		return nil, fmt.Errorf("creating panel settings: %w", err)
 	}
-	return &bootResult{signer: signer, setupToken: setupToken}, nil
+	return boot, nil
 }
 
 // panel holds the controller manager (runs controllers and background jobs) and the API.
@@ -128,7 +83,7 @@ type panel struct {
 // services the API uses and the API itself.
 func newPanel(
 	ctx context.Context, restCfg *rest.Config, limiter *kube.RateLimiter, scheme *runtime.Scheme, cfg config,
-	boot *bootResult, devMode bool, log *slog.Logger,
+	boot *bootstrap.Result, devMode bool, log *slog.Logger,
 ) (*panel, error) {
 	mgr, err := newManager(ctx, restCfg, scheme)
 	if err != nil {
@@ -144,7 +99,7 @@ func newPanel(
 	if err != nil {
 		return nil, err
 	}
-	upgradeCfg, updates, upgrader, err := setupSelfUpgrade(mgr, kc, cfg.upgrade, cfg.opts.Namespace, log)
+	updates, upgrader, err := selfupgrade.Setup(mgr, kc, cfg.Namespace, appVersion, log)
 	if err != nil {
 		return nil, err
 	}
@@ -152,41 +107,40 @@ func newPanel(
 	if err != nil {
 		return nil, err
 	}
-	clusterService := newClusterService(mgr, kc, restCfg, svc.settings, upgradeCfg.Enabled(), cfg, log)
+	clusterService := newClusterService(mgr, kc, restCfg, svc.settings, upgrader != nil, cfg, log)
 	// The health checks the enabled pools and storage classes: a settings change shows at once.
 	svc.settings.Changed = clusterService.ForgetHealth
 
-	api := &httpapi.API{
-		Client:      mgr.GetClient(),
-		Reader:      mgr.GetAPIReader(),
-		Kube:        kc,
-		Hub:         hub,
-		Files:       svc.files,
-		Settings:    svc.settings,
-		Users:       svc.users,
-		Eggs:        svc.eggs,
-		Library:     egglibrary.New(),
-		Diagnostics: &diagnostics.Diagnoser{},
-		Signer:      boot.signer,
+	base := &api.API{
+		Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: cfg.Namespace,
+		Log: log.With("component", "api"), Settings: svc.settings, Users: svc.users, Signer: boot.Signer,
 		// Failed sign-ins: per client and user, per client (password spraying), per user.
 		Limiter:        auth.NewLimiter(5, 5*time.Minute),
 		ClientLimiter:  auth.NewLimiter(20, 15*time.Minute),
 		AccountLimiter: auth.NewLimiter(30, 15*time.Minute),
 		KubeLimiter:    limiter,
+		DevMode:        devMode,
+		SetupToken:     boot.SetupToken,
+		Version:        appVersion,
+		UpgradeChecker: updates,
+		Upgrader:       upgrader,
+	}
+	handlers := &httpapi.API{
+		API:            base,
+		Kube:           kc,
+		Hub:            hub,
+		Files:          svc.files,
+		Eggs:           svc.eggs,
+		Library:        egglibrary.New(),
+		Diagnostics:    &diagnostics.Diagnoser{},
 		Opts:           cfg.opts,
-		Log:            log.With("component", "api"),
 		Cluster:        clusterSummary(kc, restCfg, cfg),
 		ClusterService: clusterService,
 		Trigger:        rec.Trigger,
 		Ops:            svc.ops,
 		Schedules:      svc.schedules,
-		DevMode:        devMode,
-		SetupToken:     boot.setupToken,
-		Version:        appVersion,
-		UpgradeChecker: updates,
-		Upgrader:       upgrader,
 	}
-	return &panel{manager: mgr, api: api}, nil
+	return &panel{manager: mgr, api: handlers}, nil
 }
 
 // newClusterService gathers the node, hardware, identity and health details of the cluster page.
@@ -195,8 +149,8 @@ func newClusterService(
 	log *slog.Logger,
 ) *clusterinfo.Service {
 	return &clusterinfo.Service{
-		Kube: kc, Config: restCfg, Namespace: cfg.opts.Namespace, HelperImage: cfg.opts.HelperImage,
-		KubeContext: cfg.kubeContext, HTTP1: cfg.http1, Log: log.With("component", "clusterinfo"),
+		Kube: kc, Config: restCfg, Namespace: cfg.Namespace, HelperImage: cfg.opts.HelperImage,
+		KubeContext: cfg.KubeContext, HTTP1: cfg.HTTP1, Log: log.With("component", "clusterinfo"),
 		Reader: mgr.GetAPIReader(), Settings: store, SelfUpgrade: selfUpgrade, AdmissionPolicy: cfg.admissionPolicy,
 	}
 }
@@ -217,7 +171,7 @@ func setupServices(
 	ctx context.Context, mgr ctrl.Manager, kc *kube.Client, hub *console.Hub, activity *files.Activity,
 	rec *controller.Reconciler, limiter *kube.RateLimiter, cfg config, log *slog.Logger,
 ) (*services, error) {
-	ns := cfg.opts.Namespace
+	ns := cfg.Namespace
 	filesService := &files.Service{
 		Manager: &files.Manager{Kube: kc}, Activity: activity, Reader: mgr.GetAPIReader(), Trigger: rec.Trigger,
 	}
@@ -246,39 +200,30 @@ func setupServices(
 	if err := mgr.Add(updater); err != nil {
 		return nil, fmt.Errorf("setting up egg auto updates: %w", err)
 	}
-	store, err := setupSettings(ctx, mgr, limiter, ns)
-	if err != nil {
+	// The stored Kubernetes API limit applies from the start and after every save, and changes made with kubectl
+	// reach the store through the informer.
+	store := &settings.Store{
+		Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns, Limiter: limiter,
+		App: appsettings.Settings{Reader: mgr.GetAPIReader()},
+	}
+	if err := store.Start(ctx, mgr.GetCache()); err != nil {
 		return nil, err
 	}
-	accounts := &users.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns}
+	accounts := &users.Store{
+		Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns,
+		App: &appusers.Accounts{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns, Settings: store},
+	}
 	return &services{
 		files: filesService, ops: ops, schedules: schedules, settings: store, eggs: eggs, users: accounts,
 	}, nil
-}
-
-// setupSettings builds the settings store: the stored Kubernetes API limit applies from the start and after every
-// save, and changes made with kubectl reach it through the informer.
-func setupSettings(
-	ctx context.Context, mgr ctrl.Manager, limiter *kube.RateLimiter, ns string,
-) (*settings.Store, error) {
-	store := &settings.Store{Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Namespace: ns, Limiter: limiter}
-	set, err := store.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("reading panel settings: %w", err)
-	}
-	store.ApplyLimits(set)
-	if err := store.Watch(ctx, mgr.GetCache()); err != nil {
-		return nil, fmt.Errorf("watching panel settings: %w", err)
-	}
-	return store, nil
 }
 
 // newManager creates the controller-runtime manager (shared cache, no metrics/health server).
 func newManager(ctx context.Context, restCfg *rest.Config, scheme *runtime.Scheme) (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                 scheme,
-		Cache:                  bootstrap.CacheOptions(),
-		Client:                 client.Options{Cache: &client.CacheOptions{DisableFor: bootstrap.UncachedTypes()}},
+		Cache:                  cacheOptions(),
+		Client:                 client.Options{Cache: &client.CacheOptions{DisableFor: uncachedTypes()}},
 		Metrics:                metricsserver.Options{BindAddress: "0"},
 		HealthProbeBindAddress: "0",
 	})
@@ -292,6 +237,31 @@ func newManager(ctx context.Context, restCfg *rest.Config, scheme *runtime.Schem
 	return mgr, nil
 }
 
+// cacheOptions caches only the objects the panel created, so it never keeps all pods or services of the cluster
+// in memory.
+func cacheOptions() cache.Options {
+	managed := labels.SelectorFromSet(labels.Set{tenancy.LabelManagedBy: tenancy.ManagedBy})
+	return cache.Options{ByObject: map[client.Object]cache.ByObject{
+		&corev1.Pod{}:                   {Label: managed},
+		&corev1.Service{}:               {Label: managed},
+		&corev1.PersistentVolumeClaim{}: {Label: managed},
+		&corev1.ConfigMap{}:             {Label: managed},
+		&networkingv1.NetworkPolicy{}:   {Label: managed},
+	}}
+}
+
+// uncachedTypes are always read from the API server: secrets and the cluster wide objects would otherwise be
+// cached for the whole cluster.
+func uncachedTypes() []client.Object {
+	return []client.Object{
+		&corev1.Secret{},
+		&corev1.Namespace{},
+		&corev1.PersistentVolume{},
+		&apiextensionsv1.CustomResourceDefinition{},
+		&rbacv1.RoleBinding{},
+	}
+}
+
 // setupControllers registers the game server and user controllers and the files pod reaper.
 func setupControllers(
 	mgr ctrl.Manager, kc *kube.Client, hub *console.Hub, activity *files.Activity, cfg config, log *slog.Logger,
@@ -302,7 +272,7 @@ func setupControllers(
 		Kube:   kc,
 		Hub:    hub,
 		Opts:   cfg.opts,
-		Pools:  &settings.PoolResolver{Reader: mgr.GetAPIReader()},
+		Pools:  &appsettings.PoolResolver{Reader: mgr.GetAPIReader()},
 		Log:    log.With("component", "controller"),
 	}
 	if err := rec.SetupWithManager(mgr); err != nil {
@@ -324,7 +294,7 @@ func setupControllers(
 	users := &controller.UserReconciler{
 		Client:    mgr.GetClient(),
 		Reader:    mgr.GetAPIReader(),
-		Namespace: cfg.opts.Namespace,
+		Namespace: cfg.Namespace,
 		Log:       log.With("component", "users"),
 	}
 	if err := users.SetupWithManager(mgr); err != nil {
@@ -333,32 +303,12 @@ func setupControllers(
 	return rec, nil
 }
 
-// setupSelfUpgrade enables update checks and upgrade jobs when the chart set the environment
-// variables (chart value selfUpgrade.enabled); otherwise checker and upgrader are nil.
-func setupSelfUpgrade(
-	mgr ctrl.Manager, kc *kube.Client, c selfupgrade.Config, namespace string, log *slog.Logger,
-) (selfupgrade.Config, *selfupgrade.Checker, *selfupgrade.Upgrader, error) {
-	c.Namespace = namespace
-	if !c.Enabled() {
-		return c, nil, nil, nil
-	}
-	updates := &selfupgrade.Checker{Config: c, Log: log.With("component", "upgrade")}
-	if err := mgr.Add(updates); err != nil {
-		return c, nil, nil, fmt.Errorf("setting up update checks: %w", err)
-	}
-	upgrader := &selfupgrade.Upgrader{Config: c, Client: mgr.GetClient(), Reader: mgr.GetAPIReader(), Kube: kc}
-	if err := mgr.Add(upgrader.PruneEvery(time.Hour, log.With("component", "upgrade"))); err != nil {
-		return c, nil, nil, fmt.Errorf("setting up upgrade job cleanup: %w", err)
-	}
-	return c, updates, upgrader, nil
-}
-
 // clusterSummary is the connection summary of the sidebar cluster card.
 func clusterSummary(kc *kube.Client, restCfg *rest.Config, cfg config) httpapi.ClusterInfo {
 	info := httpapi.ClusterInfo{
-		Context:          currentContext(cfg.kubeContext),
+		Context:          kube.CurrentContext(cfg.KubeContext),
 		Server:           restCfg.Host,
-		Namespace:        cfg.opts.Namespace,
+		Namespace:        cfg.Namespace,
 		StorageClass:     cfg.opts.StorageClass,
 		LoadBalancerPool: cfg.opts.LoadBalancerPool,
 	}

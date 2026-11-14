@@ -1,24 +1,31 @@
 import { useState } from "react"
 import {
-  HardDriveIcon,
   EggIcon as EggLucide,
+  HardDriveIcon,
   MemoryStickIcon,
   PlusIcon,
+  SearchIcon,
   ServerIcon,
   UploadIcon,
   ZapIcon,
 } from "lucide-react"
 import { Link } from "react-router"
 
-import { MetricTile } from "@/components/common/metric-tile"
-import { EmptyState, QueryState, SkeletonGrid } from "@/components/common/query-state"
-import { PageHeader } from "@/components/layout/page-header"
-import { buttonVariants } from "@/components/ui/button"
+import { MetricTile } from "@/base/components/metric-tile"
+import { EmptyState, QueryState, SkeletonGrid } from "@/base/components/query-state"
+import { useAuth } from "@/base/hooks/use-auth"
+import { PageHeader } from "@/base/layout/page-header"
+import { userName } from "@/base/lib/format"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { ServerCard } from "@/features/dashboard/components/server-card"
-import { ServerFilter } from "@/features/dashboard/components/server-filter"
-import { filterServers, isActive, type ServerFilterState } from "@/features/dashboard/lib/server-filter"
-import { useAuth } from "@/hooks/use-auth"
-import { formatMiB, userName } from "@/lib/format"
+import {
+  filterServers,
+  isActive,
+  type ServerFilterState,
+  type StatusFilter,
+} from "@/features/dashboard/lib/server-filter"
+import { formatMiB } from "@/lib/format"
 import { useClusterInfo, useEggs, useServers } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -131,5 +138,51 @@ function EmptyServers({ hasEggs, isAdmin }: { hasEggs: boolean; isAdmin: boolean
         {hasEggs ? "Create server" : "Import an egg"}
       </Link>
     </EmptyState>
+  )
+}
+
+const options: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "running", label: "Running" },
+  { key: "stopped", label: "Stopped" },
+]
+
+/** Search field and status buttons above the server grid. */
+function ServerFilter({
+  value,
+  onChange,
+  counts,
+}: {
+  value: ServerFilterState
+  onChange: (v: ServerFilterState) => void
+  counts: Record<StatusFilter, number>
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <InputGroup className="sm:max-w-xs">
+        <InputGroupAddon>
+          <SearchIcon />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder="Search name, egg or owner…"
+          value={value.query}
+          onChange={(e) => onChange({ ...value, query: e.target.value })}
+        />
+      </InputGroup>
+      <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+        {options.map((o) => (
+          <Button
+            key={o.key}
+            size="sm"
+            variant={value.status === o.key ? "secondary" : "ghost"}
+            className="h-7"
+            onClick={() => onChange({ ...value, status: o.key })}
+          >
+            {o.label}
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">{counts[o.key]}</span>
+          </Button>
+        ))}
+      </div>
+    </div>
   )
 }

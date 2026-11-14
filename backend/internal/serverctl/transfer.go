@@ -16,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/kube"
 	"app/internal/gameserver"
-	"app/internal/kube"
 	"app/internal/tenancy"
 )
 
