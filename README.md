@@ -97,7 +97,7 @@ out of the box.
   styles and scripts are bundled, nothing is loaded from a CDN.
 
 <p align="center">
-  <img src=".github/assets/limits.png" alt="Network isolation, session lifetimes and Kubernetes API limits" width="800">
+  <img src=".github/assets/limits.png" alt="Security settings: network isolation, session and token lifetimes, subusers" width="800">
 </p>
 
 
