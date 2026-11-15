@@ -27,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "/setup", lazy: page(() => import("@/base/features/auth/setup-page"), "SetupPage") },
       { path: "/invite", lazy: page(() => import("@/base/features/auth/invite-page"), "InvitePage") },
       { path: "/licenses", lazy: page(() => import("@/base/features/licenses/licenses-page"), "LicensesPage") },
+      { path: "/api-docs", lazy: page(() => import("@/base/features/api-docs/api-docs-page"), "ApiDocsPage") },
       {
         element: <RequireAuth />,
         children: [

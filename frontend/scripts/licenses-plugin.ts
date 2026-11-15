@@ -43,7 +43,7 @@ function listedPackages(root: string): Map<string, string> {
   return rows
 }
 
-// Standard texts for packages that declare MIT/ISC but ship no license file.
+// Standard texts for packages that declare MIT, ISC or Apache-2.0 but ship no license file.
 const mit = (holder: string) => `MIT License
 
 Copyright (c) ${holder}
@@ -82,13 +82,33 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.`
 
+const apache = (holder: string) => `Copyright ${holder}
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.`
+
 /** License text for a package without license file, from the license declared in package.json. */
 function declaredText(p: Pkg): string {
   const note = `(The package ships no license file; standard text of the license declared in its package.json, author "${p.author || "unknown"}"${p.repository ? `, ${p.repository}` : ""}.)`
   const holder = p.author ? `${p.author} and contributors` : `the ${p.name} authors`
-  const texts = [/\bMIT\b/.test(p.license) && mit(holder), /\bISC\b/.test(p.license) && isc(holder)].filter(Boolean)
+  const texts = [
+    /\bMIT\b/.test(p.license) && mit(holder),
+    /\bISC\b/.test(p.license) && isc(holder),
+    /\bApache-2\.0\b/.test(p.license) && apache(holder),
+  ].filter(Boolean)
   if (texts.length === 0)
-    throw new Error(`${p.name}@${p.version}: no license file and no MIT/ISC license declared ("${p.license}")`)
+    throw new Error(
+      `${p.name}@${p.version}: no license file and no MIT/ISC/Apache-2.0 license declared ("${p.license}")`,
+    )
   return [note, ...texts].join("\n\n")
 }
 

@@ -387,7 +387,7 @@ definitions:
         type: string
       disableApiDocs:
         description: |-
-          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
           keeps working.
           +optional
         type: boolean
@@ -619,7 +619,7 @@ definitions:
         type: string
       disableApiDocs:
         description: |-
-          DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+          DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
           keeps working.
           +optional
         type: boolean
@@ -4241,6 +4241,23 @@ paths:
       summary: Legal notice and privacy policy
       tags:
       - Settings
+  /openapi.json:
+    get:
+      description: |-
+        This documentation as OpenAPI 2.0 document, read by the API reference page (public, unless an
+        administrator turned the API documentation off).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: API document
+      tags:
+      - System
   /request-rates:
     get:
       description: |-

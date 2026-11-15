@@ -15,7 +15,6 @@ require (
 	github.com/icza/dyno v0.0.0-20260912175837-51f8ab52fd15
 	github.com/magiconair/properties v1.18.13
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/swaggo/files/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/crypto v0.59.0

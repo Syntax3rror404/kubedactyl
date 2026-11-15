@@ -1,4 +1,4 @@
-// Package httpserver is the HTTP server of the panel: the app's API, the Swagger UI, the embedded web UI and the
+// Package httpserver is the HTTP server of the panel: the app's API, the API document, the embedded web UI and the
 // security middleware.
 package httpserver
 
@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files/v2"
 	"github.com/swaggo/swag"
 
 	"app/app"
@@ -40,7 +39,7 @@ type Config struct {
 	Log            *slog.Logger
 }
 
-// NewRouter builds the HTTP routes: the API, the Swagger UI and the embedded frontend.
+// NewRouter builds the HTTP routes: the API, the API document and the embedded frontend.
 func NewRouter(cfg Config) (*gin.Engine, error) {
 	var static *staticFiles
 	if cfg.Frontend != nil {
@@ -59,20 +58,12 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 	apiGroup := r.Group("/api")
 	apiGroup.GET("/health", getHealth)
 	apiGroup.GET("/info", getInfo(cfg.Version, cfg.Frontend == nil))
+	apiGroup.GET("/openapi.json", getAPIDocument(cfg.Settings))
 	cfg.API.Register(apiGroup)
 
-	// Swagger UI (fully embedded, works offline), unless an administrator turned it off.
-	docs := swaggerUI()
-	r.GET("/swagger/*any", func(c *gin.Context) {
-		if set, err := cfg.Settings.Current(c); err != nil || set.DisableAPIDocs {
-			c.String(http.StatusNotFound, "The API documentation is turned off.")
-			return
-		}
-		docs(c)
-	})
-
 	r.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+		// "/api" and below it; /api-docs is a page of the web UI.
+		if strings.HasPrefix(c.Request.URL.Path+"/", "/api/") {
 			c.JSON(http.StatusNotFound, api.ErrorResponse{Error: "not found"})
 			return
 		}
@@ -186,38 +177,28 @@ func getInfo(version string, devMode bool) gin.HandlerFunc {
 	}
 }
 
-// swaggerInitializer starts the Swagger UI with the panel's document instead of the bundle's example;
-// validatorUrl null keeps it from loading a badge from the internet.
-const swaggerInitializer = `window.onload = () => {
-  window.ui = SwaggerUIBundle({
-    url: "doc.json",
-    dom_id: "#swagger-ui",
-    validatorUrl: null,
-    deepLinking: true,
-    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-    plugins: [SwaggerUIBundle.plugins.DownloadUrl],
-    layout: "StandaloneLayout",
-  })
-}
-`
-
-// swaggerUI serves the embedded Swagger UI with the API document of this build; /swagger/ shows index.html.
-func swaggerUI() gin.HandlerFunc {
-	files := http.StripPrefix("/swagger", http.FileServerFS(swaggerFiles.FS))
+// getAPIDocument godoc
+//
+//	@Summary		API document
+//	@Description	This documentation as OpenAPI 2.0 document, read by the API reference page (public, unless an
+//	@Description	administrator turned the API documentation off).
+//	@Tags			System
+//	@Produce		json
+//	@Success		200
+//	@Failure		404	{object}	api.ErrorResponse
+//	@Router			/openapi.json [get]
+func getAPIDocument(store *settings.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		switch c.Param("any") {
-		case "/doc.json":
-			doc, err := swag.ReadDoc()
-			if err != nil {
-				c.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-			c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(doc))
-		case "/swagger-initializer.js":
-			c.Data(http.StatusOK, "text/javascript; charset=utf-8", []byte(swaggerInitializer))
-		default:
-			files.ServeHTTP(c.Writer, c.Request)
+		if set, err := store.Current(c); err != nil || set.DisableAPIDocs {
+			c.JSON(http.StatusNotFound, api.ErrorResponse{Error: "the API documentation is turned off"})
+			return
 		}
+		doc, err := swag.ReadDoc()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, api.ErrorResponse{Error: err.Error()})
+			return
+		}
+		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(doc))
 	}
 }
 

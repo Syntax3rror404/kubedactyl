@@ -49,7 +49,7 @@ out of the box.
 - **Diagnostics** that answer "why can't my friends connect?": installation, crashes, memory, disk, DNS records as
   the internet sees them and the router forwarding of every port.
 - **Crash detection** with automatic restart and a "restart required" banner when settings changed while running.
-- **API tokens** and a Swagger UI for everything the web interface can do.
+- **API tokens** and an API reference (Scalar) for everything the web interface can do.
 
 <p align="center">
   <img src=".github/assets/console.png" alt="Server console with live stats" width="800">
@@ -131,7 +131,7 @@ run it behind TLS when it is reachable from the internet.
 - [Security](docs/security.md): what the panel does to be safe on the internet.
 - [Development](docs/development.md): local setup, commands, project layout and the API.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the big picture and where to change what. Start here when you work on the code.
-- [Chart values](charts/kubedactyl/README.md) and the Swagger UI at `/swagger/` of a running panel.
+- [Chart values](charts/kubedactyl/README.md) and the API reference at `/api-docs` of a running panel.
 
 ## License
 

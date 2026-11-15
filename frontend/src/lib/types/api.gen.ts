@@ -265,7 +265,7 @@ export interface ApiSettingsView {
    */
   defaultStorageClass?: string;
   /**
-   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+   * DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
    * keeps working.
    * +optional
    */
@@ -453,7 +453,7 @@ export interface ApiUpdateSettingsRequest {
    */
   defaultStorageClass?: string;
   /**
-   * DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+   * DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
    * keeps working.
    * +optional
    */

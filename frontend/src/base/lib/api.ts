@@ -120,6 +120,8 @@ export const baseApi = {
     getBranding: () => request<Branding>("GET", "/branding"),
     /** License texts of the panel and its dependencies as Markdown (public, production build only). */
     getLicenses: () => buildFile("/third-party-licenses.md"),
+    /** The OpenAPI document of the API reference (public, unless an administrator turned it off). */
+    getApiDocument: () => request<string>("GET", "/openapi.json", undefined, undefined, "text"),
     /** Versions of the panel, Go and the main Go modules (admins). */
     getVersions: () => request<Versions>("GET", "/versions"),
     /** Requests per second of the user and, for admins, of the whole panel; polling it does not count. */

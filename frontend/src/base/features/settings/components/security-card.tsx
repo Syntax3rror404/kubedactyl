@@ -8,7 +8,7 @@ import { FieldGroup, FieldLegend, FieldSeparator, FieldSet } from "@/components/
 type Fields = ComponentType<SettingsCardProps>[]
 
 /**
- * How long sign-ins and API tokens stay valid and whether the API documentation (Swagger UI at /swagger/) is
+ * How long sign-ins and API tokens stay valid and whether the API documentation (API reference at /api-docs) is
  * served; the app's security settings come before (`before`) and after (`after`) the lifetimes, `description` names
  * all of them.
  */
@@ -34,7 +34,7 @@ export function SecurityCard({
           <FieldLegend variant="label">API documentation</FieldLegend>
           <SwitchField
             id="api-docs"
-            label="Enable Swagger UI"
+            label="Enable API reference"
             checked={!draft.disableApiDocs}
             onChange={(enabled) => onChange({ disableApiDocs: !enabled })}
           />

@@ -61,19 +61,15 @@ func TestAPIDocsCanBeTurnedOff(t *testing.T) {
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		return w.Code
 	}
-	for _, path := range []string{"/swagger/", "/swagger/doc.json", "/swagger/swagger-ui-bundle.js"} {
-		if code := get(path); code != http.StatusOK {
-			t.Fatalf("%s by default: %d", path, code)
-		}
+	if code := get("/api/openapi.json"); code != http.StatusOK {
+		t.Fatalf("API document by default: %d", code)
 	}
 	// Saved through the store, like the settings page does: applies at once.
 	if _, err := store.Update(t.Context(), v1alpha1.PanelSettingsSpec{DisableAPIDocs: true}); err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/swagger/index.html", "/swagger/doc.json", "/swagger/"} {
-		if code := get(path); code != http.StatusNotFound {
-			t.Errorf("%s with the API docs turned off: %d", path, code)
-		}
+	if code := get("/api/openapi.json"); code != http.StatusNotFound {
+		t.Errorf("API document with the API docs turned off: %d", code)
 	}
 	if code := get("/api/health"); code != http.StatusOK {
 		t.Errorf("the API keeps working: %d", code)
@@ -84,7 +80,7 @@ func TestAPIDocsCanBeTurnedOff(t *testing.T) {
 // another server's answer keeps that server's caching.
 func TestAPIAnswersAreNotCached(t *testing.T) {
 	r, _ := newRouter(t, nil)
-	for path, want := range map[string]string{"/api/health": "no-store", "/api/proxy": "", "/swagger/doc.json": ""} {
+	for path, want := range map[string]string{"/api/health": "no-store", "/api/proxy": ""} {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if got := w.Header().Get("Cache-Control"); got != want {
@@ -129,7 +125,7 @@ func TestWebUIIsCachedAndCompressed(t *testing.T) {
 	if w := get("/assets/font-abc.woff2", "gzip"); w.Header().Get("Content-Encoding") != "" {
 		t.Errorf("fonts are compressed already: %v", w.Header())
 	}
-	for _, path := range []string{"/", "/some/page", "/assets/"} {
+	for _, path := range []string{"/", "/some/page", "/assets/", "/api-docs"} {
 		w := get(path, "")
 		if !strings.Contains(w.Body.String(), "<title>Panel") || w.Header().Get("Cache-Control") != "no-cache" {
 			t.Errorf("%s: %d %v %q", path, w.Code, w.Header(), w.Body.String())

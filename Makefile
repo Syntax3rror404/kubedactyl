@@ -21,7 +21,7 @@ export GOFLAGS := -trimpath
 check-context:
 	@test -n "$(KUBE_CONTEXT)" || { echo "KUBE_CONTEXT is not set: put e.g. 'KUBE_CONTEXT := my-cluster' into local.mk"; exit 1; }
 
-# Dev: Vite (http://localhost:5173, hot reload) + Go API (:8080); Vite proxies /api and /swagger
+# Dev: Vite (http://localhost:5173, hot reload) + Go API (:8080); Vite proxies /api
 dev:
 	@trap 'kill 0' EXIT; \
 	$(MAKE) dev-backend & \

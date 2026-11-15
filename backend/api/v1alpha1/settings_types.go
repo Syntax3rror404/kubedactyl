@@ -34,7 +34,7 @@ type PanelSettingsSpec struct {
 	// policy that only allows the internet, the cluster DNS and the user's own servers.
 	// +optional
 	AllowPrivateNetworks bool `json:"allowPrivateNetworks,omitempty"`
-	// DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+	// DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
 	// keeps working.
 	// +optional
 	DisableAPIDocs bool `json:"disableApiDocs,omitempty"`

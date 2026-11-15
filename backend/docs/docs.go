@@ -1278,6 +1278,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/openapi.json": {
+            "get": {
+                "description": "This documentation as OpenAPI 2.0 document, read by the API reference page (public, unless an\nadministrator turned the API documentation off).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "API document",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/request-rates": {
             "get": {
                 "security": [
@@ -3783,7 +3806,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "disableApiDocs": {
-                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "description": "DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself\nkeeps working.\n+optional",
                     "type": "boolean"
                 },
                 "eggLibraries": {
@@ -3992,7 +4015,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "disableApiDocs": {
-                    "description": "DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself\nkeeps working.\n+optional",
+                    "description": "DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself\nkeeps working.\n+optional",
                     "type": "boolean"
                 },
                 "eggLibraries": {

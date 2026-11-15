@@ -30,7 +30,7 @@ Markdown on the public page `/licenses` ("Licenses" in the footer) and stored in
 (scope `write:packages`) without storing it.
 
 **Version:** the file `VERSION` is the only place to change. The build writes it into the binary
-(`-X main.appVersion`), from where it reaches `/api/info`, the Swagger UI and the footer of every
+(`-X main.appVersion`), from where it reaches `/api/info`, the API reference and the footer of every
 page; the image tag, the chart `version`/`appVersion` and the install commands in the README and these docs follow it
 (`make sync-version`). Release: run the workflow *Build* by hand on `main` (`gh workflow run build.yml -f bump=patch`):
 it raises `VERSION`, runs tests and lint, commits the version, pushes image and chart and creates the GitHub release

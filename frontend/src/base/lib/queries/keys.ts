@@ -9,6 +9,7 @@ export const baseKeys = {
   legal: ["legal"] as const,
   branding: ["branding"] as const,
   licenses: ["licenses"] as const,
+  apiDocument: ["api-document"] as const,
   info: ["info"] as const,
   liveInfo: ["info", "live"] as const,
   requestRates: ["request-rates"] as const,

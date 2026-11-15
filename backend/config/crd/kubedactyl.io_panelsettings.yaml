@@ -97,7 +97,7 @@ spec:
                 type: string
               disableApiDocs:
                 description: |-
-                  DisableAPIDocs turns the API documentation (Swagger UI at /swagger/) off. The API itself
+                  DisableAPIDocs turns the API documentation (API reference at /api-docs) off. The API itself
                   keeps working.
                 type: boolean
               eggLibraries:

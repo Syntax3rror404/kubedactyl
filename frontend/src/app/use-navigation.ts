@@ -72,7 +72,7 @@ function useFooter(at: (to: string) => boolean, isAdmin: boolean): NavGroup | un
     )
   }
   if (settings && !settings.disableApiDocs) {
-    items.push({ label: "API docs", href: "/swagger/index.html", icon: BookOpenIcon })
+    items.push({ label: "API docs", href: "/api-docs", icon: BookOpenIcon })
   }
   if (items.length === 0) return undefined
   return { label: isAdmin ? "Administration" : undefined, items }

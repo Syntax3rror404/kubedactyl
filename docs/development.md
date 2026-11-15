@@ -32,7 +32,7 @@ KUBE_CONTEXT := my-cluster
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Vite (5173) + Go API (8080) with `-tags dev`; Vite proxies `/api` (incl. websocket) and `/swagger` |
+| `make dev` | Vite (5173) + Go API (8080) with `-tags dev`; Vite proxies `/api` (incl. websocket) |
 | `make build` | generate CRDs + deepcopy, Swagger docs, build frontend, build `bin/kubedactyl` |
 | `make run` | build and start |
 | `make test` | Go unit tests (works in a fresh clone, before the first frontend build) |
@@ -129,7 +129,7 @@ backend/
     auth/                 passwords, sessions, device cookie, signed values, API tokens, login limiter, single sign-on
     users/ · settings/    accounts, invites, reset links, last-admin rule · panel settings (the app adds fields: App)
     bootstrap/            start-up: scheme, CRDs, panel namespace, session key, first admin / setup token
-    httpserver/           router (API, Swagger UI, SPA), security headers/CSP, body limit, trusted proxies, health/info
+    httpserver/           router (API, API document, SPA), security headers/CSP, body limit, trusted proxies, health/info
     kube/                 connection, clients, exec / attach, request limit, TTL cache, CreateOrPatch, volume helpers
     selfupgrade/          panel updates: registry check, upgrade job, `<app> upgrade` (Helm SDK)
     validation/ · checks/ field validation errors (422 with messages per field) · check results (health, diagnostics)
@@ -294,13 +294,14 @@ and repeated explanations. Existing code follows this style when it is changed a
 
 ## API
 
-Swagger UI: **http://localhost:8080/swagger/** (also linked at the bottom of the sidebar; administrators can turn it off in
-*Settings → Security*; `/swagger/` then answers 404, the API keeps working). Websocket
+API reference: **http://localhost:5173/api-docs** (Scalar, reads `/api/openapi.json`; also linked at the bottom of the
+sidebar; administrators can turn it off in *Settings → Security*; `/api/openapi.json` then answers 404, the API keeps
+working). Websocket
 `/api/servers/{name}/ws` uses JSON events: `{"event":"console output","args":["…"]}`,
 send `{"event":"send command","args":["say hi"]}` or `{"event":"set state","args":["restart"]}`.
 
-All endpoints except `/auth/login`, `/auth/logout`, `/auth/invite`, `/setup`, `/branding`, `/legal`, `/health`
-and `/info` need a session or an API token; the Swagger UI has an *Authorize* button for `Bearer <token>`.
+All endpoints except `/auth/login`, `/auth/logout`, `/auth/invite`, `/setup`, `/branding`, `/legal`, `/health`,
+`/info` and `/openapi.json` need a session or an API token; the API reference takes `Bearer <token>` under *Authentication*.
 
 `kubectl` works too: `kubectl -n kubedactyl get eggs,users.kubedactyl.io` and
 `kubectl get gameservers.kubedactyl.io -A` (short names `kgs`, `kuser`, `kinvite`, `kdsettings`).
