@@ -46,8 +46,8 @@ Measures for exposing the panel to the internet:
 - **Headers:** a strict Content-Security-Policy (`script-src 'self'`, no inline scripts; the theme
   script is `/theme-init.js`; inline styles are needed by xterm.js/CodeMirror), `frame-ancestors
   'none'`/`X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS over HTTPS.
-  The Swagger UI has no CSP (inline scripts), all API calls still need a token. API answers carry
-  `Cache-Control: no-store` (tokens, settings, file contents).
+  The same policy covers the Swagger UI. API answers carry `Cache-Control: no-store` (tokens, settings, file
+  contents).
 - **Branding and legal texts** carry an ETag: a page load gets 304 while they are unchanged, so logo and favicon
   (up to 128 KiB each) are not sent again.
 - **Web UI files:** hashed files under `assets/` are cached for a year (`immutable`), `index.html` and the other

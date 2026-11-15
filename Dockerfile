@@ -1,7 +1,7 @@
 # Kubedactyl image: frontend build → Go build (frontend embedded) → Alpine.
 # Build: docker build -t <registry>/kubedactyl:<tag> .   (see docs/installation.md)
 
-FROM node:26.13.0-alpine AS frontend
+FROM node:26.13.1-alpine AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci

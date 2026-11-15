@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"app/api/v1alpha1"

@@ -61,8 +61,10 @@ func TestAPIDocsCanBeTurnedOff(t *testing.T) {
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		return w.Code
 	}
-	if code := get("/swagger/doc.json"); code != http.StatusOK {
-		t.Fatalf("API docs by default: %d", code)
+	for _, path := range []string{"/swagger/", "/swagger/doc.json", "/swagger/swagger-ui-bundle.js"} {
+		if code := get(path); code != http.StatusOK {
+			t.Fatalf("%s by default: %d", path, code)
+		}
 	}
 	// Saved through the store, like the settings page does: applies at once.
 	if _, err := store.Update(t.Context(), v1alpha1.PanelSettingsSpec{DisableAPIDocs: true}); err != nil {

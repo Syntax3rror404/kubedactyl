@@ -11,7 +11,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/icza/dyno"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func (p *fileParser) parseJSON(content []byte) ([]byte, error) {

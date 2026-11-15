@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // decodeDocument parses JSON or YAML into an order preserving node tree.

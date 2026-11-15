@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"app/api/v1alpha1"
 )
@@ -47,13 +47,12 @@ func Export(name string, spec *v1alpha1.EggSpec, format string, now time.Time) (
 		return nil, "", err
 	}
 	file := "egg-" + Slug(spec.DisplayName)
-	var buf bytes.Buffer
 	if format == FormatYAML {
-		enc := yaml.NewEncoder(&buf)
-		enc.SetIndent(2)
-		err := enc.Encode(doc.node())
-		return buf.Bytes(), file + ".yaml", err
+		// Long lines stay unwrapped, like the files Pelican exports.
+		out, err := yaml.Dump(doc.node(), yaml.WithV3Defaults(), yaml.WithIndent(2), yaml.WithLineWidth(-1))
+		return out, file + ".yaml", err
 	}
+	var buf bytes.Buffer
 	if err := writeJSON(&buf, doc.node(), 0); err != nil {
 		return nil, "", err
 	}

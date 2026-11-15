@@ -13,18 +13,17 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/icza/dyno v0.0.0-20260912175837-51f8ab52fd15
-	github.com/magiconair/properties v1.18.12
+	github.com/magiconair/properties v1.18.13
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/swaggo/files v1.0.1
-	github.com/swaggo/gin-swagger v1.6.1
+	github.com/swaggo/files/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
-	go.yaml.in/yaml/v3 v3.0.6
-	golang.org/x/crypto v0.58.0
+	go.yaml.in/yaml/v4 v4.0.0
+	golang.org/x/crypto v0.59.0
 	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/time v0.16.0
-	gopkg.in/ini.v1 v1.67.3
-	helm.sh/helm/v4 v4.3.1
+	gopkg.in/ini.v1 v1.68.0
+	helm.sh/helm/v4 v4.3.2
 	k8s.io/api v0.37.2
 	k8s.io/apiextensions-apiserver v0.37.2
 	k8s.io/apimachinery v0.37.2
@@ -153,13 +152,14 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261009151841-97e8ea77aa2a // indirect
-	golang.org/x/term v0.47.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
@@ -170,7 +170,7 @@ require (
 	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/gengo/v2 v2.0.0-20260408192533-25e2208e0dc3 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
-	k8s.io/kubectl v0.37.1 // indirect
+	k8s.io/kubectl v0.37.2 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/controller-tools v0.23.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect

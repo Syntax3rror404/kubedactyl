@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // jsonString encodes a node as pretty JSON text (PTDL stores config.* like this).

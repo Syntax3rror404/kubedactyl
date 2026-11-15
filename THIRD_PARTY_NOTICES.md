@@ -446,8 +446,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/spf13/cast | MIT |
 | github.com/spf13/cobra | Apache-2.0 |
 | github.com/spf13/pflag | BSD-3-Clause |
-| github.com/swaggo/files | MIT |
-| github.com/swaggo/gin-swagger | MIT |
+| github.com/swaggo/files/v2 | MIT |
 | github.com/swaggo/swag | MIT |
 | github.com/tetratelabs/wabin | Apache-2.0 |
 | github.com/tetratelabs/wazero | Apache-2.0 |
@@ -458,6 +457,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | go.opentelemetry.io/proto/otlp | Apache-2.0 |
 | go.yaml.in/yaml/v2 | Apache-2.0 AND MIT |
 | go.yaml.in/yaml/v3 | Apache-2.0 AND MIT |
+| go.yaml.in/yaml/v4 | Apache-2.0 |
 | golang.org/x/crypto | BSD-3-Clause |
 | golang.org/x/mod | BSD-3-Clause |
 | golang.org/x/net | BSD-3-Clause |
@@ -902,6 +902,32 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+```
+
+### go.yaml.in/yaml/v4 v4.0.0
+
+```
+The following files were ported to Go from C files of libyaml, and thus are
+still covered by their original MIT license, with the additional copyright
+starting in 2011 when the project was ported over:
+
+- internal/libyaml/api.go
+- internal/libyaml/emitter.go
+- internal/libyaml/parser.go
+- internal/libyaml/reader.go
+- internal/libyaml/scanner.go
+- internal/libyaml/writer.go
+- internal/libyaml/yaml.go
+- internal/libyaml/yamlprivate.go
+
+Copyright 2006-2010 Kirill Simonov
+https://opensource.org/license/mit
+
+All the remaining project files are covered by the Apache license:
+
+Copyright 2011-2019 Canonical Ltd
+Copyright 2025 The go-yaml Project Contributors
+http://www.apache.org/licenses/LICENSE-2.0
 ```
 
 ### sigs.k8s.io/randfill v1.0.0

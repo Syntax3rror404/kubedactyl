@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files/v2"
+	"github.com/swaggo/swag"
 
 	"app/app"
 	"app/base/api"
@@ -62,17 +62,13 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 	cfg.API.Register(apiGroup)
 
 	// Swagger UI (fully embedded, works offline), unless an administrator turned it off.
-	swaggerUI := ginSwagger.WrapHandler(swaggerFiles.Handler)
+	docs := swaggerUI()
 	r.GET("/swagger/*any", func(c *gin.Context) {
 		if set, err := cfg.Settings.Current(c); err != nil || set.DisableAPIDocs {
 			c.String(http.StatusNotFound, "The API documentation is turned off.")
 			return
 		}
-		if c.Param("any") == "/" {
-			c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
-			return
-		}
-		swaggerUI(c)
+		docs(c)
 	})
 
 	r.NoRoute(func(c *gin.Context) {
@@ -190,14 +186,48 @@ func getInfo(version string, devMode bool) gin.HandlerFunc {
 	}
 }
 
+// swaggerInitializer starts the Swagger UI with the panel's document instead of the bundle's example;
+// validatorUrl null keeps it from loading a badge from the internet.
+const swaggerInitializer = `window.onload = () => {
+  window.ui = SwaggerUIBundle({
+    url: "doc.json",
+    dom_id: "#swagger-ui",
+    validatorUrl: null,
+    deepLinking: true,
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+    plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+    layout: "StandaloneLayout",
+  })
+}
+`
+
+// swaggerUI serves the embedded Swagger UI with the API document of this build; /swagger/ shows index.html.
+func swaggerUI() gin.HandlerFunc {
+	files := http.StripPrefix("/swagger", http.FileServerFS(swaggerFiles.FS))
+	return func(c *gin.Context) {
+		switch c.Param("any") {
+		case "/doc.json":
+			doc, err := swag.ReadDoc()
+			if err != nil {
+				c.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+			c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(doc))
+		case "/swagger-initializer.js":
+			c.Data(http.StatusOK, "text/javascript; charset=utf-8", []byte(swaggerInitializer))
+		default:
+			files.ServeHTTP(c.Writer, c.Request)
+		}
+	}
+}
+
 // contentSecurityPolicy allows only resources of the panel itself. Inline styles are
 // needed by xterm.js, CodeMirror and Base UI positioning; scripts are never inline.
 const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; " +
 	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-// securityHeaders sets browser protections on every response. The Swagger UI uses inline
-// scripts and therefore gets no CSP (it only documents the API, all calls need a token).
+// securityHeaders sets browser protections on every response.
 func securityHeaders(c *gin.Context) {
 	h := c.Writer.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
@@ -205,9 +235,7 @@ func securityHeaders(c *gin.Context) {
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("Cross-Origin-Opener-Policy", "same-origin")
 	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
-	if !strings.HasPrefix(c.Request.URL.Path, "/swagger/") {
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
-	}
+	h.Set("Content-Security-Policy", contentSecurityPolicy)
 	// API answers hold new tokens, settings and file contents: neither the browser nor a proxy
 	// may keep them. A handler that passes on another server's answer removes the header.
 	if strings.HasPrefix(c.Request.URL.Path, "/api/") {
