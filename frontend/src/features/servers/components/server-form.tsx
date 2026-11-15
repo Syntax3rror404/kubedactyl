@@ -69,10 +69,10 @@ export function ServerForm({
   const errors = fieldErrors(create.error)
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
         <FormSection step={1} title="Egg" description="The template that defines image, install script and variables.">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {eggs.map((e) => (
               <EggOption
                 key={e.metadata.uid}
@@ -85,7 +85,7 @@ export function ServerForm({
         </FormSection>
 
         <FormSection step={2} title="General">
-          <FieldGroup className="grid gap-5 sm:grid-cols-2">
+          <FieldGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field data-invalid={!!errors.displayName}>
               <FieldLabel htmlFor="name">Server name</FieldLabel>
               <Input
@@ -167,7 +167,7 @@ export function ServerForm({
               : `Every port is published as TCP and UDP on a load balancer IP of the selected pool.${domain ? ` Users connect via ${domain}:${f.ports[0] ?? ""}.` : ""}`
           }
         >
-          <FieldGroup className="grid gap-5 sm:grid-cols-2">
+          <FieldGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field data-invalid={f.ports.length === 0 || !!errors.ports}>
               <FieldLabel htmlFor="ports">
                 Ports <span className="text-destructive">*</span>
@@ -219,7 +219,7 @@ export function ServerForm({
 
         {(egg.spec.variables?.length ?? 0) > 0 && (
           <FormSection step={5} title="Variables" description="Validated against the rules of the egg.">
-            <FieldGroup className="grid gap-6 md:grid-cols-2">
+            <FieldGroup className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {egg.spec.variables!.map((v) => (
                 <VariableField
                   key={v.envVariable}

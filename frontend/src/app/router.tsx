@@ -46,7 +46,7 @@ export const router = createBrowserRouter([
                 path: "servers/:server",
                 lazy: page(() => import("@/features/servers/server-layout"), "ServerLayout"),
                 handle: crumbs((p) => [
-                  { label: "Dashboard", to: "/" },
+                  { label: "Servers" },
                   { label: `server:${p.server}`, to: `/servers/${p.server}` },
                 ]),
                 children: [
@@ -103,7 +103,7 @@ export const router = createBrowserRouter([
                   {
                     path: "servers/new",
                     lazy: page(() => import("@/features/servers/server-new-page"), "ServerNewPage"),
-                    handle: crumbs(() => [{ label: "Dashboard", to: "/" }, { label: "New server" }]),
+                    handle: crumbs(() => [{ label: "Servers" }, { label: "New server" }]),
                   },
                   {
                     path: "eggs",

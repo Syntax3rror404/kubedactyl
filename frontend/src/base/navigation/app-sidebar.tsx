@@ -152,7 +152,7 @@ function UserMenu({ config }: { config: Pick<NavConfig, "userDetail"> }) {
 
 type Entry = NavSearchGroup["items"][number]
 
-/** Every page of the sidebar; the hint names where it sits ("Networking"). */
+/** Every page of the sidebar; the hint names where it sits: its group ("Administration") or parent ("Networking"). */
 function pages(items: NavItem[], parent = ""): Entry[] {
   return items.flatMap((item) => [
     ...(item.to ? [{ label: item.label, to: item.to, hint: parent }] : []),
@@ -162,7 +162,7 @@ function pages(items: NavItem[], parent = ""): Entry[] {
 
 /** The groups of the search: pages first, then the app's own entries without the pages already listed. */
 function searchGroups(groups: NavGroup[], search: NavSearchGroup[]): NavSearchGroup[] {
-  const own = pages(groups.flatMap((g) => g.items))
+  const own = groups.flatMap((g) => pages(g.items, g.label))
   const seen = new Set(own.map((e) => e.to))
   const rest = search.map((g) => ({ ...g, items: g.items.filter((e) => !seen.has(e.to)) }))
   return [{ label: "Pages", items: own }, ...rest].filter((g) => g.items.length > 0)
