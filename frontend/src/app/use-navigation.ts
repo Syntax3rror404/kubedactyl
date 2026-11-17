@@ -3,15 +3,7 @@
 // above the user menu.
 
 import { useLocation } from "react-router"
-import {
-  ArrowUpCircleIcon,
-  BookOpenIcon,
-  EggIcon,
-  LayoutGridIcon,
-  NetworkIcon,
-  Settings2Icon,
-  UsersIcon,
-} from "lucide-react"
+import { BookOpenIcon, EggIcon, LayoutGridIcon, NetworkIcon, Settings2Icon, UsersIcon } from "lucide-react"
 
 import { useAuth } from "@/base/hooks/use-auth"
 import { plural } from "@/base/lib/format"
@@ -65,9 +57,7 @@ function useFooter(at: (to: string) => boolean, isAdmin: boolean): NavGroup | un
         to: "/settings",
         icon: Settings2Icon,
         active: at("/settings"),
-        badge: newer
-          ? { kind: "status", tone: "success", text: `Update ${newer}`, icon: ArrowUpCircleIcon }
-          : undefined,
+        badge: newer ? { kind: "update", version: newer } : undefined,
       },
     )
   }

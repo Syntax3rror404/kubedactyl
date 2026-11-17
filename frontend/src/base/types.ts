@@ -10,8 +10,10 @@ export type NavTone = "success" | "warning" | "pending" | "danger" | "info" | "m
 export type NavBadge =
   /** A number in a colored pill (problems). */
   | { kind: "count"; value: number; tone: NavTone }
-  /** A status dot, optionally with a short text before it ("5/6"); an icon takes the place of the dot (update). */
-  | { kind: "status"; tone: NavTone; text?: string; pulse?: boolean; icon?: ComponentType<{ className?: string }> }
+  /** A status dot, optionally with a short text before it ("5/6"). */
+  | { kind: "status"; tone: NavTone; text?: string; pulse?: boolean }
+  /** A newer version of the app: a pill with the version and a light circling its edge. */
+  | { kind: "update"; version: string }
   /** Plain muted text (a number of objects). */
   | { kind: "text"; text: string }
 

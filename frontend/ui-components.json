@@ -35,7 +35,7 @@
     "textarea",
     "tooltip"
   ],
-  "magicui": ["light-rays", "magic-card", "particles"],
+  "magicui": ["light-rays", "magic-card", "particles", "shine-border"],
   "docs": {
     "https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/content/docs/dark-mode/vite.mdx": [
       "components/theme-provider.tsx"

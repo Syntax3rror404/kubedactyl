@@ -3,6 +3,7 @@ package httpserver
 import (
 	"compress/gzip"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +36,7 @@ func (routes) Register(r *gin.RouterGroup) {
 }
 
 // newRouter builds the router with fresh settings and the frontend (nil: development mode).
-func newRouter(t *testing.T, frontend fstest.MapFS) (*gin.Engine, *settings.Store) {
+func newRouter(t *testing.T, frontend fs.FS) (*gin.Engine, *settings.Store) {
 	t.Helper()
 	scheme, err := bootstrap.Scheme()
 	if err != nil {
@@ -90,14 +91,20 @@ func TestAPIAnswersAreNotCached(t *testing.T) {
 }
 
 // TestWebUIIsCachedAndCompressed: hashed assets are cached for a year, text files are sent gzip compressed to
-// browsers that accept it, unknown paths and folders get index.html, missing assets a 404.
+// browsers that accept it, unknown paths (also with a trailing slash) and folders get index.html, missing assets a
+// 404.
 func TestWebUIIsCachedAndCompressed(t *testing.T) {
 	script := strings.Repeat("console.log('panel');", 100)
-	r, _ := newRouter(t, fstest.MapFS{
-		"index.html":            {Data: []byte("<!doctype html><title>Panel</title>")},
-		"assets/index-abc.js":   {Data: []byte(script)},
-		"assets/font-abc.woff2": {Data: []byte("binary font")},
-	})
+	// Below a folder like the embedded build (fs.Sub), which rejects paths with a trailing slash as invalid.
+	build, err := fs.Sub(fstest.MapFS{
+		"dist/index.html":            {Data: []byte("<!doctype html><title>Panel</title>")},
+		"dist/assets/index-abc.js":   {Data: []byte(script)},
+		"dist/assets/font-abc.woff2": {Data: []byte("binary font")},
+	}, "dist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _ := newRouter(t, build)
 	get := func(path, encoding string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.Header.Set("Accept-Encoding", encoding)
@@ -125,7 +132,7 @@ func TestWebUIIsCachedAndCompressed(t *testing.T) {
 	if w := get("/assets/font-abc.woff2", "gzip"); w.Header().Get("Content-Encoding") != "" {
 		t.Errorf("fonts are compressed already: %v", w.Header())
 	}
-	for _, path := range []string{"/", "/some/page", "/assets/", "/api-docs"} {
+	for _, path := range []string{"/", "/some/page", "/some/page/", "/assets/", "/a//b", "/api-docs"} {
 		w := get(path, "")
 		if !strings.Contains(w.Body.String(), "<title>Panel") || w.Header().Get("Cache-Control") != "no-cache" {
 			t.Errorf("%s: %d %v %q", path, w.Code, w.Header(), w.Body.String())

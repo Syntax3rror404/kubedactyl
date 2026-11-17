@@ -76,8 +76,8 @@ SOFTWARE.
 
 ## Magic UI: effects
 
-`frontend/src/components/ui/magic-card.tsx`, `light-rays.tsx` and `particles.tsx` come from https://magicui.design
-(https://github.com/magicuidesign/magicui), installed with the shadcn CLI (`@magicui/…`).
+`frontend/src/components/ui/magic-card.tsx`, `light-rays.tsx`, `particles.tsx` and `shine-border.tsx` come from
+https://magicui.design (https://github.com/magicuidesign/magicui), installed with the shadcn CLI (`@magicui/…`).
 
 ```
 MIT License

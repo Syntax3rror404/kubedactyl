@@ -77,7 +77,7 @@ Files that come from a library are **never edited by hand**, so they can be upda
 | Files | Source | Update |
 |-------|--------|--------|
 | `frontend/src/components/ui/*` (except the two below) | shadcn registry | `make ui-update` |
-| `frontend/src/components/ui/magic-card.tsx`, `light-rays.tsx`, `particles.tsx` | [Magic UI](https://magicui.design) registry (`@magicui/…`, MIT) | `make ui-update` |
+| `frontend/src/components/ui/magic-card.tsx`, `light-rays.tsx`, `particles.tsx`, `shine-border.tsx` | [Magic UI](https://magicui.design) registry (`@magicui/…`, MIT) | `make ui-update` |
 | `frontend/src/components/theme-provider.tsx` | code block of the [shadcn Vite dark mode docs](https://ui.shadcn.com/docs/dark-mode/vite) | `make ui-update` |
 | `frontend/src/hooks/use-mobile.ts`, `frontend/src/lib/utils.ts` | installed by shadcn together with `sidebar` / `init` | with the components |
 

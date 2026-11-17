@@ -94,7 +94,8 @@ func contentType(name string, data []byte) string {
 // A missing asset is a 404: a tab of an older build asks for chunks that are gone, and index.html would reach it as
 // a script with the wrong type.
 func (s *staticFiles) serve(c *gin.Context) {
-	name := strings.TrimPrefix(c.Request.URL.Path, "/")
+	// Client routes may end with a slash ("/some/page/"); file names never do.
+	name := strings.Trim(c.Request.URL.Path, "/")
 	if name == "" {
 		name = "index.html"
 	}
@@ -104,8 +105,8 @@ func (s *staticFiles) serve(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not found")
 		return
 	}
-	// Folders are no files either: no listing of assets/.
-	if errors.Is(err, fs.ErrNotExist) || (err == nil && info.IsDir()) {
+	// Folders are no files either: no listing of assets/. Paths no file can have ("a//b") are client routes too.
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) || (err == nil && info.IsDir()) {
 		name = "index.html"
 	} else if err != nil {
 		c.Status(http.StatusInternalServerError)

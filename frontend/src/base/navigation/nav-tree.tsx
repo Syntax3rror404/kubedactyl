@@ -3,7 +3,7 @@ import { Link } from "react-router"
 import { ChevronRightIcon } from "lucide-react"
 
 import { readOpen, saveOpen } from "@/base/lib/open-state"
-import { NavBadgeView, NavMark } from "@/base/navigation/nav-badge"
+import { NavBadgeMark, NavBadgeView } from "@/base/navigation/nav-badge"
 import { type NavGroup, type NavItem } from "@/base/types"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -98,7 +98,6 @@ function Label({ item, inlineBadge }: { item: NavItem; inlineBadge?: boolean }) 
 
 function TopLink({ item }: { item: NavItem }) {
   const onPick = useCloseOnPick()
-  const mark = item.badge?.kind === "text" ? undefined : item.badge
   return (
     <SidebarMenuItem>
       <SidebarMenuButton tooltip={item.label} isActive={item.active} render={target(item, onPick)}>
@@ -109,13 +108,11 @@ function TopLink({ item }: { item: NavItem }) {
           <NavBadgeView badge={item.badge} />
         </SidebarMenuBadge>
       )}
-      {mark && (
+      {item.badge && (
         // Collapsed to icons the badge is hidden: a mark on the icon remains.
-        <NavMark
-          tone={mark.tone}
-          icon={mark.kind === "status" ? mark.icon : undefined}
-          className="pointer-events-none absolute top-1 left-5 hidden group-data-[collapsible=icon]:block"
-        />
+        <span className="pointer-events-none absolute top-1 left-5 hidden group-data-[collapsible=icon]:flex">
+          <NavBadgeMark badge={item.badge} />
+        </span>
       )}
     </SidebarMenuItem>
   )
