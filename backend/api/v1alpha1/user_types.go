@@ -66,6 +66,18 @@ type UserStatus struct {
 	// Namespace holds the game servers of the user.
 	Namespace   string       `json:"namespace,omitempty"`
 	LastLoginAt *metav1.Time `json:"lastLoginAt,omitempty"`
+	// LoggedOut are the sessions the user logged out of, until they would have expired: the panel refuses them, also
+	// after a restart. Written by the panel; one more than 100 ends every session of the user instead.
+	// +kubebuilder:validation:MaxItems=100
+	LoggedOut []LoggedOutSession `json:"loggedOut,omitempty"`
+}
+
+// LoggedOutSession is a session the user logged out of.
+type LoggedOutSession struct {
+	// ID names the session token: a hash of its signature, not the token.
+	ID string `json:"id"`
+	// ExpiresAt is when the token would have expired; the entry is dropped after it.
+	ExpiresAt metav1.Time `json:"expiresAt"`
 }
 
 // +kubebuilder:object:root=true

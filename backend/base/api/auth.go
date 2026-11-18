@@ -16,6 +16,7 @@ import (
 	"app/api/v1alpha1"
 	"app/app"
 	"app/base/auth"
+	"app/base/users"
 )
 
 // SessionCookie holds the signed session token of the web UI. Over HTTPS it is a __Host- cookie (path /, no
@@ -192,6 +193,9 @@ func (a *API) resolveToken(ctx context.Context, token string) (*v1alpha1.User, s
 		return nil, "", auth.ErrInvalidToken
 	}
 	user, err := a.sessionUser(ctx, sess)
+	if err == nil && users.LoggedOut(user, auth.SessionID(token)) {
+		return nil, "", auth.ErrInvalidToken
+	}
 	return user, "", err
 }
 

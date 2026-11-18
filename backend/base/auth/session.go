@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -32,33 +31,18 @@ type Session struct {
 	Nonce string `json:"n,omitempty"`
 }
 
-// Signer creates and verifies HMAC-SHA256 signed session tokens.
+// Signer creates and verifies HMAC-SHA256 signed session tokens. It keeps no state: logged out sessions are kept
+// in the status of their user (users.Store.LogOut), so they stay logged out after a restart and on every replica.
 type Signer struct {
 	key []byte
-	// maxRevoked is how many logged out tokens are kept per user (maxRevokedPerUser).
-	maxRevoked int
-
-	mu sync.Mutex
-	// revoked holds the signatures of logged out tokens per user until they expire (unix time), guarded by mu.
-	// It lives in memory: after a panel restart a logged out token works again until it expires, while
-	// "log out everywhere" (the user's session epoch) also survives restarts.
-	revoked map[string]map[string]int64
-	swept   time.Time
 }
-
-// maxRevokedPerUser bounds the logged out tokens kept per user; Revoke refuses more with ErrTooManyRevoked.
-const maxRevokedPerUser = 100
-
-// ErrTooManyRevoked means the user has the most logged out tokens kept already and the token was not
-// kept: the caller ends every session of the user instead (a new session epoch).
-var ErrTooManyRevoked = errors.New("too many logged out sessions kept")
 
 // NewSigner returns a signer for a secret key (at least 32 bytes).
 func NewSigner(key []byte) (*Signer, error) {
 	if len(key) < 32 {
 		return nil, errors.New("session key must be at least 32 bytes")
 	}
-	return &Signer{key: key, maxRevoked: maxRevokedPerUser}, nil
+	return &Signer{key: key}, nil
 }
 
 func (s *Signer) mac(payload string) string {
@@ -98,66 +82,17 @@ func (s *Signer) Sign(sess Session) (string, error) {
 	return s.seal("", sess)
 }
 
-// Revoke invalidates a valid session token until it expires (logout) and returns its session. Expired entries
-// are swept at most once a minute; Verify ignores them anyway, as their tokens have expired.
-func (s *Signer) Revoke(token string, now time.Time) (Session, error) {
-	sess, err := s.Verify(token, now)
-	if err != nil {
-		return sess, err
-	}
+// SessionID names a session token without being one: a hash of its signature. A logged out session is kept by it,
+// so the token itself is never stored.
+func SessionID(token string) string {
 	_, sig, _ := strings.Cut(token, ".")
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if now.Sub(s.swept) >= time.Minute {
-		s.sweep(now)
-	}
-	sigs := s.revoked[sess.User]
-	if len(sigs) >= s.maxRevoked {
-		dropExpired(sigs, now)
-	}
-	if len(sigs) >= s.maxRevoked {
-		return sess, ErrTooManyRevoked
-	}
-	if sigs == nil {
-		sigs = map[string]int64{}
-		s.revoked[sess.User] = sigs
-	}
-	sigs[sig] = sess.ExpiresAt
-	return sess, nil
+	sum := sha256.Sum256([]byte(sig))
+	return base64.RawURLEncoding.EncodeToString(sum[:16])
 }
 
-// sweep drops the entries of expired tokens (guarded by mu).
-func (s *Signer) sweep(now time.Time) {
-	s.swept = now
-	if s.revoked == nil {
-		s.revoked = map[string]map[string]int64{}
-	}
-	for user, sigs := range s.revoked {
-		if dropExpired(sigs, now); len(sigs) == 0 {
-			delete(s.revoked, user)
-		}
-	}
-}
-
-// dropExpired removes the signatures of tokens that expired before now.
-func dropExpired(sigs map[string]int64, now time.Time) {
-	for sig, expires := range sigs {
-		if now.Unix() >= expires {
-			delete(sigs, sig)
-		}
-	}
-}
-
-func (s *Signer) isRevoked(user, sig string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, ok := s.revoked[user][sig]
-	return ok
-}
-
-// Verify checks signature, expiry and revocation and returns the session.
+// Verify checks signature and expiry and returns the session; whether it was logged out is the user's status.
 func (s *Signer) Verify(token string, now time.Time) (Session, error) {
-	raw, sig, err := s.open("", token)
+	raw, _, err := s.open("", token)
 	if err != nil {
 		return Session{}, ErrInvalidToken
 	}
@@ -165,7 +100,7 @@ func (s *Signer) Verify(token string, now time.Time) (Session, error) {
 	if err := json.Unmarshal(raw, &sess); err != nil || sess.User == "" {
 		return Session{}, ErrInvalidToken
 	}
-	if now.Unix() >= sess.ExpiresAt || s.isRevoked(sess.User, sig) {
+	if now.Unix() >= sess.ExpiresAt {
 		return Session{}, ErrInvalidToken
 	}
 	return sess, nil

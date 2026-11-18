@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react"
 import { createApiReference } from "@scalar/api-reference"
 import "@scalar/api-reference/style.css"
+import { BookOpenIcon } from "lucide-react"
 
-import { QueryState } from "@/base/components/query-state"
+import { EmptyState, QueryState } from "@/base/components/query-state"
 import { useBrandingHead } from "@/base/hooks/use-branding-head"
 import { useResolvedTheme } from "@/base/hooks/use-resolved-theme"
+import { ApiError } from "@/base/lib/api"
 import { useApiDocument } from "@/base/lib/queries"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -13,12 +15,22 @@ import { cn } from "@/lib/utils"
 export function ApiDocsPage() {
   const document = useApiDocument()
   useBrandingHead(["API docs"])
+  // The panel answers 404 while an administrator has turned the documentation off.
+  const off = document.error instanceof ApiError && document.error.status === 404
   return (
-    // Scalar fills the page; the skeleton and the error get a margin.
-    <div className={cn("min-h-svh bg-background", document.data === undefined && "p-4 md:p-8")}>
-      <QueryState query={document} skeleton={<Skeleton className="h-[80vh] rounded-2xl" />}>
-        {(content) => <ApiReference content={content} />}
-      </QueryState>
+    // Scalar fills the page; the skeleton, the error and the note get a margin.
+    <div className={cn("min-h-svh bg-background", (off || document.data === undefined) && "p-4 md:p-8")}>
+      {off ? (
+        <EmptyState
+          icon={<BookOpenIcon />}
+          title="The API documentation is turned off"
+          description="An administrator can turn it on again in the settings."
+        />
+      ) : (
+        <QueryState query={document} skeleton={<Skeleton className="h-[80vh] rounded-2xl" />}>
+          {(content) => <ApiReference content={content} />}
+        </QueryState>
+      )}
     </div>
   )
 }

@@ -204,6 +204,21 @@ func TestAPITokenLimits(t *testing.T) {
 	expect(t, "token over the limit", code, 409, body)
 }
 
+// TestLogoutSurvivesRestart: a logged out session stays logged out with a new signer (a restarted panel), other
+// sessions of the user stay valid.
+func TestLogoutSurvivesRestart(t *testing.T) {
+	h := newHarness(t)
+	alice := h.login("alice")
+	other := h.login("alice")
+	code, body := h.do("POST", "/api/auth/logout", alice, nil)
+	expect(t, "logout", code, 204, body)
+	h.api.Signer, _ = auth.NewSigner(bytes.Repeat([]byte("k"), 32))
+	code, body = h.do("GET", "/api/auth/me", alice, nil)
+	expect(t, "the logged out session after a restart", code, 401, body)
+	code, body = h.do("GET", "/api/auth/me", other, nil)
+	expect(t, "the other session after a restart", code, 200, body)
+}
+
 // TestLogoutsAreBounded: a user who keeps more logged out sessions than the panel remembers is signed out
 // everywhere instead.
 func TestLogoutsAreBounded(t *testing.T) {

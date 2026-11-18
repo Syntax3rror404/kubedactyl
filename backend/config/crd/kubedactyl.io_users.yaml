@@ -141,6 +141,28 @@ spec:
               lastLoginAt:
                 format: date-time
                 type: string
+              loggedOut:
+                description: |-
+                  LoggedOut are the sessions the user logged out of, until they would have expired: the panel refuses them, also
+                  after a restart. Written by the panel; one more than 100 ends every session of the user instead.
+                items:
+                  description: LoggedOutSession is a session the user logged out of.
+                  properties:
+                    expiresAt:
+                      description: ExpiresAt is when the token would have expired;
+                        the entry is dropped after it.
+                      format: date-time
+                      type: string
+                    id:
+                      description: 'ID names the session token: a hash of its signature,
+                        not the token.'
+                      type: string
+                  required:
+                  - expiresAt
+                  - id
+                  type: object
+                maxItems: 100
+                type: array
               namespace:
                 description: Namespace holds the game servers of the user.
                 type: string

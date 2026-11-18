@@ -32,8 +32,9 @@ Measures for exposing the panel to the internet:
   never expands `${…}` references in `.properties` files; console lines are cut at 4 KiB.
 - **Lifetimes:** sign-ins and API tokens expire (default 12 hours / 90 days, adjustable under *Settings*); the
   limits are checked on every request, also for sessions and tokens created before a change.
-- **Sessions:** logging out ends the session at once (in memory until it expires, at most 100 per user: one more
-  logout signs the user out everywhere; "log out everywhere" also survives restarts); open consoles check their
+- **Sessions:** logging out ends the session at once (kept in the user's status until it would have expired, so
+  also after a restart and on every replica; only a hash of the token is stored; at most 100 per user: one more
+  logout signs the user out everywhere); open consoles check their
   credentials every 30 seconds and before every command and close after a logout, a disabled account (also the
   owner of a subuser), a password change or a lost admin role.
 - **Client IP:** gin trusts only the proxies in `--trusted-proxies` (chart default `10.0.0.0/8`, the usual pod

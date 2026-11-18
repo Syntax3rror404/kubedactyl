@@ -36,9 +36,12 @@ export const useBranding = () =>
 export const useLicenses = () =>
   useQuery({ queryKey: baseKeys.licenses, queryFn: baseApi.panel.getLicenses, staleTime: Infinity })
 
-/** The OpenAPI document of the API reference; it changes only with the panel version. */
+/**
+ * The OpenAPI document of the API reference, asked for on every visit and kept only while the page is open: an
+ * administrator can turn the documentation off at any time, and a kept copy would still show it.
+ */
 export const useApiDocument = () =>
-  useQuery({ queryKey: baseKeys.apiDocument, queryFn: baseApi.panel.getApiDocument, staleTime: Infinity })
+  useQuery({ queryKey: baseKeys.apiDocument, queryFn: baseApi.panel.getApiDocument, gcTime: 0 })
 
 /** Request rates for the footer, every 2 s while the page is visible (these requests do not count). */
 export const useRequestRates = () =>

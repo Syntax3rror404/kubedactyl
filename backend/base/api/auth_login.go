@@ -185,21 +185,13 @@ func (a *API) logout(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// revoke ends a session token. When the signer keeps no more logged out tokens of the user, every session of the
-// user ends instead (a new session epoch).
+// revoke ends a session token: its user keeps it as logged out until it would have expired (users.Store.LogOut).
 func (a *API) revoke(c *gin.Context, token string) {
-	sess, err := a.Signer.Revoke(token, time.Now())
-	if !errors.Is(err, auth.ErrTooManyRevoked) {
-		return
-	}
-	user := &v1alpha1.User{}
-	err = a.Reader.Get(c, client.ObjectKey{Namespace: a.Namespace, Name: sess.User}, user)
-	if err == nil {
-		err = a.Users.EndSessions(c, user)
-	}
+	sess, err := a.Signer.Verify(token, time.Now())
 	if err != nil {
-		a.Log.Warn("signing out everywhere after too many logouts", "user", sess.User, "err", err)
 		return
 	}
-	a.Log.Info("signed out everywhere after too many logouts", "user", sess.User)
+	if err := a.Users.LogOut(c, sess.User, auth.SessionID(token), time.Unix(sess.ExpiresAt, 0)); err != nil {
+		a.Log.Warn("logging out", "user", sess.User, "err", err)
+	}
 }
