@@ -25,8 +25,9 @@ export function EggsPage() {
   const tab = params.get("tab") === "library" ? "library" : "installed"
   const [search, setSearch] = useState("")
   const installed = useEggs().data
-  // Loaded once the Library tab is opened; its count shows from then on.
-  const library = useLibrary(tab === "library").data
+  // Loaded with the page for its count; the panel keeps the repositories for 15 minutes, so GitHub is not asked
+  // on every visit.
+  const library = useLibrary().data
   return (
     <div className="space-y-8">
       <PageHeader
