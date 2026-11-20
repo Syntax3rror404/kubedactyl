@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -34,20 +34,30 @@ type UpdateServerRequest struct {
 	Ports       []int32           `json:"ports,omitempty"`
 	// ServiceType ClusterIP publishes the server only inside the cluster (when the settings allow
 	// it; a fixed IP is cleared), LoadBalancer gives it an address of its pool again. Users may change it.
-	ServiceType *v1alpha1.ServiceType `json:"serviceType,omitempty" binding:"omitempty,oneof=LoadBalancer ClusterIP"`
+	ServiceType *v1alpha1.ServiceType `json:"serviceType,omitempty" enums:"LoadBalancer,ClusterIP"`
 	// LoadBalancerPool moves the server to another enabled pool (its address changes).
 	// Users may change it; a fixed IP is cleared unless a new one is given.
 	LoadBalancerPool *string `json:"loadBalancerPool,omitempty"`
 	// LoadBalancerIP fixes the address: one IP, or one per IP family separated by a comma.
 	LoadBalancerIP *string `json:"loadBalancerIP,omitempty"`
 	// ExternalTrafficPolicy of the service. Admins only.
-	ExternalTrafficPolicy *v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
+	ExternalTrafficPolicy *v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" enums:"Local,Cluster"`
 	// IPv6 also asks for an IPv6 address. Only with a dual stack cluster. Admins only.
 	IPv6               *bool  `json:"ipv6,omitempty"`
 	CrashRestart       *bool  `json:"crashRestart,omitempty"`
 	StopTimeoutSeconds *int64 `json:"stopTimeoutSeconds,omitempty"`
 	// SharedWith replaces the subusers of the owner who see the server. Owners may change it.
 	SharedWith *[]v1alpha1.ServerShare `json:"sharedWith,omitempty"`
+}
+
+// Validate checks the fixed values; everything else is checked against the server and its egg.
+func (req UpdateServerRequest) Validate() error {
+	errs := validation.Errors{}
+	// A field that is sent needs a value: empty is none of them.
+	errs.Require("serviceType", req.ServiceType == nil || *req.ServiceType != "")
+	errs.Require("externalTrafficPolicy", req.ExternalTrafficPolicy == nil || *req.ExternalTrafficPolicy != "")
+	checkService(errs, ptr.Deref(req.ServiceType, ""), ptr.Deref(req.ExternalTrafficPolicy, ""))
+	return errs.OrNil()
 }
 
 // updateServer godoc
@@ -63,38 +73,38 @@ type UpdateServerRequest struct {
 //	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server} [patch]
-func (a *API) updateServer(c *gin.Context) {
+func (a *API) updateServer(w http.ResponseWriter, r *http.Request) {
 	var req UpdateServerRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	e, ok := a.loadEgg(c, gs.Spec.EggRef)
+	e, ok := a.loadEgg(w, r, gs.Spec.EggRef)
 	if !ok {
 		return
 	}
-	p := api.PrincipalOf(c)
+	p := api.PrincipalOf(r)
 	if !p.Admin() {
 		if err := checkUserUpdate(&req, gs, e); err != nil {
-			a.Fail(c, err)
+			a.Fail(w, r, err)
 			return
 		}
 	}
 	patch := client.MergeFrom(gs.DeepCopy())
-	if err := a.applyServerUpdate(c, &req, gs, e); err != nil {
-		a.Fail(c, err)
+	if err := a.applyServerUpdate(r.Context(), &req, gs, e); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	if err := a.Client.Patch(c, gs, patch); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.Patch(r.Context(), gs, patch); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server updated", "server", gs.Name)
+	a.Audit(r, "server updated", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.JSON(http.StatusOK, visibleServer(p, gs, e, a.externalDomain(c)))
+	api.JSON(w, http.StatusOK, visibleServer(p, gs, e, a.externalDomain(w, r)))
 }
 
 // applyServerUpdate applies the fields of the request to the server spec and validates them.
@@ -216,14 +226,18 @@ func applyResources(req *UpdateServerRequest, s *v1alpha1.GameServerSpec) error 
 	return nil
 }
 
-// applyNetwork moves the server to another enabled pool (clearing a fixed IP of the old pool) or
-// into the cluster only, sets a fixed IP, which must lie inside the pool, and the external
-// traffic policy.
+// applyNetwork changes how the server is reached. The steps run in this order, so a fixed IP the request names
+// survives the resets before it:
+//  1. Pool: another enabled pool; the fixed IP of the old pool goes.
+//  2. Service type: ClusterIP (in the cluster only) has no fixed IP either.
+//  3. Values: fixed IP, external traffic policy and IPv6 as requested.
+//  4. Checks: ClusterIP only where the settings allow it and without a fixed IP; a fixed IP inside the pool.
 func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1alpha1.GameServerSpec) error {
 	set, err := a.Settings.Current(ctx)
 	if err != nil {
 		return err
 	}
+	// 1. Pool
 	if req.LoadBalancerPool != nil && *req.LoadBalancerPool != s.LoadBalancerPool {
 		if *req.LoadBalancerPool == "" {
 			return validation.Field("loadBalancerPool", errors.New("select a load balancer pool"))
@@ -235,12 +249,14 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 		s.LoadBalancerPool = *req.LoadBalancerPool
 		s.LoadBalancerIP = ""
 	}
+	// 2. Service type
 	if req.ServiceType != nil && *req.ServiceType != s.ServiceType {
 		s.ServiceType = *req.ServiceType
 		if s.ServiceType == v1alpha1.ServiceClusterIP {
 			s.LoadBalancerIP = ""
 		}
 	}
+	// 3. Values
 	if req.LoadBalancerIP != nil {
 		s.LoadBalancerIP = *req.LoadBalancerIP
 	}
@@ -250,6 +266,7 @@ func (a *API) applyNetwork(ctx context.Context, req *UpdateServerRequest, s *v1a
 	if req.IPv6 != nil {
 		s.IPv6 = *req.IPv6
 	}
+	// 4. Checks
 	if req.ServiceType != nil || req.LoadBalancerIP != nil {
 		if err := checkServiceType(set, s.ServiceType, s.LoadBalancerIP); err != nil {
 			return err

@@ -7,11 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"app/api/v1alpha1"
 	"app/base/auth"
 	"app/base/users"
+	"app/base/validation"
 )
 
 // SetupStatus tells the web UI whether the panel still needs its first administrator.
@@ -21,12 +20,21 @@ type SetupStatus struct {
 
 // SetupRequest creates the first administrator.
 type SetupRequest struct {
-	Username    string `json:"username"              binding:"required" example:"admin"`
-	Password    string `json:"password"              binding:"required" example:"a-long-password"`
-	DisplayName string `json:"displayName,omitempty"                    example:"Administrator"`
+	Username    string `json:"username"              example:"admin"`
+	Password    string `json:"password"              example:"a-long-password"`
+	DisplayName string `json:"displayName,omitempty" example:"Administrator"`
 	Email       string `json:"email,omitempty"`
 	// Token is the one-time setup token from the panel log (or the setup token of the environment).
-	Token string `json:"token" binding:"required"`
+	Token string `json:"token"`
+}
+
+// Validate checks that username, password and token are set.
+func (req SetupRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("username", req.Username != "")
+	errs.Require("password", req.Password != "")
+	errs.Require("token", req.Token != "")
+	return errs.OrNil()
 }
 
 // needsSetup reports whether no active administrator exists. The setup routes are public: once the cache
@@ -48,13 +56,13 @@ func (a *API) needsSetup(ctx context.Context) (bool, error) {
 //	@Produce		json
 //	@Success		200	{object}	SetupStatus
 //	@Router			/setup [get]
-func (a *API) getSetupStatus(c *gin.Context) {
-	required, err := a.needsSetup(c)
+func (a *API) getSetupStatus(w http.ResponseWriter, r *http.Request) {
+	required, err := a.needsSetup(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, SetupStatus{Required: required})
+	JSON(w, http.StatusOK, SetupStatus{Required: required})
 }
 
 // runSetup godoc
@@ -72,34 +80,34 @@ func (a *API) getSetupStatus(c *gin.Context) {
 //	@Failure		429		{object}	ErrorResponse
 //	@Failure		422		{object}	ErrorResponse
 //	@Router			/setup [post]
-func (a *API) runSetup(c *gin.Context) {
+func (a *API) runSetup(w http.ResponseWriter, r *http.Request) {
 	var req SetupRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
 	// Counted before the uncached admin count, so anonymous requests cannot repeat that read without end.
 	now := time.Now()
-	key, err := a.takeClientAttempt(c, "setup", now)
+	key, err := a.takeClientAttempt(w, r, "setup", now)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	a.setupMu.Lock()
 	defer a.setupMu.Unlock()
-	u, err := a.createFirstAdmin(c, req)
+	u, err := a.createFirstAdmin(r.Context(), req)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	a.Limiter.Forgive(key, now)
 	a.Log.Info("first administrator created via the setup page", "user", u.Name)
 	a.SetupToken = ""
-	a.sendSession(c, http.StatusCreated, u)
+	a.sendSession(w, r, http.StatusCreated, u)
 }
 
 // createFirstAdmin creates the administrator of a setup request while no active one exists (guarded by setupMu).
-func (a *API) createFirstAdmin(c *gin.Context, req SetupRequest) (*v1alpha1.User, error) {
-	required, err := a.needsSetup(c)
+func (a *API) createFirstAdmin(ctx context.Context, req SetupRequest) (*v1alpha1.User, error) {
+	required, err := a.needsSetup(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +118,7 @@ func (a *API) createFirstAdmin(c *gin.Context, req SetupRequest) (*v1alpha1.User
 		err := errors.New("invalid setup token, use the link from the panel log")
 		return nil, FieldError(http.StatusForbidden, "token", err)
 	}
-	return a.Users.Create(c, users.CreateInput{
+	return a.Users.Create(ctx, users.CreateInput{
 		Username: req.Username, Password: req.Password, DisplayName: req.DisplayName, Email: req.Email,
 		Role: v1alpha1.RoleAdmin,
 	})

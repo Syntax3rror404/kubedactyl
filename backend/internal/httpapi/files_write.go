@@ -4,37 +4,64 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"strings"
-
-	"github.com/gin-gonic/gin"
 
 	"app/base/api"
+	"app/base/validation"
 	"app/internal/files"
 )
 
 // CreateFolderRequest creates a directory.
 type CreateFolderRequest struct {
 	Root string `json:"root,omitempty" example:"/"`
-	Name string `json:"name"           example:"plugins" binding:"required"`
+	Name string `json:"name"           example:"plugins"`
+}
+
+// Validate checks that the folder has a name.
+func (req CreateFolderRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("name", req.Name != "")
+	return errs.OrNil()
 }
 
 // FilesRequest names entries inside a directory (delete, compress).
 type FilesRequest struct {
 	Root  string   `json:"root,omitempty" example:"/"`
-	Files []string `json:"files"          example:"world,logs" binding:"required"`
+	Files []string `json:"files"          example:"world,logs"`
+}
+
+// Validate checks that files are named.
+func (req FilesRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("files", len(req.Files) > 0)
+	return errs.OrNil()
 }
 
 // RenameFileRequest moves a file or directory.
 type RenameFileRequest struct {
 	Root string `json:"root,omitempty" example:"/"`
-	From string `json:"from"           example:"old.txt" binding:"required"`
-	To   string `json:"to"             example:"new.txt" binding:"required"`
+	From string `json:"from"           example:"old.txt"`
+	To   string `json:"to"             example:"new.txt"`
+}
+
+// Validate checks that both names are given.
+func (req RenameFileRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("from", req.From != "")
+	errs.Require("to", req.To != "")
+	return errs.OrNil()
 }
 
 // DecompressFileRequest extracts an archive.
 type DecompressFileRequest struct {
 	Root string `json:"root,omitempty" example:"/"`
-	File string `json:"file"           example:"world.zip" binding:"required"`
+	File string `json:"file"           example:"world.zip"`
+}
+
+// Validate checks that the archive is named.
+func (req DecompressFileRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("file", req.File != "")
+	return errs.OrNil()
 }
 
 // writeFile godoc
@@ -48,22 +75,22 @@ type DecompressFileRequest struct {
 //	@Success	204
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/write [post]
-func (a *API) writeFile(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) writeFile(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
-	err := a.Files.Manager.Write(c, files.RefOf(gs), c.Query("file"), c.Request.Body, deny)
+	err := a.Files.Manager.Write(r.Context(), files.RefOf(gs), r.URL.Query().Get("file"), r.Body, deny)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "file written", "server", gs.Name, "file", c.Query("file"))
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "file written", "server", gs.Name, "file", r.URL.Query().Get("file"))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // createFolder godoc
@@ -76,26 +103,26 @@ func (a *API) writeFile(c *gin.Context) {
 //	@Success	204
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/create-folder [post]
-func (a *API) createFolder(c *gin.Context) {
+func (a *API) createFolder(w http.ResponseWriter, r *http.Request) {
 	var req CreateFolderRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
 	folder := inRoot(req.Root, req.Name)
-	if err := a.Files.Manager.CreateFolder(c, files.RefOf(gs), folder, deny); err != nil {
-		a.Fail(c, err)
+	if err := a.Files.Manager.CreateFolder(r.Context(), files.RefOf(gs), folder, deny); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "folder created", "server", gs.Name, "folder", folder)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "folder created", "server", gs.Name, "folder", folder)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // deleteFiles godoc
@@ -108,26 +135,26 @@ func (a *API) createFolder(c *gin.Context) {
 //	@Success	204
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/delete [post]
-func (a *API) deleteFiles(c *gin.Context) {
+func (a *API) deleteFiles(w http.ResponseWriter, r *http.Request) {
 	var req FilesRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
 	dir := cleanDir(req.Root)
-	if err := a.Files.Manager.Delete(c, files.RefOf(gs), dir, req.Files, deny); err != nil {
-		a.Fail(c, err)
+	if err := a.Files.Manager.Delete(r.Context(), files.RefOf(gs), dir, req.Files, deny); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "files deleted", "server", gs.Name, "folder", dir, "files", req.Files)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "files deleted", "server", gs.Name, "folder", dir, "files", req.Files)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // renameFile godoc
@@ -141,27 +168,27 @@ func (a *API) deleteFiles(c *gin.Context) {
 //	@Success		204
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/rename [put]
-func (a *API) renameFile(c *gin.Context) {
+func (a *API) renameFile(w http.ResponseWriter, r *http.Request) {
 	var req RenameFileRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
 	from := inRoot(req.Root, req.From)
 	to := inRoot(req.Root, req.To)
-	if err := a.Files.Manager.Rename(c, files.RefOf(gs), from, to, deny); err != nil {
-		a.Fail(c, err)
+	if err := a.Files.Manager.Rename(r.Context(), files.RefOf(gs), from, to, deny); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "file renamed", "server", gs.Name, "from", from, "to", to)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "file renamed", "server", gs.Name, "from", from, "to", to)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // uploadFiles godoc
@@ -175,51 +202,33 @@ func (a *API) renameFile(c *gin.Context) {
 //	@Success	204
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/upload [post]
-func (a *API) uploadFiles(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) uploadFiles(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
-	reader, err := c.Request.MultipartReader()
-	if err != nil {
-		a.Fail(c, api.BadRequest(err))
-		return
-	}
-	dir := cleanDir(c.Query("directory"))
-	for {
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			a.Fail(c, api.BadRequest(err))
-			return
-		}
-		if part.FormName() != "files" {
-			part.Close()
-			continue
-		}
-		name := path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
+	dir := cleanDir(r.URL.Query().Get("directory"))
+	// Streamed straight into the file container, nothing is buffered on disk.
+	err := api.Uploads(r, "files", func(name string, body io.Reader) error {
 		if !files.ValidName(name) {
-			part.Close()
-			a.Fail(c, files.ErrBadName)
-			return
+			return files.ErrBadName
 		}
-		// Streamed straight into the file container, nothing is buffered on disk.
 		file := path.Join(dir, name)
-		err = a.Files.Manager.Write(c, files.RefOf(gs), file, part, deny)
-		part.Close()
-		if err != nil {
-			a.Fail(c, err)
-			return
+		if err := a.Files.Manager.Write(r.Context(), files.RefOf(gs), file, body, deny); err != nil {
+			return err
 		}
-		a.Audit(c, "file uploaded", "server", gs.Name, "file", file)
+		a.Audit(r, "file uploaded", "server", gs.Name, "file", file)
+		return nil
+	})
+	if err != nil {
+		a.Fail(w, r, err)
+		return
 	}
-	c.Status(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // compressFiles godoc
@@ -234,27 +243,27 @@ func (a *API) uploadFiles(c *gin.Context) {
 //	@Success		202		{object}	files.Job
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/compress [post]
-func (a *API) compressFiles(c *gin.Context) {
+func (a *API) compressFiles(w http.ResponseWriter, r *http.Request) {
 	var req FilesRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
 	dir := cleanDir(req.Root)
 	job, err := a.Files.StartCompress(files.RefOf(gs), dir, req.Files, deny)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", job.Label)
-	c.JSON(http.StatusAccepted, job)
+	a.Audit(r, "compression started", "server", gs.Name, "folder", dir, "files", req.Files, "archive", job.Label)
+	api.JSON(w, http.StatusAccepted, job)
 }
 
 // decompressFile godoc
@@ -269,25 +278,25 @@ func (a *API) compressFiles(c *gin.Context) {
 //	@Success		202		{object}	files.Job
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/decompress [post]
-func (a *API) decompressFile(c *gin.Context) {
+func (a *API) decompressFile(w http.ResponseWriter, r *http.Request) {
 	var req DecompressFileRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
 	archive := inRoot(req.Root, req.File)
 	job, err := a.Files.StartDecompress(files.RefOf(gs), archive, deny)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "extraction started", "server", gs.Name, "archive", archive)
-	c.JSON(http.StatusAccepted, job)
+	a.Audit(r, "extraction started", "server", gs.Name, "archive", archive)
+	api.JSON(w, http.StatusAccepted, job)
 }

@@ -14,9 +14,8 @@ import (
 	// Time zone database for schedules and TZ, also in images without tzdata (Alpine).
 	_ "time/tzdata"
 
-	"github.com/gin-gonic/gin"
-
 	"app/app"
+	"app/base/auth"
 	"app/base/bootstrap"
 	"app/base/cli"
 	"app/base/httpserver"
@@ -40,11 +39,14 @@ type config struct {
 	// the panel's permissions in the cluster (tenant role bound per user namespace, admission policy that
 	// limits them).
 	tenantRole, serviceAccount, admissionPolicy string
+	// proxies are the parsed --trusted-proxies.
+	proxies auth.Proxies
 }
 
 // @title						Kubedactyl API
 // @version					dev
 // @description				Game server panel for Kubernetes that runs Pterodactyl and Pelican eggs.
+// @description				Request bodies are strict JSON: unknown fields are refused (400).
 // @BasePath					/api
 //
 // @securityDefinitions.apikey	BearerAuth
@@ -76,6 +78,11 @@ func main() {
 // run starts the panel: prepare the cluster (CRDs, namespace, first admin, settings), build
 // controllers, services and API (wiring.go), then serve HTTP until ctx ends.
 func run(ctx context.Context, cfg config, log *slog.Logger) error {
+	proxies, err := auth.ParseProxies(cfg.TrustedProxies)
+	if err != nil {
+		return err
+	}
+	cfg.proxies = proxies
 	limiter := kube.NewRateLimiter(settings.DefaultKubeAPIQPS, settings.DefaultKubeAPIUserQPS)
 	restCfg, err := kube.RestConfig(cfg.KubeContext, cfg.HTTP1, limiter)
 	if err != nil {
@@ -90,16 +97,12 @@ func run(ctx context.Context, cfg config, log *slog.Logger) error {
 		return err
 	}
 	frontend := web.FS() // nil in development mode (Vite serves the UI)
-	if frontend != nil {
-		gin.SetMode(gin.ReleaseMode)
-	}
 	p, err := newPanel(ctx, restCfg, limiter, scheme, cfg, boot, frontend == nil, log)
 	if err != nil {
 		return err
 	}
 	router, err := httpserver.NewRouter(httpserver.Config{
-		API: p.api, Settings: p.api.Settings, Frontend: frontend, TrustedProxies: cfg.TrustedProxies,
-		Version: appVersion, Log: log,
+		API: p.api, Settings: p.api.Settings, Frontend: frontend, Version: appVersion, Log: log,
 	})
 	if err != nil {
 		return err

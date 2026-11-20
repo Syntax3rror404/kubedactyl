@@ -4,18 +4,24 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"app/api/v1alpha1"
 	"app/base/api"
+	"app/base/validation"
 	"app/internal/eggstore"
 )
 
 // ImportURLRequest imports an egg from a URL.
 type ImportURLRequest struct {
-	URL string `json:"url" binding:"required" example:"https://raw.githubusercontent.com/pelican-eggs/minecraft/main/java/paper/egg-paper.json"`
+	URL string `json:"url" example:"https://raw.githubusercontent.com/pelican-eggs/minecraft/main/java/paper/egg-paper.json"`
 	// AutoUpdate turns the hourly update from the URL on (an egg imported again keeps it on).
 	AutoUpdate bool `json:"autoUpdate,omitempty"`
+}
+
+// Validate checks that a URL is given.
+func (req ImportURLRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("url", req.URL != "")
+	return errs.OrNil()
 }
 
 // importEgg godoc
@@ -32,28 +38,23 @@ type ImportURLRequest struct {
 //	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/eggs/import [post]
-func (a *API) importEgg(c *gin.Context) {
+func (a *API) importEgg(w http.ResponseWriter, r *http.Request) {
 	var data []byte
 	var err error
-	if fh, ferr := c.FormFile("file"); ferr == nil {
-		f, oerr := fh.Open()
-		if oerr != nil {
-			a.Fail(c, api.BadRequest(oerr))
-			return
-		}
+	if f, _, ferr := r.FormFile("file"); ferr == nil {
 		defer f.Close()
 		data, err = eggstore.ReadFile(f)
 	} else {
-		data, err = eggstore.ReadFile(c.Request.Body)
+		data, err = eggstore.ReadFile(r.Body)
 	}
 	if err != nil && !errors.Is(err, eggstore.ErrTooLarge) {
 		err = api.BadRequest(err)
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.saveImport(c, data, "", false)
+	a.saveImport(w, r, data, "", false)
 }
 
 // importEggURL godoc
@@ -68,32 +69,32 @@ func (a *API) importEgg(c *gin.Context) {
 //	@Failure	422		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/eggs/import-url [post]
-func (a *API) importEggURL(c *gin.Context) {
+func (a *API) importEggURL(w http.ResponseWriter, r *http.Request) {
 	var req ImportURLRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	data, err := eggstore.Download(c, req.URL)
+	data, err := eggstore.Download(r.Context(), req.URL)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.saveImport(c, data, req.URL, req.AutoUpdate)
+	a.saveImport(w, r, data, req.URL, req.AutoUpdate)
 }
 
 // saveImport stores an imported egg file and answers with the egg.
-func (a *API) saveImport(c *gin.Context, data []byte, source string, autoUpdate bool) {
-	e, created, err := a.Eggs.Import(c, data, source, autoUpdate)
+func (a *API) saveImport(w http.ResponseWriter, r *http.Request, data []byte, source string, autoUpdate bool) {
+	e, created, err := a.Eggs.Import(r.Context(), data, source, autoUpdate)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "egg imported", "egg", e.Name, "source", source)
+	a.Audit(r, "egg imported", "egg", e.Name, "source", source)
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
 	}
-	c.JSON(status, e)
+	api.JSON(w, status, e)
 }
 
 // deleteEgg godoc
@@ -105,13 +106,13 @@ func (a *API) saveImport(c *gin.Context, data []byte, source string, autoUpdate 
 //	@Failure	409	{object}	api.ErrorResponse	"egg is used by servers"
 //	@Security	BearerAuth
 //	@Router		/eggs/{egg} [delete]
-func (a *API) deleteEgg(c *gin.Context) {
-	if err := a.Eggs.Delete(c, c.Param("egg")); err != nil {
-		a.Fail(c, err)
+func (a *API) deleteEgg(w http.ResponseWriter, r *http.Request) {
+	if err := a.Eggs.Delete(r.Context(), r.PathValue("egg")); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "egg deleted", "egg", c.Param("egg"))
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "egg deleted", "egg", r.PathValue("egg"))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // createEgg godoc
@@ -127,18 +128,18 @@ func (a *API) deleteEgg(c *gin.Context) {
 //	@Failure		422		{object}	api.ErrorResponse	"validation errors per field"
 //	@Security		BearerAuth
 //	@Router			/eggs [post]
-func (a *API) createEgg(c *gin.Context) {
+func (a *API) createEgg(w http.ResponseWriter, r *http.Request) {
 	spec := &v1alpha1.EggSpec{}
-	if !a.BindJSON(c, spec) {
+	if !a.Decode(w, r, spec) {
 		return
 	}
-	e, err := a.Eggs.Create(c, spec)
+	e, err := a.Eggs.Create(r.Context(), spec)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "egg created", "egg", e.Name)
-	c.JSON(http.StatusCreated, e)
+	a.Audit(r, "egg created", "egg", e.Name)
+	api.JSON(w, http.StatusCreated, e)
 }
 
 // updateEgg godoc
@@ -155,18 +156,18 @@ func (a *API) createEgg(c *gin.Context) {
 //	@Failure		422		{object}	api.ErrorResponse	"validation errors per field"
 //	@Security		BearerAuth
 //	@Router			/eggs/{egg} [put]
-func (a *API) updateEgg(c *gin.Context) {
+func (a *API) updateEgg(w http.ResponseWriter, r *http.Request) {
 	spec := &v1alpha1.EggSpec{}
-	if !a.BindJSON(c, spec) {
+	if !a.Decode(w, r, spec) {
 		return
 	}
-	e, err := a.Eggs.Update(c, c.Param("egg"), spec)
+	e, err := a.Eggs.Update(r.Context(), r.PathValue("egg"), spec)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "egg updated", "egg", e.Name)
-	c.JSON(http.StatusOK, e)
+	a.Audit(r, "egg updated", "egg", e.Name)
+	api.JSON(w, http.StatusOK, e)
 }
 
 // updateEggFromURL godoc
@@ -181,12 +182,12 @@ func (a *API) updateEgg(c *gin.Context) {
 //	@Failure		409	{object}	api.ErrorResponse	"the egg has no update URL"
 //	@Security		BearerAuth
 //	@Router			/eggs/{egg}/update-from-url [post]
-func (a *API) updateEggFromURL(c *gin.Context) {
-	e, err := a.Eggs.UpdateFromURL(c, c.Param("egg"))
+func (a *API) updateEggFromURL(w http.ResponseWriter, r *http.Request) {
+	e, err := a.Eggs.UpdateFromURL(r.Context(), r.PathValue("egg"))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "egg updated from its URL", "egg", e.Name, "url", e.Spec.Source.UpdateURL)
-	c.JSON(http.StatusOK, e)
+	a.Audit(r, "egg updated from its URL", "egg", e.Name, "url", e.Spec.Source.UpdateURL)
+	api.JSON(w, http.StatusOK, e)
 }

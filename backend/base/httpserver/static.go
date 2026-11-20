@@ -12,7 +12,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"app/base/api"
 )
 
 // compressible are the file types of the web UI that gzip makes smaller (fonts and images are compressed already).
@@ -93,56 +93,56 @@ func contentType(name string, data []byte) string {
 // serve answers with a file of the build and falls back to index.html for unknown paths (client-side routing).
 // A missing asset is a 404: a tab of an older build asks for chunks that are gone, and index.html would reach it as
 // a script with the wrong type.
-func (s *staticFiles) serve(c *gin.Context) {
+func (s *staticFiles) serve(w http.ResponseWriter, r *http.Request) {
 	// Client routes may end with a slash ("/some/page/"); file names never do.
-	name := strings.Trim(c.Request.URL.Path, "/")
+	name := strings.Trim(r.URL.Path, "/")
 	if name == "" {
 		name = "index.html"
 	}
 	info, err := fs.Stat(s.fs, name)
 	if errors.Is(err, fs.ErrNotExist) && strings.HasPrefix(name, "assets/") && path.Ext(name) != "" {
-		c.Header("Cache-Control", "no-store")
-		c.String(http.StatusNotFound, "Not found")
+		w.Header().Set("Cache-Control", "no-store")
+		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
 	// Folders are no files either: no listing of assets/. Paths no file can have ("a//b") are client routes too.
 	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) || (err == nil && info.IsDir()) {
 		name = "index.html"
 	} else if err != nil {
-		c.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if strings.HasPrefix(name, "assets/") {
-		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
 		// index.html and the files next to it keep their names: always ask whether there is a newer version.
-		c.Header("Cache-Control", "no-cache")
+		w.Header().Set("Cache-Control", "no-cache")
 	}
 	gz, compressed := s.gzipped[name]
 	if compressed {
-		c.Header("Vary", "Accept-Encoding")
+		w.Header().Set("Vary", "Accept-Encoding")
 	}
-	c.Header("ETag", s.etags[name])
-	if match := c.GetHeader("If-None-Match"); match != "" && strings.Contains(match, s.etags[name]) {
-		c.Status(http.StatusNotModified)
+	w.Header().Set("ETag", s.etags[name])
+	if match := r.Header.Get("If-None-Match"); match != "" && strings.Contains(match, s.etags[name]) {
+		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	if compressed && strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
-		c.Header("Content-Encoding", "gzip")
-		c.Data(http.StatusOK, gz.contentType, gz.data)
+	if compressed && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		w.Header().Set("Content-Encoding", "gzip")
+		api.Data(w, http.StatusOK, gz.contentType, gz.data)
 		return
 	}
-	s.serveFile(c, name)
+	s.serveFile(w, r, name)
 }
 
 // serveFile sends a file as it is. index.html is sent from memory: http.FileServer redirects it to "/".
-func (s *staticFiles) serveFile(c *gin.Context, name string) {
+func (s *staticFiles) serveFile(w http.ResponseWriter, r *http.Request, name string) {
 	switch {
 	case name != "index.html":
-		c.FileFromFS(name, http.FS(s.fs))
+		http.ServeFileFS(w, r, s.fs, name)
 	case s.index == nil:
-		c.String(http.StatusInternalServerError, "index.html is missing. Was the frontend built?")
+		http.Error(w, "index.html is missing. Was the frontend built?", http.StatusInternalServerError)
 	default:
-		c.Data(http.StatusOK, "text/html; charset=utf-8", s.index)
+		api.Data(w, http.StatusOK, "text/html; charset=utf-8", s.index)
 	}
 }

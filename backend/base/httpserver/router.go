@@ -9,10 +9,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
 
 	"app/app"
@@ -23,7 +23,7 @@ import (
 
 // Routes is the app's API (the base routes and its own), mounted at /api.
 type Routes interface {
-	Register(r *gin.RouterGroup)
+	Register(m *api.Mux)
 }
 
 // Config configures the HTTP server.
@@ -33,14 +33,12 @@ type Config struct {
 	Settings *settings.Store
 	// Frontend is the embedded web UI (nil in development mode, where Vite serves it).
 	Frontend fs.FS
-	// TrustedProxies are comma separated IPs/CIDRs that may set X-Forwarded-For.
-	TrustedProxies string
-	Version        string
-	Log            *slog.Logger
+	Version  string
+	Log      *slog.Logger
 }
 
-// NewRouter builds the HTTP routes: the API, the API document and the embedded frontend.
-func NewRouter(cfg Config) (*gin.Engine, error) {
+// NewRouter builds the HTTP handler: the API, the API document and the embedded frontend.
+func NewRouter(cfg Config) (http.Handler, error) {
 	var static *staticFiles
 	if cfg.Frontend != nil {
 		var err error
@@ -48,64 +46,158 @@ func NewRouter(cfg Config) (*gin.Engine, error) {
 			return nil, err
 		}
 	}
-	r := gin.New()
-	// nil trusts no proxy: gin trusts every proxy by default, which would let clients
-	// fake their IP (login throttling) with X-Forwarded-For.
-	if err := r.SetTrustedProxies(trustedProxies(cfg.TrustedProxies)); err != nil {
-		return nil, err
-	}
-	r.Use(gin.Recovery(), requestLogger(cfg.Log), securityHeaders, limitBody)
-	apiGroup := r.Group("/api")
-	apiGroup.GET("/health", getHealth)
-	apiGroup.GET("/info", getInfo(cfg.Version, cfg.Frontend == nil))
-	apiGroup.GET("/openapi.json", getAPIDocument(cfg.Settings))
-	cfg.API.Register(apiGroup)
-
-	r.NoRoute(func(c *gin.Context) {
+	mux := NewAPI(cfg)
+	// Only the API goes through the mux: it redirects paths like "a//b", which are client routes of the web UI.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
 		// "/api" and below it; /api-docs is a page of the web UI.
-		if strings.HasPrefix(c.Request.URL.Path+"/", "/api/") {
-			c.JSON(http.StatusNotFound, api.ErrorResponse{Error: "not found"})
-			return
+		case strings.HasPrefix(r.URL.Path+"/", "/api/"):
+			mux.ServeHTTP(w, r)
+		case static == nil:
+			http.Error(w, "Development mode: the frontend is served by Vite (http://localhost:5173)",
+				http.StatusNotFound)
+		default:
+			static.serve(w, r)
 		}
-		if static == nil {
-			c.String(http.StatusNotFound, "Development mode: the frontend is served by Vite (http://localhost:5173)")
-			return
-		}
-		static.serve(c)
 	})
-	return r, nil
+	// The log sees every answer, also the 500 of a panic.
+	return api.Chain(handler,
+		logRequests(cfg.Log, cfg.Frontend == nil, mux),
+		recoverPanics(cfg.Log, mux),
+		securityHeaders,
+		prepareRequest(mux),
+	), nil
 }
 
-// requestLogger logs failed requests, and every request outside release mode. Websockets are left out (their
-// request ends when they close).
-func requestLogger(log *slog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-		if strings.HasSuffix(c.FullPath(), "/ws") {
-			return
-		}
-		if c.Writer.Status() >= 400 || gin.Mode() != gin.ReleaseMode {
-			path := c.Request.URL.Path
-			if strings.Contains(c.FullPath(), ":token") {
-				path = c.FullPath() // the path carries a credential
+// NewAPI registers the API routes (below /api) on a new mux; unknown API paths are answered with 404.
+func NewAPI(cfg Config) *http.ServeMux {
+	mux := http.NewServeMux()
+	m := api.NewMux(mux, "/api")
+	m.Handle("GET /health", getHealth)
+	m.Handle("GET /info", getInfo(cfg.Version, cfg.Frontend == nil))
+	m.Handle("GET /openapi.json", getAPIDocument(cfg.Settings))
+	cfg.API.Register(m)
+	mux.HandleFunc("/api", notFound) // the mux would redirect it to "/api/"
+	mux.HandleFunc("/api/", notFound)
+	return mux
+}
+
+func notFound(w http.ResponseWriter, _ *http.Request) {
+	api.JSON(w, http.StatusNotFound, api.ErrorResponse{Error: "not found"})
+}
+
+// route is the pattern of the API route a request goes to ("/api/servers/{server}/ws"), empty for none. Path
+// values may hold an encoded slash ("%2F"), so decisions by route are made with it, never with the path.
+func route(routes *http.ServeMux, r *http.Request) string {
+	_, pattern := routes.Handler(r)
+	if _, path, ok := strings.Cut(pattern, " "); ok {
+		return path
+	}
+	return pattern
+}
+
+// statusRecorder remembers the status of an answer for the log.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	if s.status == 0 {
+		s.status = code
+	}
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Write(b []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return s.ResponseWriter.Write(b)
+}
+
+// Unwrap gives http.ResponseController and websockets the connection (flush, hijack).
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
+// logRequests logs failed requests, and with all every request. Websockets are left out (their request ends when
+// they close).
+func logRequests(log *slog.Logger, all bool, routes *http.ServeMux) api.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rec := &statusRecorder{ResponseWriter: w}
+			next.ServeHTTP(rec, r)
+			if rec.status < 400 && !all {
+				return
 			}
-			log.Info("request", "method", c.Request.Method, "path", path,
-				"status", c.Writer.Status(), "duration", time.Since(start).Round(time.Microsecond))
-		}
+			rt := route(routes, r)
+			if strings.HasSuffix(rt, "/ws") {
+				return
+			}
+			log.Info("request", "method", r.Method, "path", loggedPath(rt, r),
+				"status", rec.status, "duration", time.Since(start).Round(time.Microsecond))
+		})
 	}
 }
 
-// trustedProxies turns "10.0.0.0/8, 192.168.1.10" into a list for gin. Without trusted proxies the client IP is
-// the peer address, so X-Forwarded-For cannot be spoofed.
-func trustedProxies(v string) []string {
-	var out []string
-	for p := range strings.SplitSeq(v, ",") {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
+// loggedPath is the path of a request for the log: a route with a credential in its path ({token}) is logged by
+// its pattern instead.
+func loggedPath(route string, r *http.Request) string {
+	if strings.Contains(route, "{token}") {
+		return route
 	}
-	return out
+	return r.URL.Path
+}
+
+// recoverPanics answers a request whose handler panicked with 500 and logs the panic, instead of closing the
+// connection without an answer.
+func recoverPanics(log *slog.Logger, routes *http.ServeMux) api.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				v := recover()
+				if v == nil {
+					return
+				}
+				if v == http.ErrAbortHandler {
+					panic(v)
+				}
+				log.Error("handler panicked", "path", loggedPath(route(routes, r), r), "panic", v,
+					"stack", string(debug.Stack()))
+				w.WriteHeader(http.StatusInternalServerError)
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Uploads stream to the file container and are not limited here; everything else is small.
+const maxRequestBody = 8 << 20
+
+// prepareRequest gives the handlers their request, copied at most once (the request a middleware is given stays
+// as it is). A request that changes something runs to its end when the client goes away: a change cut off half
+// way would leave objects behind; reads stop with the client. A body is limited to maxRequestBody, but on the
+// upload routes (decided by the route, not the path).
+func prepareRequest(routes *http.ServeMux) api.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			change := r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions
+			limit := r.Body != nil && r.Body != http.NoBody && !strings.HasSuffix(route(routes, r), "/files/upload")
+			if !change && !limit {
+				next.ServeHTTP(w, r)
+				return
+			}
+			ctx := r.Context()
+			if change {
+				ctx = context.WithoutCancel(ctx)
+			}
+			r = r.WithContext(ctx)
+			if limit {
+				r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // Serve runs the HTTP server until ctx ends and then shuts it down gracefully.
@@ -155,8 +247,8 @@ type InfoResponse struct {
 //	@Produce		json
 //	@Success		200	{object}	HealthResponse
 //	@Router			/health [get]
-func getHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, HealthResponse{Status: "ok"})
+func getHealth(w http.ResponseWriter, _ *http.Request) {
+	api.JSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 }
 
 // getInfo godoc
@@ -167,13 +259,13 @@ func getHealth(c *gin.Context) {
 //	@Produce		json
 //	@Success		200	{object}	InfoResponse
 //	@Router			/info [get]
-func getInfo(version string, devMode bool) gin.HandlerFunc {
+func getInfo(version string, devMode bool) http.HandlerFunc {
 	mode := "production"
 	if devMode {
 		mode = "development"
 	}
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, InfoResponse{Name: app.Name, Version: version, Mode: mode})
+	return func(w http.ResponseWriter, _ *http.Request) {
+		api.JSON(w, http.StatusOK, InfoResponse{Name: app.Name, Version: version, Mode: mode})
 	}
 }
 
@@ -187,18 +279,18 @@ func getInfo(version string, devMode bool) gin.HandlerFunc {
 //	@Success		200
 //	@Failure		404	{object}	api.ErrorResponse
 //	@Router			/openapi.json [get]
-func getAPIDocument(store *settings.Store) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if set, err := store.Current(c); err != nil || set.DisableAPIDocs {
-			c.JSON(http.StatusNotFound, api.ErrorResponse{Error: "the API documentation is turned off"})
+func getAPIDocument(store *settings.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if set, err := store.Current(r.Context()); err != nil || set.DisableAPIDocs {
+			api.JSON(w, http.StatusNotFound, api.ErrorResponse{Error: "the API documentation is turned off"})
 			return
 		}
 		doc, err := swag.ReadDoc()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, api.ErrorResponse{Error: err.Error()})
+			api.JSON(w, http.StatusInternalServerError, api.ErrorResponse{Error: err.Error()})
 			return
 		}
-		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(doc))
+		api.Data(w, http.StatusOK, "application/json; charset=utf-8", []byte(doc))
 	}
 }
 
@@ -209,32 +301,24 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 
 	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 // securityHeaders sets browser protections on every response.
-func securityHeaders(c *gin.Context) {
-	h := c.Writer.Header()
-	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("X-Frame-Options", "DENY")
-	h.Set("Referrer-Policy", "same-origin")
-	h.Set("Cross-Origin-Opener-Policy", "same-origin")
-	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
-	h.Set("Content-Security-Policy", contentSecurityPolicy)
-	// API answers hold new tokens, settings and file contents: neither the browser nor a proxy
-	// may keep them. A handler that passes on another server's answer removes the header.
-	if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-		h.Set("Cache-Control", "no-store")
-	}
-	// Only meaningful over HTTPS (directly or behind a TLS terminating proxy).
-	if auth.HTTPS(c.Request) {
-		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-	}
-	c.Next()
-}
-
-// Uploads stream to the file container and are not limited here; everything else is small.
-const maxRequestBody = 8 << 20
-
-func limitBody(c *gin.Context) {
-	if c.Request.Body != nil && !strings.HasSuffix(c.Request.URL.Path, "/files/upload") {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBody)
-	}
-	c.Next()
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "same-origin")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		// API answers hold new tokens, settings and file contents: neither the browser nor a proxy
+		// may keep them. A handler that passes on another server's answer removes the header.
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			h.Set("Cache-Control", "no-store")
+		}
+		// Only meaningful over HTTPS (directly or behind a TLS terminating proxy).
+		if auth.HTTPS(r) {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
 }

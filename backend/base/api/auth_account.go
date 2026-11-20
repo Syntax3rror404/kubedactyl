@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -17,17 +16,35 @@ import (
 
 // UpdatePasswordRequest replaces the own password; all sessions are signed out.
 type UpdatePasswordRequest struct {
-	Current string `json:"current" binding:"required,max=1024"`
-	New     string `json:"new"     binding:"required,max=1024"`
+	Current string `json:"current" maxLength:"1024"`
+	New     string `json:"new"     maxLength:"1024"`
 	// RevokeTokens also revokes every API token of the user (after a leak).
 	RevokeTokens bool `json:"revokeTokens,omitempty"`
 }
 
+// Validate checks that both passwords are set and not too long.
+func (req UpdatePasswordRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("current", req.Current != "")
+	errs.MaxLength("current", req.Current, 1024)
+	errs.Require("new", req.New != "")
+	errs.MaxLength("new", req.New, 1024)
+	return errs.OrNil()
+}
+
 // CreateTokenRequest creates a personal API token.
 type CreateTokenRequest struct {
-	Name string `json:"name" binding:"required,max=64" example:"ci"`
+	Name string `json:"name" maxLength:"64" example:"ci"`
 	// ExpiresInDays is the lifetime of the token (days), from 1 to the longest API token lifetime of the panel.
 	ExpiresInDays int `json:"expiresInDays" example:"90"`
+}
+
+// Validate checks that the token has a name of at most 64 characters.
+func (req CreateTokenRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("name", req.Name != "")
+	errs.MaxLength("name", req.Name, 64)
+	return errs.OrNil()
 }
 
 // CreatedToken contains the token value, which is shown only once.
@@ -45,8 +62,8 @@ type CreatedToken struct {
 //	@Success	200	{object}	UserView
 //	@Failure	401	{object}	ErrorResponse
 //	@Router		/auth/me [get]
-func (a *API) getMe(c *gin.Context) {
-	c.JSON(http.StatusOK, a.userView(c, PrincipalOf(c).User))
+func (a *API) getMe(w http.ResponseWriter, r *http.Request) {
+	JSON(w, http.StatusOK, a.userView(r.Context(), PrincipalOf(r).User))
 }
 
 // updatePassword godoc
@@ -61,12 +78,12 @@ func (a *API) getMe(c *gin.Context) {
 //	@Failure		409	{object}	ErrorResponse	"the account signs in through single sign-on only"
 //	@Failure		422	{object}	ErrorResponse	"current password is wrong or the new one is too weak"
 //	@Router			/auth/password [put]
-func (a *API) updatePassword(c *gin.Context) {
+func (a *API) updatePassword(w http.ResponseWriter, r *http.Request) {
 	var req UpdatePasswordRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	user, ok := a.currentUser(c)
+	user, ok := a.currentUser(w, r)
 	if !ok {
 		return
 	}
@@ -74,17 +91,17 @@ func (a *API) updatePassword(c *gin.Context) {
 	now := time.Now()
 	key := "password|" + user.Name
 	if ok, wait := a.Limiter.Take(key, now); !ok {
-		retryAfter(c, wait)
-		a.Fail(c, TooManyRequests(errTooManyAttempts))
+		retryAfter(w, wait)
+		a.Fail(w, r, TooManyRequests(errTooManyAttempts))
 		return
 	}
-	if err := a.Users.UpdatePassword(c, user, req.Current, req.New, req.RevokeTokens); err != nil {
-		a.Fail(c, err)
+	if err := a.Users.UpdatePassword(r.Context(), user, req.Current, req.New, req.RevokeTokens); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	a.Limiter.Forgive(key, now)
-	a.Audit(c, "password changed", "tokensRevoked", req.RevokeTokens)
-	a.logout(c)
+	a.Audit(r, "password changed", "tokensRevoked", req.RevokeTokens)
+	a.logout(w, r)
 }
 
 // logoutAll godoc
@@ -96,17 +113,17 @@ func (a *API) updatePassword(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Success		204
 //	@Router			/auth/logout-all [post]
-func (a *API) logoutAll(c *gin.Context) {
-	user, ok := a.currentUser(c)
+func (a *API) logoutAll(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.currentUser(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Users.EndSessions(c, user); err != nil {
-		a.Fail(c, err)
+	if err := a.Users.EndSessions(r.Context(), user); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "signed out everywhere")
-	a.logout(c)
+	a.Audit(r, "signed out everywhere")
+	a.logout(w, r)
 }
 
 // listTokens godoc
@@ -117,8 +134,8 @@ func (a *API) logoutAll(c *gin.Context) {
 //	@Security	BearerAuth
 //	@Success	200	{array}	TokenView
 //	@Router		/auth/tokens [get]
-func (a *API) listTokens(c *gin.Context) {
-	c.JSON(http.StatusOK, tokenViews(PrincipalOf(c).User, a.Settings.Lifetimes(c).APIToken))
+func (a *API) listTokens(w http.ResponseWriter, r *http.Request) {
+	JSON(w, http.StatusOK, tokenViews(PrincipalOf(r).User, a.Settings.Lifetimes(r.Context()).APIToken))
 }
 
 // createToken godoc
@@ -134,23 +151,23 @@ func (a *API) listTokens(c *gin.Context) {
 //	@Success		201		{object}	CreatedToken
 //	@Failure		409		{object}	ErrorResponse	"the account has the most tokens it may have"
 //	@Router			/auth/tokens [post]
-func (a *API) createToken(c *gin.Context) {
-	if PrincipalOf(c).TokenID != "" {
-		a.Fail(c, Forbidden(errors.New("API tokens cannot create tokens; sign in to create one")))
+func (a *API) createToken(w http.ResponseWriter, r *http.Request) {
+	if PrincipalOf(r).TokenID != "" {
+		a.Fail(w, r, Forbidden(errors.New("API tokens cannot create tokens; sign in to create one")))
 		return
 	}
 	var req CreateTokenRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	lifetimes := a.Settings.Lifetimes(c)
+	lifetimes := a.Settings.Lifetimes(r.Context())
 	if req.ExpiresInDays < 1 || req.ExpiresInDays > lifetimes.APITokenDays {
 		err := fmt.Errorf("must be between 1 and %d days (the longest lifetime the panel allows)",
 			lifetimes.APITokenDays)
-		a.Fail(c, validation.Field("expiresInDays", err))
+		a.Fail(w, r, validation.Field("expiresInDays", err))
 		return
 	}
-	user, ok := a.currentUser(c)
+	user, ok := a.currentUser(w, r)
 	if !ok {
 		return
 	}
@@ -159,12 +176,12 @@ func (a *API) createToken(c *gin.Context) {
 		ID: id, Name: req.Name, Hash: hash, CreatedAt: metav1.Now(),
 		ExpiresAt: &metav1.Time{Time: time.Now().AddDate(0, 0, req.ExpiresInDays)},
 	}
-	if err := a.Users.AddToken(c, user, t); err != nil {
-		a.Fail(c, err)
+	if err := a.Users.AddToken(r.Context(), user, t); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "API token created", "name", t.Name)
-	c.JSON(http.StatusCreated, CreatedToken{TokenView: tokenView(t, lifetimes.APIToken), Token: token})
+	a.Audit(r, "API token created", "name", t.Name)
+	JSON(w, http.StatusCreated, CreatedToken{TokenView: tokenView(t, lifetimes.APIToken), Token: token})
 }
 
 // deleteToken godoc
@@ -176,37 +193,37 @@ func (a *API) createToken(c *gin.Context) {
 //	@Success	204
 //	@Failure	404	{object}	ErrorResponse
 //	@Router		/auth/tokens/{id} [delete]
-func (a *API) deleteToken(c *gin.Context) {
-	user, ok := a.currentUser(c)
+func (a *API) deleteToken(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.currentUser(w, r)
 	if !ok {
 		return
 	}
 	patch := client.MergeFromWithOptions(user.DeepCopy(), client.MergeFromWithOptimisticLock{})
 	kept := user.Spec.Tokens[:0]
 	for _, t := range user.Spec.Tokens {
-		if t.ID != c.Param("id") {
+		if t.ID != r.PathValue("id") {
 			kept = append(kept, t)
 		}
 	}
 	if len(kept) == len(user.Spec.Tokens) {
-		a.Fail(c, NotFound(errors.New("token not found")))
+		a.Fail(w, r, NotFound(errors.New("token not found")))
 		return
 	}
 	user.Spec.Tokens = kept
-	if err := a.Client.Patch(c, user, patch); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.Patch(r.Context(), user, patch); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "API token revoked", "id", c.Param("id"))
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "API token revoked", "id", r.PathValue("id"))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // currentUser reads the caller's user uncached: the token list is replaced as a whole, so a
 // lagging cache would drop a token created a moment ago.
-func (a *API) currentUser(c *gin.Context) (*v1alpha1.User, bool) {
+func (a *API) currentUser(w http.ResponseWriter, r *http.Request) (*v1alpha1.User, bool) {
 	user := &v1alpha1.User{}
-	if err := a.Reader.Get(c, client.ObjectKeyFromObject(PrincipalOf(c).User), user); err != nil {
-		a.Fail(c, err)
+	if err := a.Reader.Get(r.Context(), client.ObjectKeyFromObject(PrincipalOf(r).User), user); err != nil {
+		a.Fail(w, r, err)
 		return nil, false
 	}
 	return user, true

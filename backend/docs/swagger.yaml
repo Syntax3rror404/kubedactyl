@@ -301,10 +301,10 @@ definitions:
   api.ModuleVersion:
     properties:
       name:
-        example: Gin
+        example: client-go
         type: string
       version:
-        example: v1.12.0
+        example: v0.37.1
         type: string
     required:
     - name
@@ -3396,8 +3396,9 @@ definitions:
     - DefaultRole
 info:
   contact: {}
-  description: Game server panel for Kubernetes that runs Pterodactyl and Pelican
-    eggs.
+  description: |-
+    Game server panel for Kubernetes that runs Pterodactyl and Pelican eggs.
+    Request bodies are strict JSON: unknown fields are refused (400).
   title: Kubedactyl API
   version: dev
 paths:

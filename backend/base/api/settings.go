@@ -4,11 +4,8 @@ import (
 	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
 	"app/app"
@@ -34,9 +31,9 @@ type RequestRates struct {
 //	@Success		200	{object}	RequestRates
 //	@Security		BearerAuth
 //	@Router			/request-rates [get]
-func (a *API) getRequestRates(c *gin.Context) {
+func (a *API) getRequestRates(w http.ResponseWriter, r *http.Request) {
 	var out RequestRates
-	p := PrincipalOf(c)
+	p := PrincipalOf(r)
 	if a.KubeLimiter != nil {
 		out.User = a.KubeLimiter.UserRate(p.User.Name)
 		if p.Admin() {
@@ -47,7 +44,7 @@ func (a *API) getRequestRates(c *gin.Context) {
 	if a.App != nil {
 		out.RequestRates = a.App.RequestRates(p)
 	}
-	c.JSON(http.StatusOK, out)
+	JSON(w, http.StatusOK, out)
 }
 
 // SettingsView is the panel settings; the client secret of the identity provider is never sent. Users get only
@@ -67,17 +64,17 @@ type UpdateSettingsRequest struct {
 
 // sendSettings answers with the settings and, for administrators (only they edit them), whether a client
 // secret is stored; users get settings.Store.ForUsers.
-func (a *API) sendSettings(c *gin.Context, spec v1alpha1.PanelSettingsSpec) {
-	if !PrincipalOf(c).Admin() {
-		c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: a.Settings.ForUsers(spec)})
+func (a *API) sendSettings(w http.ResponseWriter, r *http.Request, spec v1alpha1.PanelSettingsSpec) {
+	if !PrincipalOf(r).Admin() {
+		JSON(w, http.StatusOK, SettingsView{PanelSettingsSpec: a.Settings.ForUsers(spec)})
 		return
 	}
-	secret, err := a.Settings.OIDCClientSecret(c)
+	secret, err := a.Settings.OIDCClientSecret(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""})
+	JSON(w, http.StatusOK, SettingsView{PanelSettingsSpec: spec, OIDCClientSecretSet: secret != ""})
 }
 
 // getSettings godoc
@@ -90,13 +87,13 @@ func (a *API) sendSettings(c *gin.Context, spec v1alpha1.PanelSettingsSpec) {
 //	@Success		200	{object}	SettingsView
 //	@Security		BearerAuth
 //	@Router			/settings [get]
-func (a *API) getSettings(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
+func (a *API) getSettings(w http.ResponseWriter, r *http.Request) {
+	spec, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.sendSettings(c, spec)
+	a.sendSettings(w, r, spec)
 }
 
 // updateSettings godoc
@@ -112,21 +109,21 @@ func (a *API) getSettings(c *gin.Context) {
 //	@Failure		422		{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/settings [put]
-func (a *API) updateSettings(c *gin.Context) {
+func (a *API) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var req UpdateSettingsRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	spec, err := a.Settings.Update(c, req.PanelSettingsSpec)
+	spec, err := a.Settings.Update(r.Context(), req.PanelSettingsSpec)
 	if err == nil && req.OIDCClientSecret != nil {
-		err = a.Settings.UpdateOIDCClientSecret(c, strings.TrimSpace(*req.OIDCClientSecret))
+		err = a.Settings.UpdateOIDCClientSecret(r.Context(), strings.TrimSpace(*req.OIDCClientSecret))
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "panel settings updated", "oidcClientSecret", req.OIDCClientSecret != nil)
-	a.sendSettings(c, spec)
+	a.Audit(r, "panel settings updated", "oidcClientSecret", req.OIDCClientSecret != nil)
+	a.sendSettings(w, r, spec)
 }
 
 // LegalTexts are the imprint and privacy policy shown in the footer of every page.
@@ -144,13 +141,13 @@ type LegalTexts struct {
 //	@Produce		json
 //	@Success		200	{object}	LegalTexts
 //	@Router			/legal [get]
-func (a *API) getLegalTexts(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
+func (a *API) getLegalTexts(w http.ResponseWriter, r *http.Request) {
+	spec, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.revalidatedJSON(c, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
+	a.revalidatedJSON(w, r, LegalTexts{LegalNotice: spec.LegalNotice, PrivacyPolicy: spec.PrivacyPolicy})
 }
 
 // Branding is how the panel presents itself: name and tagline (by default app.Name and app.BrandTagline) and
@@ -171,13 +168,13 @@ type Branding struct {
 //	@Produce		json
 //	@Success		200	{object}	Branding
 //	@Router			/branding [get]
-func (a *API) getBranding(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
+func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
+	spec, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.revalidatedJSON(c, Branding{
+	a.revalidatedJSON(w, r, Branding{
 		Name:    cmp.Or(spec.BrandName, app.Name),
 		Tagline: cmp.Or(spec.BrandTagline, app.BrandTagline),
 		Logo:    spec.BrandLogo,
@@ -187,19 +184,19 @@ func (a *API) getBranding(c *gin.Context) {
 
 // revalidatedJSON answers public texts and images with a weak ETag: the browser keeps the answer and asks with
 // If-None-Match, so logo and favicon (up to 128 KiB each) are sent again only after they changed (304 else).
-func (a *API) revalidatedJSON(c *gin.Context, v any) {
-	body, err := json.Marshal(v)
+func (a *API) revalidatedJSON(w http.ResponseWriter, r *http.Request, v any) {
+	body, err := marshal(v)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	sum := sha256.Sum256(body)
 	etag := `W/"` + hex.EncodeToString(sum[:16]) + `"`
-	c.Header("Cache-Control", "no-cache")
-	c.Header("ETag", etag)
-	if strings.Contains(c.GetHeader("If-None-Match"), etag) {
-		c.Status(http.StatusNotModified)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("ETag", etag)
+	if strings.Contains(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	c.Data(http.StatusOK, "application/json; charset=utf-8", body)
+	Data(w, http.StatusOK, "application/json; charset=utf-8", body)
 }

@@ -1,12 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"slices"
 	"sort"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -19,16 +19,27 @@ type GameServerList struct {
 }
 
 // serverKey holds the server that the middleware notLocked, requireAccess or requireFilesPod already looked up.
-const serverKey = "kubedactyl.server"
+type serverKey struct{}
+
+// withServer passes the server a middleware looked up on to the handlers after it.
+func withServer(r *http.Request, gs *v1alpha1.GameServer) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), serverKey{}, gs))
+}
+
+// serverOf is the server a middleware looked up (withServer).
+func serverOf(r *http.Request) (*v1alpha1.GameServer, bool) {
+	gs, ok := r.Context().Value(serverKey{}).(*v1alpha1.GameServer)
+	return gs, ok
+}
 
 // loadServer returns the server of the path that the caller may access (findServer).
-func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
-	if v, ok := c.Get(serverKey); ok {
-		return v.(*v1alpha1.GameServer), true
+func (a *API) loadServer(w http.ResponseWriter, r *http.Request) (*v1alpha1.GameServer, bool) {
+	if gs, ok := serverOf(r); ok {
+		return gs, true
 	}
-	gs, err := a.findServer(c, c.Param("server"))
+	gs, err := a.findServer(r, r.PathValue("server"))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return nil, false
 	}
 	return gs, true
@@ -42,29 +53,29 @@ func (a *API) loadServer(c *gin.Context) (*v1alpha1.GameServer, bool) {
 //	@Success	200	{object}	GameServerList
 //	@Security	BearerAuth
 //	@Router		/servers [get]
-func (a *API) listServers(c *gin.Context) {
+func (a *API) listServers(w http.ResponseWriter, r *http.Request) {
 	var list v1alpha1.GameServerList
-	p := api.PrincipalOf(c)
+	p := api.PrincipalOf(r)
 	var opts []client.ListOption
 	if !p.Admin() {
 		opts = append(opts, client.InNamespace(home(p)))
 	}
-	if err := a.Client.List(c, &list, opts...); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.List(r.Context(), &list, opts...); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	list.Items = slices.DeleteFunc(list.Items, func(gs v1alpha1.GameServer) bool {
 		return accessTo(p, &gs) == accessNone
 	})
-	eggs := a.eggsByName(c)
-	domain := a.externalDomain(c)
+	eggs := a.eggsByName(w, r)
+	domain := a.externalDomain(w, r)
 	for i := range list.Items {
 		visibleServer(p, &list.Items[i], eggs[list.Items[i].Spec.EggRef], domain)
 	}
 	sort.Slice(list.Items, func(i, j int) bool {
 		return strings.ToLower(list.Items[i].Spec.DisplayName) < strings.ToLower(list.Items[j].Spec.DisplayName)
 	})
-	c.JSON(http.StatusOK, GameServerList{Items: list.Items})
+	api.JSON(w, http.StatusOK, GameServerList{Items: list.Items})
 }
 
 // getServer godoc
@@ -77,23 +88,23 @@ func (a *API) listServers(c *gin.Context) {
 //	@Failure	404		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/servers/{server} [get]
-func (a *API) getServer(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) getServer(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	var e *v1alpha1.Egg // stays nil when the egg cannot be read: users then see no variables
-	if found, err := a.Eggs.Get(c, gs.Spec.EggRef); err == nil {
+	if found, err := a.Eggs.Get(r.Context(), gs.Spec.EggRef); err == nil {
 		e = found
 	}
-	visibleServer(api.PrincipalOf(c), gs, e, a.externalDomain(c))
-	c.JSON(http.StatusOK, gs)
+	visibleServer(api.PrincipalOf(r), gs, e, a.externalDomain(w, r))
+	api.JSON(w, http.StatusOK, gs)
 }
 
 // externalDomain is shown to users instead of the load balancer IP (read on every poll, so from
 // the settings cache).
-func (a *API) externalDomain(c *gin.Context) string {
-	set, err := a.Settings.Current(c)
+func (a *API) externalDomain(w http.ResponseWriter, r *http.Request) string {
+	set, err := a.Settings.Current(r.Context())
 	if err != nil {
 		a.Log.Warn("reading panel settings", "err", err)
 		return ""
@@ -110,15 +121,15 @@ func (a *API) externalDomain(c *gin.Context) string {
 //	@Success		204
 //	@Security		BearerAuth
 //	@Router			/servers/{server} [delete]
-func (a *API) deleteServer(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) deleteServer(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Client.Delete(c, gs); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.Delete(r.Context(), gs); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server deleted", "server", gs.Name)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "server deleted", "server", gs.Name)
+	w.WriteHeader(http.StatusNoContent)
 }

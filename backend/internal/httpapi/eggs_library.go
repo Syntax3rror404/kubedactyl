@@ -4,9 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/base/validation"
 	"app/internal/appsettings"
 	"app/internal/egglibrary"
@@ -43,14 +42,14 @@ type LibraryEgg struct {
 //	@Success		200		{object}	LibraryList
 //	@Security		BearerAuth
 //	@Router			/egg-library [get]
-func (a *API) listLibraryEggs(c *gin.Context) {
-	set, err := a.Settings.Current(c)
+func (a *API) listLibraryEggs(w http.ResponseWriter, r *http.Request) {
+	set, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	repos := a.Library.List(c, set.EggLibraries, c.Query("refresh") == "true")
-	c.JSON(http.StatusOK, LibraryList{Repositories: repos})
+	repos := a.Library.List(r.Context(), set.EggLibraries, r.URL.Query().Get("refresh") == "true")
+	api.JSON(w, http.StatusOK, LibraryList{Repositories: repos})
 }
 
 // getLibraryRepository godoc
@@ -65,17 +64,17 @@ func (a *API) listLibraryEggs(c *gin.Context) {
 //	@Failure		422	{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/egg-library/repository [get]
-func (a *API) getLibraryRepository(c *gin.Context) {
-	url, err := appsettings.NormalizeEggLibrary(c.Query("url"))
+func (a *API) getLibraryRepository(w http.ResponseWriter, r *http.Request) {
+	url, err := appsettings.NormalizeEggLibrary(r.URL.Query().Get("url"))
 	if err == nil && url == "" {
 		err = errors.New("enter a repository URL")
 	}
 	if err != nil {
-		a.Fail(c, validation.Field("url", err))
+		a.Fail(w, r, validation.Field("url", err))
 		return
 	}
-	r := a.Library.GetRepository(c, url)
-	c.JSON(http.StatusOK, LibraryRepositoryCheck{URL: r.URL, Eggs: len(r.Eggs), Error: r.Error})
+	repo := a.Library.GetRepository(r.Context(), url)
+	api.JSON(w, http.StatusOK, LibraryRepositoryCheck{URL: repo.URL, Eggs: len(repo.Eggs), Error: repo.Error})
 }
 
 // getLibraryEgg godoc
@@ -89,16 +88,17 @@ func (a *API) getLibraryRepository(c *gin.Context) {
 //	@Failure	404			{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/egg-library/egg [get]
-func (a *API) getLibraryEgg(c *gin.Context) {
-	set, err := a.Settings.Current(c)
+func (a *API) getLibraryEgg(w http.ResponseWriter, r *http.Request) {
+	set, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	spec, e, err := a.Library.Get(c, set.EggLibraries, c.Query("repository"), c.Query("path"))
+	query := r.URL.Query()
+	spec, e, err := a.Library.Get(r.Context(), set.EggLibraries, query.Get("repository"), query.Get("path"))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, LibraryEgg{Egg: e, Spec: *spec})
+	api.JSON(w, http.StatusOK, LibraryEgg{Egg: e, Spec: *spec})
 }

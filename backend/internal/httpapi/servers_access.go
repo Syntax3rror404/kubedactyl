@@ -3,9 +3,9 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"net/http"
 	"slices"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,30 +73,42 @@ func subuser(p *api.Principal) bool { return appusers.Subuser(p.User) }
 
 var errNoAccess = errors.New("the owner has not shared this with you")
 
-// requireAccess refuses callers with less access to the server (subusers).
-func (a *API) requireAccess(least access) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		gs, ok := a.loadServer(c)
-		if !ok {
-			return
-		}
-		if accessTo(api.PrincipalOf(c), gs) < least {
-			a.Fail(c, api.Forbidden(errNoAccess))
-			return
-		}
-		c.Set(serverKey, gs)
-		c.Next()
+// serverGuard is middleware that looks the server of the path up and passes the request on (with the server)
+// only when check finds nothing wrong.
+func (a *API) serverGuard(check func(p *api.Principal, gs *v1alpha1.GameServer) error) api.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gs, ok := a.loadServer(w, r)
+			if !ok {
+				return
+			}
+			if err := check(api.PrincipalOf(r), gs); err != nil {
+				a.Fail(w, r, err)
+				return
+			}
+			next.ServeHTTP(w, withServer(r, gs))
+		})
 	}
+}
+
+// requireAccess refuses callers with less access to the server (subusers).
+func (a *API) requireAccess(least access) api.Middleware {
+	return a.serverGuard(func(p *api.Principal, gs *v1alpha1.GameServer) error {
+		if accessTo(p, gs) < least {
+			return api.Forbidden(errNoAccess)
+		}
+		return nil
+	})
 }
 
 // findServer looks a server up by name in all namespaces the caller may access.
 // Servers of other users are reported as not found, so their existence is not revealed.
-func (a *API) findServer(c *gin.Context, name string) (*v1alpha1.GameServer, error) {
+func (a *API) findServer(r *http.Request, name string) (*v1alpha1.GameServer, error) {
 	var list v1alpha1.GameServerList
-	if err := a.Client.List(c, &list, client.MatchingFields{IndexServerName: name}); err != nil {
+	if err := a.Client.List(r.Context(), &list, client.MatchingFields{IndexServerName: name}); err != nil {
 		return nil, err
 	}
-	p := api.PrincipalOf(c)
+	p := api.PrincipalOf(r)
 	for i := range list.Items {
 		if gs := &list.Items[i]; accessTo(p, gs) != accessNone {
 			return gs, nil
@@ -232,18 +244,7 @@ func checkUserVariables(env map[string]string, gs *v1alpha1.GameServer, e *v1alp
 }
 
 // notLocked blocks everything but viewing while the server is locked for the caller (lockErr).
-func (a *API) notLocked(c *gin.Context) {
-	gs, ok := a.loadServer(c)
-	if !ok {
-		return
-	}
-	if err := lockErr(api.PrincipalOf(c), gs); err != nil {
-		a.Fail(c, err)
-		return
-	}
-	c.Set(serverKey, gs)
-	c.Next()
-}
+func (a *API) notLocked(next http.Handler) http.Handler { return a.serverGuard(lockErr)(next) }
 
 // lockErr returns why the caller may only view the server: it is being removed (its finalizer still runs) or
 // its files move to another storage class (for everyone), or it is suspended (for everyone but administrators).

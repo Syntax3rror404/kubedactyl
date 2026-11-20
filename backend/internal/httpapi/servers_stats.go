@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/base/kube"
 	"app/internal/files"
 	"app/internal/gameserver"
@@ -50,11 +50,13 @@ type podUsage struct {
 }
 
 // remeasureDisk makes the next stats request measure the disk usage again after a file operation that writes.
-func (a *API) remeasureDisk(c *gin.Context) {
-	c.Next()
-	if gs, ok := c.Get(serverKey); ok && c.Request.Method != http.MethodGet {
-		a.stats.disk.Forget(files.RefOf(gs.(*v1alpha1.GameServer)))
-	}
+func (a *API) remeasureDisk(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		if gs, ok := serverOf(r); ok && r.Method != http.MethodGet {
+			a.stats.disk.Forget(files.RefOf(gs))
+		}
+	})
 }
 
 var errNoPodForDisk = errors.New("no pod mounts the volume")
@@ -97,19 +99,19 @@ type podMetrics struct {
 //	@Success		200		{object}	ServerStats
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/stats [get]
-func (a *API) getServerStats(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) getServerStats(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	st := ServerStats{Phase: gs.Status.Phase, DiskBytes: a.diskUsage(c, gs)}
+	st := ServerStats{Phase: gs.Status.Phase, DiskBytes: a.diskUsage(r.Context(), gs)}
 	if gs.Status.PodUID != "" {
 		if gs.Status.StartedAt != nil {
 			st.UptimeSeconds = int64(time.Since(gs.Status.StartedAt.Time).Seconds())
 		}
-		st.CPUMillis, st.MemoryBytes = a.gamePodUsage(c, gs)
+		st.CPUMillis, st.MemoryBytes = a.gamePodUsage(r.Context(), gs)
 	}
-	c.JSON(http.StatusOK, st)
+	api.JSON(w, http.StatusOK, st)
 }
 
 // gamePodUsage reads CPU (millicores) and memory (bytes) of the game container from

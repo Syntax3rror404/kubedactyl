@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -11,11 +13,11 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/base/bootstrap"
 	"app/base/settings"
 )
@@ -28,15 +30,35 @@ func init() {
 // routes stands in for the app's API: one route that passes on another server's answer.
 type routes struct{}
 
-func (routes) Register(r *gin.RouterGroup) {
-	r.GET("/proxy", func(c *gin.Context) {
-		c.Writer.Header().Del("Cache-Control")
-		c.Status(http.StatusOK)
+func (routes) Register(m *api.Mux) {
+	m.Handle("GET /proxy", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Del("Cache-Control")
+		w.WriteHeader(http.StatusOK)
 	})
+	m.Handle("GET /panic", func(http.ResponseWriter, *http.Request) { panic("boom") })
+	// A route with a credential in its path, like a forwarded port of another app.
+	m.Handle("GET /forward/{token}/{path...}", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	// Answers whether the request context ended (the client went away).
+	contextEnded := func(w http.ResponseWriter, r *http.Request) {
+		api.JSON(w, http.StatusOK, r.Context().Err() != nil)
+	}
+	m.Handle("GET /context", contextEnded)
+	// Read the whole body, like a handler that decodes JSON or an upload.
+	readBody := func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.ReadAll(r.Body); err != nil {
+			http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+		}
+	}
+	m.Handle("POST /echo/{name}", readBody)
+	m.Handle("GET /echo/{name}", readBody)
+	m.Handle("POST /{server}/files/upload", readBody)
+	m.Handle("POST /context", contextEnded)
 }
 
 // newRouter builds the router with fresh settings and the frontend (nil: development mode).
-func newRouter(t *testing.T, frontend fs.FS) (*gin.Engine, *settings.Store) {
+func newRouter(t *testing.T, frontend fs.FS) (http.Handler, *settings.Store) {
 	t.Helper()
 	scheme, err := bootstrap.Scheme()
 	if err != nil {
@@ -151,6 +173,86 @@ func TestWebUIIsCachedAndCompressed(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if etag == "" || w.Code != http.StatusNotModified || w.Body.Len() != 0 {
 		t.Errorf("revalidation with %q: %d %q", etag, w.Code, w.Body.String())
+	}
+}
+
+// TestUnknownAPIPaths: unknown API paths are a JSON 404, never the web UI or a redirect.
+func TestUnknownAPIPaths(t *testing.T) {
+	r, _ := newRouter(t, nil)
+	for _, path := range []string{"/api", "/api/", "/api/nope", "/api/health/extra", "/api/x%2F..%2Fhealth"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `"error"`) {
+			t.Errorf("%s: %d %q", path, w.Code, w.Body.String())
+		}
+	}
+}
+
+// TestBodyLimitByRoute: only the upload route takes large bodies; a path that merely ends like it (an encoded
+// slash in a path value) is limited, too.
+func TestBodyLimitByRoute(t *testing.T) {
+	r, _ := newRouter(t, nil)
+	send := func(target string) *httptest.ResponseRecorder {
+		method, path, _ := strings.Cut(target, " ")
+		body := strings.NewReader(strings.Repeat("x", maxRequestBody+1))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(method, path, body))
+		return w
+	}
+	// Also a read with a body is limited.
+	for target, limited := range map[string]bool{
+		"POST /api/echo/x": true, "GET /api/echo/x": true, "POST /api/echo/x%2Ffiles%2Fupload": true,
+		"POST /api/x/files/upload": false,
+	} {
+		w := send(target)
+		if strings.Contains(w.Body.String(), "too large") != limited || w.Code == http.StatusNotFound {
+			t.Errorf("%s: %d %q, limited %v", target, w.Code, w.Body.String(), limited)
+		}
+	}
+}
+
+// TestTokensAreNotLogged: a credential in the path of a route ({token}) never reaches the log.
+func TestTokensAreNotLogged(t *testing.T) {
+	var log bytes.Buffer
+	r, err := NewRouter(Config{API: routes{}, Log: slog.New(slog.NewTextHandler(&log, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Also the start page of a forward ("/" behind the token) reaches the route.
+	for _, path := range []string{"/api/forward/secret-token/x", "/api/forward/secret-token/"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusForbidden {
+			t.Errorf("%s: %d", path, w.Code)
+		}
+	}
+	if !strings.Contains(log.String(), "/api/forward/{token}/{path...}") || strings.Contains(log.String(), "secret") {
+		t.Errorf("log: %s", log.String())
+	}
+}
+
+// TestPanicsAreAnswered: a handler that panics gets a 500 instead of a closed connection.
+func TestPanicsAreAnswered(t *testing.T) {
+	r, _ := newRouter(t, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/panic", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("panic: %d", w.Code)
+	}
+}
+
+// TestChangesFinish: a request that changes something keeps its context when the client goes away (a change is
+// never left half done); a read stops with the client.
+func TestChangesFinish(t *testing.T) {
+	r, _ := newRouter(t, nil)
+	gone, cancel := context.WithCancel(t.Context())
+	cancel()
+	for method, want := range map[string]string{http.MethodPost: "false", http.MethodGet: "true"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequestWithContext(gone, method, "/api/context", nil))
+		if got := strings.TrimSpace(w.Body.String()); got != want {
+			t.Errorf("%s: context ended %s, want %s", method, got, want)
+		}
 	}
 }
 

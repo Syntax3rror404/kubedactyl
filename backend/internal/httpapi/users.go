@@ -2,9 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"net/http"
 	"slices"
-
-	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
 	"app/app"
@@ -49,10 +48,9 @@ func (a *API) InviteView(i *v1alpha1.Invite) app.InviteView {
 }
 
 // requireNoSubuser rejects subusers: they cannot have subusers of their own.
-func (a *API) requireNoSubuser(c *gin.Context) {
-	if subuser(api.PrincipalOf(c)) {
-		a.Fail(c, api.Forbidden(appusers.ErrSubuser))
-		return
+func requireNoSubuser(r *http.Request) error {
+	if subuser(api.PrincipalOf(r)) {
+		return api.Forbidden(appusers.ErrSubuser)
 	}
-	c.Next()
+	return nil
 }

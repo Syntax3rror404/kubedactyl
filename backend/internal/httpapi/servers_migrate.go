@@ -3,16 +3,23 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
+	"app/base/api"
+	"app/base/validation"
 	"app/internal/appsettings"
 )
 
 // MigrateRequest names the storage class the server files move to.
 type MigrateRequest struct {
-	StorageClass string `json:"storageClass" binding:"required" example:"longhorn"`
+	StorageClass string `json:"storageClass" example:"longhorn"`
 	// StartOnCompletion starts the server once the migration has finished (not after a failure or cancel).
 	StartOnCompletion bool `json:"startOnCompletion,omitempty" example:"true"`
+}
+
+// Validate checks that a storage class is given.
+func (req MigrateRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("storageClass", req.StorageClass != "")
+	return errs.OrNil()
 }
 
 // migrateServer godoc
@@ -32,30 +39,30 @@ type MigrateRequest struct {
 //	@Failure		422		{object}	api.ErrorResponse	"the storage class is not enabled"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/migrate [post]
-func (a *API) migrateServer(c *gin.Context) {
+func (a *API) migrateServer(w http.ResponseWriter, r *http.Request) {
 	var req MigrateRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	set, err := a.Settings.Current(c)
+	set, err := a.Settings.Current(r.Context())
 	if err == nil {
 		_, err = appsettings.Choose(req.StorageClass, "", set.StorageClasses, "storage class")
 	}
 	if err == nil {
-		err = a.Ops.Migrate(c, gs, req.StorageClass, req.StartOnCompletion)
+		err = a.Ops.Migrate(r.Context(), gs, req.StorageClass, req.StartOnCompletion)
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server storage migration started", "server", gs.Name, "from", gs.Status.StorageClass,
+	a.Audit(r, "server storage migration started", "server", gs.Name, "from", gs.Status.StorageClass,
 		"to", req.StorageClass)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.JSON(http.StatusOK, gs)
+	api.JSON(w, http.StatusOK, gs)
 }
 
 // cancelMigration godoc
@@ -70,16 +77,16 @@ func (a *API) migrateServer(c *gin.Context) {
 //	@Failure		409		{object}	api.ErrorResponse	"no migration is running or it is switching already"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/migrate/cancel [post]
-func (a *API) cancelMigration(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) cancelMigration(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Ops.CancelMigration(c, gs); err != nil {
-		a.Fail(c, err)
+	if err := a.Ops.CancelMigration(r.Context(), gs); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server storage migration cancelled", "server", gs.Name)
+	a.Audit(r, "server storage migration cancelled", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.JSON(http.StatusOK, gs)
+	api.JSON(w, http.StatusOK, gs)
 }

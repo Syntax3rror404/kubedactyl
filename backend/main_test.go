@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
@@ -62,23 +63,17 @@ func TestSwaggerDocRenders(t *testing.T) {
 func TestDocumentedRoutesExist(t *testing.T) {
 	c := testutil.Builder(t).Build()
 	store := &settings.Store{Client: c, Reader: c}
-	r, err := httpserver.NewRouter(httpserver.Config{
+	mux := httpserver.NewAPI(httpserver.Config{
 		API: &httpapi.API{API: &api.API{Settings: store}}, Settings: store, Log: testutil.Logger(),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	registered := map[string]bool{}
-	for _, route := range r.Routes() {
-		registered[route.Method+" "+route.Path] = true
-	}
 	spec := readDoc(t)
-	param := regexp.MustCompile(`\{(\w+)\}`)
+	param := regexp.MustCompile(`\{\w+\}`)
 	for path, ops := range spec.Paths {
 		for method := range ops {
-			key := strings.ToUpper(method) + " " + spec.BasePath + param.ReplaceAllString(path, ":$1")
-			if !registered[key] {
-				t.Errorf("documented route %s is not registered", key)
+			want := strings.ToUpper(method) + " " + spec.BasePath + path
+			req := httptest.NewRequest(strings.ToUpper(method), spec.BasePath+param.ReplaceAllString(path, "x"), nil)
+			if _, pattern := mux.Handler(req); pattern != want {
+				t.Errorf("documented route %s is not registered (matched %q)", want, pattern)
 			}
 		}
 	}

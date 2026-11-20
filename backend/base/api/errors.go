@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"app/base/kube"
@@ -13,7 +12,7 @@ import (
 	"app/base/validation"
 )
 
-// Every failed request is answered the same way: a.Fail(c, err).
+// Every failed request is answered the same way: a.Fail(w, r, err).
 //
 // Handlers and helpers choose the status by wrapping the error (BadRequest(err), Forbidden(err), …).
 // Errors without a status are mapped by statusOf: validation errors (validation.Error, 422 with the
@@ -46,27 +45,18 @@ func FieldError(status int, field string, err error) error {
 	return &statusError{status: status, err: err, fields: map[string]string{field: err.Error()}}
 }
 
-// fail answers a failed request and aborts the handler chain.
-func (a *API) Fail(c *gin.Context, err error) {
+// Fail answers a failed request; the handler (or middleware) returns right after it.
+func (a *API) Fail(w http.ResponseWriter, r *http.Request, err error) {
 	se := a.statusOf(err)
 	msg := se.err.Error()
 	if se.status == http.StatusInternalServerError {
-		a.Log.Error("request failed", "path", c.FullPath(), "err", err)
+		a.Log.Error("request failed", "route", r.Pattern, "err", err)
 		// Details (object names, cluster errors) only for administrators.
-		if p := PrincipalOf(c); p == nil || !p.Admin() {
+		if p := PrincipalOf(r); p == nil || !p.Admin() {
 			msg = "internal error: the administrator can find details in the panel log"
 		}
 	}
-	c.AbortWithStatusJSON(se.status, ErrorResponse{Error: msg, Fields: se.fields})
-}
-
-// bindJSON reads the request body into req; a body that does not fit is answered with 400.
-func (a *API) BindJSON(c *gin.Context, req any) bool {
-	if err := c.ShouldBindJSON(req); err != nil {
-		a.Fail(c, BadRequest(err))
-		return false
-	}
-	return true
+	JSON(w, se.status, ErrorResponse{Error: msg, Fields: se.fields})
 }
 
 // HTTPStatus is the status a.Fail answers err with.

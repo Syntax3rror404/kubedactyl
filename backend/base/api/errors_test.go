@@ -46,10 +46,8 @@ func TestErrorResponsesOnlyInFail(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, bad := range []string{"ErrorResponse{", `gin.H{"error"`} {
-			if strings.Contains(string(b), bad) {
-				t.Errorf("%s writes an error response itself (%s): return an error and call a.Fail(c, err)", f, bad)
-			}
+		if strings.Contains(string(b), "ErrorResponse{") {
+			t.Errorf("%s writes an error response itself: return an error and call a.Fail(w, r, err)", f)
 		}
 	}
 }

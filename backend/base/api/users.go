@@ -1,18 +1,19 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
 	"app/app"
 	"app/base/users"
+	"app/base/validation"
 )
 
 // UserView is the public representation of a user (never contains hashes).
@@ -46,13 +47,21 @@ type TokenView struct {
 
 // CreateUserRequest creates a user; the role defaults to v1alpha1.DefaultRole.
 type CreateUserRequest struct {
-	Username    string            `json:"username"              binding:"required" example:"alice"`
-	Password    string            `json:"password"              binding:"required" example:"a-long-password"`
-	DisplayName string            `json:"displayName,omitempty"                    example:"Alice"`
-	Email       string            `json:"email,omitempty"                          example:"alice@example.com"`
-	Role        v1alpha1.UserRole `json:"role,omitempty"                           example:"admin"`
+	Username    string            `json:"username"              example:"alice"`
+	Password    string            `json:"password"              example:"a-long-password"`
+	DisplayName string            `json:"displayName,omitempty" example:"Alice"`
+	Email       string            `json:"email,omitempty"       example:"alice@example.com"`
+	Role        v1alpha1.UserRole `json:"role,omitempty"        example:"admin"`
 	// MustChangePassword makes the user replace the password after signing in.
 	MustChangePassword bool `json:"mustChangePassword,omitempty"`
+}
+
+// Validate checks that username and password are set.
+func (req CreateUserRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("username", req.Username != "")
+	errs.Require("password", req.Password != "")
+	return errs.OrNil()
 }
 
 // UpdateUserRequest changes a user; omitted fields stay unchanged. A new password signs the user out everywhere
@@ -113,11 +122,11 @@ func tokenViews(u *v1alpha1.User, maxAge time.Duration) []TokenView {
 }
 
 // userViews describes accounts for the API, with the app's parts.
-func (a *API) userViews(c *gin.Context, list []*v1alpha1.User) []UserView {
-	maxAge := a.Settings.Lifetimes(c).APIToken
+func (a *API) userViews(ctx context.Context, list []*v1alpha1.User) []UserView {
+	maxAge := a.Settings.Lifetimes(ctx).APIToken
 	var extra []app.UserView
 	if a.App != nil {
-		extra = a.App.UserViews(c, list)
+		extra = a.App.UserViews(ctx, list)
 	}
 	out := make([]UserView, 0, len(list))
 	for i, u := range list {
@@ -139,19 +148,19 @@ func (a *API) userViews(c *gin.Context, list []*v1alpha1.User) []UserView {
 }
 
 // userView is userViews for one account.
-func (a *API) userView(c *gin.Context, u *v1alpha1.User) UserView {
-	return a.userViews(c, []*v1alpha1.User{u})[0]
+func (a *API) userView(ctx context.Context, u *v1alpha1.User) UserView {
+	return a.userViews(ctx, []*v1alpha1.User{u})[0]
 }
 
 // loadUser reads the account of the path; only accounts the caller manages are found (users.Store.Manages).
-func (a *API) loadUser(c *gin.Context) (*v1alpha1.User, bool) {
+func (a *API) loadUser(w http.ResponseWriter, r *http.Request) (*v1alpha1.User, bool) {
 	u := &v1alpha1.User{}
-	err := a.Reader.Get(c, client.ObjectKey{Namespace: a.Namespace, Name: c.Param("user")}, u)
-	if err == nil && !a.Users.Manages(PrincipalOf(c).User, u) {
+	err := a.Reader.Get(r.Context(), client.ObjectKey{Namespace: a.Namespace, Name: r.PathValue("user")}, u)
+	if err == nil && !a.Users.Manages(PrincipalOf(r).User, u) {
 		err = apierrors.NewNotFound(users.UserResource, u.Name)
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return nil, false
 	}
 	return u, true
@@ -167,21 +176,21 @@ func (a *API) loadUser(c *gin.Context) (*v1alpha1.User, bool) {
 //	@Success		200	{array}		UserView
 //	@Failure		403	{object}	ErrorResponse
 //	@Router			/users [get]
-func (a *API) listUsers(c *gin.Context) {
+func (a *API) listUsers(w http.ResponseWriter, r *http.Request) {
 	var users v1alpha1.UserList
-	if err := a.Client.List(c, &users, client.InNamespace(a.Namespace)); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.List(r.Context(), &users, client.InNamespace(a.Namespace)); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	sort.Slice(users.Items, func(i, j int) bool { return users.Items[i].Name < users.Items[j].Name })
-	p := PrincipalOf(c)
+	p := PrincipalOf(r)
 	list := []*v1alpha1.User{}
 	for i := range users.Items {
 		if u := &users.Items[i]; u.DeletionTimestamp == nil && a.Users.Manages(p.User, u) {
 			list = append(list, u)
 		}
 	}
-	c.JSON(http.StatusOK, a.userViews(c, list))
+	JSON(w, http.StatusOK, a.userViews(r.Context(), list))
 }
 
 // getUser godoc
@@ -193,9 +202,9 @@ func (a *API) listUsers(c *gin.Context) {
 //	@Param		user	path		string	true	"Username"
 //	@Success	200		{object}	UserView
 //	@Router		/users/{user} [get]
-func (a *API) getUser(c *gin.Context) {
-	if u, ok := a.loadUser(c); ok {
-		c.JSON(http.StatusOK, a.userView(c, u))
+func (a *API) getUser(w http.ResponseWriter, r *http.Request) {
+	if u, ok := a.loadUser(w, r); ok {
+		JSON(w, http.StatusOK, a.userView(r.Context(), u))
 	}
 }
 
@@ -212,18 +221,18 @@ func (a *API) getUser(c *gin.Context) {
 //	@Failure		409		{object}	ErrorResponse
 //	@Failure		422		{object}	ErrorResponse
 //	@Router			/users [post]
-func (a *API) createUser(c *gin.Context) {
+func (a *API) createUser(w http.ResponseWriter, r *http.Request) {
 	var req CreateUserRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	u, err := a.Users.Create(c, users.CreateInput(req))
+	u, err := a.Users.Create(r.Context(), users.CreateInput(req))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "user created", "user", u.Name, "role", u.Spec.Role)
-	c.JSON(http.StatusCreated, a.userView(c, u))
+	a.Audit(r, "user created", "user", u.Name, "role", u.Spec.Role)
+	JSON(w, http.StatusCreated, a.userView(r.Context(), u))
 }
 
 // updateUser godoc
@@ -238,21 +247,21 @@ func (a *API) createUser(c *gin.Context) {
 //	@Success	200		{object}	UserView
 //	@Failure	409		{object}	ErrorResponse	"last administrator, or managed by the identity provider"
 //	@Router		/users/{user} [patch]
-func (a *API) updateUser(c *gin.Context) {
+func (a *API) updateUser(w http.ResponseWriter, r *http.Request) {
 	var req UpdateUserRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	u, ok := a.loadUser(c)
+	u, ok := a.loadUser(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Users.Update(c, u, users.UpdateInput(req)); err != nil {
-		a.Fail(c, err)
+	if err := a.Users.Update(r.Context(), u, users.UpdateInput(req)); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "user updated", "user", u.Name, "changes", req.changes())
-	c.JSON(http.StatusOK, a.userView(c, u))
+	a.Audit(r, "user updated", "user", u.Name, "changes", req.changes())
+	JSON(w, http.StatusOK, a.userView(r.Context(), u))
 }
 
 // deleteUser godoc
@@ -266,15 +275,15 @@ func (a *API) updateUser(c *gin.Context) {
 //	@Success		204
 //	@Failure		409	{object}	ErrorResponse
 //	@Router			/users/{user} [delete]
-func (a *API) deleteUser(c *gin.Context) {
-	u, ok := a.loadUser(c)
+func (a *API) deleteUser(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.loadUser(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Users.Delete(c, u, PrincipalOf(c).User.Name); err != nil {
-		a.Fail(c, err)
+	if err := a.Users.Delete(r.Context(), u, PrincipalOf(r).User.Name); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "user deleted", "user", u.Name)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "user deleted", "user", u.Name)
+	w.WriteHeader(http.StatusNoContent)
 }

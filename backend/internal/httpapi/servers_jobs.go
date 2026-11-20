@@ -3,8 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
+	"app/base/api"
 	"app/internal/files"
 )
 
@@ -22,9 +21,9 @@ type JobList struct {
 //	@Success	200		{object}	JobList
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/jobs [get]
-func (a *API) listJobs(c *gin.Context) {
-	if gs, ok := a.loadServer(c); ok {
-		c.JSON(http.StatusOK, JobList{Items: a.Files.Jobs(files.RefOf(gs))})
+func (a *API) listJobs(w http.ResponseWriter, r *http.Request) {
+	if gs, ok := a.loadServer(w, r); ok {
+		api.JSON(w, http.StatusOK, JobList{Items: a.Files.Jobs(files.RefOf(gs))})
 	}
 }
 
@@ -39,15 +38,15 @@ func (a *API) listJobs(c *gin.Context) {
 //	@Success		204
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/jobs/{job}/cancel [post]
-func (a *API) cancelJob(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) cancelJob(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Files.Cancel(c, files.RefOf(gs), c.Param("job")); err != nil {
-		a.Fail(c, err)
+	if err := a.Files.Cancel(r.Context(), files.RefOf(gs), r.PathValue("job")); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "job cancelled", "server", gs.Name, "job", c.Param("job"))
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "job cancelled", "server", gs.Name, "job", r.PathValue("job"))
+	w.WriteHeader(http.StatusNoContent)
 }

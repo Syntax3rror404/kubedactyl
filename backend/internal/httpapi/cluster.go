@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"app/base/api"
 )
 
 // getClusterInfo godoc
@@ -16,12 +16,12 @@ import (
 //	@Success	200	{object}	ClusterInfo
 //	@Security	BearerAuth
 //	@Router		/cluster [get]
-func (a *API) getClusterInfo(c *gin.Context) {
+func (a *API) getClusterInfo(w http.ResponseWriter, r *http.Request) {
 	info := a.Cluster
-	if set, err := a.Settings.Current(c); err == nil {
+	if set, err := a.Settings.Current(r.Context()); err == nil {
 		info.StorageClass, info.LoadBalancerPool = set.DefaultStorageClass, set.DefaultLoadBalancerPool
 	}
-	c.JSON(http.StatusOK, info)
+	api.JSON(w, http.StatusOK, info)
 }
 
 // listClusterNodes godoc
@@ -36,13 +36,13 @@ func (a *API) getClusterInfo(c *gin.Context) {
 //	@Success		200	{object}	clusterinfo.NodesResponse
 //	@Failure		403	{object}	api.ErrorResponse
 //	@Router			/cluster/nodes [get]
-func (a *API) listClusterNodes(c *gin.Context) {
-	resp, err := a.ClusterService.Nodes(c)
+func (a *API) listClusterNodes(w http.ResponseWriter, r *http.Request) {
+	resp, err := a.ClusterService.Nodes(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, resp)
+	api.JSON(w, http.StatusOK, resp)
 }
 
 // probeClusterNodes godoc
@@ -55,10 +55,10 @@ func (a *API) listClusterNodes(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	clusterinfo.NodesResponse
 //	@Router			/cluster/nodes/probe [post]
-func (a *API) probeClusterNodes(c *gin.Context) {
-	resp, err := a.ClusterService.Nodes(c)
+func (a *API) probeClusterNodes(w http.ResponseWriter, r *http.Request) {
+	resp, err := a.ClusterService.Nodes(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	var nodes []string
@@ -67,14 +67,14 @@ func (a *API) probeClusterNodes(c *gin.Context) {
 			nodes = append(nodes, n.Name)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(c), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 	a.ClusterService.ProbeNodes(ctx, nodes)
-	if resp, err = a.ClusterService.Nodes(c); err != nil {
-		a.Fail(c, err)
+	if resp, err = a.ClusterService.Nodes(r.Context()); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, resp)
+	api.JSON(w, http.StatusOK, resp)
 }
 
 // getClusterIdentity godoc
@@ -87,8 +87,8 @@ func (a *API) probeClusterNodes(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	clusterinfo.Identity
 //	@Router			/cluster/identity [get]
-func (a *API) getClusterIdentity(c *gin.Context) {
-	c.JSON(http.StatusOK, a.ClusterService.Identity(c))
+func (a *API) getClusterIdentity(w http.ResponseWriter, r *http.Request) {
+	api.JSON(w, http.StatusOK, a.ClusterService.Identity(r.Context()))
 }
 
 // getClusterHealth godoc
@@ -101,6 +101,6 @@ func (a *API) getClusterIdentity(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	clusterinfo.Health
 //	@Router			/cluster/health [get]
-func (a *API) getClusterHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, a.ClusterService.Health(c))
+func (a *API) getClusterHealth(w http.ResponseWriter, r *http.Request) {
+	api.JSON(w, http.StatusOK, a.ClusterService.Health(r.Context()))
 }

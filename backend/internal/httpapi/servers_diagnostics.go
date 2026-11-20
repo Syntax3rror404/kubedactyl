@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"app/base/api"
 	"app/base/checks"
 	"app/internal/diagnostics"
@@ -30,13 +28,13 @@ type ServerDiagnostics struct {
 //	@Failure		404		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/diagnostics [get]
-func (a *API) getServerDiagnostics(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) getServerDiagnostics(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	list := a.Diagnostics.Run(c, diagnostics.Input{
-		Server: gs, Domain: a.externalDomain(c), ShowAddresses: api.PrincipalOf(c).Admin(),
+	list := a.Diagnostics.Run(r.Context(), diagnostics.Input{
+		Server: gs, Domain: a.externalDomain(w, r), ShowAddresses: api.PrincipalOf(r).Admin(),
 	})
-	c.JSON(http.StatusOK, ServerDiagnostics{Checks: list, CheckedAt: time.Now()})
+	api.JSON(w, http.StatusOK, ServerDiagnostics{Checks: list, CheckedAt: time.Now()})
 }

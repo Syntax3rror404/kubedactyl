@@ -3,11 +3,11 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
 	"app/base/api"
@@ -26,8 +26,8 @@ import (
 //	@Success		101
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/ws [get]
-func (a *API) openConsole(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) openConsole(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
@@ -36,18 +36,18 @@ func (a *API) openConsole(c *gin.Context) {
 	if a.DevMode {
 		opts.OriginPatterns = []string{"localhost:*", "127.0.0.1:*"}
 	}
-	conn, err := websocket.Accept(c.Writer, c.Request, opts)
+	conn, err := websocket.Accept(w, r, opts)
 	if err != nil {
 		return
 	}
 	defer func() { _ = conn.CloseNow() }()
-	ctx, cancel := context.WithCancel(c.Request.Context())
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	history, events, unsubscribe := a.Hub.Subscribe(gs.Name)
 	defer unsubscribe()
 	s := &consoleSession{
-		api: a, conn: conn, token: api.Credentials(c), caller: api.PrincipalOf(c),
+		api: a, conn: conn, token: api.Credentials(r), caller: api.PrincipalOf(r),
 		namespace: gs.Namespace, server: gs.Name,
 	}
 	if err := s.sendStart(ctx, string(gs.Status.Phase), history); err != nil {

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"math"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -31,7 +31,8 @@ func sessionCookieName(r *http.Request) string {
 	return SessionCookie
 }
 
-const principalKey = app.ID + ".principal"
+// principalKey holds the Principal in the context of an authenticated request.
+type principalKey struct{}
 
 // Principal is the authenticated caller.
 type Principal struct {
@@ -44,10 +45,9 @@ type Principal struct {
 func (p *Principal) Admin() bool { return p.User.Spec.Role == v1alpha1.RoleAdmin }
 
 // PrincipalOf is the caller of a request that passed authenticate (nil before).
-func PrincipalOf(c *gin.Context) *Principal {
-	p, _ := c.Get(principalKey)
-	pr, _ := p.(*Principal)
-	return pr
+func PrincipalOf(r *http.Request) *Principal {
+	p, _ := r.Context().Value(principalKey{}).(*Principal)
+	return p
 }
 
 var (
@@ -55,98 +55,99 @@ var (
 	errTooManyAttempts = errors.New("too many attempts, try again later")
 )
 
+// crossOrigin rejects state changing requests from other origins (Sec-Fetch-Site, else Origin against Host).
+var crossOrigin http.CrossOriginProtection
+
 // crossSiteCookieRequest detects state changing requests that another site triggered
 // with the session cookie (CSRF). The SameSite=Strict cookie already prevents this in
-// current browsers; Sec-Fetch-Site is a second, proxy independent check. Requests with
+// current browsers; the origin check is a second, proxy independent one. Requests with
 // a bearer token (API tokens, scripts) are not affected: they do not use the cookie.
-func crossSiteCookieRequest(c *gin.Context) bool {
-	switch c.Request.Method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions:
+func crossSiteCookieRequest(r *http.Request) bool {
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
 		return false
 	}
-	if strings.HasPrefix(c.GetHeader("Authorization"), "Bearer ") {
-		return false
-	}
-	site := c.GetHeader("Sec-Fetch-Site")
-	return site != "" && site != "same-origin" && site != "none"
+	return crossOrigin.Check(r) != nil
 }
 
 // sameOrigin guards the public sign-in and setup against other sites (login CSRF: signing the
-// victim into the attacker's account): Sec-Fetch-Site, and a JSON body, which a form of another
+// victim into the attacker's account): the origin check, and a JSON body, which a form of another
 // site cannot send without a CORS preflight.
-func (a *API) sameOrigin(c *gin.Context) {
-	if c.ContentType() != "application/json" {
-		a.Fail(c, Forbidden(errCrossSite))
-		return
+func sameOrigin(r *http.Request) error {
+	if t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || t != "application/json" {
+		return Forbidden(errCrossSite)
 	}
-	a.notCrossSite(c)
+	return notCrossSite(r)
 }
 
 var errCrossSite = errors.New("cross-site request rejected")
 
 // notCrossSite refuses a request with the session cookie from another site, also a sibling subdomain.
-func (a *API) notCrossSite(c *gin.Context) {
-	if crossSiteCookieRequest(c) {
-		a.Fail(c, Forbidden(errCrossSite))
-		return
+func notCrossSite(r *http.Request) error {
+	if crossSiteCookieRequest(r) {
+		return Forbidden(errCrossSite)
 	}
-	c.Next()
+	return nil
 }
 
 // Credentials returns the bearer token or the session cookie of a request.
-func Credentials(c *gin.Context) string {
-	if h := c.GetHeader("Authorization"); strings.HasPrefix(h, "Bearer ") {
+func Credentials(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
 	}
-	if v, err := c.Cookie(sessionCookieName(c.Request)); err == nil {
-		return v
+	if c, err := r.Cookie(sessionCookieName(r)); err == nil {
+		return c.Value
 	}
 	return ""
 }
 
 // authenticate resolves session tokens and API tokens to a principal.
-func (a *API) authenticate(c *gin.Context) {
-	token := Credentials(c)
-	if token == "" {
-		a.Fail(c, Unauthorized(errUnauthorized))
-		return
-	}
-	if crossSiteCookieRequest(c) {
-		a.Fail(c, Forbidden(errCrossSite))
-		return
-	}
-	p, err := a.PrincipalFor(c, token)
-	if err != nil {
-		a.Fail(c, Unauthorized(errUnauthorized))
-		return
-	}
-	c.Set(principalKey, p)
-	c.Next()
+func (a *API) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := Credentials(r)
+		if token == "" {
+			a.Fail(w, r, Unauthorized(errUnauthorized))
+			return
+		}
+		if err := notCrossSite(r); err != nil {
+			a.Fail(w, r, err)
+			return
+		}
+		p, err := a.PrincipalFor(r.Context(), token)
+		if err != nil {
+			a.Fail(w, r, Unauthorized(errUnauthorized))
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)))
+	})
 }
 
 // limitRequests refuses a request of a user who sent too many, or while the panel's Kubernetes
 // API calls queue up (settings "Kube API limit"), before the handler starts: an admitted request
 // always runs to its end. Retry-After says when to try again. Administrators wait in the queue
 // instead of being refused as busy: they must be able to raise the limit during an overload.
-func (a *API) limitRequests(c *gin.Context) {
-	if wait, err := a.Admit(PrincipalOf(c)); err != nil {
-		retryAfter(c, wait)
-		a.Fail(c, err)
-	}
+func (a *API) limitRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if wait, err := a.Admit(PrincipalOf(r)); err != nil {
+			retryAfter(w, wait)
+			a.Fail(w, r, err)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // retryAfter tells the client when to try again, in whole seconds (at least 1) as the header requires.
-func retryAfter(c *gin.Context, wait time.Duration) {
-	c.Header("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
+func retryAfter(w http.ResponseWriter, wait time.Duration) {
+	w.Header().Set("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
 }
 
 // takeClientAttempt counts an attempt of the client at a public route under kind ("setup", "invite", "oidc")
 // before it runs, like a sign-in: the caller forgives it (Limiter.Forgive with the key and now) unless it
 // failed. A refusal sets Retry-After and returns the error to answer with.
-func (a *API) takeClientAttempt(c *gin.Context, kind string, now time.Time) (string, error) {
-	key := kind + "|" + c.ClientIP()
+func (a *API) takeClientAttempt(w http.ResponseWriter, r *http.Request, kind string, now time.Time) (string, error) {
+	key := kind + "|" + a.Proxies.ClientIP(r)
 	if ok, wait := a.Limiter.Take(key, now); !ok {
-		retryAfter(c, wait)
+		retryAfter(w, wait)
 		return key, TooManyRequests(errTooManyAttempts)
 	}
 	return key, nil
@@ -237,22 +238,20 @@ func (a *API) resolveAPIToken(
 }
 
 // requireAdmin rejects non-admin callers.
-func (a *API) RequireAdmin(c *gin.Context) {
-	if p := PrincipalOf(c); p == nil || !p.Admin() {
-		a.Fail(c, Forbidden(errors.New("administrator permission required")))
-		return
+func requireAdmin(r *http.Request) error {
+	if p := PrincipalOf(r); p == nil || !p.Admin() {
+		return Forbidden(errors.New("administrator permission required"))
 	}
-	c.Next()
+	return nil
 }
 
 var errOwnPassword = errors.New("choose your own password first")
 
 // requireOwnPassword rejects users who still have to replace the password an administrator set
 // (sessions and API tokens alike); they may only read their account, change the password and sign out.
-func (a *API) requireOwnPassword(c *gin.Context) {
-	if PrincipalOf(c).User.Spec.MustChangePassword {
-		a.Fail(c, Forbidden(errOwnPassword))
-		return
+func requireOwnPassword(r *http.Request) error {
+	if PrincipalOf(r).User.Spec.MustChangePassword {
+		return Forbidden(errOwnPassword)
 	}
-	c.Next()
+	return nil
 }

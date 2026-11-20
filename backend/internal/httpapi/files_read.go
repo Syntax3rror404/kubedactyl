@@ -1,14 +1,14 @@
 package httpapi
 
 import (
-	"mime"
+	"io"
 	"net/http"
 	"path"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/files"
 )
 
@@ -23,13 +23,13 @@ type FileList struct {
 
 // denylist returns the egg's file_denylist; a server whose egg is gone has none. Any other
 // failure answers the request (fail closed).
-func (a *API) denylist(c *gin.Context, gs *v1alpha1.GameServer) ([]string, bool) {
-	e, err := a.Eggs.Get(c, gs.Spec.EggRef)
+func (a *API) denylist(w http.ResponseWriter, r *http.Request, gs *v1alpha1.GameServer) ([]string, bool) {
+	e, err := a.Eggs.Get(r.Context(), gs.Spec.EggRef)
 	switch {
 	case apierrors.IsNotFound(err):
 		return nil, true
 	case err != nil:
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return nil, false
 	}
 	return e.Spec.FileDenylist, true
@@ -51,25 +51,25 @@ func inRoot(root, name string) string { return path.Join("/", root, name) }
 //	@Success	200			{object}	FileList
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/list [get]
-func (a *API) listFiles(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) listFiles(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
-	dir := cleanDir(c.Query("directory"))
-	items, err := a.Files.Manager.List(c, files.RefOf(gs), dir, deny)
+	dir := cleanDir(r.URL.Query().Get("directory"))
+	items, err := a.Files.Manager.List(r.Context(), files.RefOf(gs), dir, deny)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	if items == nil {
 		items = []files.Entry{}
 	}
-	c.JSON(http.StatusOK, FileList{Directory: dir, Items: items})
+	api.JSON(w, http.StatusOK, FileList{Directory: dir, Items: items})
 }
 
 // readFile godoc
@@ -83,22 +83,22 @@ func (a *API) listFiles(c *gin.Context) {
 //	@Failure	413		{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/contents [get]
-func (a *API) readFile(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) readFile(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
-	data, err := a.Files.Manager.Read(c, files.RefOf(gs), c.Query("file"), maxEditableSize, deny)
+	data, err := a.Files.Manager.Read(r.Context(), files.RefOf(gs), r.URL.Query().Get("file"), maxEditableSize, deny)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "file read", "server", gs.Name, "file", c.Query("file"))
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", data)
+	a.Audit(r, "file read", "server", gs.Name, "file", r.URL.Query().Get("file"))
+	api.Data(w, http.StatusOK, "text/plain; charset=utf-8", data)
 }
 
 // downloadFile godoc
@@ -111,28 +111,21 @@ func (a *API) readFile(c *gin.Context) {
 //	@Success	200
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/files/download [get]
-func (a *API) downloadFile(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) downloadFile(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	deny, ok := a.denylist(c, gs)
+	deny, ok := a.denylist(w, r, gs)
 	if !ok {
 		return
 	}
-	file := c.Query("file")
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": path.Base(file)}))
-	c.Status(http.StatusOK)
+	file := r.URL.Query().Get("file")
 	// The request context ends the copy in the files pod when the browser cancels the download.
-	err := a.Files.Manager.Download(c.Request.Context(), files.RefOf(gs), file, c.Writer, deny)
-	switch {
-	case err == nil:
-		a.Audit(c, "file downloaded", "server", gs.Name, "file", file)
-	case !c.Writer.Written():
-		// The error is JSON, not the file the browser would otherwise save.
-		c.Writer.Header().Del("Content-Disposition")
-		c.Writer.Header().Del("Content-Type")
-		a.Fail(c, err)
+	err := a.Download(w, r, path.Base(file), func(out io.Writer) error {
+		return a.Files.Manager.Download(r.Context(), files.RefOf(gs), file, out, deny)
+	})
+	if err == nil {
+		a.Audit(r, "file downloaded", "server", gs.Name, "file", file)
 	}
 }

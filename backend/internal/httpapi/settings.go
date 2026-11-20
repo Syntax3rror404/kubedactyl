@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"app/app"
 	"app/base/api"
 	"app/internal/appsettings"
@@ -37,13 +35,13 @@ type PoolList struct {
 //	@Success	200	{object}	StorageClassList
 //	@Security	BearerAuth
 //	@Router		/settings/storage-classes [get]
-func (a *API) listStorageClasses(c *gin.Context) {
-	classes, err := appsettings.ListStorageClasses(c, a.Reader)
+func (a *API) listStorageClasses(w http.ResponseWriter, r *http.Request) {
+	classes, err := appsettings.ListStorageClasses(r.Context(), a.Reader)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, StorageClassList{Items: classes})
+	api.JSON(w, http.StatusOK, StorageClassList{Items: classes})
 }
 
 // listLoadBalancerPools godoc
@@ -56,15 +54,15 @@ func (a *API) listStorageClasses(c *gin.Context) {
 //	@Success		200	{object}	PoolList
 //	@Security		BearerAuth
 //	@Router			/settings/load-balancer-pools [get]
-func (a *API) listLoadBalancerPools(c *gin.Context) {
-	pools, err := appsettings.ListPoolsWithUsage(c, a.Reader)
+func (a *API) listLoadBalancerPools(w http.ResponseWriter, r *http.Request) {
+	pools, err := appsettings.ListPoolsWithUsage(r.Context(), a.Reader)
 	if errors.Is(err, appsettings.ErrNoCilium) {
-		c.JSON(http.StatusOK, PoolList{Items: []appsettings.Pool{}, Error: err.Error()})
+		api.JSON(w, http.StatusOK, PoolList{Items: []appsettings.Pool{}, Error: err.Error()})
 		return
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, PoolList{Items: pools, IPv6Missing: appsettings.IPv6Missing(c, a.Reader)})
+	api.JSON(w, http.StatusOK, PoolList{Items: pools, IPv6Missing: appsettings.IPv6Missing(r.Context(), a.Reader)})
 }

@@ -6,9 +6,9 @@ package api
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"sync"
 
-	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -60,6 +60,8 @@ type API struct {
 	ClientLimiter *auth.Limiter
 	// AccountLimiter throttles failed logins per username from all clients (more generous).
 	AccountLimiter *auth.Limiter
+	// Proxies are the reverse proxies whose forwarding headers name the client (login throttling).
+	Proxies auth.Proxies
 	// KubeLimiter admits the requests of each user (limitRequests); nil admits every request.
 	KubeLimiter *kube.RateLimiter
 
@@ -79,75 +81,80 @@ type ErrorResponse struct {
 // Groups are the route groups the app adds its routes to.
 type Groups struct {
 	// Public needs no sign-in.
-	Public *gin.RouterGroup
+	Public *Mux
 	// Signed needs a session or an API token of a user who has chosen their own password.
-	Signed *gin.RouterGroup
+	Signed *Mux
 	// Admin is Signed for administrators.
-	Admin *gin.RouterGroup
+	Admin *Mux
 }
 
-// Register adds the base routes to the router group (mounted at /api) and returns the groups for the app's
-// routes. The routes of users and invites the app adds with RegisterAccounts.
-func (a *API) Register(r *gin.RouterGroup) Groups {
-	// Public
-	r.POST("/auth/login", a.sameOrigin, a.login)
-	r.POST("/auth/logout", a.notCrossSite, a.logout)
+// Register adds the base routes to m (mounted at /api) and returns the groups for the app's routes. The routes
+// of users and invites the app adds with RegisterAccounts. Each group adds a check to the one before:
+//  1. Public: no sign-in; sign-in and setup only from the panel's own pages.
+//  2. Signed in: a session or an API token, and the per user request limit.
+//  3. Own password: a user whose password an administrator set must choose their own first.
+//  4. Administrators.
+func (a *API) Register(m *Mux) Groups {
+	// 1. Public
+	same := m.With(a.Guard(sameOrigin))
+	same.Handle("POST /auth/login", a.login)
+	m.With(a.Guard(notCrossSite)).Handle("POST /auth/logout", a.logout)
 	// First start: create the first administrator (only while none exists).
-	r.GET("/setup", a.getSetupStatus)
-	r.POST("/setup", a.sameOrigin, a.runSetup)
+	m.Handle("GET /setup", a.getSetupStatus)
+	same.Handle("POST /setup", a.runSetup)
 	// Imprint and privacy policy must be readable without an account.
-	r.GET("/legal", a.getLegalTexts)
+	m.Handle("GET /legal", a.getLegalTexts)
 	// Name, logo and favicon: the sign-in page shows them, too.
-	r.GET("/branding", a.getBranding)
+	m.Handle("GET /branding", a.getBranding)
 	// Invite links create an account.
-	r.GET("/auth/invite", a.getInvite)
-	r.POST("/auth/invite", a.sameOrigin, a.acceptInvite)
+	m.Handle("GET /auth/invite", a.getInvite)
+	same.Handle("POST /auth/invite", a.acceptInvite)
 	// Single sign-on through an OpenID Connect identity provider (start and callback are browser redirects).
-	r.GET("/auth/oidc", a.getOIDCSignIn)
-	r.GET("/auth/oidc/start", a.startOIDC)
-	r.GET("/auth/oidc/callback", a.finishOIDC)
+	m.Handle("GET /auth/oidc", a.getOIDCSignIn)
+	m.Handle("GET /auth/oidc/start", a.startOIDC)
+	m.Handle("GET /auth/oidc/callback", a.finishOIDC)
 
-	// Every other route needs a session or an API token. The footer polls the request rates: they
-	// do not count themselves.
-	r.GET("/request-rates", a.authenticate, a.getRequestRates)
-	u := r.Group("", a.authenticate, a.limitRequests)
-	u.GET("/auth/me", a.getMe)
-	u.PUT("/auth/password", a.updatePassword)
-	u.POST("/auth/logout-all", a.logoutAll)
+	// 2. Signed in. The footer polls the request rates: they do not count themselves.
+	m.With(a.authenticate).Handle("GET /request-rates", a.getRequestRates)
+	u := m.With(a.authenticate, a.limitRequests)
+	u.Handle("GET /auth/me", a.getMe)
+	u.Handle("PUT /auth/password", a.updatePassword)
+	u.Handle("POST /auth/logout-all", a.logoutAll)
 
-	// Everything else waits until a user with a password set by an administrator has chosen their own.
-	o := u.Group("", a.requireOwnPassword)
-	o.GET("/auth/tokens", a.listTokens)
-	o.POST("/auth/tokens", a.createToken)
-	o.DELETE("/auth/tokens/:id", a.deleteToken)
-	o.GET("/settings", a.getSettings)
+	// 3. Own password
+	o := u.With(a.Guard(requireOwnPassword))
+	o.Handle("GET /auth/tokens", a.listTokens)
+	o.Handle("POST /auth/tokens", a.createToken)
+	o.Handle("DELETE /auth/tokens/{id}", a.deleteToken)
+	o.Handle("GET /settings", a.getSettings)
 
-	adm := o.Group("", a.RequireAdmin)
-	adm.PUT("/settings", a.updateSettings)
-	adm.GET("/upgrade", a.getUpgradeStatus)
-	adm.POST("/upgrade", a.startUpgrade)
-	adm.GET("/versions", a.getVersions)
-	adm.POST("/users", a.createUser)
-	adm.GET("/users/:user", a.getUser)
-	adm.PATCH("/users/:user", a.updateUser)
-	return Groups{Public: r, Signed: o, Admin: adm}
+	// 4. Administrators
+	adm := o.With(a.Guard(requireAdmin))
+	adm.Handle("PUT /settings", a.updateSettings)
+	adm.Handle("GET /upgrade", a.getUpgradeStatus)
+	adm.Handle("POST /upgrade", a.startUpgrade)
+	adm.Handle("GET /versions", a.getVersions)
+	adm.Handle("POST /users", a.createUser)
+	adm.Handle("GET /users/{user}", a.getUser)
+	adm.Handle("PATCH /users/{user}", a.updateUser)
+	return Groups{Public: m, Signed: o, Admin: adm}
 }
 
 // RegisterAccounts adds the routes that list and delete users and manage invites to m: the Admin group, or a
 // group that also lets users manage the accounts they own (users.App.Owner).
-func (a *API) RegisterAccounts(m *gin.RouterGroup) {
-	m.GET("/users", a.listUsers)
-	m.DELETE("/users/:user", a.deleteUser)
-	m.GET("/invites", a.listInvites)
-	m.POST("/invites", a.createInvite)
-	m.POST("/invites/:invite/renew", a.renewInvite)
-	m.DELETE("/invites/:invite", a.deleteInvite)
+func (a *API) RegisterAccounts(m *Mux) {
+	m.Handle("GET /users", a.listUsers)
+	m.Handle("DELETE /users/{user}", a.deleteUser)
+	m.Handle("GET /invites", a.listInvites)
+	m.Handle("POST /invites", a.createInvite)
+	m.Handle("POST /invites/{invite}/renew", a.renewInvite)
+	m.Handle("DELETE /invites/{invite}", a.deleteInvite)
 }
 
 // Audit logs what a user did through the API together with the user ("by") and, for requests
 // with an API token, its ID ("token").
-func (a *API) Audit(c *gin.Context, msg string, args ...any) {
-	a.AuditAs(PrincipalOf(c), msg, args...)
+func (a *API) Audit(r *http.Request, msg string, args ...any) {
+	a.AuditAs(PrincipalOf(r), msg, args...)
 }
 
 // AuditAs is Audit for a caller outside of a request handler (an open websocket).

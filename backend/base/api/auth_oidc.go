@@ -2,14 +2,13 @@ package api
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 
 	"app/api/v1alpha1"
 	"app/app"
@@ -53,13 +52,13 @@ type OIDCSignIn struct {
 //	@Produce		json
 //	@Success		200	{object}	OIDCSignIn
 //	@Router			/auth/oidc [get]
-func (a *API) getOIDCSignIn(c *gin.Context) {
-	spec, err := a.Settings.Current(c)
+func (a *API) getOIDCSignIn(w http.ResponseWriter, r *http.Request) {
+	spec, err := a.Settings.Current(r.Context())
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(http.StatusOK, OIDCSignIn{Enabled: spec.OIDC.Enabled, Name: cmp.Or(spec.OIDC.Name, "SSO")})
+	JSON(w, http.StatusOK, OIDCSignIn{Enabled: spec.OIDC.Enabled, Name: cmp.Or(spec.OIDC.Name, "SSO")})
 }
 
 // startOIDC godoc
@@ -71,21 +70,21 @@ func (a *API) getOIDCSignIn(c *gin.Context) {
 //	@Param			next	query	string	false	"Page of the panel to open after the sign-in"
 //	@Success		302
 //	@Router			/auth/oidc/start [get]
-func (a *API) startOIDC(c *gin.Context) {
-	cfg, err := a.oidcConfig(c)
+func (a *API) startOIDC(w http.ResponseWriter, r *http.Request) {
+	cfg, err := a.oidcConfig(r.Context())
 	var authURL string
 	var flow auth.OIDCFlow
 	if err == nil {
-		authURL, flow, err = a.oidc.Start(c.Request.Context(), cfg, localPath(c.Query("next")))
+		authURL, flow, err = a.oidc.Start(r.Context(), cfg, localPath(r.URL.Query().Get("next")))
 	}
 	if err == nil {
-		err = a.setOIDCFlow(c, flow)
+		err = a.setOIDCFlow(w, r, flow)
 	}
 	if err != nil {
-		a.oidcFailed(c, err)
+		a.oidcFailed(w, r, err)
 		return
 	}
-	c.Redirect(http.StatusFound, authURL)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // finishOIDC godoc
@@ -101,41 +100,41 @@ func (a *API) startOIDC(c *gin.Context) {
 //	@Param			state	query	string	false	"State of the sign-in"
 //	@Success		302
 //	@Router			/auth/oidc/callback [get]
-func (a *API) finishOIDC(c *gin.Context) {
-	flow := a.takeOIDCFlow(c)
+func (a *API) finishOIDC(w http.ResponseWriter, r *http.Request) {
+	flow := a.takeOIDCFlow(w, r)
 	// Failed callbacks count against the client like failed sign-ins.
 	now := time.Now()
-	key, err := a.takeClientAttempt(c, "oidc", now)
+	key, err := a.takeClientAttempt(w, r, "oidc", now)
 	var user *v1alpha1.User
 	if err == nil {
-		user, err = a.oidcUser(c, flow)
+		user, err = a.oidcUser(r, flow)
 	}
 	if err == nil {
-		_, err = a.startSession(c, user)
+		_, err = a.startSession(w, r, user)
 	}
 	if err != nil {
-		a.oidcFailed(c, err)
+		a.oidcFailed(w, r, err)
 		return
 	}
 	a.Limiter.Forgive(key, now)
-	a.Log.Info("signed in", "user", user.Name, "ip", c.ClientIP(), "via", "oidc")
-	c.Redirect(http.StatusFound, "/login?"+url.Values{"sso": {ssoSignedIn}, "next": {flow.Next}}.Encode())
+	a.Log.Info("signed in", "user", user.Name, "ip", a.Proxies.ClientIP(r), "via", "oidc")
+	http.Redirect(w, r, "/login?"+url.Values{"sso": {ssoSignedIn}, "next": {flow.Next}}.Encode(), http.StatusFound)
 }
 
 // oidcUser verifies the callback and returns the account of the user the identity provider signed in. Errors
 // name that user when it is known (for the log).
-func (a *API) oidcUser(c *gin.Context, flow auth.OIDCFlow) (*v1alpha1.User, error) {
-	if e := c.Query("error"); e != "" {
-		return nil, fmt.Errorf("identity provider: %s: %s", e, c.Query("error_description"))
+func (a *API) oidcUser(r *http.Request, flow auth.OIDCFlow) (*v1alpha1.User, error) {
+	if e := r.URL.Query().Get("error"); e != "" {
+		return nil, fmt.Errorf("identity provider: %s: %s", e, r.URL.Query().Get("error_description"))
 	}
-	cfg, err := a.oidcConfig(c)
+	cfg, err := a.oidcConfig(r.Context())
 	if err != nil {
 		return nil, err
 	}
-	acc, err := a.oidc.Finish(c.Request.Context(), cfg, flow, c.Query("state"), c.Query("code"))
+	acc, err := a.oidc.Finish(r.Context(), cfg, flow, r.URL.Query().Get("state"), r.URL.Query().Get("code"))
 	var user *v1alpha1.User
 	if err == nil {
-		user, err = a.Users.SignInOIDC(c, acc, cfg.OIDCSettings)
+		user, err = a.Users.SignInOIDC(r.Context(), acc, cfg.OIDCSettings)
 	}
 	if err != nil && acc.Identity.Subject != "" {
 		err = fmt.Errorf("user %q (subject %s): %w", acc.Username, acc.Identity.Subject, err)
@@ -144,21 +143,21 @@ func (a *API) oidcUser(c *gin.Context, flow auth.OIDCFlow) (*v1alpha1.User, erro
 }
 
 // oidcConfig is the client configuration of the identity provider.
-func (a *API) oidcConfig(c *gin.Context) (auth.OIDCConfig, error) {
-	spec, err := a.Settings.Current(c)
+func (a *API) oidcConfig(ctx context.Context) (auth.OIDCConfig, error) {
+	spec, err := a.Settings.Current(ctx)
 	if err != nil {
 		return auth.OIDCConfig{}, err
 	}
 	if !spec.OIDC.Enabled {
 		return auth.OIDCConfig{}, errOIDCOff
 	}
-	secret, err := a.Settings.OIDCClientSecret(c)
+	secret, err := a.Settings.OIDCClientSecret(ctx)
 	return auth.OIDCConfig{OIDCSettings: spec.OIDC, ClientSecret: secret}, err
 }
 
 // oidcFailed logs why a sign-in through the identity provider failed and sends the browser back to the sign-in
 // page with the reason.
-func (a *API) oidcFailed(c *gin.Context, err error) {
+func (a *API) oidcFailed(w http.ResponseWriter, r *http.Request, err error) {
 	reason := ssoFailed
 	switch {
 	case errors.Is(err, auth.ErrNoAccess), errors.Is(err, users.ErrDisabled):
@@ -167,13 +166,13 @@ func (a *API) oidcFailed(c *gin.Context, err error) {
 		errors.Is(err, users.ErrInvalidUsername), errors.Is(err, users.ErrLastAdmin):
 		reason = ssoAccount
 	}
-	a.Log.Warn("single sign-on failed", "ip", c.ClientIP(), "err", err)
-	c.Redirect(http.StatusFound, "/login?sso="+reason)
+	a.Log.Warn("single sign-on failed", "ip", a.Proxies.ClientIP(r), "err", err)
+	http.Redirect(w, r, "/login?sso="+reason, http.StatusFound)
 }
 
 // flowCookie is the cookie of a sign-in through the identity provider, without value.
-func flowCookie(c *gin.Context) *http.Cookie {
-	if auth.HTTPS(c.Request) {
+func flowCookie(r *http.Request) *http.Cookie {
+	if auth.HTTPS(r) {
 		return &http.Cookie{
 			Name: oidcSecureCookie, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 		}
@@ -181,23 +180,23 @@ func flowCookie(c *gin.Context) *http.Cookie {
 	return &http.Cookie{Name: oidcCookie, Path: oidcPath, HttpOnly: true, SameSite: http.SameSiteLaxMode}
 }
 
-func (a *API) setOIDCFlow(c *gin.Context, flow auth.OIDCFlow) error {
-	cookie := flowCookie(c)
+func (a *API) setOIDCFlow(w http.ResponseWriter, r *http.Request, flow auth.OIDCFlow) error {
+	cookie := flowCookie(r)
 	cookie.Expires = time.Now().Add(auth.OIDCFlowLifetime)
 	value, err := a.Signer.SignValue(oidcCookie, flow, cookie.Expires)
 	cookie.Value = value
-	http.SetCookie(c.Writer, cookie)
+	http.SetCookie(w, cookie)
 	return err
 }
 
 // takeOIDCFlow returns the sign-in this browser started (empty when none) and removes its cookie.
-func (a *API) takeOIDCFlow(c *gin.Context) auth.OIDCFlow {
-	cookie, flow := flowCookie(c), auth.OIDCFlow{Next: "/"}
-	if value, err := c.Cookie(cookie.Name); err == nil {
-		_ = a.Signer.VerifyValue(oidcCookie, value, &flow, time.Now())
+func (a *API) takeOIDCFlow(w http.ResponseWriter, r *http.Request) auth.OIDCFlow {
+	cookie, flow := flowCookie(r), auth.OIDCFlow{Next: "/"}
+	if c, err := r.Cookie(cookie.Name); err == nil {
+		_ = a.Signer.VerifyValue(oidcCookie, c.Value, &flow, time.Now())
 	}
 	cookie.MaxAge = -1
-	http.SetCookie(c.Writer, cookie)
+	http.SetCookie(w, cookie)
 	return flow
 }
 

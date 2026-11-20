@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
+	"app/base/api"
 	"app/internal/files"
 )
 
@@ -42,9 +41,9 @@ const filesStartWait = 45 * time.Second
 //	@Success		200		{object}	FilesSession
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/session [get]
-func (a *API) getFilesSession(c *gin.Context) {
-	if gs, ok := a.loadServer(c); ok {
-		c.JSON(http.StatusOK, sessionOf(a.Files.PodState(c, files.RefOf(gs))))
+func (a *API) getFilesSession(w http.ResponseWriter, r *http.Request) {
+	if gs, ok := a.loadServer(w, r); ok {
+		api.JSON(w, http.StatusOK, sessionOf(a.Files.PodState(r.Context(), files.RefOf(gs))))
 	}
 }
 
@@ -58,41 +57,42 @@ func (a *API) getFilesSession(c *gin.Context) {
 //	@Success		200		{object}	FilesSession
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/files/session [post]
-func (a *API) openFilesSession(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) openFilesSession(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	a.Files.Activity.Touch(files.RefOf(gs))
-	st := a.Files.PodState(c, files.RefOf(gs))
+	st := a.Files.PodState(r.Context(), files.RefOf(gs))
 	if !st.Ready {
 		a.Trigger(gs.Namespace, gs.Name)
 	}
-	c.JSON(http.StatusOK, sessionOf(st))
+	api.JSON(w, http.StatusOK, sessionOf(st))
 }
 
 // requireFilesPod runs before every file operation: it counts as activity and waits
 // (up to filesStartWait) until the file container is ready.
-func (a *API) requireFilesPod(c *gin.Context) {
-	gs, ok := a.loadServer(c)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(c, filesStartWait)
-	defer cancel()
-	err := a.Files.EnsurePod(ctx, files.RefOf(gs))
-	if errors.Is(err, files.ErrForeignPod) {
-		a.Fail(c, err)
-		return
-	}
-	if err != nil {
-		st := sessionOf(a.Files.PodState(c, files.RefOf(gs)))
-		st.Error = err.Error()
-		c.AbortWithStatusJSON(http.StatusServiceUnavailable, st)
-		return
-	}
-	c.Set(serverKey, gs)
-	c.Next()
+func (a *API) requireFilesPod(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gs, ok := a.loadServer(w, r)
+		if !ok {
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), filesStartWait)
+		defer cancel()
+		err := a.Files.EnsurePod(ctx, files.RefOf(gs))
+		if errors.Is(err, files.ErrForeignPod) {
+			a.Fail(w, r, err)
+			return
+		}
+		if err != nil {
+			st := sessionOf(a.Files.PodState(r.Context(), files.RefOf(gs)))
+			st.Error = err.Error()
+			api.JSON(w, http.StatusServiceUnavailable, st)
+			return
+		}
+		next.ServeHTTP(w, withServer(r, gs))
+	})
 }
 
 func sessionOf(st files.PodState) FilesSession {

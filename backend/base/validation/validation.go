@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
+	"unicode/utf8"
 )
 
 // Error is implemented by every validation error with field messages (Errors and the field errors of the app).
@@ -20,6 +22,27 @@ type Errors map[string]string
 
 // Field is the validation error of a single field.
 func Field(field string, err error) Errors { return Errors{field: err.Error()} }
+
+// Require notes a required field without a value.
+func (e Errors) Require(field string, set bool) {
+	if !set {
+		e[field] = "is required"
+	}
+}
+
+// MaxLength notes a field longer than n characters.
+func (e Errors) MaxLength(field, value string, n int) {
+	if utf8.RuneCountInString(value) > n {
+		e[field] = fmt.Sprintf("must be at most %d characters", n)
+	}
+}
+
+// OneOf notes a set field whose value is none of allowed.
+func (e Errors) OneOf(field, value string, allowed ...string) {
+	if value != "" && !slices.Contains(allowed, value) {
+		e[field] = "must be one of: " + strings.Join(allowed, ", ")
+	}
+}
 
 // Fields returns the messages per field.
 func (e Errors) Fields() map[string]string { return e }

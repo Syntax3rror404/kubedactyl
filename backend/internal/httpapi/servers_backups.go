@@ -1,12 +1,9 @@
 package httpapi
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -45,14 +42,14 @@ type CreateBackupRequest struct {
 //	@Success		200		{object}	BackupList
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/backups [get]
-func (a *API) listBackups(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) listBackups(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	entries, err := a.Files.Manager.ListBackups(c, files.RefOf(gs))
+	entries, err := a.Files.Manager.ListBackups(r.Context(), files.RefOf(gs))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	out := BackupList{Items: []Backup{}}
@@ -62,7 +59,7 @@ func (a *API) listBackups(c *gin.Context) {
 			Backup{Name: e.Name, Size: e.Size, CreatedAt: e.ModifiedAt, Path: files.BackupPath(e.Name)},
 		)
 	}
-	c.JSON(http.StatusOK, out)
+	api.JSON(w, http.StatusOK, out)
 }
 
 // createBackup godoc
@@ -79,25 +76,23 @@ func (a *API) listBackups(c *gin.Context) {
 //	@Failure		409		{object}	api.ErrorResponse	"a backup or restore is running"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/backups [post]
-func (a *API) createBackup(c *gin.Context) {
+func (a *API) createBackup(w http.ResponseWriter, r *http.Request) {
 	var req CreateBackupRequest
-	// The body is optional (no label).
-	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		a.Fail(c, api.BadRequest(err))
+	if !a.DecodeOptional(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	job, err := a.Files.StartBackup(files.RefOf(gs), req.Label, time.Now().In(a.Schedules.Location))
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	a.Hub.Daemon(gs.Name, "Creating backup "+job.Label+"...")
-	a.Audit(c, "backup started", "server", gs.Name, "backup", job.Label)
-	c.JSON(http.StatusAccepted, job)
+	a.Audit(r, "backup started", "server", gs.Name, "backup", job.Label)
+	api.JSON(w, http.StatusAccepted, job)
 }
 
 // restoreBackup godoc
@@ -113,30 +108,30 @@ func (a *API) createBackup(c *gin.Context) {
 //	@Failure		409		{object}	api.ErrorResponse	"server running or job in progress"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/backups/{backup}/restore [post]
-func (a *API) restoreBackup(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) restoreBackup(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	// Uncached: a server started a moment ago must count as running.
 	cur := &v1alpha1.GameServer{}
-	if err := a.Reader.Get(c, client.ObjectKeyFromObject(gs), cur); err != nil {
-		a.Fail(c, err)
+	if err := a.Reader.Get(r.Context(), client.ObjectKeyFromObject(gs), cur); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	if err := serverctl.Stopped(cur); err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	name := c.Param("backup")
+	name := r.PathValue("backup")
 	job, err := a.Files.StartRestore(files.RefOf(gs), name)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	a.Hub.Daemon(gs.Name, "Restoring backup "+name+"...")
-	a.Audit(c, "backup restore started", "server", gs.Name, "backup", name)
-	c.JSON(http.StatusAccepted, job)
+	a.Audit(r, "backup restore started", "server", gs.Name, "backup", name)
+	api.JSON(w, http.StatusAccepted, job)
 }
 
 // deleteBackup godoc
@@ -148,16 +143,16 @@ func (a *API) restoreBackup(c *gin.Context) {
 //	@Success	204
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/backups/{backup} [delete]
-func (a *API) deleteBackup(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) deleteBackup(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	name := c.Param("backup")
-	if err := a.Files.DeleteBackup(c, files.RefOf(gs), name); err != nil {
-		a.Fail(c, err)
+	name := r.PathValue("backup")
+	if err := a.Files.DeleteBackup(r.Context(), files.RefOf(gs), name); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "backup deleted", "server", gs.Name, "backup", name)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "backup deleted", "server", gs.Name, "backup", name)
+	w.WriteHeader(http.StatusNoContent)
 }

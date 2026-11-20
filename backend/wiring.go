@@ -118,6 +118,7 @@ func newPanel(
 		Limiter:        auth.NewLimiter(5, 5*time.Minute),
 		ClientLimiter:  auth.NewLimiter(20, 15*time.Minute),
 		AccountLimiter: auth.NewLimiter(30, 15*time.Minute),
+		Proxies:        cfg.proxies,
 		KubeLimiter:    limiter,
 		DevMode:        devMode,
 		SetupToken:     boot.SetupToken,

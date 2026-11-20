@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
+	"app/base/api"
 	"app/internal/schedule"
 )
 
@@ -60,9 +60,9 @@ func (a *API) scheduleList(gs *v1alpha1.GameServer) ScheduleList {
 //	@Success	200		{object}	ScheduleList
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/schedules [get]
-func (a *API) listSchedules(c *gin.Context) {
-	if gs, ok := a.loadServer(c); ok {
-		c.JSON(http.StatusOK, a.scheduleList(gs))
+func (a *API) listSchedules(w http.ResponseWriter, r *http.Request) {
+	if gs, ok := a.loadServer(w, r); ok {
+		api.JSON(w, http.StatusOK, a.scheduleList(gs))
 	}
 }
 
@@ -80,28 +80,28 @@ func (a *API) listSchedules(c *gin.Context) {
 //	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/schedules [put]
-func (a *API) updateSchedules(c *gin.Context) {
+func (a *API) updateSchedules(w http.ResponseWriter, r *http.Request) {
 	var req UpdateSchedulesRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	list, err := schedule.Validate(req.Items)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	patch := client.MergeFrom(gs.DeepCopy())
 	gs.Spec.Schedules = list
-	if err := a.Client.Patch(c, gs, patch); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.Patch(r.Context(), gs, patch); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "schedules updated", "server", gs.Name, "count", len(list))
-	c.JSON(http.StatusOK, a.scheduleList(gs))
+	a.Audit(r, "schedules updated", "server", gs.Name, "count", len(list))
+	api.JSON(w, http.StatusOK, a.scheduleList(gs))
 }
 
 // runSchedule godoc
@@ -116,15 +116,15 @@ func (a *API) updateSchedules(c *gin.Context) {
 //	@Failure		409	{object}	api.ErrorResponse	"already running"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/schedules/{schedule}/run [post]
-func (a *API) runSchedule(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) runSchedule(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Schedules.RunNow(c, gs, c.Param("schedule")); err != nil {
-		a.Fail(c, err)
+	if err := a.Schedules.RunNow(r.Context(), gs, r.PathValue("schedule")); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "schedule started", "server", gs.Name, "schedule", c.Param("schedule"))
-	c.Status(http.StatusAccepted)
+	a.Audit(r, "schedule started", "server", gs.Name, "schedule", r.PathValue("schedule"))
+	w.WriteHeader(http.StatusAccepted)
 }

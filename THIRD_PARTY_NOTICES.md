@@ -371,9 +371,6 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/fluxcd/cli-utils | Apache-2.0 |
 | github.com/fsnotify/fsnotify | BSD-3-Clause |
 | github.com/fxamacker/cbor/v2 | MIT |
-| github.com/gabriel-vasile/mimetype | MIT |
-| github.com/gin-contrib/sse | MIT |
-| github.com/gin-gonic/gin | MIT |
 | github.com/go-errors/errors | MIT |
 | github.com/go-gorp/gorp/v3 | MIT |
 | github.com/go-jose/go-jose/v4 | Apache-2.0 |
@@ -393,11 +390,7 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/go-openapi/swag/stringutils | Apache-2.0 |
 | github.com/go-openapi/swag/typeutils | Apache-2.0 |
 | github.com/go-openapi/swag/yamlutils | Apache-2.0 |
-| github.com/go-playground/locales | MIT |
-| github.com/go-playground/universal-translator | MIT |
-| github.com/go-playground/validator/v10 | MIT |
 | github.com/gobwas/glob | MIT |
-| github.com/goccy/go-yaml | MIT |
 | github.com/google/btree | Apache-2.0 |
 | github.com/google/gnostic-models | Apache-2.0 |
 | github.com/google/uuid | BSD-3-Clause |
@@ -411,7 +404,6 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/json-iterator/go | MIT |
 | github.com/lann/builder | MIT |
 | github.com/lann/ps | MIT |
-| github.com/leodido/go-urn | MIT |
 | github.com/lib/pq | MIT |
 | github.com/liggitt/tabwriter | BSD-3-Clause |
 | github.com/magiconair/properties | BSD-2-Clause |
@@ -429,15 +421,12 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/munnerz/goautoneg | BSD-3-Clause |
 | github.com/opencontainers/go-digest | Apache-2.0 |
 | github.com/opencontainers/image-spec | Apache-2.0 |
-| github.com/pelletier/go-toml/v2 | MIT |
 | github.com/peterbourgon/diskv | MIT |
 | github.com/pmezard/go-difflib | BSD-3-Clause |
 | github.com/prometheus/client_golang | Apache-2.0 |
 | github.com/prometheus/client_model | Apache-2.0 |
 | github.com/prometheus/common | Apache-2.0 |
 | github.com/prometheus/procfs | Apache-2.0 |
-| github.com/quic-go/qpack | MIT |
-| github.com/quic-go/quic-go | MIT |
 | github.com/robfig/cron/v3 | MIT |
 | github.com/rubenv/sql-migrate | MIT |
 | github.com/russross/blackfriday/v2 | BSD-2-Clause |
@@ -449,10 +438,8 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | github.com/swaggo/swag | MIT |
 | github.com/tetratelabs/wabin | Apache-2.0 |
 | github.com/tetratelabs/wazero | Apache-2.0 |
-| github.com/ugorji/go/codec | MIT |
 | github.com/x448/float16 | MIT |
 | github.com/xlab/treeprint | MIT |
-| go.mongodb.org/mongo-driver/v2 | Apache-2.0 |
 | go.opentelemetry.io/proto/otlp | Apache-2.0 |
 | go.yaml.in/yaml/v2 | Apache-2.0 AND MIT |
 | go.yaml.in/yaml/v3 | Apache-2.0 AND MIT |

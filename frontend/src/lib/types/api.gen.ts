@@ -193,9 +193,9 @@ export interface ApiLoginResponse {
 }
 
 export interface ApiModuleVersion {
-  /** @example "Gin" */
+  /** @example "client-go" */
   name: string;
-  /** @example "v1.12.0" */
+  /** @example "v0.37.1" */
   version: string;
 }
 

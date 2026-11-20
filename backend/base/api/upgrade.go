@@ -9,10 +9,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"app/app"
 	"app/base/selfupgrade"
+	"app/base/validation"
 )
 
 // UpgradeStatus describes panel updates: the installed version, newer chart versions in the
@@ -34,7 +33,14 @@ type UpgradeStatus struct {
 
 // StartUpgradeRequest selects the chart version to upgrade to.
 type StartUpgradeRequest struct {
-	Version string `json:"version" binding:"required" example:"0.2.4"`
+	Version string `json:"version" example:"0.2.4"`
+}
+
+// Validate checks that a version is chosen.
+func (req StartUpgradeRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("version", req.Version != "")
+	return errs.OrNil()
 }
 
 var errUpgradesDisabled = errors.New("self-upgrades are not enabled (chart value selfUpgrade.enabled)")
@@ -50,7 +56,7 @@ var errUpgradesDisabled = errors.New("self-upgrades are not enabled (chart value
 //	@Success		200		{object}	UpgradeStatus
 //	@Security		BearerAuth
 //	@Router			/upgrade [get]
-func (a *API) getUpgradeStatus(c *gin.Context) {
+func (a *API) getUpgradeStatus(w http.ResponseWriter, r *http.Request) {
 	st := UpgradeStatus{
 		Current:         a.Version,
 		Newer:           []string{},
@@ -58,12 +64,12 @@ func (a *API) getUpgradeStatus(c *gin.Context) {
 		IntervalSeconds: int(selfupgrade.CheckInterval.Seconds()),
 	}
 	if a.Upgrader == nil {
-		c.JSON(http.StatusOK, st)
+		JSON(w, http.StatusOK, st)
 		return
 	}
 	st.Enabled, st.Chart = true, a.Upgrader.Config.Chart
 	check := a.UpgradeChecker.Last()
-	if c.Query("refresh") == "true" {
+	if r.URL.Query().Get("refresh") == "true" {
 		check = a.UpgradeChecker.Refresh()
 	}
 	if !check.CheckedAt.IsZero() {
@@ -73,13 +79,13 @@ func (a *API) getUpgradeStatus(c *gin.Context) {
 	if check.Newer != nil {
 		st.Newer = check.Newer
 	}
-	jobs, err := a.Upgrader.Jobs(c, true)
+	jobs, err := a.Upgrader.Jobs(r.Context(), true)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	st.Jobs = jobs
-	c.JSON(http.StatusOK, st)
+	JSON(w, http.StatusOK, st)
 }
 
 // startUpgrade godoc
@@ -95,28 +101,29 @@ func (a *API) getUpgradeStatus(c *gin.Context) {
 //	@Failure		409		{object}	ErrorResponse	"disabled, unknown version or an upgrade is running"
 //	@Security		BearerAuth
 //	@Router			/upgrade [post]
-func (a *API) startUpgrade(c *gin.Context) {
+func (a *API) startUpgrade(w http.ResponseWriter, r *http.Request) {
 	var req StartUpgradeRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
 	if a.Upgrader == nil {
-		a.Fail(c, Conflict(errUpgradesDisabled))
+		a.Fail(w, r, Conflict(errUpgradesDisabled))
 		return
 	}
 	// Only versions the registry offers above the current one (no downgrades).
 	if !slices.Contains(a.UpgradeChecker.Last().Newer, req.Version) &&
 		!slices.Contains(a.UpgradeChecker.Refresh().Newer, req.Version) {
-		a.Fail(c, Conflict(fmt.Errorf("version %q is not a newer version in %s", req.Version, a.Upgrader.Config.Chart)))
+		err := fmt.Errorf("version %q is not a newer version in %s", req.Version, a.Upgrader.Config.Chart)
+		a.Fail(w, r, Conflict(err))
 		return
 	}
-	job, err := a.Upgrader.Start(c, req.Version)
+	job, err := a.Upgrader.Start(r.Context(), req.Version)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "panel upgrade started", "from", a.Version, "to", req.Version, "job", job.Name)
-	c.JSON(http.StatusAccepted, job)
+	a.Audit(r, "panel upgrade started", "from", a.Version, "to", req.Version, "job", job.Name)
+	JSON(w, http.StatusAccepted, job)
 }
 
 // Versions are the versions of the Go runtime and the main Go modules of the panel.
@@ -127,14 +134,13 @@ type Versions struct {
 
 // ModuleVersion is a Go module built into the panel.
 type ModuleVersion struct {
-	Name    string `json:"name"    example:"Gin"`
-	Version string `json:"version" example:"v1.12.0"`
+	Name    string `json:"name"    example:"client-go"`
+	Version string `json:"version" example:"v0.37.1"`
 }
 
 // versionModules are the Go modules shown with their version (label and module path): the base ones, then the
 // app's.
 var versionModules = append([][2]string{
-	{"Gin", "github.com/gin-gonic/gin"},
 	{"controller-runtime", "sigs.k8s.io/controller-runtime"},
 	{"client-go", "k8s.io/client-go"},
 	{"Helm", "helm.sh/helm/v4"},
@@ -148,7 +154,7 @@ var versionModules = append([][2]string{
 //	@Success	200	{object}	Versions
 //	@Security	BearerAuth
 //	@Router		/versions [get]
-func (a *API) getVersions(c *gin.Context) {
+func (a *API) getVersions(w http.ResponseWriter, r *http.Request) {
 	out := Versions{Go: runtime.Version(), Modules: []ModuleVersion{}}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range versionModules {
@@ -159,5 +165,5 @@ func (a *API) getVersions(c *gin.Context) {
 			}
 		}
 	}
-	c.JSON(http.StatusOK, out)
+	JSON(w, http.StatusOK, out)
 }

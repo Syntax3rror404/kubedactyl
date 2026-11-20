@@ -3723,11 +3723,11 @@ const docTemplate = `{
             "properties": {
                 "name": {
                     "type": "string",
-                    "example": "Gin"
+                    "example": "client-go"
                 },
                 "version": {
                     "type": "string",
-                    "example": "v1.12.0"
+                    "example": "v0.37.1"
                 }
             }
         },
@@ -7255,7 +7255,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "Kubedactyl API",
-	Description:      "Game server panel for Kubernetes that runs Pterodactyl and Pelican eggs.",
+	Description:      "Game server panel for Kubernetes that runs Pterodactyl and Pelican eggs.\nRequest bodies are strict JSON: unknown fields are refused (400).",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "[[",

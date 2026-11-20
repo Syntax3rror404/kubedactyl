@@ -3,6 +3,8 @@ package auth
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -227,5 +229,48 @@ func TestLimiterKeepsBlockedKeys(t *testing.T) {
 	l.Take("guess-4", now.Add(time.Minute))
 	if ok, _ := l.Take("new", now.Add(time.Minute)); ok {
 		t.Error("a limiter full of blocked keys must refuse new ones")
+	}
+}
+
+// TestClientIP: forwarding headers name the client only when a trusted proxy sends them, and only addresses before
+// the nearest untrusted one count, so a client cannot spoof its IP to evade the login throttle.
+func TestClientIP(t *testing.T) {
+	proxies, err := ParseProxies("10.0.0.0/8, 192.168.1.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name, peer, forwarded, realIP, want string
+	}{
+		{"no proxy", "203.0.113.7:4000", "", "", "203.0.113.7"},
+		{"untrusted peer sends a header", "203.0.113.7:4000", "198.51.100.1", "", "203.0.113.7"},
+		{"trusted proxy", "10.1.2.3:4000", "198.51.100.1", "", "198.51.100.1"},
+		{"single trusted IP", "192.168.1.10:4000", "198.51.100.1", "", "198.51.100.1"},
+		{"spoofed entry before the client", "10.1.2.3:4000", "6.6.6.6, 198.51.100.1", "", "198.51.100.1"},
+		{"chain of proxies", "10.1.2.3:4000", "198.51.100.1, 10.9.9.9", "", "198.51.100.1"},
+		{"only proxies", "10.1.2.3:4000", "10.8.8.8, 10.9.9.9", "", "10.8.8.8"},
+		{"malformed entry", "10.1.2.3:4000", "198.51.100.1, garbage", "", "10.1.2.3"},
+		{"X-Real-IP", "10.1.2.3:4000", "", "198.51.100.2", "198.51.100.2"},
+		{"IPv4 mapped peer", "[::ffff:10.1.2.3]:4000", "198.51.100.1", "", "198.51.100.1"},
+		{"IPv6 client", "10.1.2.3:4000", "2001:db8::1", "", "2001:db8::1"},
+	}
+	for _, c := range cases {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = c.peer
+		if c.forwarded != "" {
+			r.Header.Set("X-Forwarded-For", c.forwarded)
+		}
+		if c.realIP != "" {
+			r.Header.Set("X-Real-IP", c.realIP)
+		}
+		if got := proxies.ClientIP(r); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	if _, err := ParseProxies("10.0.0.0/8, nonsense"); err == nil {
+		t.Error("an invalid proxy must be refused")
+	}
+	if got := Proxies(nil).ClientIP(httptest.NewRequest(http.MethodGet, "/", nil)); got != "192.0.2.1" {
+		t.Errorf("without proxies the peer counts: %q", got)
 	}
 }

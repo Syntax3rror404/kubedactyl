@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
 	"app/app"
 	"app/base/auth"
+	"app/base/validation"
 )
 
 // loginLimit is a limiter of failed sign-ins and the key a sign-in counts under.
@@ -33,9 +33,9 @@ const (
 // loginLimits are the limits of a sign-in: client and user (reset by a success), the client
 // alone (password spraying) and the user alone (from many addresses or a spoofed X-Forwarded-For),
 // except from a browser the user signed in with before.
-func (a *API) loginLimits(c *gin.Context, clientIP, username string, now time.Time) []loginLimit {
+func (a *API) loginLimits(r *http.Request, clientIP, username string, now time.Time) []loginLimit {
 	limits := []loginLimit{{a.Limiter, clientIP + "|" + username}, {a.ClientLimiter, clientIP}}
-	if device, err := c.Cookie(DeviceCookie); err != nil || !a.Signer.KnownDevice(device, username, now) {
+	if device, err := r.Cookie(DeviceCookie); err != nil || !a.Signer.KnownDevice(device.Value, username, now) {
 		limits = append(limits, loginLimit{a.AccountLimiter, username})
 	}
 	return limits
@@ -64,8 +64,18 @@ func forgiveAttempt(limits []loginLimit, now time.Time) {
 // The maximum lengths (usernames have at most 32 characters, auth.MaxPasswordLength) keep a request from filling
 // the limiters and the log with huge keys.
 type LoginRequest struct {
-	Username string `json:"username" binding:"required,max=64"   example:"admin"`
-	Password string `json:"password" binding:"required,max=1024" example:"secret-password"`
+	Username string `json:"username" maxLength:"64"   example:"admin"`
+	Password string `json:"password" maxLength:"1024" example:"secret-password"`
+}
+
+// Validate checks that both fields are set and not too long.
+func (req LoginRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("username", req.Username != "")
+	errs.MaxLength("username", req.Username, 64)
+	errs.Require("password", req.Password != "")
+	errs.MaxLength("password", req.Password, 1024)
+	return errs.OrNil()
 }
 
 // LoginResponse returns the session token (also set as HttpOnly cookie).
@@ -87,34 +97,34 @@ type LoginResponse struct {
 //	@Failure		401		{object}	ErrorResponse
 //	@Failure		429		{object}	ErrorResponse
 //	@Router			/auth/login [post]
-func (a *API) login(c *gin.Context) {
+func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	// ClientIP honors X-Forwarded-For only from trusted proxies (--trusted-proxies).
-	clientIP := c.ClientIP()
+	clientIP := a.Proxies.ClientIP(r)
 	now := time.Now()
-	limits := a.loginLimits(c, clientIP, username, now)
+	limits := a.loginLimits(r, clientIP, username, now)
 	if wait, ok := takeAttempt(limits, now); !ok {
-		retryAfter(c, wait)
-		a.Fail(c, TooManyRequests(errors.New("too many failed logins, try again later")))
+		retryAfter(w, wait)
+		a.Fail(w, r, TooManyRequests(errors.New("too many failed logins, try again later")))
 		return
 	}
-	user, ok := a.checkPassword(c, username, req.Password)
+	user, ok := a.checkPassword(r.Context(), username, req.Password)
 	if !ok {
 		a.Log.Warn("sign-in failed", "user", username, "ip", clientIP)
-		a.Fail(c, Unauthorized(errors.New("invalid username or password")))
+		a.Fail(w, r, Unauthorized(errors.New("invalid username or password")))
 		return
 	}
 	a.Limiter.Reset(limits[0].key)
 	forgiveAttempt(limits[1:], now)
 	a.Log.Info("signed in", "user", user.Name, "ip", clientIP)
-	if err := a.Users.UpdatePasswordHash(c, user, req.Password); err != nil {
+	if err := a.Users.UpdatePasswordHash(r.Context(), user, req.Password); err != nil {
 		a.Log.Warn("updating the password hash", "user", user.Name, "err", err)
 	}
-	a.sendSession(c, http.StatusOK, user)
+	a.sendSession(w, r, http.StatusOK, user)
 }
 
 // checkPassword returns the user when the password matches and the account is active (users.Store.CheckActive).
@@ -131,9 +141,9 @@ func (a *API) checkPassword(ctx context.Context, username, password string) (*v1
 }
 
 // startSession signs a session token for the user and sets it as cookie.
-func (a *API) startSession(c *gin.Context, user *v1alpha1.User) (LoginResponse, error) {
+func (a *API) startSession(w http.ResponseWriter, r *http.Request, user *v1alpha1.User) (LoginResponse, error) {
 	now := time.Now()
-	expires := now.Add(a.Settings.Lifetimes(c).Session)
+	expires := now.Add(a.Settings.Lifetimes(r.Context()).Session)
 	token, err := a.Signer.Sign(auth.Session{
 		User: user.Name, Epoch: user.Spec.SessionEpoch, IssuedAt: now.Unix(), ExpiresAt: expires.Unix(),
 	})
@@ -142,29 +152,29 @@ func (a *API) startSession(c *gin.Context, user *v1alpha1.User) (LoginResponse, 
 	}
 	patch := client.MergeFrom(user.DeepCopy())
 	user.Status.LastLoginAt = &metav1.Time{Time: now}
-	_ = a.Client.Status().Patch(c, user, patch)
+	_ = a.Client.Status().Patch(r.Context(), user, patch)
 
-	secure := auth.HTTPS(c.Request)
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name: sessionCookieName(c.Request), Value: token, Path: "/", Expires: expires,
+	secure := auth.HTTPS(r)
+	http.SetCookie(w, &http.Cookie{
+		Name: sessionCookieName(r), Value: token, Path: "/", Expires: expires,
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode,
 	})
 	device := now.Add(deviceLifetime)
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name: DeviceCookie, Value: a.Signer.DeviceToken(user.Name, device), Path: deviceCookiePath, Expires: device,
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode,
 	})
-	return LoginResponse{Token: token, ExpiresAt: expires, User: a.userView(c, user)}, nil
+	return LoginResponse{Token: token, ExpiresAt: expires, User: a.userView(r.Context(), user)}, nil
 }
 
 // sendSession signs the user in and answers with the session.
-func (a *API) sendSession(c *gin.Context, status int, user *v1alpha1.User) {
-	res, err := a.startSession(c, user)
+func (a *API) sendSession(w http.ResponseWriter, r *http.Request, status int, user *v1alpha1.User) {
+	res, err := a.startSession(w, r, user)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	c.JSON(status, res)
+	JSON(w, status, res)
 }
 
 // logout godoc
@@ -174,24 +184,24 @@ func (a *API) sendSession(c *gin.Context, status int, user *v1alpha1.User) {
 //	@Tags			Auth
 //	@Success		204
 //	@Router			/auth/logout [post]
-func (a *API) logout(c *gin.Context) {
-	if token := Credentials(c); token != "" {
-		a.revoke(c, token)
+func (a *API) logout(w http.ResponseWriter, r *http.Request) {
+	if token := Credentials(r); token != "" {
+		a.revoke(r.Context(), token)
 	}
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name: sessionCookieName(c.Request), Path: "/", MaxAge: -1, HttpOnly: true, Secure: auth.HTTPS(c.Request),
+	http.SetCookie(w, &http.Cookie{
+		Name: sessionCookieName(r), Path: "/", MaxAge: -1, HttpOnly: true, Secure: auth.HTTPS(r),
 		SameSite: http.SameSiteStrictMode,
 	})
-	c.Status(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // revoke ends a session token: its user keeps it as logged out until it would have expired (users.Store.LogOut).
-func (a *API) revoke(c *gin.Context, token string) {
+func (a *API) revoke(ctx context.Context, token string) {
 	sess, err := a.Signer.Verify(token, time.Now())
 	if err != nil {
 		return
 	}
-	if err := a.Users.LogOut(c, sess.User, auth.SessionID(token), time.Unix(sess.ExpiresAt, 0)); err != nil {
+	if err := a.Users.LogOut(ctx, sess.User, auth.SessionID(token), time.Unix(sess.ExpiresAt, 0)); err != nil {
 		a.Log.Warn("logging out", "user", sess.User, "err", err)
 	}
 }

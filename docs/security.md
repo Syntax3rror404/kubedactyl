@@ -37,11 +37,13 @@ Measures for exposing the panel to the internet:
   logout signs the user out everywhere); open consoles check their
   credentials every 30 seconds and before every command and close after a logout, a disabled account (also the
   owner of a subuser), a password change or a lost admin role.
-- **Client IP:** gin trusts only the proxies in `--trusted-proxies` (chart default `10.0.0.0/8`, the usual pod
-  networks of an in-cluster gateway), so `X-Forwarded-For` cannot be spoofed to evade the throttle. Without it,
+- **Client IP:** only the proxies in `--trusted-proxies` (chart default `10.0.0.0/8`, the usual pod networks of an
+  in-cluster gateway) may name the client in `X-Forwarded-For` or `X-Real-IP`, so the header cannot be spoofed to
+  evade the throttle. Without it,
   all clients behind a proxy share the proxy IP and its login limit.
-- **CSRF:** SameSite=Strict plus a `Sec-Fetch-Site` check: state changing requests with the session
-  cookie from another site (also another subdomain) are rejected; requests with `Authorization: Bearer` are not
+- **CSRF:** SameSite=Strict plus Go's cross-origin protection (`Sec-Fetch-Site`, in older browsers `Origin`
+  against `Host`): state changing requests with the session cookie from another origin (also another subdomain)
+  are rejected; requests with `Authorization: Bearer` are not
   affected.
   Sign-in and setup only take JSON and refuse other sites, so no page can sign a visitor into another account.
 - **Headers:** a strict Content-Security-Policy (`script-src 'self'`, no inline scripts; the theme

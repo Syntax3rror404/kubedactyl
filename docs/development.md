@@ -296,8 +296,8 @@ and repeated explanations. Existing code follows this style when it is changed a
 
 API reference: **http://localhost:5173/api-docs** (Scalar, reads `/api/openapi.json`; also linked at the bottom of the
 sidebar; administrators can turn it off in *Settings → Security*; `/api/openapi.json` then answers 404, the API keeps
-working). Websocket
-`/api/servers/{name}/ws` uses JSON events: `{"event":"console output","args":["…"]}`,
+working). Request bodies are strict JSON: a field the endpoint does not know is refused with 400 ("unknown field").
+Websocket `/api/servers/{name}/ws` uses JSON events: `{"event":"console output","args":["…"]}`,
 send `{"event":"send command","args":["say hi"]}` or `{"event":"set state","args":["restart"]}`.
 
 All endpoints except `/auth/login`, `/auth/logout`, `/auth/invite`, `/setup`, `/branding`, `/legal`, `/health`,

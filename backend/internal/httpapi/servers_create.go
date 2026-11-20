@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -23,27 +22,27 @@ import (
 
 // CreateServerRequest creates a game server from an egg.
 type CreateServerRequest struct {
-	DisplayName string `json:"displayName"           binding:"required" example:"Survival"`
-	Egg         string `json:"egg"                   binding:"required" example:"paper"`
-	Image       string `json:"image,omitempty"                          example:"ghcr.io/pelican-eggs/yolks:java_21"`
+	DisplayName string `json:"displayName"     example:"Survival"`
+	Egg         string `json:"egg"             example:"paper"`
+	Image       string `json:"image,omitempty" example:"ghcr.io/pelican-eggs/yolks:java_21"`
 	Startup     string `json:"startup,omitempty"`
 	// StartupName picks one of the egg's startup commands. Empty: the egg's default.
 	StartupName string            `json:"startupName,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
-	MemoryMiB   int64             `json:"memoryMiB"             binding:"required" example:"4096"`
-	CPUMillis   int64             `json:"cpuMillis,omitempty"                      example:"2000"`
-	DiskMiB     int64             `json:"diskMiB"               binding:"required" example:"10240"`
-	Ports       []int32           `json:"ports"                 binding:"required" example:"25565"`
+	MemoryMiB   int64             `json:"memoryMiB"           example:"4096"`
+	CPUMillis   int64             `json:"cpuMillis,omitempty" example:"2000"`
+	DiskMiB     int64             `json:"diskMiB"             example:"10240"`
+	Ports       []int32           `json:"ports"               example:"25565"`
 	// StorageClass of the data volume. Empty: the panel default.
 	StorageClass string `json:"storageClass,omitempty" example:"longhorn"`
 	// ServiceType ClusterIP publishes the server only inside the cluster. Only when the settings allow it.
-	ServiceType v1alpha1.ServiceType `json:"serviceType,omitempty" binding:"omitempty,oneof=LoadBalancer ClusterIP"`
+	ServiceType v1alpha1.ServiceType `json:"serviceType,omitempty" enums:"LoadBalancer,ClusterIP"`
 	// LoadBalancerPool the address comes from. Empty: the panel default.
 	LoadBalancerPool string `json:"loadBalancerPool,omitempty" example:"general-pool"`
 	// LoadBalancerIP fixes the address: one IP of the pool, or one per IP family separated by a comma. Optional.
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty" example:"192.168.1.70"`
 	// ExternalTrafficPolicy of the service. Empty: Local, the server sees the players' IPs.
-	ExternalTrafficPolicy v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" binding:"omitempty,oneof=Local Cluster"`
+	ExternalTrafficPolicy v1alpha1.TrafficPolicy `json:"externalTrafficPolicy,omitempty" enums:"Local,Cluster"`
 	// IPv6 also asks for an IPv6 address. Only with a dual stack cluster.
 	IPv6 bool `json:"ipv6,omitempty"`
 	// Owner is the username the server belongs to. Empty: the calling admin.
@@ -52,6 +51,25 @@ type CreateServerRequest struct {
 	StartOnCompletion bool `json:"startOnCompletion,omitempty" example:"true"`
 	// SkipInstall creates the server without running the install script.
 	SkipInstall bool `json:"skipInstall,omitempty"`
+}
+
+// Validate checks the required fields and the fixed values; the egg rules are checked on creation.
+func (req CreateServerRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("displayName", req.DisplayName != "")
+	errs.Require("egg", req.Egg != "")
+	errs.Require("memoryMiB", req.MemoryMiB != 0)
+	errs.Require("diskMiB", req.DiskMiB != 0)
+	errs.Require("ports", len(req.Ports) > 0)
+	checkService(errs, req.ServiceType, req.ExternalTrafficPolicy)
+	return errs.OrNil()
+}
+
+// checkService notes a service type or traffic policy the panel does not know (empty: unchanged or the default).
+func checkService(errs validation.Errors, serviceType v1alpha1.ServiceType, policy v1alpha1.TrafficPolicy) {
+	errs.OneOf("serviceType", string(serviceType),
+		string(v1alpha1.ServiceLoadBalancer), string(v1alpha1.ServiceClusterIP))
+	errs.OneOf("externalTrafficPolicy", string(policy), string(v1alpha1.TrafficLocal), string(v1alpha1.TrafficCluster))
 }
 
 // createServer godoc
@@ -66,30 +84,30 @@ type CreateServerRequest struct {
 //	@Failure		422		{object}	api.ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/servers [post]
-func (a *API) createServer(c *gin.Context) {
+func (a *API) createServer(w http.ResponseWriter, r *http.Request) {
 	var req CreateServerRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	e, ok := a.loadEgg(c, req.Egg)
+	e, ok := a.loadEgg(w, r, req.Egg)
 	if !ok {
 		return
 	}
 	if req.Owner == "" {
-		req.Owner = api.PrincipalOf(c).User.Name
+		req.Owner = api.PrincipalOf(r).User.Name
 	}
-	gs, err := a.newGameServer(c, &req, e)
+	gs, err := a.newGameServer(r.Context(), &req, e)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	if err := a.Client.Create(c, gs); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.Create(r.Context(), gs); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	a.Trigger(gs.Namespace, gs.Name)
-	a.Audit(c, "server created", "server", gs.Name, "egg", gs.Spec.EggRef, "namespace", gs.Namespace)
-	c.JSON(http.StatusCreated, gs)
+	a.Audit(r, "server created", "server", gs.Name, "egg", gs.Spec.EggRef, "namespace", gs.Namespace)
+	api.JSON(w, http.StatusCreated, gs)
 }
 
 // newGameServer validates a create request and builds the GameServer object.

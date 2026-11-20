@@ -1,19 +1,25 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"app/api/v1alpha1"
+	"app/base/api"
+	"app/base/validation"
 	"app/internal/serverctl"
 	"app/internal/tenancy"
 )
 
 // TransferRequest names the user a server moves to.
 type TransferRequest struct {
-	Owner string `json:"owner" binding:"required" example:"alice"`
+	Owner string `json:"owner" example:"alice"`
+}
+
+// Validate checks that the new owner is named.
+func (req TransferRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("owner", req.Owner != "")
+	return errs.OrNil()
 }
 
 // transferServer godoc
@@ -30,34 +36,33 @@ type TransferRequest struct {
 //	@Failure		409		{object}	api.ErrorResponse	"the server is running or already belongs to the user"
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/transfer [post]
-func (a *API) transferServer(c *gin.Context) {
+func (a *API) transferServer(w http.ResponseWriter, r *http.Request) {
 	var req TransferRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
 	// Checked before ownerNamespace creates the target namespace, so a refused transfer leaves nothing behind.
 	if err := checkTransfer(gs, req.Owner); err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	namespace, err := a.ownerNamespace(c, req.Owner)
+	namespace, err := a.ownerNamespace(r.Context(), req.Owner)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	// The move must finish even when the client (or a proxy) gives up waiting.
-	moved, err := a.Ops.Transfer(context.WithoutCancel(c), gs, req.Owner, namespace)
+	moved, err := a.Ops.Transfer(r.Context(), gs, req.Owner, namespace)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server transferred", "server", gs.Name, "from", gs.Namespace, "to", namespace)
+	a.Audit(r, "server transferred", "server", gs.Name, "from", gs.Namespace, "to", namespace)
 	a.Trigger(moved.Namespace, moved.Name)
-	c.JSON(http.StatusOK, moved)
+	api.JSON(w, http.StatusOK, moved)
 }
 
 // checkTransfer refuses a server that already belongs to the owner or is not stopped.

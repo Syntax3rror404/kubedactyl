@@ -183,17 +183,23 @@ tests enforce the ones marked (enforced).
 
 ### Backend
 
-- **Handlers only translate HTTP** (`internal/httpapi`): bind the request → load the object (`loadServer`,
-  `loadEgg`, `loadUser`) → call the domain package → log changes with `a.audit(c, "…", key, value)` → respond.
+- **Routes** are `net/http` (`http.ServeMux` patterns like `"GET /servers/{server}"`, `r.PathValue`), registered
+  through `api.Mux` (`base/api/http.go`): `With` makes a group that runs through more middleware
+  (`func(http.Handler) http.Handler`); a check that only refuses is `a.Guard(func(r) error)`, one that needs the
+  server is `serverGuard` (`servers_access.go`, passes the server on in the context).
+- **Handlers only translate HTTP** (`internal/httpapi`): decode the request → load the object (`loadServer`,
+  `loadEgg`, `loadUser`) → call the domain package → log changes with `a.Audit(r, "…", key, value)` → respond
+  (`api.JSON`).
   Rules and multi-step logic live in the domain packages: `serverctl` (power, reinstall, suspend), `eggstore`
   (create, import, update, delete eggs), `users` (accounts, last-admin rule), `settings`, `files`, `schedule`,
   `gameserver` (building pods, validating resources, ports and variables).
-- **Errors** (enforced by `errors_test.go`): every failure is answered with `a.Fail(c, err)` (`base/api/errors.go`).
+- **Errors** (enforced by `errors_test.go`): every failure is answered with `a.Fail(w, r, err)` (`base/api/errors.go`).
   Domain packages return sentinel errors (`users.ErrLastAdmin`, `eggstore.ErrInUse`, …); `domainErrors` in
   `base/api/errors.go` (base packages) and `httpapi/errors.go` (the app's, `API.StatusOf`) map them to HTTP status
   codes (add new ones there instead of wrapping them in a handler). Handlers wrap only what has no domain error,
   that is checks of the request itself: `api.BadRequest(err)` for unreadable requests (a JSON body is read with
-  `a.BindJSON`, which answers 400 itself), `api.Forbidden`, `api.NotFound`, `api.Conflict`,
+  `a.Decode`, or `a.DecodeOptional` when it may be left out, which answers 400 itself, also for unknown fields and the request's
+  `Validate` rules: required fields, lengths, fixed values; files are sent with `a.Download` and received with `api.Uploads`), `api.Forbidden`, `api.NotFound`, `api.Conflict`,
   `api.FieldError(status, field, err)`; a wrong field value is `validation.Field(field, err)` (422).
 - **Base** (`backend/base/`): the shared backend packages, the same in every app and treated like a library, as
   the frontend base: never changed for one app, this repository is its source, `make check-base` compares both
@@ -210,9 +216,10 @@ tests enforce the ones marked (enforced).
   answers them with 422 and `"fields"`, which the frontend shows next to the inputs.
 - **Logs**: slog with a `component`; the acting user is `by`, affected objects are named by kind (`user`,
   `server`, `egg`).
-- **Contexts**: the gin context does not end when the client goes away, so a handler's changes are never left
-  half done. Only streams the client consumes (a file download) use `c.Request.Context()`; goroutines that outlive
-  the request get their own context, and `kube.TTLCache` loads run with their own 30 second context.
+- **Contexts**: handlers use `r.Context()`. A request that changes something (every method but GET, HEAD,
+  OPTIONS) keeps running when the client goes away (`prepareRequest` in `base/httpserver`), so a change is never
+  left half done; reads and streams stop with the client. Goroutines that outlive the request get their own
+  context, and `kube.TTLCache` loads run with their own 30 second context.
 - **Cached vs. uncached reads**: the controller-runtime cache can lag behind by minutes on this kind of API
   endpoint. Everything whose current state matters (pods, volumes, settings, just created objects, the admin
   count) is read with the uncached `Reader` (`mgr.GetAPIReader()`); decisions create/update use it too.
@@ -221,22 +228,22 @@ tests enforce the ones marked (enforced).
 
   ```go
   // servers_power.go
-  func (a *API) sendPower(c *gin.Context) {
+  func (a *API) sendPower(w http.ResponseWriter, r *http.Request) {
   	var req PowerRequest
-  	if !a.bindJSON(c, &req) { // answers 400 itself
+  	if !a.Decode(w, r, &req) { // answers 400 itself (also for PowerRequest.Validate)
   		return
   	}
-  	gs, ok := a.loadServer(c)
+  	gs, ok := a.loadServer(w, r)
   	if !ok {
   		return
   	}
-  	if err := a.Ops.Power(c, gs, req.Signal); err != nil {
-  		a.fail(c, err) // serverctl.ErrSuspended → 403, ErrOffline → 409 (domainErrors)
+  	if err := a.Ops.Power(r.Context(), gs, req.Signal); err != nil {
+  		a.Fail(w, r, err) // serverctl.ErrSuspended → 403, ErrOffline → 409 (domainErrors)
   		return
   	}
-  	a.audit(c, "power action sent", "server", gs.Name, "signal", req.Signal)
+  	a.Audit(r, "power action sent", "server", gs.Name, "signal", req.Signal)
   	a.Trigger(gs.Namespace, gs.Name)
-  	c.Status(http.StatusNoContent)
+  	w.WriteHeader(http.StatusNoContent)
   }
   ```
 

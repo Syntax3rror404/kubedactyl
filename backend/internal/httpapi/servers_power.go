@@ -3,17 +3,33 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"app/base/api"
+	"app/base/validation"
 )
 
 // PowerRequest changes the power state.
 type PowerRequest struct {
-	Signal string `json:"signal" binding:"required,oneof=start stop restart kill" enums:"start,stop,restart,kill" example:"start"`
+	Signal string `json:"signal" enums:"start,stop,restart,kill" example:"start"`
+}
+
+// Validate checks that the signal is one of the four.
+func (req PowerRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("signal", req.Signal != "")
+	errs.OneOf("signal", req.Signal, "start", "stop", "restart", "kill")
+	return errs.OrNil()
 }
 
 // CommandRequest sends a console command.
 type CommandRequest struct {
-	Command string `json:"command" binding:"required" example:"say Hello"`
+	Command string `json:"command" example:"say Hello"`
+}
+
+// Validate checks that a command is given.
+func (req CommandRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("command", req.Command != "")
+	return errs.OrNil()
 }
 
 // SuspendRequest suspends or unsuspends a server.
@@ -33,22 +49,22 @@ type SuspendRequest struct {
 //	@Success		204
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/power [post]
-func (a *API) sendPower(c *gin.Context) {
+func (a *API) sendPower(w http.ResponseWriter, r *http.Request) {
 	var req PowerRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Ops.Power(c, gs, req.Signal); err != nil {
-		a.Fail(c, err)
+	if err := a.Ops.Power(r.Context(), gs, req.Signal); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "power action sent", "server", gs.Name, "signal", req.Signal)
+	a.Audit(r, "power action sent", "server", gs.Name, "signal", req.Signal)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.Status(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // sendCommand godoc
@@ -62,21 +78,21 @@ func (a *API) sendPower(c *gin.Context) {
 //	@Failure	409	{object}	api.ErrorResponse	"server is not running"
 //	@Security	BearerAuth
 //	@Router		/servers/{server}/command [post]
-func (a *API) sendCommand(c *gin.Context) {
+func (a *API) sendCommand(w http.ResponseWriter, r *http.Request) {
 	var req CommandRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Ops.Command(c, gs, req.Command); err != nil {
-		a.Fail(c, err)
+	if err := a.Ops.Command(r.Context(), gs, req.Command); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "console command sent", "server", gs.Name, "command", req.Command)
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "console command sent", "server", gs.Name, "command", req.Command)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // reinstallServer godoc
@@ -89,18 +105,18 @@ func (a *API) sendCommand(c *gin.Context) {
 //	@Success		204
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/reinstall [post]
-func (a *API) reinstallServer(c *gin.Context) {
-	gs, ok := a.loadServer(c)
+func (a *API) reinstallServer(w http.ResponseWriter, r *http.Request) {
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Ops.Reinstall(c, gs); err != nil {
-		a.Fail(c, err)
+	if err := a.Ops.Reinstall(r.Context(), gs); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server reinstall started", "server", gs.Name)
+	a.Audit(r, "server reinstall started", "server", gs.Name)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.Status(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // suspendServer godoc
@@ -115,20 +131,20 @@ func (a *API) reinstallServer(c *gin.Context) {
 //	@Success		200		{object}	v1alpha1.GameServer
 //	@Security		BearerAuth
 //	@Router			/servers/{server}/suspend [post]
-func (a *API) suspendServer(c *gin.Context) {
+func (a *API) suspendServer(w http.ResponseWriter, r *http.Request) {
 	var req SuspendRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
-	gs, ok := a.loadServer(c)
+	gs, ok := a.loadServer(w, r)
 	if !ok {
 		return
 	}
-	if err := a.Ops.Suspend(c, gs, req.Suspended); err != nil {
-		a.Fail(c, err)
+	if err := a.Ops.Suspend(r.Context(), gs, req.Suspended); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
+	a.Audit(r, "server suspension changed", "server", gs.Name, "suspended", req.Suspended)
 	a.Trigger(gs.Namespace, gs.Name)
-	c.JSON(http.StatusOK, gs)
+	api.JSON(w, http.StatusOK, gs)
 }

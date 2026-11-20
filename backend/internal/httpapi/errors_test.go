@@ -23,8 +23,6 @@ import (
 	"app/internal/schedule"
 	"app/internal/serverctl"
 	"app/internal/testutil"
-
-	"github.com/gin-gonic/gin"
 )
 
 func TestStatusOf(t *testing.T) {
@@ -61,8 +59,7 @@ func statusOf(err error) (int, map[string]string) {
 	a := &API{API: &api.API{Log: testutil.Logger()}}
 	a.API.App = a
 	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	a.Fail(c, err)
+	a.Fail(rec, httptest.NewRequest(http.MethodGet, "/", nil), err)
 	var body api.ErrorResponse
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	return rec.Code, body.Fields
@@ -80,10 +77,8 @@ func TestErrorResponsesOnlyInFail(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, bad := range []string{"api.ErrorResponse{", `gin.H{"error"`} {
-			if strings.Contains(string(b), bad) {
-				t.Errorf("%s writes an error response itself (%s): return an error and call a.Fail(c, err)", f, bad)
-			}
+		if strings.Contains(string(b), "api.ErrorResponse{") {
+			t.Errorf("%s writes an error response itself: return an error and call a.Fail(w, r, err)", f)
 		}
 	}
 }

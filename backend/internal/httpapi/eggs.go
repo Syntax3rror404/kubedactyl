@@ -1,12 +1,12 @@
 package httpapi
 
 import (
-	"fmt"
+	"bytes"
+	"cmp"
 	"net/http"
 	"sort"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"app/api/v1alpha1"
@@ -27,21 +27,21 @@ type EggList struct {
 //	@Success	200	{object}	EggList
 //	@Security	BearerAuth
 //	@Router		/eggs [get]
-func (a *API) listEggs(c *gin.Context) {
+func (a *API) listEggs(w http.ResponseWriter, r *http.Request) {
 	var list v1alpha1.EggList
-	if err := a.Client.List(c, &list, client.InNamespace(a.Opts.Namespace)); err != nil {
-		a.Fail(c, err)
+	if err := a.Client.List(r.Context(), &list, client.InNamespace(a.Opts.Namespace)); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
 	sort.Slice(
 		list.Items,
 		func(i, j int) bool { return list.Items[i].Spec.DisplayName < list.Items[j].Spec.DisplayName },
 	)
-	p := api.PrincipalOf(c)
+	p := api.PrincipalOf(r)
 	for i := range list.Items {
 		visibleEgg(p, &list.Items[i])
 	}
-	c.JSON(http.StatusOK, EggList{Items: list.Items})
+	api.JSON(w, http.StatusOK, EggList{Items: list.Items})
 }
 
 // getEgg godoc
@@ -54,27 +54,27 @@ func (a *API) listEggs(c *gin.Context) {
 //	@Failure	404	{object}	api.ErrorResponse
 //	@Security	BearerAuth
 //	@Router		/eggs/{egg} [get]
-func (a *API) getEgg(c *gin.Context) {
-	if e, ok := a.loadEgg(c, c.Param("egg")); ok {
-		c.JSON(http.StatusOK, visibleEgg(api.PrincipalOf(c), e))
+func (a *API) getEgg(w http.ResponseWriter, r *http.Request) {
+	if e, ok := a.loadEgg(w, r, r.PathValue("egg")); ok {
+		api.JSON(w, http.StatusOK, visibleEgg(api.PrincipalOf(r), e))
 	}
 }
 
 // loadEgg reads an egg (just created ones, too: eggstore.Store.Get).
-func (a *API) loadEgg(c *gin.Context, name string) (*v1alpha1.Egg, bool) {
-	e, err := a.Eggs.Get(c, name)
+func (a *API) loadEgg(w http.ResponseWriter, r *http.Request, name string) (*v1alpha1.Egg, bool) {
+	e, err := a.Eggs.Get(r.Context(), name)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return nil, false
 	}
 	return e, true
 }
 
 // eggsByName returns all eggs keyed by name (for visibleServer); empty when they cannot be read.
-func (a *API) eggsByName(c *gin.Context) map[string]*v1alpha1.Egg {
+func (a *API) eggsByName(w http.ResponseWriter, r *http.Request) map[string]*v1alpha1.Egg {
 	var list v1alpha1.EggList
 	out := map[string]*v1alpha1.Egg{}
-	if err := a.Client.List(c, &list, client.InNamespace(a.Opts.Namespace)); err == nil {
+	if err := a.Client.List(r.Context(), &list, client.InNamespace(a.Opts.Namespace)); err == nil {
 		for i := range list.Items {
 			out[list.Items[i].Name] = &list.Items[i]
 		}
@@ -95,23 +95,24 @@ func (a *API) eggsByName(c *gin.Context) map[string]*v1alpha1.Egg {
 //	@Success		200			{string}	string	"egg file"
 //	@Security		BearerAuth
 //	@Router			/eggs/{egg}/export [get]
-func (a *API) exportEgg(c *gin.Context) {
-	e, ok := a.loadEgg(c, c.Param("egg"))
+func (a *API) exportEgg(w http.ResponseWriter, r *http.Request) {
+	e, ok := a.loadEgg(w, r, r.PathValue("egg"))
 	if !ok {
 		return
 	}
-	format := c.DefaultQuery("format", egg.FormatYAML)
+	format := cmp.Or(r.URL.Query().Get("format"), egg.FormatYAML)
 	data, file, err := egg.Export(e.Name, &e.Spec, format, time.Now())
 	if err != nil {
-		a.Fail(c, api.BadRequest(err))
+		a.Fail(w, r, api.BadRequest(err))
+		return
+	}
+	if r.URL.Query().Get("download") == "true" {
+		_ = a.Download(w, r, file, api.Copy(bytes.NewReader(data)))
 		return
 	}
 	ctype := "application/json; charset=utf-8"
 	if format == egg.FormatYAML {
 		ctype = "application/yaml; charset=utf-8"
 	}
-	if c.Query("download") == "true" {
-		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, file))
-	}
-	c.Data(http.StatusOK, ctype, data)
+	api.Data(w, http.StatusOK, ctype, data)
 }

@@ -18,7 +18,6 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +27,7 @@ import (
 	"app/api/v1alpha1"
 	"app/base/api"
 	"app/base/auth"
+	"app/base/httpserver"
 	"app/base/kube"
 	"app/base/settings"
 	"app/base/users"
@@ -48,15 +48,13 @@ const sysNS = testutil.Namespace
 
 type harness struct {
 	t      *testing.T
-	router *gin.Engine
+	router http.Handler
 	client client.Client
 	api    *API
 }
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
-
 	hash := func(pw string) string { h, _ := auth.HashPassword(pw); return h }
 	user := func(name string, role v1alpha1.UserRole) *v1alpha1.User {
 		return &v1alpha1.User{
@@ -137,8 +135,11 @@ func newHarness(t *testing.T) *harness {
 		Hub:         console.NewHub(nil, testutil.Logger()),
 		Trigger:     func(string, string) {},
 	}
-	r := gin.New()
-	handlers.Register(r.Group("/api"))
+	cfg := httpserver.Config{API: handlers, Settings: handlers.Settings, Log: testutil.Logger()}
+	r, err := httpserver.NewRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return &harness{t: t, router: r, client: c, api: handlers}
 }
 
@@ -1087,26 +1088,23 @@ func TestDenylistFromPanelNamespace(t *testing.T) {
 	}
 	gs := &v1alpha1.GameServer{}
 	_ = h.client.Get(t.Context(), client.ObjectKey{Namespace: tenancy.Namespace("alice"), Name: "alice-srv"}, gs)
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", nil)
 	eggs := &API{
 		API:  &api.API{Log: testutil.Logger()},
 		Eggs: &eggstore.Store{Client: h.client, Reader: h.client, Namespace: sysNS},
 	}
-	if got, ok := eggs.denylist(c, gs); !ok || len(got) != 1 || got[0] != "server.jar" {
+	if got, ok := eggs.denylist(httptest.NewRecorder(), req, gs); !ok || len(got) != 1 || got[0] != "server.jar" {
 		t.Errorf("denylist = %v, %v", got, ok)
 	}
 	// A server whose egg is gone has no denylist; any other failure answers the request.
 	gone := gs.DeepCopy()
 	gone.Spec.EggRef = "gone"
-	if got, ok := eggs.denylist(c, gone); !ok || got != nil {
+	if got, ok := eggs.denylist(httptest.NewRecorder(), req, gone); !ok || got != nil {
 		t.Errorf("denylist of a deleted egg = %v, %v", got, ok)
 	}
 	eggs.Eggs = &eggstore.Store{Client: failingClient{h.client}, Reader: failingClient{h.client}, Namespace: sysNS}
 	rec := httptest.NewRecorder()
-	c, _ = gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest("GET", "/", nil)
-	if _, ok := eggs.denylist(c, gs); ok || rec.Code != 500 {
+	if _, ok := eggs.denylist(rec, req, gs); ok || rec.Code != 500 {
 		t.Errorf("a failed egg read must fail the request: ok=%v code=%d", ok, rec.Code)
 	}
 }

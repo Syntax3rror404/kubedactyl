@@ -6,11 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"app/api/v1alpha1"
 	"app/app"
 	"app/base/users"
+	"app/base/validation"
 )
 
 // InviteView describes an invite without the token of its link.
@@ -40,10 +39,17 @@ type CreatedInvite struct {
 type CreateInviteRequest struct {
 	Username string            `json:"username,omitempty" example:"alice"`
 	Role     v1alpha1.UserRole `json:"role,omitempty"     example:"admin"`
-	Note     string            `json:"note,omitempty"     binding:"max=200"                       example:"Alice from the support team"`
+	Note     string            `json:"note,omitempty"     maxLength:"200"                         example:"Alice from the support team"`
 	// Reset creates a link that sets a new password for the existing account Username (users: accounts they own).
 	Reset bool `json:"reset,omitempty"`
 	app.InviteRequest
+}
+
+// Validate checks the length of the note.
+func (req CreateInviteRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.MaxLength("note", req.Note, 200)
+	return errs.OrNil()
 }
 
 // InviteDetails is what the invite page needs before the account is created.
@@ -57,11 +63,19 @@ type InviteDetails struct {
 
 // AcceptInviteRequest creates the account of an invite link.
 type AcceptInviteRequest struct {
-	Token string `json:"token" binding:"required"`
+	Token string `json:"token"`
 	// Username is ignored when the invite names one.
 	Username    string `json:"username,omitempty"    example:"alice"`
 	DisplayName string `json:"displayName,omitempty" example:"Alice"`
-	Password    string `json:"password"              binding:"required" example:"a-long-password"`
+	Password    string `json:"password"              example:"a-long-password"`
+}
+
+// Validate checks that token and password are set.
+func (req AcceptInviteRequest) Validate() error {
+	errs := validation.Errors{}
+	errs.Require("token", req.Token != "")
+	errs.Require("password", req.Password != "")
+	return errs.OrNil()
 }
 
 func (a *API) inviteView(i *v1alpha1.Invite) InviteView {
@@ -86,17 +100,17 @@ func (a *API) inviteView(i *v1alpha1.Invite) InviteView {
 //	@Security		BearerAuth
 //	@Success		200	{array}	InviteView
 //	@Router			/invites [get]
-func (a *API) listInvites(c *gin.Context) {
-	list, err := a.Users.ListInvites(c, PrincipalOf(c).User)
+func (a *API) listInvites(w http.ResponseWriter, r *http.Request) {
+	list, err := a.Users.ListInvites(r.Context(), PrincipalOf(r).User)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
 	out := []InviteView{}
 	for i := range list {
 		out = append(out, a.inviteView(&list[i]))
 	}
-	c.JSON(http.StatusOK, out)
+	JSON(w, http.StatusOK, out)
 }
 
 // createInvite godoc
@@ -112,22 +126,22 @@ func (a *API) listInvites(c *gin.Context) {
 //	@Success		201		{object}	CreatedInvite
 //	@Failure		422		{object}	ErrorResponse
 //	@Router			/invites [post]
-func (a *API) createInvite(c *gin.Context) {
+func (a *API) createInvite(w http.ResponseWriter, r *http.Request) {
 	var req CreateInviteRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
 	in := users.InviteInput{
 		Username: req.Username, Role: req.Role, Note: req.Note, Reset: req.Reset, InviteRequest: req.InviteRequest,
 	}
-	invite, token, err := a.Users.CreateInvite(c, in, PrincipalOf(c).User)
+	invite, token, err := a.Users.CreateInvite(r.Context(), in, PrincipalOf(r).User)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "invite created", "invite", invite.Name, "username", invite.Spec.Username, "role", invite.Spec.Role,
+	a.Audit(r, "invite created", "invite", invite.Name, "username", invite.Spec.Username, "role", invite.Spec.Role,
 		"reset", invite.Spec.Reset)
-	c.JSON(http.StatusCreated, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
+	JSON(w, http.StatusCreated, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
 }
 
 // renewInvite godoc
@@ -142,14 +156,14 @@ func (a *API) createInvite(c *gin.Context) {
 //	@Success		200		{object}	CreatedInvite
 //	@Failure		404		{object}	ErrorResponse
 //	@Router			/invites/{invite}/renew [post]
-func (a *API) renewInvite(c *gin.Context) {
-	invite, token, err := a.Users.RenewInvite(c, c.Param("invite"), PrincipalOf(c).User)
+func (a *API) renewInvite(w http.ResponseWriter, r *http.Request) {
+	invite, token, err := a.Users.RenewInvite(r.Context(), r.PathValue("invite"), PrincipalOf(r).User)
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "invite renewed", "invite", invite.Name)
-	c.JSON(http.StatusOK, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
+	a.Audit(r, "invite renewed", "invite", invite.Name)
+	JSON(w, http.StatusOK, CreatedInvite{InviteView: a.inviteView(invite), Token: token})
 }
 
 // deleteInvite godoc
@@ -161,27 +175,27 @@ func (a *API) renewInvite(c *gin.Context) {
 //	@Success	204
 //	@Failure	404	{object}	ErrorResponse
 //	@Router		/invites/{invite} [delete]
-func (a *API) deleteInvite(c *gin.Context) {
-	if err := a.Users.DeleteInvite(c, c.Param("invite"), PrincipalOf(c).User); err != nil {
-		a.Fail(c, err)
+func (a *API) deleteInvite(w http.ResponseWriter, r *http.Request) {
+	if err := a.Users.DeleteInvite(r.Context(), r.PathValue("invite"), PrincipalOf(r).User); err != nil {
+		a.Fail(w, r, err)
 		return
 	}
-	a.Audit(c, "invite revoked", "invite", c.Param("invite"))
-	c.Status(http.StatusNoContent)
+	a.Audit(r, "invite revoked", "invite", r.PathValue("invite"))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // useInviteLink runs use, which looks up an invite link. Invalid links count against the client like failed
 // sign-ins, so nobody can make the panel look up invites without end.
-func (a *API) useInviteLink(c *gin.Context, use func() error) bool {
+func (a *API) useInviteLink(w http.ResponseWriter, r *http.Request, use func() error) bool {
 	now := time.Now()
-	key, err := a.takeClientAttempt(c, "invite", now)
+	key, err := a.takeClientAttempt(w, r, "invite", now)
 	if err == nil {
 		if err = use(); !errors.Is(err, users.ErrInvalidInvite) {
 			a.Limiter.Forgive(key, now)
 		}
 	}
 	if err != nil {
-		a.Fail(c, err)
+		a.Fail(w, r, err)
 		return false
 	}
 	return true
@@ -198,14 +212,14 @@ func (a *API) useInviteLink(c *gin.Context, use func() error) bool {
 //	@Failure		404		{object}	ErrorResponse	"unknown, used or expired link"
 //	@Failure		429		{object}	ErrorResponse
 //	@Router			/auth/invite [get]
-func (a *API) getInvite(c *gin.Context) {
+func (a *API) getInvite(w http.ResponseWriter, r *http.Request) {
 	var invite *v1alpha1.Invite
 	find := func() (err error) {
-		invite, err = a.Users.FindInvite(c, strings.TrimSpace(c.Query("token")))
+		invite, err = a.Users.FindInvite(r.Context(), strings.TrimSpace(r.URL.Query().Get("token")))
 		return err
 	}
-	if a.useInviteLink(c, find) {
-		c.JSON(http.StatusOK, InviteDetails{
+	if a.useInviteLink(w, r, find) {
+		JSON(w, http.StatusOK, InviteDetails{
 			Username: invite.Spec.Username, ExpiresAt: invite.Spec.ExpiresAt.Time, Reset: invite.Spec.Reset,
 		})
 	}
@@ -225,20 +239,20 @@ func (a *API) getInvite(c *gin.Context) {
 //	@Failure		422		{object}	ErrorResponse
 //	@Failure		429		{object}	ErrorResponse
 //	@Router			/auth/invite [post]
-func (a *API) acceptInvite(c *gin.Context) {
+func (a *API) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	var req AcceptInviteRequest
-	if !a.BindJSON(c, &req) {
+	if !a.Decode(w, r, &req) {
 		return
 	}
 	var u *v1alpha1.User
 	var invite *v1alpha1.Invite
 	accept := func() (err error) {
-		u, invite, err = a.Users.AcceptInvite(c, strings.TrimSpace(req.Token), users.AcceptInput{
+		u, invite, err = a.Users.AcceptInvite(r.Context(), strings.TrimSpace(req.Token), users.AcceptInput{
 			Username: req.Username, DisplayName: req.DisplayName, Password: req.Password,
 		})
 		return err
 	}
-	if !a.useInviteLink(c, accept) {
+	if !a.useInviteLink(w, r, accept) {
 		return
 	}
 	msg := "account created through an invite"
@@ -246,5 +260,5 @@ func (a *API) acceptInvite(c *gin.Context) {
 		msg = "password set through a reset link"
 	}
 	a.Log.Info(msg, "user", u.Name, "invite", invite.Name, "invitedBy", invite.Spec.CreatedBy)
-	a.sendSession(c, http.StatusCreated, u)
+	a.sendSession(w, r, http.StatusCreated, u)
 }
