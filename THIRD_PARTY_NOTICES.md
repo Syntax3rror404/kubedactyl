@@ -560,13 +560,13 @@ Tailwind CSS, which produce the shipped JavaScript and CSS.
 | @scalar/asyncapi-to-markdown | MIT |
 | @scalar/asyncapi-upgrader | MIT |
 | @scalar/blocks | MIT |
-| @scalar/code-highlight | MIT |
 | @scalar/components | MIT |
 | @scalar/helpers | MIT |
 | @scalar/highlight | MIT |
 | @scalar/icons | MIT |
 | @scalar/json-magic | MIT |
 | @scalar/localization | MIT |
+| @scalar/markdown | MIT |
 | @scalar/oas-utils | MIT |
 | @scalar/openapi-to-markdown | MIT |
 | @scalar/openapi-upgrader | MIT |

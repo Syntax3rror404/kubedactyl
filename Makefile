@@ -72,7 +72,7 @@ test: check-generated embed-placeholder
 # unused code (deadcode; internal/testutil is only used by tests, base/ is a library whose parts not every app
 # uses), and the frontend checks.
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
-DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.52.0
+DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.53.0
 lint: embed-placeholder
 	cd backend && $(GOLANGCI) run ./...
 	@cd backend && dead="$$($(DEADCODE) ./... | grep -v -e '^internal/testutil/' -e '^base/')"; \
