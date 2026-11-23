@@ -68,7 +68,7 @@ export function VariableField({
           disabled={disabled}
           onCheckedChange={(c) => onChange(c ? trueValue : falseValue)}
         />
-        <span className="font-mono text-xs text-muted-foreground">{value || "-"}</span>
+        <span className="text-xs text-muted-foreground">{value || "-"}</span>
       </div>
     )
   } else {
@@ -79,7 +79,7 @@ export function VariableField({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder={variable.defaultValue || (required ? "required" : "optional")}
-        className="font-mono text-sm"
+        className="text-sm"
         aria-invalid={!!error}
       />
     )

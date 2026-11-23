@@ -74,7 +74,7 @@ export function FileDropzone({
             className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm"
           >
             <FileIcon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate font-mono text-xs">{f.name}</span>
+            <span className="min-w-0 flex-1 truncate text-xs">{f.name}</span>
             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatBytes(f.size)}</span>
             <Button
               type="button"

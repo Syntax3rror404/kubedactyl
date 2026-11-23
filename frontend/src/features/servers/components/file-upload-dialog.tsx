@@ -71,7 +71,8 @@ function UploadForm({
       <DialogHeader>
         <DialogTitle>Upload files</DialogTitle>
         <DialogDescription>
-          Into <code className="font-mono">{dir}</code>. Add files (also one after another), then upload them together.
+          Into <span className="font-medium">{dir}</span>. Add files (also one after another), then upload them
+          together.
         </DialogDescription>
       </DialogHeader>
       <div className="max-h-[55vh] overflow-auto">

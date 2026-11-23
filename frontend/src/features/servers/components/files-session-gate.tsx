@@ -55,7 +55,7 @@ export function FilesSessionGate({
               ) : (
                 <p className="font-medium">Please wait a few seconds, your file container is spinning up…</p>
               )}
-              <p className="font-mono text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {error ? error.message : (session?.message ?? "requesting")}
               </p>
             </>

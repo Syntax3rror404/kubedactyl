@@ -44,7 +44,7 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
     onError: failed("install the egg"),
   })
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <EggHeader
         spec={s}
         actions={
@@ -70,11 +70,9 @@ function LibraryEggDetail({ content: { egg, spec: s } }: { content: LibraryEggCo
           </>
         }
       >
-        <Badge variant="outline" className="font-mono">
-          {egg.format}
-        </Badge>
+        <Badge variant="outline">{egg.format}</Badge>
         <a
-          className="inline-flex items-center gap-1 font-mono text-xs underline-offset-4 hover:underline"
+          className="inline-flex items-center gap-1 text-xs underline-offset-4 hover:underline"
           href={egg.url}
           target="_blank"
           rel="noreferrer"

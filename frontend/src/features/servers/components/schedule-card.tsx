@@ -1,6 +1,6 @@
 import { CalendarClockIcon, PencilIcon, PlayIcon, Trash2Icon, ZapIcon } from "lucide-react"
 
-import { formatRelativeTime } from "@/base/lib/format"
+import { formatDateTime, formatRelativeTime } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,9 +55,9 @@ export function ScheduleCard({
               eventLabels[s.event]
             ) : (
               <>
-                {describeCron(s.cron ?? "") ?? s.cron}{" "}
-                <span className="font-mono text-xs">
-                  ({s.cron}, {timeZone})
+                {describeCron(s.cron ?? "") ?? <span className="font-mono">{s.cron}</span>}{" "}
+                <span className="text-xs">
+                  (<span className="font-mono">{s.cron}</span>, {timeZone})
                 </span>
               </>
             )}
@@ -69,7 +69,7 @@ export function ScheduleCard({
         <ol className="space-y-1.5">
           {s.tasks.map((t, i) => (
             <li key={i} className="flex items-baseline gap-2">
-              <span className="w-5 shrink-0 text-right font-mono text-xs text-muted-foreground">{i + 1}.</span>
+              <span className="w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{i + 1}.</span>
               <span>
                 {t.delaySeconds ? <span className="text-muted-foreground">after {t.delaySeconds}s · </span> : null}
                 {actionLabels[t.action]}
@@ -84,7 +84,7 @@ export function ScheduleCard({
           {!s.event && (
             <>
               <dt className="text-muted-foreground">Next run</dt>
-              <dd>{next ? `${next.toLocaleString()}` : s.enabled ? "-" : "disabled"}</dd>
+              <dd>{next ? formatDateTime(next.getTime()) : s.enabled ? "-" : "disabled"}</dd>
             </>
           )}
           <dt className="text-muted-foreground">Last run</dt>

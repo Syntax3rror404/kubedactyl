@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { ConfirmDialog } from "@/base/components/confirm-dialog"
 import { EmptyState, QueryState } from "@/base/components/query-state"
 import { useRetained } from "@/base/hooks/use-retained"
-import { formatBytes, formatRelativeTime, plural } from "@/base/lib/format"
+import { formatBytes, formatDateTime, formatRelativeTime, plural } from "@/base/lib/format"
 import { failed } from "@/base/lib/queries"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,7 +51,7 @@ export function BackupsPage() {
   const total = (backups.data ?? []).reduce((sum, b) => sum + b.size, 0)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -120,11 +120,11 @@ export function BackupsPage() {
                 <TableBody>
                   {items.map((b) => (
                     <TableRow key={b.name}>
-                      <TableCell className="max-w-0 truncate pl-4 font-mono text-xs sm:max-w-none">{b.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatBytes(b.size)}</TableCell>
+                      <TableCell className="max-w-0 truncate pl-4 sm:max-w-none">{b.name}</TableCell>
+                      <TableCell className="text-right">{formatBytes(b.size)}</TableCell>
                       <TableCell
                         className="hidden text-muted-foreground sm:table-cell"
-                        title={new Date(b.createdAt).toLocaleString()}
+                        title={formatDateTime(b.createdAt)}
                       >
                         {formatRelativeTime(b.createdAt)}
                       </TableCell>

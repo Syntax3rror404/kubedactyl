@@ -70,7 +70,7 @@ export function ImagesSection({
       >
         <div className="flex flex-wrap gap-1">
           {placeholders.map((p) => (
-            <SuggestionChip key={p} onClick={() => insert(`{{${p}}}`)}>
+            <SuggestionChip key={p} mono onClick={() => insert(`{{${p}}}`)}>
               {`{{${p}}}`}
             </SuggestionChip>
           ))}

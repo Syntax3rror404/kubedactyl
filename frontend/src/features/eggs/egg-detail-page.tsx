@@ -57,7 +57,7 @@ function EggDetail({ egg }: { egg: Egg }) {
   })
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <EggHeader
         spec={s}
         actions={
@@ -97,7 +97,7 @@ function EggDetail({ egg }: { egg: Egg }) {
           </>
         }
       >
-        <EggOrigin spec={s} className="font-mono" />
+        <EggOrigin spec={s} />
         <UpdateUrlBadge spec={s} />
         {s.source?.editedAt && <span className="text-xs">edited {formatRelativeTime(s.source.editedAt)}</span>}
         {s.source?.autoUpdate && egg.status?.updateCheckedAt && (
@@ -116,8 +116,8 @@ function EggDetail({ egg }: { egg: Egg }) {
         title={`Update ${s.displayName} from its URL?`}
         description={
           <>
-            Downloads <span className="font-mono break-all">{s.source?.updateUrl}</span> and replaces all fields:
-            changes made in the panel are overwritten.
+            Downloads <span className="break-all">{s.source?.updateUrl}</span> and replaces all fields: changes made in
+            the panel are overwritten.
           </>
         }
         confirmLabel="Update"

@@ -118,8 +118,7 @@ export function DangerZone({
                 title={`Delete ${serverName(server)}?`}
                 description={
                   <>
-                    All files including the volume are deleted. Type <strong className="font-mono">{name}</strong> to
-                    confirm.
+                    All files including the volume are deleted. Type <strong>{name}</strong> to confirm.
                   </>
                 }
                 confirmLabel="Delete permanently"
@@ -127,12 +126,7 @@ export function DangerZone({
                 disabled={confirm !== name || remove.isPending}
                 onConfirm={() => remove.mutate()}
               >
-                <Input
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  className="font-mono"
-                  placeholder={name}
-                />
+                <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={name} />
               </ConfirmDialog>
             </DangerRow>
           </>

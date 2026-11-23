@@ -44,7 +44,7 @@ export function SharingCard({ server, draft, onChange, errors }: SettingsCardPro
               <UserAvatar user={u} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{userName(u)}</div>
-                <div className="truncate font-mono text-xs text-muted-foreground">{u.username}</div>
+                <div className="truncate text-xs text-muted-foreground">{u.username}</div>
               </div>
               <AccessSelect
                 value={accessOf(u.username)}

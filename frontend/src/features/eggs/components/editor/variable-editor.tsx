@@ -82,7 +82,6 @@ export function VariableEditor({
         <FieldLabel htmlFor={`var-${index}-default`}>Default value</FieldLabel>
         <Input
           id={`var-${index}-default`}
-          className="font-mono"
           value={v.defaultValue ?? ""}
           onChange={(e) => onChange({ defaultValue: e.target.value })}
         />

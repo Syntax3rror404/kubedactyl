@@ -108,7 +108,6 @@ export function SsoCard({ draft, onChange, errors, secretSet }: SettingsCardProp
                 value={values.redirectUrl}
                 onChange={(e) => onOidcChange({ redirectUrl: e.target.value })}
                 placeholder="https://panel.example.com/api/auth/oidc/callback"
-                className="font-mono"
               />
               <CopyButton value={values.redirectUrl || thisPanel} />
             </div>
@@ -133,13 +132,7 @@ function TextInput({
   return (
     <SettingsField id={`oidc-${field.key}`} label={field.label} hint={field.hint} error={error}>
       {(control) => (
-        <Input
-          {...control}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={field.placeholder}
-          className="font-mono"
-        />
+        <Input {...control} value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder} />
       )}
     </SettingsField>
   )

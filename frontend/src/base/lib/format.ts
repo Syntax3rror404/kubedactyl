@@ -40,6 +40,16 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
+/** A date with its time in the browser's format, e.g. 04/02/2024, 13:05:00: exact moments (tooltips, details). */
+export function formatDateTime(iso: string | number): string {
+  return new Date(iso).toLocaleString()
+}
+
+/** The time of day in the browser's format, e.g. 13:05:00: the lines of a log or an event list. */
+export function formatTime(iso: string | number): string {
+  return new Date(iso).toLocaleTimeString()
+}
+
 /** How long ago ("5 min ago"), the date after a day; "-" for none. */
 export function formatRelativeTime(iso?: string): string {
   if (!iso) return "-"

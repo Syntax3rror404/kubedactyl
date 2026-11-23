@@ -28,7 +28,7 @@ export function PortEditor({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {ports.map((p, i) => (
-        <Badge key={p} variant={i === 0 ? "default" : "secondary"} className="gap-1 py-1 pr-1 font-mono">
+        <Badge key={p} variant={i === 0 ? "default" : "secondary"} className="gap-1 py-1 pr-1 tabular-nums">
           {p}
           {i === 0 && <span className="font-sans text-[10px] opacity-70">primary</span>}
           <button
@@ -51,7 +51,7 @@ export function PortEditor({
           onBlur={() => draft && add()}
           placeholder={ports.length ? "Add port" : "e.g. 25565"}
           aria-invalid={ports.length === 0}
-          className="h-7 w-28 font-mono text-xs"
+          className="h-7 w-28 text-xs"
         />
         <Button type="button" size="icon-sm" variant="outline" onClick={add} disabled={!draft} aria-label="Add port">
           <PlusIcon />

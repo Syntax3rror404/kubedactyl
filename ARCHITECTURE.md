@@ -281,6 +281,20 @@ tests enforce the ones marked (enforced).
   keeps its target while the dialog closes with `useRetained`). Form
   dialogs mount their form fresh on every open. Egg console prompts (`features/servers/egg-features`) stay open
   while their action runs and are built on `AlertDialog` directly.
+- **Fonts**: everything in Geist, also names, versions, addresses and paths. JetBrains Mono (`font-mono`) only where
+  every character counts: the console, logs, YAML and code editors, commands and startup lines, environment
+  variables and patterns, and long opaque values people compare (hashes, tokens); `<code>` and `<pre>` are mono by
+  themselves. Numbers line up with `tabular-nums` (tables get it from `index.css`), never with the mono font.
+- **Sizes**: content `text-sm` (table cells, values, lists, body text), secondary information `text-xs` muted (the
+  line below a name, hints, times, badges), card titles `CardTitle`, the page title `PageHeader`. A size never
+  compensates for a font.
+- **Spacing**: a page puts `space-y-6` between its header, toolbar and blocks (also the pages inside a layout with
+  tabs); inside a block `space-y-3` or `space-y-4`.
+- **Dates**: `formatRelativeTime` in lists and cards (the exact moment `formatDateTime` as the tooltip), `formatDate`
+  for days, `formatTime` in logs and event lists (`base/lib/format.ts`); never `toLocaleString()` directly.
+- **Keyboard**: everything clickable is reachable with Tab. A row or tile that opens a page has its name as a `Link`
+  (the row may stay clickable for the mouse); a row that picks something gets `tabIndex={0}` and Enter/Space;
+  icon buttons have an `aria-label`.
 - **Toasts**: success "<Thing> <past participle>" ("Backup deleted"); failures `onError: failed("delete the
   backup")` (`base/lib/queries/mutation.ts`) → "Could not delete the backup" with the server message.
 - **Where code goes**: `features/<area>/` holds the pages and the components/hooks/lib only that area uses; a

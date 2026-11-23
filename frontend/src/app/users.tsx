@@ -10,7 +10,7 @@ import { SubusersCard } from "@/features/account/components/subusers-card"
 const namespaceColumn: UserColumn = {
   head: "K8s Namespace",
   className: "hidden md:table-cell",
-  cellClassName: "font-mono text-xs text-muted-foreground",
+  cellClassName: "text-muted-foreground",
   user: (u) => u.namespace,
   invite: () => null,
 }
@@ -27,7 +27,6 @@ const serversColumn = (head: string, invite: (i: InviteView) => string | number)
 const ownerColumn: UserColumn = {
   head: "Owner",
   className: "hidden sm:table-cell",
-  cellClassName: "font-mono text-xs",
   user: (u) => u.owner,
   invite: (i) => i.owner,
   short: (u) => `Subuser of ${u.owner}`,
@@ -67,7 +66,7 @@ export function deleteUserNote(u: UserView) {
     confirm: (
       <>
         All {u.servers} game server(s) of this user, their data, the namespace{" "}
-        <code className="font-mono">{u.namespace}</code> and their subusers are deleted permanently.
+        <span className="font-medium">{u.namespace}</span> and their subusers are deleted permanently.
       </>
     ),
     done: "Servers, data and the namespace are being removed.",
@@ -83,11 +82,7 @@ export const fixedRole = (u: UserView) => (u.owner ? `Subuser of ${u.owner}` : u
 
 /** Next to the role on the account page: the namespace, or the owner of a subuser. */
 export const accountDetail = (u: UserView) =>
-  u.owner ? (
-    <span className="text-xs">Subuser of {u.owner}</span>
-  ) : (
-    <span className="font-mono text-xs">{u.namespace}</span>
-  )
+  u.owner ? <span className="text-xs">Subuser of {u.owner}</span> : <span>{u.namespace}</span>
 
 /** Cards of the account page below the API tokens. */
 export const accountCards = [SubusersCard]

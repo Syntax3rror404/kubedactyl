@@ -64,7 +64,7 @@ function NameForm({
   }
   return (
     <form onSubmit={submit} className="contents">
-      <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} className="font-mono" />
+      <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} />
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel

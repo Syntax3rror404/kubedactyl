@@ -46,11 +46,11 @@ export function UpgradeCard() {
     >
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <span>
-          Installed <span className="font-mono font-medium">v{st?.current ?? "…"}</span>
+          Installed <span className="font-medium">v{st?.current ?? "…"}</span>
         </span>
         {st?.latest && (
           <span>
-            Latest <span className="font-mono font-medium">v{st.latest}</span>
+            Latest <span className="font-medium">v{st.latest}</span>
           </span>
         )}
         {st?.checkedAt && <span className="text-muted-foreground">checked {formatRelativeTime(st.checkedAt)}</span>}
@@ -155,7 +155,7 @@ function JobHistory({ status }: { status?: UpgradeStatus }) {
         <div key={j.name} className="space-y-2 rounded-lg border p-3 text-sm">
           <div className="flex items-center gap-2">
             <JobStateIcon state={j.state} />
-            <span className="font-mono">
+            <span>
               {j.from} → {j.version}
             </span>
             <Badge variant={j.state === "failed" ? "destructive" : "secondary"}>{j.state}</Badge>

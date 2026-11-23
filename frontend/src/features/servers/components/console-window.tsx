@@ -25,7 +25,7 @@ export function ConsoleWindow({
           <span className="size-3 rounded-full bg-amber-400/80" />
           <span className="size-3 rounded-full bg-emerald-400/80" />
         </div>
-        <span className="ml-2 font-mono text-xs text-muted-foreground">{title}</span>
+        <span className="ml-2 text-xs text-muted-foreground">{title}</span>
         <span
           className={cn(
             "ml-auto flex items-center gap-1.5 text-xs",

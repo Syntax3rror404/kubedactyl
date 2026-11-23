@@ -29,7 +29,7 @@ export function EggsPage() {
   // on every visit.
   const library = useLibrary().data
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Eggs"
         description="Server templates from Pterodactyl (PTDL_v1/v2) and Pelican (PLCN_v1-v3)."

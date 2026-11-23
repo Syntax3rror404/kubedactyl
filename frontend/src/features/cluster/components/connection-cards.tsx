@@ -4,7 +4,7 @@ import { FileKeyIcon, KeyRoundIcon, LinkIcon, ShieldCheckIcon, UserCheckIcon } f
 import { CopyButton } from "@/base/components/copy-button"
 import { DetailList } from "@/base/components/detail-list"
 import { CheckStatusIcon } from "@/base/components/status-icons"
-import { plural } from "@/base/lib/format"
+import { formatDateTime, plural } from "@/base/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { CertInfo, ClusterIdentity } from "@/lib/types"
@@ -51,7 +51,7 @@ export function ConnectionCard({ id }: { id: ClusterIdentity }) {
   }
   if (sa) {
     rows.push(["Service account", `${sa.namespace}/${sa.name}`])
-    if (sa.tokenExpiresAt) rows.push(["Token expires", new Date(sa.tokenExpiresAt).toLocaleString()])
+    if (sa.tokenExpiresAt) rows.push(["Token expires", formatDateTime(sa.tokenExpiresAt)])
   }
   rows.push([
     "TLS",
@@ -80,7 +80,7 @@ export function ConnectionCard({ id }: { id: ClusterIdentity }) {
             <div className="text-xs text-muted-foreground">Contexts in this kubeconfig</div>
             <div className="flex flex-wrap gap-1.5">
               {kc.contexts.map((c) => (
-                <Badge key={c} variant={c === kc.context ? "default" : "outline"} className="font-mono text-[10px]">
+                <Badge key={c} variant={c === kc.context ? "default" : "outline"}>
                   {c}
                 </Badge>
               ))}
@@ -126,10 +126,10 @@ export function AuthCard({ id }: { id: ClusterIdentity }) {
           </div>
           {id.subject ? (
             <>
-              <div className="font-mono text-sm">{id.subject.username}</div>
+              <div className="text-sm">{id.subject.username}</div>
               <div className="flex flex-wrap gap-1.5">
                 {id.subject.groups.map((g) => (
-                  <Badge key={g} variant="secondary" className="font-mono text-[10px]">
+                  <Badge key={g} variant="secondary">
                     {g}
                   </Badge>
                 ))}

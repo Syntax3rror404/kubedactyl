@@ -129,10 +129,10 @@ export function FileTable({
                 {e.isSymlink && <span className="text-xs text-muted-foreground">symlink</span>}
               </span>
             </TableCell>
-            <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+            <TableCell className="text-right text-muted-foreground">
               {e.isDirectory ? "" : formatBytes(e.size)}
             </TableCell>
-            <TableCell className="hidden text-right text-xs text-muted-foreground md:table-cell">
+            <TableCell className="hidden text-right text-muted-foreground md:table-cell">
               {formatRelativeTime(e.modifiedAt)}
             </TableCell>
             <TableCell onClick={(ev) => ev.stopPropagation()}>
@@ -158,7 +158,14 @@ function RowMenu({ entry: e, actions }: { entry: FileEntry; actions: FileActions
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon-sm" className="opacity-60 group-hover:opacity-100" />}
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="opacity-60 group-hover:opacity-100"
+            aria-label={`Actions for ${e.name}`}
+          />
+        }
       >
         <MoreHorizontalIcon />
       </DropdownMenuTrigger>

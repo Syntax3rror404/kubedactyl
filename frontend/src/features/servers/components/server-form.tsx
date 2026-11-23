@@ -111,7 +111,7 @@ export function ServerForm({
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription className="truncate font-mono text-xs">{image}</FieldDescription>
+              <FieldDescription className="truncate">{image}</FieldDescription>
               <FieldError>{errors.image}</FieldError>
             </Field>
             <Field data-invalid={!!errors.owner}>
@@ -197,7 +197,6 @@ export function ServerForm({
                     value={f.lbIP}
                     onChange={(e) => shared.set("lbIP", e.target.value)}
                     placeholder="assigned automatically"
-                    className="font-mono"
                     aria-invalid={!!errors.loadBalancerIP}
                   />
                   <FieldDescription>

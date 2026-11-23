@@ -26,7 +26,7 @@ export function OwnerSelect({
       value: u.username,
       label: (
         <>
-          {userName(u)} <span className="font-mono text-xs text-muted-foreground">{u.username}</span>
+          {userName(u)} <span className="text-xs text-muted-foreground">{u.username}</span>
         </>
       ),
     }))
@@ -44,7 +44,7 @@ export function OwnerSelect({
           ))}
         </SelectContent>
       </Select>
-      {namespace && <FieldDescription className="font-mono text-xs">namespace {namespace}</FieldDescription>}
+      {namespace && <FieldDescription>namespace {namespace}</FieldDescription>}
     </>
   )
 }

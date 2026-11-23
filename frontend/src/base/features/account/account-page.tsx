@@ -12,13 +12,13 @@ import { userName } from "@/base/lib/format"
 export function AccountPage() {
   const { user } = useAuth()
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         icon={<UserAvatar user={user} className="size-14 rounded-xl text-lg" />}
         title={userName(user)}
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-mono">{user.username}</span>
+            <span>{user.username}</span>
             <RoleBadge role={user.role} />
             {user.oidc && <OidcBadge />}
             {accountDetail(user)}

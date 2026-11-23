@@ -106,7 +106,7 @@ function PoolRow({
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{p.name}</span>
+          <span className="text-sm font-medium">{p.name}</span>
           {p.disabled && <Badge variant="outline">disabled</Badge>}
           {p.conflict && <Badge variant="destructive">conflict</Badge>}
         </div>
@@ -122,7 +122,7 @@ function PoolRow({
         )}
         {p.reason && <p className="mt-0.5 text-xs text-muted-foreground">{p.reason}</p>}
       </TableCell>
-      <TableCell className="hidden font-mono text-xs md:table-cell">
+      <TableCell className="hidden md:table-cell">
         {(p.blocks ?? []).map((b) => (
           <div key={b}>{b}</div>
         ))}
@@ -132,7 +132,7 @@ function PoolRow({
           <div className="space-y-2">
             {usage.map((u) => (
               <div key={u.family ?? "all"} className="space-y-1">
-                <div className="font-mono text-xs tabular-nums">
+                <div className="text-xs tabular-nums">
                   {u.family && <span className="text-muted-foreground">{u.family} </span>}
                   {u.family === "IPv6" ? (
                     <>
@@ -157,9 +157,9 @@ function PoolRow({
       <TableCell className="hidden lg:table-cell">
         {labels.length ? (
           labels.map(([k, v]) => (
-            <code key={k} className="block font-mono text-xs">
+            <span key={k} className="block text-xs">
               {k}={v}
-            </code>
+            </span>
           ))
         ) : (
           <span className="text-xs">-</span>

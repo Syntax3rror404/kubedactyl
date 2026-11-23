@@ -90,7 +90,7 @@ function Subusers({ inviteServer, onInvited }: { inviteServer?: string; onInvite
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{userName(u)}</div>
                         <div className="text-xs text-muted-foreground">
-                          <span className="font-mono">{u.username}</span> · {plural(u.servers, "shared server")} ·{" "}
+                          <span>{u.username}</span> · {plural(u.servers, "shared server")} ·{" "}
                           {u.lastLoginAt ? `last login ${formatRelativeTime(u.lastLoginAt)}` : "never signed in"}
                         </div>
                         {reset && (

@@ -47,7 +47,7 @@ export function DashboardPage() {
   const shown = showFilter ? filterServers(list, eggByName, filter) : list
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title={isAdmin ? "Game servers" : `Welcome, ${userName(user)}`}
         description={isAdmin ? "Everything running on your cluster, live." : "Your game servers, live."}
@@ -179,7 +179,7 @@ function ServerFilter({
             onClick={() => onChange({ ...value, status: o.key })}
           >
             {o.label}
-            <span className="font-mono text-xs text-muted-foreground tabular-nums">{counts[o.key]}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{counts[o.key]}</span>
           </Button>
         ))}
       </div>

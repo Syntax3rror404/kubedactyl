@@ -44,7 +44,7 @@ export function FileEditorDialog({
     <Dialog open onOpenChange={(o) => !o && close()}>
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle className="font-mono text-base">{file}</DialogTitle>
+          <DialogTitle className="text-base">{file}</DialogTitle>
           <DialogDescription>
             {dirty && <span className="mr-2 font-medium text-warning">● Unsaved changes ·</span>}
             Save with <Kbd>⌘</Kbd> <Kbd>S</Kbd> or <Kbd>Ctrl</Kbd> <Kbd>S</Kbd>

@@ -61,8 +61,8 @@ function PullForm({ server, dir, onClose }: { server: string; dir: string; onClo
       <DialogHeader>
         <DialogTitle>Download from URL</DialogTitle>
         <DialogDescription>
-          The file container downloads the file into <code className="font-mono">{dir}</code>, so large files do not go
-          through your browser.
+          The file container downloads the file into <span className="font-medium">{dir}</span>, so large files do not
+          go through your browser.
         </DialogDescription>
       </DialogHeader>
       <Field>
@@ -73,7 +73,6 @@ function PullForm({ server, dir, onClose }: { server: string; dir: string; onClo
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://example.com/plugin.jar"
-          className="font-mono"
         />
         <FieldDescription>
           http or https only; private networks cannot be reached unless the administrator allows them.
@@ -86,7 +85,6 @@ function PullForm({ server, dir, onClose }: { server: string; dir: string; onClo
           value={filename}
           onChange={(e) => setFilename(e.target.value)}
           placeholder="from the URL"
-          className="font-mono"
         />
       </Field>
       <DialogFooter>

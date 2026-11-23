@@ -72,7 +72,7 @@ export function UsageRow({
           {icon}
           {label}
         </span>
-        <span className="font-mono tabular-nums">{detail}</span>
+        <span className="tabular-nums">{detail}</span>
       </div>
       <UsageBar value={value} requested={requested} max={max} />
     </div>

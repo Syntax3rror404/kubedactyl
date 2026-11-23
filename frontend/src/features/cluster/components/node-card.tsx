@@ -15,8 +15,8 @@ export function NodeCard({ node: n }: { node: ClusterNode }) {
       <div className={cn("flex h-full flex-col gap-4 p-5", !n.ready && "opacity-80")}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate font-mono font-semibold">{n.name}</h3>
-            <p className="font-mono text-xs text-muted-foreground">{n.internalIP}</p>
+            <h3 className="truncate font-semibold">{n.name}</h3>
+            <p className="text-xs text-muted-foreground tabular-nums">{n.internalIP}</p>
           </div>
           <div className="flex flex-wrap justify-end gap-1.5">
             {n.roles.map((r) => (
@@ -55,20 +55,20 @@ export function NodeCard({ node: n }: { node: ClusterNode }) {
             {n.osImage} · {n.architecture}
           </dd>
           <dt className="text-muted-foreground">Kernel</dt>
-          <dd className="truncate text-right font-mono">{n.kernelVersion}</dd>
+          <dd className="truncate text-right">{n.kernelVersion}</dd>
           <dt className="text-muted-foreground">Kubelet</dt>
-          <dd className="truncate text-right font-mono">
+          <dd className="truncate text-right">
             {n.kubeletVersion} · {n.containerRuntime.replace("://", " ")}
           </dd>
           <dt className="text-muted-foreground">Pods</dt>
-          <dd className="text-right font-mono">
+          <dd className="text-right tabular-nums">
             {n.podsRunning} / {n.podsCapacity}
           </dd>
           <dt className="flex items-center gap-1 text-muted-foreground">
             <HardDriveIcon className="size-3" />
             Ephemeral
           </dt>
-          <dd className="text-right font-mono">{formatBytes(n.ephemeralStorageBytes, 0)}</dd>
+          <dd className="text-right tabular-nums">{formatBytes(n.ephemeralStorageBytes, 0)}</dd>
           <dt className="text-muted-foreground">Joined</dt>
           <dd className="text-right">{formatRelativeTime(n.createdAt)}</dd>
         </dl>
@@ -77,7 +77,7 @@ export function NodeCard({ node: n }: { node: ClusterNode }) {
             {n.taints.map((t) => (
               <span
                 key={t}
-                className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                className="truncate rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
                 title={t}
               >
                 {t}

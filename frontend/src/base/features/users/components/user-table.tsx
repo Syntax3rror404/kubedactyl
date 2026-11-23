@@ -108,7 +108,7 @@ function UserRow({
               {userName(u)}
               {u.username === me.username && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
             </div>
-            <div className="truncate font-mono text-xs text-muted-foreground">
+            <div className="truncate text-xs text-muted-foreground">
               {u.username}
               {u.email && ` · ${u.email}`}
             </div>
@@ -130,7 +130,7 @@ function UserRow({
           {c.user(u)}
         </TableCell>
       ))}
-      <TableCell className="hidden text-right text-xs text-muted-foreground lg:table-cell">
+      <TableCell className="hidden text-right text-muted-foreground lg:table-cell">
         {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : "never"}
       </TableCell>
       <TableCell className="text-center">
@@ -178,7 +178,7 @@ function InviteRow({ invite: i, columns }: { invite: InviteView; columns: UserCo
           <div className="min-w-0">
             <div className="truncate font-medium">{inviteLabel(i)}</div>
             <div className="text-xs">
-              {i.username && i.note && <span className="font-mono text-muted-foreground">{i.username} · </span>}
+              {i.username && i.note && <span className="text-muted-foreground">{i.username} · </span>}
               <InviteState invite={i} />
             </div>
           </div>
@@ -189,7 +189,7 @@ function InviteRow({ invite: i, columns }: { invite: InviteView; columns: UserCo
           {c.invite(i)}
         </TableCell>
       ))}
-      <TableCell className="hidden text-right text-xs text-muted-foreground lg:table-cell">-</TableCell>
+      <TableCell className="hidden text-right text-muted-foreground lg:table-cell">-</TableCell>
       <TableCell />
       <TableCell>
         <div className="flex justify-end">

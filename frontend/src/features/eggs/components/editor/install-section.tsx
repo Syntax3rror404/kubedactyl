@@ -30,7 +30,6 @@ export function InstallSection({ spec, onChange, self }: { spec: EggSpec; onChan
           <FieldLabel htmlFor="egg-install-container">Script container</FieldLabel>
           <Input
             id="egg-install-container"
-            className="font-mono"
             value={install.container ?? ""}
             onChange={(e) => set({ container: e.target.value })}
             placeholder="ghcr.io/pelican-eggs/installers:debian"

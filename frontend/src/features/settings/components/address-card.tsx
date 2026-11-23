@@ -30,11 +30,10 @@ export function AddressCard({ draft, onChange, errors }: SettingsCardProps) {
             value={draft.externalDomain}
             onChange={(e) => onChange({ externalDomain: e.target.value })}
             placeholder="play.example.com"
-            className="font-mono"
           />
         )}
       </SettingsField>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2 font-mono text-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm tabular-nums">
         <span className={shown ? "text-muted-foreground line-through" : undefined}>{ip}:25565</span>
         {shown && (
           <>

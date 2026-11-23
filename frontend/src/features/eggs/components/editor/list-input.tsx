@@ -74,7 +74,7 @@ export function ListInput({
       {open.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {open.map((s) => (
-            <SuggestionChip key={s} onClick={() => add(s)}>
+            <SuggestionChip key={s} mono={mono} onClick={() => add(s)}>
               + {s}
             </SuggestionChip>
           ))}
@@ -85,12 +85,23 @@ export function ListInput({
 }
 
 /** A dashed chip that inserts a suggested value. */
-export function SuggestionChip({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+export function SuggestionChip({
+  onClick,
+  mono,
+  children,
+}: {
+  onClick: () => void
+  mono?: boolean
+  children: React.ReactNode
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-dashed px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:border-solid hover:text-foreground"
+      className={cn(
+        "rounded-md border border-dashed px-1.5 py-0.5 text-[11px] text-muted-foreground hover:border-solid hover:text-foreground",
+        mono && "font-mono",
+      )}
     >
       {children}
     </button>

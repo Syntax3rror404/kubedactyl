@@ -161,4 +161,8 @@
   html {
     @apply font-sans;
   }
+  /* Digits of equal width, so numbers and addresses line up in their column (the monospace font is for code). */
+  [data-slot="table"] {
+    @apply tabular-nums;
+  }
 }

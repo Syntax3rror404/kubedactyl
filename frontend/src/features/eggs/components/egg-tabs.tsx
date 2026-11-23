@@ -34,12 +34,8 @@ export function EggTabs({ spec: s }: { spec: EggSpec }) {
 
       <TabsContent value="install" className="space-y-3 pt-4">
         <div className="flex flex-wrap gap-2 text-sm">
-          <Badge variant="outline" className="font-mono">
-            {container}
-          </Badge>
-          <Badge variant="outline" className="font-mono">
-            {entrypoint}
-          </Badge>
+          <Badge variant="outline">{container}</Badge>
+          <Badge variant="outline">{entrypoint}</Badge>
         </div>
         <CodeEditor value={s.install?.script || "# no install script"} language="sh" readOnly height="65vh" />
       </TabsContent>
@@ -55,7 +51,7 @@ function EggConfigFiles({ spec: s }: { spec: EggSpec }) {
         s.configFiles.map((f) => (
           <Card key={f.file}>
             <CardHeader>
-              <CardTitle className="font-mono text-sm">{f.file}</CardTitle>
+              <CardTitle className="text-sm">{f.file}</CardTitle>
               <CardDescription>{f.parser} parser · applied before every start</CardDescription>
             </CardHeader>
             <CardContent className="space-y-1.5">
@@ -101,8 +97,8 @@ function EggVariablesTable({ spec: s }: { spec: EggSpec }) {
                 <code className="text-xs text-muted-foreground">{v.envVariable}</code>
                 {v.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{v.description}</p>}
               </TableCell>
-              <TableCell className="font-mono text-xs">{v.defaultValue || "-"}</TableCell>
-              <TableCell className="max-w-56 font-mono text-xs break-all whitespace-normal text-muted-foreground">
+              <TableCell>{v.defaultValue || "-"}</TableCell>
+              <TableCell className="max-w-56 font-mono break-all whitespace-normal text-muted-foreground">
                 {v.rules}
               </TableCell>
               <TableCell className="text-right">

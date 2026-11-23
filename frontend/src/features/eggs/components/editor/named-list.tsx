@@ -65,7 +65,7 @@ export function NamedList<K extends string>({
               />
               <Value
                 aria-label={label}
-                className={multiline ? "min-h-9 font-mono text-xs" : "font-mono"}
+                className={multiline ? "min-h-9 font-mono" : undefined}
                 rows={multiline ? 2 : undefined}
                 spellCheck={false}
                 value={item[valueKey]}

@@ -59,23 +59,19 @@ export function StorageClassesCard({ draft, onChange, errors }: SettingsCardProp
                     />
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono text-sm font-medium">{sc.name}</span>
+                    <span className="text-sm font-medium">{sc.name}</span>
                     {sc.isDefault && (
                       <Badge variant="outline" className="ml-2 text-[10px]">
                         cluster default
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                    {sc.provisioner}
-                  </TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{sc.provisioner}</TableCell>
                   <TableCell>
                     <Badge variant={sc.reclaimPolicy === "Retain" ? "secondary" : "outline"}>{sc.reclaimPolicy}</Badge>
                   </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                    {sc.volumeBindingMode}
-                  </TableCell>
-                  <TableCell className="hidden text-xs sm:table-cell">
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{sc.volumeBindingMode}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {sc.allowVolumeExpansion ? "online" : <span className="text-muted-foreground">no</span>}
                   </TableCell>
                   <TableCell className="pr-6 text-right">

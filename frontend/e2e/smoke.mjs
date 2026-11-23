@@ -126,6 +126,7 @@ try {
         break
       }
     }
+    await page.waitForSelector("[role=menuitem]")
     await clickText("[role=menuitem]", "Delete")
     await page.waitForSelector("[role=alertdialog]")
     await clickText("[role=alertdialog] button", "Delete")

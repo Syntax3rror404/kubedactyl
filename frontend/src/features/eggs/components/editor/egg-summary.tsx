@@ -19,7 +19,7 @@ export function EggSummary({ spec }: { spec: EggSpec }) {
       value: (
         <span className="space-y-1">
           {spec.dockerImages.map((img, i) => (
-            <span key={i} className="block font-mono text-xs">
+            <span key={i} className="block text-xs">
               {img.name || img.image} → {img.image}
               {i === 0 && <DefaultBadge />}
             </span>

@@ -104,7 +104,7 @@ function RepositoryRow({
       <div className="flex items-center gap-2">
         <Input
           id={id}
-          className="font-mono text-sm"
+          className="text-sm"
           placeholder="https://<host>/<owner>/<repo>"
           value={url}
           onChange={(e) => onChange(e.target.value)}

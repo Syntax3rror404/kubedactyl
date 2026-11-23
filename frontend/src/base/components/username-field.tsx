@@ -40,7 +40,6 @@ export function UsernameField({
         value={value}
         onChange={(e) => onChange(e.target.value.toLowerCase())}
         placeholder={placeholder}
-        className="font-mono"
         aria-invalid={!!error}
       />
       {hint !== null && <UsernameHint error={error} hint={hint} />}

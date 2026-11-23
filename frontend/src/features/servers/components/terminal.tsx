@@ -70,6 +70,8 @@ export function Terminal({
   const theme = useResolvedTheme()
 
   useEffect(() => {
+    // xterm measures the font itself, so it needs the font names, not the CSS variable.
+    const fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || "monospace"
     const t = new XTerm({
       convertEol: true,
       disableStdin: true,
@@ -77,8 +79,7 @@ export function Terminal({
       cursorStyle: "underline",
       cursorInactiveStyle: "none",
       allowTransparency: true,
-      // xterm measures the font itself, so it needs the font names, not the CSS variable.
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || "monospace",
+      fontFamily,
       fontSize: 13,
       lineHeight: 1.35,
       scrollback: 10000,
@@ -99,14 +100,18 @@ export function Terminal({
       return false
     })
     term.current = t
-    const resize = new ResizeObserver(() => {
+    let disposed = false
+    const refit = () => {
       try {
-        fit.fit()
+        if (!disposed) fit.fit()
       } catch {
         // The element is not visible yet.
       }
-    })
+    }
+    const resize = new ResizeObserver(refit)
     resize.observe(el.current!)
+    // Rows counted before the mono font has loaded use the fallback font's line height: fit again once it is there.
+    document.fonts.load(`13px ${fontFamily}`).then(refit, refit)
     const unsubscribe = subscribe(
       (ev) => {
         const text = ev.args?.[0] ?? ""
@@ -125,6 +130,7 @@ export function Terminal({
       () => t.reset(),
     )
     return () => {
+      disposed = true
       unsubscribe()
       resize.disconnect()
       t.dispose()

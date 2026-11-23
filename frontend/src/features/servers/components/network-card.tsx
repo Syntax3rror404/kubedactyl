@@ -64,7 +64,6 @@ export function NetworkCard({ server, draft, onChange, errors, isAdmin }: Settin
                     value={draft.lbIP}
                     onChange={(e) => onChange({ lbIP: e.target.value })}
                     placeholder={address ?? "automatic"}
-                    className="font-mono"
                   />
                   <FieldDescription>
                     Current address: {address ?? "pending"}

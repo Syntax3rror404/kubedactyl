@@ -112,7 +112,7 @@ export function FilesPage() {
   const items = list.data?.items ?? []
 
   return (
-    <div className="space-y-4 font-mono">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <FilePathBreadcrumb dir={dir} onNavigate={go} onDropEntries={ready ? move : undefined} />
         <FileToolbar

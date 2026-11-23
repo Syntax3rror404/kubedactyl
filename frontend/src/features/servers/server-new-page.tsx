@@ -19,7 +19,7 @@ export function ServerNewPage() {
   const shared = useSharedServerFields()
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="New server"
         description="Choose a template, size it and launch. Installation starts immediately."

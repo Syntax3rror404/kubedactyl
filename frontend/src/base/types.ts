@@ -29,8 +29,6 @@ export interface NavItem {
   accent?: string
   /** The entry is the current page. */
   active?: boolean
-  /** Monospace label (names of machines). */
-  mono?: boolean
   badge?: NavBadge
   children?: NavItem[]
   /** Shown in an open branch without children ("No servers yet."). */

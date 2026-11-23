@@ -90,7 +90,7 @@ function Label({ item, inlineBadge }: { item: NavItem; inlineBadge?: boolean }) 
         ) : (
           <item.icon />
         ))}
-      <span className={item.mono ? "truncate font-mono" : "truncate"}>{item.label}</span>
+      <span className="truncate">{item.label}</span>
       {inlineBadge && item.badge && <NavBadgeView badge={item.badge} className="ml-auto" />}
     </>
   )

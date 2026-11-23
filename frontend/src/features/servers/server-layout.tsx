@@ -132,7 +132,7 @@ function ServerFrame({ gs }: { gs: GameServer }) {
             <span>·</span>
             {addresses.length ? (
               addresses.map((address) => (
-                <span key={address} className="inline-flex items-center font-mono text-foreground">
+                <span key={address} className="inline-flex items-center text-foreground tabular-nums">
                   {address}
                   <CopyButton value={address} label="Copy address" />
                 </span>

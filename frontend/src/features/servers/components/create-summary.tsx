@@ -54,7 +54,7 @@ export function CreateSummary({
             <NetworkIcon className="size-3.5" />
             Ports
           </dt>
-          <dd className={ports.length ? "text-right font-mono" : "text-right text-destructive"}>
+          <dd className={ports.length ? "text-right" : "text-right text-destructive"}>
             {ports.length ? ports.join(", ") : "required"}
           </dd>
         </dl>

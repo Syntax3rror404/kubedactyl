@@ -101,7 +101,7 @@ export function NavBadgeView({ badge, className }: { badge: NavBadge; className?
     return <span className={cn("text-xs text-muted-foreground tabular-nums", className)}>{badge.text}</span>
   }
   return (
-    <span className={cn("flex shrink-0 items-center gap-1.5 font-mono text-xs text-muted-foreground", className)}>
+    <span className={cn("flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums", className)}>
       {badge.text}
       <NavDot tone={badge.tone} pulse={badge.pulse} />
     </span>

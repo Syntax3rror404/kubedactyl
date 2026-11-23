@@ -60,7 +60,7 @@ export function ClusterSummary({ totals: t }: { totals: ClusterTotals }) {
               <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Processors</span>
               {t.cpuModels.map((m) => (
                 <Badge key={m.model} variant="secondary" className="gap-1.5 py-1">
-                  <span className="font-mono text-success">{m.count}×</span>
+                  <span className="text-success tabular-nums">{m.count}×</span>
                   {m.model}
                 </Badge>
               ))}
@@ -89,7 +89,7 @@ function Row({
     <div className="space-y-2">
       <div className="flex flex-col gap-0.5 text-sm sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <span className="font-medium">{label}</span>
-        <span className="font-mono text-xs text-muted-foreground tabular-nums sm:text-right">
+        <span className="text-xs text-muted-foreground tabular-nums sm:text-right">
           {used != null && (
             <span className="text-foreground">
               {fmt(used)} used ({formatPercent(used, capacity)}) ·{" "}

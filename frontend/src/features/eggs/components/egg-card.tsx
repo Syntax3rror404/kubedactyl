@@ -19,7 +19,7 @@ export function EggCard({ egg, servers }: { egg: Egg; servers: number }) {
       icon={s.icon}
       author={s.author}
       description={s.description}
-      tag={<EggOrigin spec={s} className="font-mono text-[10px]" />}
+      tag={<EggOrigin spec={s} className="text-[10px]" />}
       highlight={servers > 0 ? plural(servers, "server") : undefined}
     >
       <Badge variant="secondary">{plural(s.dockerImages.length, "image")}</Badge>

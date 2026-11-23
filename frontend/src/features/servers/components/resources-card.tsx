@@ -14,7 +14,7 @@ export function ResourcesCard({ server, draft, onChange, errors }: SettingsCardP
         <CardTitle>Resources</CardTitle>
         <CardDescription>
           Disk can only grow (online volume expansion). Storage class{" "}
-          <span className="font-mono">{server.spec.storageClass ?? "default"}</span>.
+          <span className="font-medium">{server.spec.storageClass ?? "default"}</span>.
         </CardDescription>
       </CardHeader>
       <CardContent>

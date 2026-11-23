@@ -76,7 +76,7 @@ export function EggOverview({ spec: s }: { spec: EggSpec }) {
                   {img.name}
                   {i === 0 && <DefaultBadge />}
                 </div>
-                <div className="truncate font-mono text-xs text-muted-foreground">{img.image}</div>
+                <div className="truncate text-xs text-muted-foreground">{img.image}</div>
               </div>
               <CopyButton value={img.image} />
             </div>

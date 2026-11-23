@@ -64,7 +64,6 @@ export function GeneralSection({
             values={spec.features ?? []}
             onChange={(features) => onChange({ features })}
             suggestions={supportedFeatures}
-            mono
             placeholder="eula"
           />
           <FieldDescription>Console helpers that react to known output, like the EULA prompt.</FieldDescription>
@@ -98,7 +97,6 @@ export function GeneralSection({
         <Input
           id="egg-update-url"
           type="url"
-          className="font-mono"
           value={spec.source?.updateUrl ?? ""}
           onChange={(e) =>
             onChange({

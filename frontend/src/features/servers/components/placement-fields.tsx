@@ -53,12 +53,12 @@ export function PlacementSelect({
       onValueChange={(v) => v && onChange(v)}
       disabled={names.length === 0 && !extra}
     >
-      <SelectTrigger id={id} className="w-full font-mono">
+      <SelectTrigger id={id} className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {choices.map((o) => (
-          <SelectItem key={o.value} value={o.value} className="font-mono">
+          <SelectItem key={o.value} value={o.value}>
             {o.label}
           </SelectItem>
         ))}
@@ -130,12 +130,12 @@ export function TrafficPolicyField({
     <Field>
       <FieldLabel htmlFor="traffic-policy">External traffic policy</FieldLabel>
       <Select value={value} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger id="traffic-policy" className="w-full font-mono">
+        <SelectTrigger id="traffic-policy" className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {trafficPolicies.map((p) => (
-            <SelectItem key={p.value} value={p.value} className="font-mono">
+            <SelectItem key={p.value} value={p.value}>
               {p.value}
             </SelectItem>
           ))}
@@ -182,7 +182,7 @@ export function IPv6Field({
       <div>
         <FieldLabel htmlFor="ipv6">
           IPv6
-          <span className="font-mono text-xs font-normal text-muted-foreground">
+          <span className="text-xs font-normal text-muted-foreground">
             {checked ? "PreferDualStack" : "SingleStack"}
           </span>
         </FieldLabel>

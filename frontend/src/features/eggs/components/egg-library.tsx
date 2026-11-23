@@ -102,13 +102,13 @@ function LibraryEggCard({ egg, installed }: { egg: LibraryEgg; installed: boolea
       author={egg.author}
       description={egg.description}
       tag={
-        <Badge variant="outline" className="font-mono text-[10px]">
+        <Badge variant="outline" className="text-[10px]">
           {egg.format}
         </Badge>
       }
       highlight={installed ? "Installed" : undefined}
     >
-      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{folderOf(egg.path)}</span>
+      <span className="min-w-0 flex-1 truncate text-muted-foreground">{folderOf(egg.path)}</span>
     </EggCardLayout>
   )
 }

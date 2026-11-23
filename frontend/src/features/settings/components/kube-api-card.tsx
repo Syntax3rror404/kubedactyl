@@ -55,7 +55,7 @@ function LimitField({
     <SettingsField
       id={id}
       label={label}
-      aside={<span className="rounded-md bg-muted px-2 py-0.5 font-mono text-sm tabular-nums">{value}</span>}
+      aside={<span className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums">{value}</span>}
       hint={hint}
       error={error}
     >

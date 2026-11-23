@@ -31,7 +31,7 @@ export function ClusterPage() {
     .at(-1)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Cluster"
         description={

@@ -58,7 +58,7 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
               <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                 {eggName}
                 {isAdmin && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px]">
                     <UserIcon className="size-3" />
                     {serverOwner(server) ?? "system"}
                   </span>
@@ -68,7 +68,7 @@ export function ServerCard({ server, egg }: { server: GameServer; egg?: Egg }) {
             {isRemoving(server) ? <RemovingBadge /> : suspended ? <SuspendedBadge /> : <StatusBadge phase={phase} />}
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-1.5 font-mono text-sm">
+          <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-1.5 text-sm tabular-nums">
             <span className={address ? "" : "text-muted-foreground"}>{address ?? "Waiting for IP…"}</span>
             {address && <CopyButton value={address} label="Copy address" />}
           </div>

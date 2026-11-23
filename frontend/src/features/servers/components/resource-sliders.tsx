@@ -91,7 +91,7 @@ function ResourceSlider({
           {icon}
           {label}
         </span>
-        <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-sm tabular-nums">{format(value)}</span>
+        <span className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums">{format(value)}</span>
       </div>
       <Slider
         value={[value]}

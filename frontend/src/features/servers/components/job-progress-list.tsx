@@ -11,7 +11,6 @@ import { jobKinds } from "@/features/servers/lib/jobs"
 import { formatNumber } from "@/lib/format"
 import { useCancelJob } from "@/lib/queries"
 import type { ServerJob } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 type Progress = NonNullable<ServerJob["progress"]>
 
@@ -81,9 +80,9 @@ function JobRow({ server, job: j }: { server: string; job: ServerJob }) {
       <div className="flex items-center gap-2">
         <JobStateIcon state={j.state} />
         <span className="min-w-0 flex-1 truncate">
-          {verb} <span className="font-mono text-xs">{j.label}</span>
+          {verb} <span className="text-xs">{j.label}</span>
         </span>
-        <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", t && "font-mono")}>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
           {t
             ? t.size
             : j.state === "running"
@@ -94,7 +93,7 @@ function JobRow({ server, job: j }: { server: string; job: ServerJob }) {
       </div>
       {j.state === "running" && <ProgressBar value={p?.total ? p.done : undefined} max={p?.total} className="h-1.5" />}
       {t && p && (
-        <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground tabular-nums">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
           <Icon className="size-3.5 shrink-0 text-info" />
           <span className="shrink-0">{t.speed}</span>
           <span className="min-w-0 flex-1 truncate text-center" title={p.file}>

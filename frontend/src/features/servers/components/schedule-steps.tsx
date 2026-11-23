@@ -29,7 +29,7 @@ export function ScheduleSteps({
           key={i}
           className="grid grid-cols-[1.5rem_1fr_auto] items-start gap-2 rounded-lg border bg-muted/30 p-2 sm:grid-cols-[1.5rem_11rem_1fr_7rem_auto]"
         >
-          <span className="pt-2 text-right font-mono text-xs text-muted-foreground">{i + 1}.</span>
+          <span className="pt-2 text-right text-xs text-muted-foreground tabular-nums">{i + 1}.</span>
           {isTask ? (
             <span className="pt-2 text-sm">{actionLabels.command}</span>
           ) : (
