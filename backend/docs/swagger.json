@@ -5078,7 +5078,7 @@
                 }
             }
         },
-        "egglibrary.Egg": {
+        "eggstore.LibraryEgg": {
             "type": "object",
             "required": [
                 "author",
@@ -5130,7 +5130,7 @@
                 }
             }
         },
-        "egglibrary.Repository": {
+        "eggstore.LibraryRepository": {
             "type": "object",
             "required": [
                 "eggs",
@@ -5141,7 +5141,7 @@
                 "eggs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/egglibrary.Egg"
+                        "$ref": "#/definitions/eggstore.LibraryEgg"
                     }
                 },
                 "error": {
@@ -5673,7 +5673,7 @@
             ],
             "properties": {
                 "egg": {
-                    "$ref": "#/definitions/egglibrary.Egg"
+                    "$ref": "#/definitions/eggstore.LibraryEgg"
                 },
                 "spec": {
                     "$ref": "#/definitions/v1alpha1.EggSpec"
@@ -5689,7 +5689,7 @@
                 "repositories": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/egglibrary.Repository"
+                        "$ref": "#/definitions/eggstore.LibraryRepository"
                     }
                 }
             }

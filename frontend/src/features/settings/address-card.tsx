@@ -1,7 +1,7 @@
 import { ArrowRightIcon, GlobeIcon } from "lucide-react"
 
-import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { SettingsCard, SettingsField } from "@/base/features/settings/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { Input } from "@/components/ui/input"
 import { useServers } from "@/lib/queries"
 

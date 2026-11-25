@@ -8,8 +8,8 @@ import { UserAvatar } from "@/base/components/user-avatar"
 import { useAuth } from "@/base/hooks/use-auth"
 import { roleLabel, userName } from "@/base/lib/format"
 import { useLogout } from "@/base/lib/queries"
-import { NavHeader } from "@/base/navigation/nav-header"
-import { NavTree } from "@/base/navigation/nav-tree"
+import { NavHeader } from "@/base/layout/nav-header"
+import { NavTree } from "@/base/layout/nav-tree"
 import type { NavConfig, NavGroup, NavItem, NavSearchGroup } from "@/base/types"
 import {
   Combobox,

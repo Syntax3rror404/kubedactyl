@@ -5085,7 +5085,7 @@ const docTemplate = `{
                 }
             }
         },
-        "egglibrary.Egg": {
+        "eggstore.LibraryEgg": {
             "type": "object",
             "required": [
                 "author",
@@ -5137,7 +5137,7 @@ const docTemplate = `{
                 }
             }
         },
-        "egglibrary.Repository": {
+        "eggstore.LibraryRepository": {
             "type": "object",
             "required": [
                 "eggs",
@@ -5148,7 +5148,7 @@ const docTemplate = `{
                 "eggs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/egglibrary.Egg"
+                        "$ref": "#/definitions/eggstore.LibraryEgg"
                     }
                 },
                 "error": {
@@ -5680,7 +5680,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "egg": {
-                    "$ref": "#/definitions/egglibrary.Egg"
+                    "$ref": "#/definitions/eggstore.LibraryEgg"
                 },
                 "spec": {
                     "$ref": "#/definitions/v1alpha1.EggSpec"
@@ -5696,7 +5696,7 @@ const docTemplate = `{
                 "repositories": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/egglibrary.Repository"
+                        "$ref": "#/definitions/eggstore.LibraryRepository"
                     }
                 }
             }

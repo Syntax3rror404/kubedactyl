@@ -8,7 +8,7 @@ import { RequestRates } from "@/base/layout/request-rates"
 import { SiteFooter } from "@/base/layout/site-footer"
 import { SiteHeader } from "@/base/layout/site-header"
 import { sidebarDefaultOpen } from "@/base/lib/open-state"
-import { AppSidebar } from "@/base/navigation/app-sidebar"
+import { AppSidebar } from "@/base/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 

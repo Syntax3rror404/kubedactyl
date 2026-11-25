@@ -6,7 +6,6 @@ import (
 
 	"app/internal/appsettings"
 	"app/internal/appusers"
-	"app/internal/egglibrary"
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/schedule"
@@ -29,7 +28,7 @@ var domainErrors = []struct {
 	err    error
 	status int
 }{
-	{egglibrary.ErrNotFound, http.StatusNotFound},
+	{eggstore.ErrNotInLibrary, http.StatusNotFound},
 	{eggstore.ErrInvalid, http.StatusUnprocessableEntity},
 	{eggstore.ErrTooLarge, http.StatusUnprocessableEntity},
 	{eggstore.ErrInvalidURL, http.StatusUnprocessableEntity},

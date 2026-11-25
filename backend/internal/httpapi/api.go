@@ -7,7 +7,6 @@ import (
 	"app/internal/clusterinfo"
 	"app/internal/console"
 	"app/internal/diagnostics"
-	"app/internal/egglibrary"
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/gameserver"
@@ -37,7 +36,7 @@ type API struct {
 	// Eggs stores eggs (create, import, update, delete).
 	Eggs *eggstore.Store
 	// Library lists the eggs of the git repositories in the settings (kept in memory only).
-	Library *egglibrary.Library
+	Library *eggstore.Library
 	// Diagnostics checks why players may not reach a server.
 	Diagnostics *diagnostics.Diagnoser
 

@@ -67,14 +67,13 @@ flowchart LR
 | `backend/internal/serverctl` | Power actions, console commands, reinstall and suspend, shared by the API and the scheduler |
 | `backend/internal/schedule` | Cron schedules of servers |
 | `backend/internal/diagnostics` | Server diagnostics (why players cannot connect), results of the type `base/checks` shared with the cluster health |
-| `backend/internal/egglibrary` | Egg library: eggs of GitHub repositories (archive download, in-memory cache) |
-| `backend/internal/eggstore` | Storing eggs (create, import, update from URL, delete) |
+| `backend/internal/eggstore` | Storing eggs (create, import, update from URL, delete) and the egg library (eggs of git repositories: archive download, in-memory cache) |
 | `backend/internal/appusers`, `appsettings` | What Kubedactyl adds to the accounts (`users.App`: namespace per user, subusers and shared servers) and to the settings (`settings.App`: storage classes, load balancer pools, external domain, server notice, subuser limit, egg libraries) |
 | `backend/internal/clusterinfo`, `tenancy` | Cluster page and health checks, user namespaces |
 | `backend/base` | The same in every app, like `frontend/src/base`: `api` (sign-in, setup, invites, own account, users, settings, upgrades), `auth` (passwords, sessions, tokens, single sign-on, see [docs/oidc.md](docs/oidc.md)), `users` (accounts, invites, reset links, last-admin rule), `settings` (panel settings), `kube` (connection, clients, exec/attach, request limit, TTL cache), `selfupgrade`, `bootstrap` (start-up: CRDs, panel namespace, session key, first admin), `httpserver` (router, API document, embedded web UI, security headers), `validation`, `checks`, `cli` (common flags, banner, logging), `tools/licenses`; the app gives it its names in `backend/app/config.go` and its parts of the answers in `backend/app/views.go` |
 | `frontend/src/app` | Route table (`router.tsx`): which page belongs to which URL |
-| `frontend/src/features/<area>` | One folder per area (servers, eggs, users, settings, …) with its `*-page.tsx` and the components/hooks only it uses; every server tab is `features/servers/<tab>-page.tsx` (URL `/servers/:server/<tab>`) |
-| `frontend/src/lib` | API client (`api.ts`), data hooks (`queries/`, one file per area), types (`types/`: `api.gen.ts` generated from the Go structs, the other files name and refine them), formatting helpers |
+| `frontend/src/features/<area>` | One folder per area (servers, eggs, users, settings, …) with its `*-page.tsx` and the components/hooks only it uses (flat up to 10 files, above that split into `components/`, `hooks/`, `lib/`); every server tab is `features/servers/<tab>-page.tsx` (URL `/servers/:server/<tab>`) |
+| `frontend/src/lib` | API client (`api.ts`), data hooks (`queries/`, one file per area), types (`api.gen.ts` generated from the Go structs, `types.ts` names and refines them), formatting helpers |
 | `frontend/src/components` | Shared components; `ui/` are library components (shadcn, Magic UI), never edited by hand |
 | `charts/kubedactyl` | Helm chart |
 
@@ -154,8 +153,8 @@ pod logs itself (`console/follow.go`), so the output continues when nobody is wa
 | add a health check | `internal/clusterinfo/health_checks.go` + `evaluate` in `health.go` |
 | change what happens after start / before stop (Tasks) | `internal/schedule` (events, validation, `Runner.Started`/`StartStopping`/`StopLimit`), `controller/gameserver_game.go` (`runStopTasks`), UI `features/servers/components/schedule-list.tsx` (shared by the Schedules and Tasks tabs) |
 | add a server diagnostics check | `internal/diagnostics` (`Run`, a function returning `checks.Check`, a case in the test); shown by `features/servers/diagnostics-page.tsx` |
-| add a panel setting | `api/v1alpha1/settings_types.go`, `internal/appsettings` (or `base/settings` for every app), a card in `features/settings/components` listed in `app/settings.ts` (draft + card; base cards in `base/features/settings`) |
-| change single sign-on | `base/auth/oidc.go` (flow, claims), `base/users/oidc.go` (which account, linking), `base/api/auth_oidc.go` (routes, cookie), `base/settings/oidc.go` (validation, client secret), `base/features/settings/components/sso-card.tsx`, `base/features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
+| add a panel setting | `api/v1alpha1/settings_types.go`, `internal/appsettings` (or `base/settings` for every app), a card in `features/settings/` listed in `app/settings.ts` (draft + card; base cards in `base/features/settings`) |
+| change single sign-on | `base/auth/oidc.go` (flow, claims), `base/users/oidc.go` (which account, linking), `base/api/auth_oidc.go` (routes, cookie), `base/settings/oidc.go` (validation, client secret), `base/features/settings/sso-card.tsx`, `base/features/auth/login-page.tsx` (also the answer after `/login?sso=…`) |
 
 ## Walk-through: adding a field to servers
 
@@ -170,7 +169,7 @@ Example: a server option `motd` that becomes an environment variable.
    created, it belongs in `RuntimeHash` (automatically, via the environment) so running servers show
    "restart required".
 4. **Frontend**: `make docs` regenerates the TypeScript types from the Go structs
-   (`frontend/src/lib/types/api.gen.ts`), so `GameServer` and the request types know the field; `npx tsc -b`
+   (`frontend/src/lib/api.gen.ts`), so `GameServer` and the request types know the field; `npx tsc -b`
    shows every place that has to handle it. Add the form field in `features/servers/components/server-form.tsx`
    (create) and `settings-page.tsx` (edit).
 5. **Tests and docs**: a test next to the code you changed, `make docs` for the Swagger annotations,
@@ -250,11 +249,11 @@ tests enforce the ones marked (enforced).
 ### Frontend
 
 - **Types** come from the backend: `make docs` writes the Swagger file from the Go structs and
-  the library `swagger-typescript-api` (dev dependency, `npm run gen:api`) turns it into `lib/types/api.gen.ts`
+  the library `swagger-typescript-api` (dev dependency, `npm run gen:api`) turns it into `lib/api.gen.ts`
   (never edited by hand; names carry the Go package, e.g. `HttpapiCreateServerRequest`). The calls in `lib/api.ts`
   are written by hand (one short line each, simpler than a generated client). Go is the single source:
   a field without `omitempty` is always sent (required in TypeScript), `extensions:"x-nullable"` allows null,
-  `enums:"a,b"` gives a union type. `lib/types/<area>.ts` only re-exports them under frontend names and refines
+  `enums:"a,b"` gives a union type. `lib/types.ts` only re-exports them under frontend names and refines
   where Go cannot say more (objects read from the cluster always have `metadata.name`). `make test` runs
   `make check-generated`, which regenerates all generated files (CRDs, deepcopy, Swagger, API types) and fails
   when they were out of date.
@@ -297,20 +296,21 @@ tests enforce the ones marked (enforced).
   icon buttons have an `aria-label`.
 - **Toasts**: success "<Thing> <past participle>" ("Backup deleted"); failures `onError: failed("delete the
   backup")` (`base/lib/queries/mutation.ts`) → "Could not delete the backup" with the server message.
-- **Where code goes**: `features/<area>/` holds the pages and the components/hooks/lib only that area uses; a
+- **Where code goes**: `features/<area>/` holds the pages and the components/hooks/lib only that area uses (flat up
+  to 10 files, above that split into `components/`, `hooks/`, `lib/`); a
   feature may use another feature's components (servers uses `EggOption`). Every server tab lives in
   `features/servers` as `<tab>-page.tsx`, matching its URL, and gets the server from `server-layout`
   (`ServerContext`). Code the app frame or most features
   need lives in `base/` (the same in every app) or, when only this app has it, in `components/common`, `hooks/` and
   `lib/`.
-- **Base** (`src/base/`: components, layout, navigation, hooks, lib, features, `types.ts`): our own UI library on top
+- **Base** (`src/base/`: components, layout, hooks, lib, features, `types.ts`): our own UI library on top
   of shadcn, the same in every app and treated like `components/ui`: never changed for one app. This repository is its
   source: the base grows here, and the whole folder is copied into the other apps (`make check-base` compares it with
   another app). It mirrors `backend/base/api`: `lib/api.ts` (`request`, `ApiError`, `baseApi`: the base calls the
   app's `lib/api.ts` spreads into `api`), `lib/queries/` (`auth`, `users`, `settings` + `keys`, `mutation`; the
   app's `lib/queries/keys.ts` spreads `baseKeys`), `lib/types.ts` (the base API types from the app's `api.gen.ts`),
   `lib/format.ts` (sizes, times, names, roles) and the shared pages in `features/` (`auth`, `account`, `users`,
-  `settings`, `licenses`). It uses `components/ui`, the generated `lib/types/api.gen.ts` and the app's seams in
+  `settings`, `licenses`). It uses `components/ui`, the generated `lib/api.gen.ts` and the app's seams in
   `app/`: `use-navigation.ts` (`useNavigation`: header, groups, footer, search), `config.ts` (names, brand, roles,
   texts of shared pages, footer links, request rates, `useCrumbLabels`, the app data a settings save or deleted user
   changes), `users.tsx` (columns and tables of the users page, delete and create texts, account cards) and

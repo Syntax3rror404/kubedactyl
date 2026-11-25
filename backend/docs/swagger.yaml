@@ -1456,7 +1456,7 @@ definitions:
     - cpuMillis
     - memoryBytes
     type: object
-  egglibrary.Egg:
+  eggstore.LibraryEgg:
     properties:
       author:
         type: string
@@ -1495,11 +1495,11 @@ definitions:
     - url
     - uuid
     type: object
-  egglibrary.Repository:
+  eggstore.LibraryRepository:
     properties:
       eggs:
         items:
-          $ref: '#/definitions/egglibrary.Egg'
+          $ref: '#/definitions/eggstore.LibraryEgg'
         type: array
       error:
         description: Error tells why the repository could not be read (its eggs are
@@ -1888,7 +1888,7 @@ definitions:
   httpapi.LibraryEgg:
     properties:
       egg:
-        $ref: '#/definitions/egglibrary.Egg'
+        $ref: '#/definitions/eggstore.LibraryEgg'
       spec:
         $ref: '#/definitions/v1alpha1.EggSpec'
     required:
@@ -1899,7 +1899,7 @@ definitions:
     properties:
       repositories:
         items:
-          $ref: '#/definitions/egglibrary.Repository'
+          $ref: '#/definitions/eggstore.LibraryRepository'
         type: array
     required:
     - repositories

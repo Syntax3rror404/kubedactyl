@@ -1,6 +1,7 @@
 // Package eggstore stores eggs as Egg resources in the panel namespace: creating them in the
-// editor, importing files, updating them from their update URL and deleting unused ones. Parsing,
-// validation and export are in package egg.
+// editor, importing files, updating them from their update URL and deleting unused ones, and lists
+// the eggs of git repositories for the egg library (library.go). Parsing, validation and export are
+// in package egg.
 package eggstore
 
 import (

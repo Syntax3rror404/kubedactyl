@@ -6,7 +6,7 @@ import { upgradeNote } from "@/app/config"
 import { Callout } from "@/base/components/callout"
 import { ConfirmDialog } from "@/base/components/confirm-dialog"
 import { JobStateIcon } from "@/base/components/status-icons"
-import { SettingsCard } from "@/base/features/settings/components/settings-card"
+import { SettingsCard } from "@/base/features/settings/settings-card"
 import { formatRelativeTime, secondsSince } from "@/base/lib/format"
 import {
   failed,

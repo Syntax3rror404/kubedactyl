@@ -1,8 +1,8 @@
 import { Fragment, type ComponentType } from "react"
 import { ShieldIcon } from "lucide-react"
 
-import { NumberField, SettingsCard, SwitchField } from "@/base/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { NumberField, SettingsCard, SwitchField } from "@/base/features/settings/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { FieldGroup, FieldLegend, FieldSeparator, FieldSet } from "@/components/ui/field"
 
 type Fields = ComponentType<SettingsCardProps>[]

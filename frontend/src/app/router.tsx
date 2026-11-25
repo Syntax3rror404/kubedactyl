@@ -1,6 +1,6 @@
 import { createBrowserRouter } from "react-router"
 
-import { RequireAdmin, RequireAuth } from "@/base/features/auth/components/require-auth"
+import { RequireAdmin, RequireAuth } from "@/base/features/auth/require-auth"
 import { AppLayout } from "@/base/layout/app-layout"
 import { ErrorPage } from "@/base/layout/error-page"
 import type { CrumbHandle } from "@/base/layout/site-header"

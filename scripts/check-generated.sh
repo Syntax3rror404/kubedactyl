@@ -9,7 +9,7 @@ generated=(
   backend/api/v1alpha1/zz_generated.deepcopy.go
   backend/config/crd
   backend/docs
-  frontend/src/lib/types/api.gen.ts
+  frontend/src/lib/api.gen.ts
 )
 
 before=$(mktemp -d)

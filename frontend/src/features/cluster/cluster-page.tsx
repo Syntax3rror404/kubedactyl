@@ -7,9 +7,9 @@ import { formatRelativeTime, plural } from "@/base/lib/format"
 import { failed } from "@/base/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { ClusterSummary } from "@/features/cluster/components/cluster-summary"
-import { AuthCard, ConnectionCard, PermissionsCard } from "@/features/cluster/components/connection-cards"
-import { NodeCard } from "@/features/cluster/components/node-card"
+import { ClusterSummary } from "@/features/cluster/cluster-summary"
+import { AuthCard, ConnectionCard, PermissionsCard } from "@/features/cluster/connection-cards"
+import { NodeCard } from "@/features/cluster/node-card"
 import { useClusterIdentity, useClusterNodes, useProbeNodes } from "@/lib/queries"
 
 /** /cluster (admins): nodes with hardware and usage, totals, connection, identity and permissions. */

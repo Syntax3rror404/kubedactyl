@@ -3,8 +3,8 @@ import { KeyRoundIcon, RefreshCwIcon, TicketIcon, Trash2Icon } from "lucide-reac
 import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/base/components/confirm-dialog"
-import { InviteLinkDialog } from "@/base/features/users/components/invite-dialog"
-import { inviteLabel } from "@/base/features/users/lib/table"
+import { InviteLinkDialog } from "@/base/features/users/invite-dialog"
+import { inviteLabel } from "@/base/features/users/table"
 import { formatDate } from "@/base/lib/format"
 import { failed, useCreateInvite, useDeleteInvite, useRenewInvite } from "@/base/lib/queries"
 import type { CreatedInvite, InviteView } from "@/base/lib/types"

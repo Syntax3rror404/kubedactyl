@@ -2,7 +2,7 @@ import { StarIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { Selection } from "@/features/settings/lib/selection"
+import type { Selection } from "@/features/settings/selection"
 
 /** Shows the default badge, or a button that makes an enabled entry the default. */
 export function DefaultCell({

@@ -1,4 +1,4 @@
-package egglibrary
+package eggstore
 
 import (
 	"net/url"

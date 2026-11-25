@@ -3,7 +3,7 @@ import { Link } from "react-router"
 import { ChevronRightIcon } from "lucide-react"
 
 import { readOpen, saveOpen } from "@/base/lib/open-state"
-import { NavBadgeMark, NavBadgeView } from "@/base/navigation/nav-badge"
+import { NavBadgeMark, NavBadgeView } from "@/base/layout/nav-badge"
 import { type NavGroup, type NavItem } from "@/base/types"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {

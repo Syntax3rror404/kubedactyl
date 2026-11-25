@@ -34,7 +34,6 @@ import (
 	"app/internal/console"
 	"app/internal/controller"
 	"app/internal/diagnostics"
-	"app/internal/egglibrary"
 	"app/internal/eggstore"
 	"app/internal/files"
 	"app/internal/httpapi"
@@ -132,7 +131,7 @@ func newPanel(
 		Hub:            hub,
 		Files:          svc.files,
 		Eggs:           svc.eggs,
-		Library:        egglibrary.New(),
+		Library:        eggstore.NewLibrary(),
 		Diagnostics:    &diagnostics.Diagnoser{},
 		Opts:           cfg.opts,
 		Cluster:        clusterSummary(kc, restCfg, cfg),

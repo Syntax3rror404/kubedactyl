@@ -8,12 +8,12 @@ import (
 	"app/base/api"
 	"app/base/validation"
 	"app/internal/appsettings"
-	"app/internal/egglibrary"
+	"app/internal/eggstore"
 )
 
 // LibraryList holds the eggs of every repository configured as egg library.
 type LibraryList struct {
-	Repositories []egglibrary.Repository `json:"repositories"`
+	Repositories []eggstore.LibraryRepository `json:"repositories"`
 }
 
 // LibraryRepositoryCheck tells whether a repository can be read and how many eggs it holds.
@@ -27,8 +27,8 @@ type LibraryRepositoryCheck struct {
 
 // LibraryEgg is an egg file of the library with its content.
 type LibraryEgg struct {
-	Egg  egglibrary.Egg   `json:"egg"`
-	Spec v1alpha1.EggSpec `json:"spec"`
+	Egg  eggstore.LibraryEgg `json:"egg"`
+	Spec v1alpha1.EggSpec    `json:"spec"`
 }
 
 // listLibraryEggs godoc

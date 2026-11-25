@@ -1,15 +1,15 @@
 import { AlertTriangleIcon, DatabaseIcon } from "lucide-react"
 
 import { Callout } from "@/base/components/callout"
-import { SettingsCard } from "@/base/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { SettingsCard } from "@/base/features/settings/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FieldError } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DefaultCell } from "@/features/settings/components/default-cell"
-import { selectionHandlers, type Selection } from "@/features/settings/lib/selection"
+import { DefaultCell } from "@/features/settings/default-cell"
+import { selectionHandlers, type Selection } from "@/features/settings/selection"
 import { useStorageClasses } from "@/lib/queries"
 
 /** All storage classes of the cluster; the checked ones can be selected for server volumes. */

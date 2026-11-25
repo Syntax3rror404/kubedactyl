@@ -1,8 +1,8 @@
 import { ScaleIcon } from "lucide-react"
 
 import { Markdown } from "@/base/components/markdown"
-import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
-import { tooLong, type SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { SettingsCard, SettingsField } from "@/base/features/settings/settings-card"
+import { tooLong, type SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { legalDocs, legalTitles, type LegalDoc } from "@/base/lib/format"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"

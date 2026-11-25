@@ -39,7 +39,7 @@ KUBE_CONTEXT := my-cluster
 | `make lint` | code rules: golangci-lint (`backend/.golangci.yml`), unused Go code, frontend checks (see below) |
 | `make fmt` | rewrite the formatting: gofmt + goimports, Prettier |
 | `make generate` | `controller-gen` for `backend/api/v1alpha1` → `backend/config/crd` |
-| `make docs` | Swagger docs from the handler comments → `backend/docs`, and the frontend API types generated from them → `frontend/src/lib/types/api.gen.ts` |
+| `make docs` | Swagger docs from the handler comments → `backend/docs`, and the frontend API types generated from them → `frontend/src/lib/api.gen.ts` |
 | `make check-generated` | Regenerates CRDs, deepcopy, Swagger and API types and fails if they were out of date (part of `make test`) |
 | `make ui-update` | re-install all library components from their registries (see below) |
 | `make uninstall` | delete everything the panel created in the cluster (see [Cleanup](installation.md#cleanup)) |
@@ -97,7 +97,7 @@ Running the update twice produces no diff. Earlier hand edits were replaced by w
 | `ui/sonner.tsx` read the theme from `next-themes` → changed to our provider | original file; `base/components/app-toaster.tsx` passes the theme of our `ThemeProvider` (the registry Toaster spreads props after `theme`), `next-themes` stays installed as its dependency |
 | unused imports in registry files | original files; unused-code checks moved from `tsc` to oxlint, which skips library files |
 | `mode-toggle.tsx` from the dark mode docs | our own `base/components/mode-toggle.tsx`: the docs show only the Radix version |
-| `sidebar-07` block demo files (`team-switcher`, `nav-*`) | built after in `base/navigation/` (the same in every app; each app fills `app/use-navigation.ts`); blocks are starting points, not updated |
+| `sidebar-07` block demo files (`team-switcher`, `nav-*`) | built after in `base/layout/` (the same in every app; each app fills `app/use-navigation.ts`); blocks are starting points, not updated |
 
 When adding a registry component: install it with the CLI (`npx shadcn@latest add <name>` or
 `@magicui/<name>`) **and** add it to `ui-components.json`. Only these two registries are used (both MIT);
@@ -115,6 +115,7 @@ Rule of thumb: **one folder per topic**. In the backend every package under `int
 file name prefixes group the files of a package (`servers_*.go`, `files_*.go`, `gameserver_*.go`).
 In the frontend every feature has its own folder with its pages (`*-page.tsx`) and the components,
 hooks and helpers only it uses; shared pieces live in `components/` and `lib/`, the pieces of every app in `base/`.
+A feature folder stays flat up to 10 files; above that it splits into `components/`, `hooks/` and `lib/`.
 
 ```
 backend/
@@ -152,7 +153,7 @@ backend/
     gameserver/           Kubernetes objects of a server (pods, PVC, service, placement, resources), validation, pre-start steps
     serverctl/            power actions, console commands, reinstall, suspend, transfer, migrate (shared by API and schedules)
     schedule/             cron schedules of servers
-    eggstore/             storing eggs (create, import, update from URL, delete)
+    eggstore/             storing eggs (create, import, update from URL, delete), egg library (eggs of git repositories)
     console/              output hub (history, subscribers), log following, "done" detection
     files/                file manager via exec in the files pod, activity tracker, background jobs, backups, URL downloads
     clusterinfo/          cluster page: nodes, hardware probes, identity, permission checks
@@ -171,8 +172,8 @@ frontend/
       components/         callout, confirm dialog, copy button, status icons, usage bar, metric tile, code editor,
                           glow card (Magic UI), file drop zone, query state (loading/error/empty), brand mark, ...
       layout/             app layout (a route handle `wide: true` gives a page the whole width), header with
-                          breadcrumbs, footer with request rates, page header, error pages
-      navigation/         sidebar, its header (short diagnosis), search (⌘K), user menu
+                          breadcrumbs, footer with request rates, page header, error pages, sidebar (nav-*: its
+                          header with the short diagnosis, search (⌘K), user menu)
       hooks/              use-auth, use-draft (form state), use-throttle, use-retained, use-branding-head ...
       lib/                api.ts (request, ApiError, the base calls) · queries/ (auth, users, settings, keys,
                           mutation) · types.ts (base API types) · format, notify, validation, legal
@@ -186,14 +187,14 @@ frontend/
                             · components (server form, power, console, stats, resources, ports, placement, file-* for
                               the file manager, …) · hooks · egg-features (eula, java_version, …) · lib
       eggs/               list, detail, edit (tabs) and new (wizard) pages; components/editor = shared form sections
-      cluster/            cluster page plus its components
+      cluster/            cluster page, node cards, summary
       account/ settings/  the app's cards on the base pages (subusers; notice, address, pools, egg libraries, ...)
     components/
       ui/                 library components (shadcn, Magic UI), never edit
       common/             pieces only this app has: egg icon, server status badge, access select, effects
     lib/                  api.ts (the app's calls on top of baseApi), queries/ (the app's query and mutation hooks,
-                          one file per area), types/ (api.gen.ts generated from the Go structs by make docs; one file
-                          per area on top), format (servers, pools, phases)
+                          one file per area), api.gen.ts (generated from the Go structs by make docs), types.ts
+                          (names and refinements on top), format (servers, pools, phases)
     hooks/                use-mobile (library)
 scripts/uninstall.sh      cluster cleanup
 charts/kubedactyl/        Helm chart (published as OCI artifact); Dockerfile and VERSION in the root

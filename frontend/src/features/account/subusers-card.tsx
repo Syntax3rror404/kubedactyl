@@ -6,14 +6,9 @@ import { toast } from "sonner"
 import { ConfirmDialog } from "@/base/components/confirm-dialog"
 import { EmptyState, QueryState } from "@/base/components/query-state"
 import { UserAvatar } from "@/base/components/user-avatar"
-import {
-  InviteActions,
-  InviteIcon,
-  InviteState,
-  PasswordResetAction,
-} from "@/base/features/users/components/invite-actions"
-import { InviteDialog, type InviteExtra } from "@/base/features/users/components/invite-dialog"
-import { inviteLabel, splitInvites } from "@/base/features/users/lib/table"
+import { InviteActions, InviteIcon, InviteState, PasswordResetAction } from "@/base/features/users/invite-actions"
+import { InviteDialog, type InviteExtra } from "@/base/features/users/invite-dialog"
+import { inviteLabel, splitInvites } from "@/base/features/users/table"
 import { useAuth } from "@/base/hooks/use-auth"
 import { formatRelativeTime, plural, userName } from "@/base/lib/format"
 import { failed, useDeleteUser, useInvites, useSettings, useUsers } from "@/base/lib/queries"

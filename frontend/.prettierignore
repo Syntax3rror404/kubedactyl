@@ -5,4 +5,4 @@ node_modules/
 dist/
 package-lock.json
 # Generated from backend/docs/swagger.json (make docs)
-src/lib/types/api.gen.ts
+src/lib/api.gen.ts

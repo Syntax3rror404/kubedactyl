@@ -40,7 +40,7 @@ generate:
 		go tool controller-gen crd paths=./api/... output:crd:dir=./config/crd
 
 # Swagger docs from the handler comments (backend/docs) and the frontend API types generated from them
-# (frontend/src/lib/types/api.gen.ts). --requiredByDefault: fields without omitempty are always sent.
+# (frontend/src/lib/api.gen.ts). --requiredByDefault: fields without omitempty are always sent.
 docs:
 	cd backend && go tool swag fmt && \
 		go tool swag init -g main.go -o docs --outputTypes go,json,yaml --parseInternal --parseDependency --parseDependencyLevel 1 --requiredByDefault --templateDelims "[[,]]" --quiet

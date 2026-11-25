@@ -1,5 +1,5 @@
 // Shapes of the base API (backend/base/api): sign-in, setup, the own account, users, invites, the panel settings and
-// upgrades. Generated into the app's lib/types/api.gen.ts with the app's parts flattened in (backend/app/views.go).
+// upgrades. Generated into the app's lib/api.gen.ts with the app's parts flattened in (backend/app/views.go).
 
 export type {
   ApiAcceptInviteRequest as AcceptInviteRequest,
@@ -27,4 +27,4 @@ export type {
   KubeRate as Rate,
   SelfupgradeJob as UpgradeJob,
   V1Alpha1UserRole as Role,
-} from "@/lib/types/api.gen"
+} from "@/lib/api.gen"

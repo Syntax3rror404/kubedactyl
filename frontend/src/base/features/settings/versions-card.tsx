@@ -2,7 +2,7 @@ import { PackageIcon } from "lucide-react"
 
 import { DetailList } from "@/base/components/detail-list"
 import { QueryState } from "@/base/components/query-state"
-import { SettingsCard } from "@/base/features/settings/components/settings-card"
+import { SettingsCard } from "@/base/features/settings/settings-card"
 import { useVersions } from "@/base/lib/queries"
 import { Skeleton } from "@/components/ui/skeleton"
 

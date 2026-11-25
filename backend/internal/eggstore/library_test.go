@@ -1,4 +1,4 @@
-package egglibrary
+package eggstore
 
 import (
 	"archive/tar"
@@ -74,7 +74,7 @@ func testLibrary(t *testing.T) (*Library, string, *atomic.Int32) {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	return New(), srv.URL, &downloads
+	return NewLibrary(), srv.URL, &downloads
 }
 
 func TestHostURLs(t *testing.T) {
@@ -139,7 +139,7 @@ func TestGet(t *testing.T) {
 		{repos[0], "README.md"},
 		{base + "/other/eggs", "minecraft/paper/egg-paper.yaml"}, // not configured
 	} {
-		if _, _, err := l.Get(ctx, repos, c.repo, c.path); !errors.Is(err, ErrNotFound) {
+		if _, _, err := l.Get(ctx, repos, c.repo, c.path); !errors.Is(err, ErrNotInLibrary) {
 			t.Errorf("%s %s: want ErrNotFound, got %v", c.repo, c.path, err)
 		}
 	}

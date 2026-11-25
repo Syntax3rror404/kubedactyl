@@ -13,7 +13,7 @@ import {
 
 import { BrandMark } from "@/base/components/brand-mark"
 import { readOpen, saveOpen } from "@/base/lib/open-state"
-import { NavCornerMark } from "@/base/navigation/nav-badge"
+import { NavCornerMark } from "@/base/layout/nav-badge"
 import { type NavCheck, type NavConfig, type NavTone } from "@/base/types"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"

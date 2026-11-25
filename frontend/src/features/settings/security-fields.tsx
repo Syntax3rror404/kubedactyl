@@ -1,5 +1,5 @@
-import { NumberField, SwitchField } from "@/base/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { NumberField, SwitchField } from "@/base/features/settings/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { FieldLegend, FieldSet } from "@/components/ui/field"
 
 /** Network isolation of user namespaces (NetworkPolicy kubedactyl-isolation). */

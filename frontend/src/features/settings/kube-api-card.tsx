@@ -1,7 +1,7 @@
 import { GaugeIcon } from "lucide-react"
 
-import { SettingsCard, SettingsField } from "@/base/features/settings/components/settings-card"
-import type { SettingsCardProps } from "@/base/features/settings/lib/settings-draft"
+import { SettingsCard, SettingsField } from "@/base/features/settings/settings-card"
+import type { SettingsCardProps } from "@/base/features/settings/settings-draft"
 import { FieldGroup } from "@/components/ui/field"
 import { Slider } from "@/components/ui/slider"
 

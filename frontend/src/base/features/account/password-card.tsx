@@ -4,7 +4,7 @@ import { KeyRoundIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { PasswordField } from "@/base/components/unveil-password"
-import { NewPasswordFields } from "@/base/features/auth/components/new-password-fields"
+import { NewPasswordFields } from "@/base/features/auth/new-password-fields"
 import { useDraft } from "@/base/hooks/use-draft"
 import { failed, useUpdatePassword } from "@/base/lib/queries"
 import { fieldErrors, newPasswordReady } from "@/base/lib/validation"

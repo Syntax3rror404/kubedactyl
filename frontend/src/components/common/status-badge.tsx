@@ -1,6 +1,6 @@
 import { LockIcon, Trash2Icon } from "lucide-react"
 
-import { NavDot } from "@/base/navigation/nav-badge"
+import { NavDot } from "@/base/layout/nav-badge"
 import type { NavTone } from "@/base/types"
 import { Badge } from "@/components/ui/badge"
 import { phaseStatus } from "@/lib/format"

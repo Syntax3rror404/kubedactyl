@@ -2,13 +2,13 @@
 // around the base's (branding, legal texts, security, single sign-on, upgrades, versions).
 
 import type { PanelSettings, UpdateSettingsRequest } from "@/base/lib/types"
-import { AddressCard } from "@/features/settings/components/address-card"
-import { EggLibrariesCard } from "@/features/settings/components/egg-libraries-card"
-import { KubeApiCard } from "@/features/settings/components/kube-api-card"
-import { NoticeCard } from "@/features/settings/components/notice-card"
-import { PoolsCard } from "@/features/settings/components/pools-card"
-import { IsolationField, SubusersField } from "@/features/settings/components/security-fields"
-import { StorageClassesCard } from "@/features/settings/components/storage-classes-card"
+import { AddressCard } from "@/features/settings/address-card"
+import { EggLibrariesCard } from "@/features/settings/egg-libraries-card"
+import { KubeApiCard } from "@/features/settings/kube-api-card"
+import { NoticeCard } from "@/features/settings/notice-card"
+import { PoolsCard } from "@/features/settings/pools-card"
+import { IsolationField, SubusersField } from "@/features/settings/security-fields"
+import { StorageClassesCard } from "@/features/settings/storage-classes-card"
 
 /** Form values of this app's settings, with every default filled in (see settingsDraft of the base). */
 export function appSettingsDraft(s: PanelSettings) {

@@ -903,7 +903,7 @@ export interface ClusterinfoUsage {
   memoryBytes: number;
 }
 
-export interface EgglibraryEgg {
+export interface EggstoreLibraryEgg {
   author: string;
   description: string;
   format: string;
@@ -919,8 +919,8 @@ export interface EgglibraryEgg {
   uuid: string;
 }
 
-export interface EgglibraryRepository {
-  eggs: EgglibraryEgg[];
+export interface EggstoreLibraryRepository {
+  eggs: EggstoreLibraryEgg[];
   /** Error tells why the repository could not be read (its eggs are then missing). */
   error?: string;
   fetchedAt: string;
@@ -1133,12 +1133,12 @@ export interface HttpapiJobList {
 }
 
 export interface HttpapiLibraryEgg {
-  egg: EgglibraryEgg;
+  egg: EggstoreLibraryEgg;
   spec: V1Alpha1EggSpec;
 }
 
 export interface HttpapiLibraryList {
-  repositories: EgglibraryRepository[];
+  repositories: EggstoreLibraryRepository[];
 }
 
 export interface HttpapiLibraryRepositoryCheck {

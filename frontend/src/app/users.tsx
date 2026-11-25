@@ -2,10 +2,10 @@
 // columns of the user tables (namespace, servers) with the subusers in a table of their own, what deleting and
 // creating an account means here, and the subusers card of the account page.
 
-import { roleColumn, type UserColumn, type UserTableSpec } from "@/base/features/users/lib/table"
+import { roleColumn, type UserColumn, type UserTableSpec } from "@/base/features/users/table"
 import { plural } from "@/base/lib/format"
 import type { InviteView, UserView } from "@/base/lib/types"
-import { SubusersCard } from "@/features/account/components/subusers-card"
+import { SubusersCard } from "@/features/account/subusers-card"
 
 const namespaceColumn: UserColumn = {
   head: "K8s Namespace",

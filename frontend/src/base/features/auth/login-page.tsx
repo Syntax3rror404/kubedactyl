@@ -4,7 +4,7 @@ import { KeyRoundIcon, LogInIcon } from "lucide-react"
 
 import { PasswordField } from "@/base/components/unveil-password"
 import { VerifyMark, VERIFY_FAIL_MS, VERIFY_OK_MS, type VerifyState } from "@/base/components/verify-mark"
-import { AuthShell } from "@/base/features/auth/components/auth-shell"
+import { AuthShell } from "@/base/features/auth/auth-shell"
 import { useDraft } from "@/base/hooks/use-draft"
 import { baseUrls } from "@/base/lib/api"
 import { useLogin, useMe, useOIDCSignIn, useSetupStatus } from "@/base/lib/queries"

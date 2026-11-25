@@ -2,13 +2,8 @@ import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 import { UserAvatar } from "@/base/components/user-avatar"
-import {
-  InviteActions,
-  InviteIcon,
-  InviteState,
-  PasswordResetAction,
-} from "@/base/features/users/components/invite-actions"
-import { inviteLabel, splitInvites, type UserColumn } from "@/base/features/users/lib/table"
+import { InviteActions, InviteIcon, InviteState, PasswordResetAction } from "@/base/features/users/invite-actions"
+import { inviteLabel, splitInvites, type UserColumn } from "@/base/features/users/table"
 import { useAuth } from "@/base/hooks/use-auth"
 import { formatRelativeTime, userName } from "@/base/lib/format"
 import { failed, useUpdateUser } from "@/base/lib/queries"

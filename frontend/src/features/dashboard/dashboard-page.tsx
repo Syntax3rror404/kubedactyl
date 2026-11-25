@@ -18,13 +18,8 @@ import { PageHeader } from "@/base/layout/page-header"
 import { userName } from "@/base/lib/format"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { ServerCard } from "@/features/dashboard/components/server-card"
-import {
-  filterServers,
-  isActive,
-  type ServerFilterState,
-  type StatusFilter,
-} from "@/features/dashboard/lib/server-filter"
+import { ServerCard } from "@/features/dashboard/server-card"
+import { filterServers, isActive, type ServerFilterState, type StatusFilter } from "@/features/dashboard/server-filter"
 import { formatMiB } from "@/lib/format"
 import { useClusterInfo, useEggs, useServers } from "@/lib/queries"
 import { cn } from "@/lib/utils"

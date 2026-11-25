@@ -24,7 +24,7 @@ export type { ChecksStatus as CheckStatus, V1Alpha1Phase as Phase } from "@/lib/
 type ObjectMeta = V1ObjectMeta & Required<Pick<V1ObjectMeta, "name" | "namespace" | "uid" | "creationTimestamp">>
 
 /** A cluster object as the panel returns it: with complete metadata. */
-export type Stored<T extends { metadata?: V1ObjectMeta }> = Omit<T, "metadata"> & { metadata: ObjectMeta }
+type Stored<T extends { metadata?: V1ObjectMeta }> = Omit<T, "metadata"> & { metadata: ObjectMeta }
 
 export type PowerSignal = HttpapiPowerRequest["signal"]
 

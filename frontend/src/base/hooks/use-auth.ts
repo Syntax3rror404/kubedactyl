@@ -7,7 +7,7 @@ export interface AuthState {
   isAdmin: boolean
 }
 
-/** Provided by RequireAuth (features/auth/components/require-auth.tsx); read it with useAuth(). */
+/** Provided by RequireAuth (features/auth/require-auth.tsx); read it with useAuth(). */
 export const AuthContext = createContext<AuthState | null>(null)
 
 /** The signed-in user; only available below <RequireAuth>. */
